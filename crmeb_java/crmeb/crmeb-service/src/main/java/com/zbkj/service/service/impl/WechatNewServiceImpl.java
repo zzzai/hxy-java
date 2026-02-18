@@ -875,22 +875,125 @@ public class WechatNewServiceImpl implements WechatNewService {
 
     private MyRecord convertV3RefundQueryResponseToRecord(JSONObject responseJson) {
         MyRecord record = new MyRecord();
-        JSONObject amount = responseJson.getJSONObject("amount");
-        Integer refund = ObjectUtil.isNull(amount) ? null : amount.getInteger("refund");
-        Integer total = ObjectUtil.isNull(amount) ? null : amount.getInteger("total");
-        JSONObject from = ObjectUtil.isNull(amount) ? null : amount.getJSONObject("from");
-        Integer payerRefund = ObjectUtil.isNull(from) ? null : from.getInteger("payer_refund");
-        record.set("out_refund_no", responseJson.getString("out_refund_no"));
-        record.set("out_trade_no", responseJson.getString("out_trade_no"));
-        record.set("transaction_id", responseJson.getString("transaction_id"));
-        record.set("refund_id", responseJson.getString("refund_id"));
-        record.set("refund_status_0", StrUtil.blankToDefault(responseJson.getString("status"), ""));
+        JSONObject firstRefund = firstRefundNode(responseJson);
+        if (ObjectUtil.isNotNull(firstRefund) && firstRefund.size() == 1 && firstRefund.containsKey("$ref")) {
+            firstRefund = unwrapJSONObject(responseJson.get("amount"));
+        }
+        JSONObject amount = normalizeAmountNode(responseJson.get("amount"));
+        if (ObjectUtil.isNull(amount) && ObjectUtil.isNotNull(firstRefund)) {
+            amount = normalizeAmountNode(firstRefund.get("amount"));
+        }
+        JSONObject firstRefundAmount = ObjectUtil.isNull(firstRefund) ? null : normalizeAmountNode(firstRefund.get("amount"));
+        Integer refund = firstNonNullInt(
+                ObjectUtil.isNull(amount) ? null : amount.getInteger("refund"),
+                firstNonNullInt(
+                        ObjectUtil.isNull(firstRefundAmount) ? null : firstRefundAmount.getInteger("refund"),
+                        ObjectUtil.isNull(firstRefund) ? null : firstRefund.getInteger("refund")));
+        Integer total = firstNonNullInt(
+                ObjectUtil.isNull(amount) ? null : amount.getInteger("total"),
+                firstNonNullInt(
+                        ObjectUtil.isNull(firstRefundAmount) ? null : firstRefundAmount.getInteger("total"),
+                        ObjectUtil.isNull(firstRefund) ? null : firstRefund.getInteger("total")));
+        JSONObject from = ObjectUtil.isNull(amount) ? null : unwrapJSONObject(amount.get("from"));
+        JSONObject firstRefundFrom = ObjectUtil.isNull(firstRefundAmount) ? null : unwrapJSONObject(firstRefundAmount.get("from"));
+        Integer payerRefund = firstNonNullInt(
+                ObjectUtil.isNull(from) ? null : from.getInteger("payer_refund"),
+                firstNonNullInt(
+                        ObjectUtil.isNull(firstRefundAmount) ? null : firstRefundAmount.getInteger("payer_refund"),
+                        firstNonNullInt(
+                                ObjectUtil.isNull(firstRefundFrom) ? null : firstRefundFrom.getInteger("payer_refund"),
+                                ObjectUtil.isNull(firstRefund) ? null : firstRefund.getInteger("payer_refund"))));
+
+        String outRefundNo = firstNonBlank(responseJson.getString("out_refund_no"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstRefund.getString("out_refund_no"));
+        String outTradeNo = firstNonBlank(responseJson.getString("out_trade_no"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstRefund.getString("out_trade_no"));
+        String transactionId = firstNonBlank(responseJson.getString("transaction_id"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstRefund.getString("transaction_id"));
+        String refundId = firstNonBlank(responseJson.getString("refund_id"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstRefund.getString("refund_id"));
+        String refundStatus = firstNonBlank(responseJson.getString("status"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstNonBlank(firstRefund.getString("refund_status"), firstRefund.getString("status")));
+        String refundSuccessTime = firstNonBlank(responseJson.getString("success_time"),
+                ObjectUtil.isNull(firstRefund) ? "" : firstRefund.getString("success_time"));
+
+        record.set("out_refund_no", outRefundNo);
+        record.set("out_trade_no", outTradeNo);
+        record.set("transaction_id", transactionId);
+        record.set("refund_id", refundId);
+        record.set("refund_status_0", StrUtil.blankToDefault(refundStatus, ""));
         record.set("refund_fee_0", ObjectUtil.isNull(refund) ? 0 : refund);
         record.set("settlement_refund_fee_0", ObjectUtil.isNull(refund) ? 0 : refund);
         record.set("total_fee", ObjectUtil.isNull(total) ? 0 : total);
         record.set("cash_refund_fee_0", ObjectUtil.isNull(payerRefund) ? 0 : payerRefund);
-        record.set("refund_success_time_0", responseJson.getString("success_time"));
+        record.set("refund_success_time_0", refundSuccessTime);
         return record;
+    }
+
+    private JSONObject normalizeAmountNode(Object data) {
+        JSONObject node = unwrapJSONObject(data);
+        if (ObjectUtil.isNull(node)) {
+            return null;
+        }
+        if (node.containsKey("refund") || node.containsKey("total") || node.containsKey("payer_refund")) {
+            return node;
+        }
+        JSONObject nested = unwrapJSONObject(node.get("amount"));
+        if (ObjectUtil.isNotNull(nested) && (nested.containsKey("refund") || nested.containsKey("total") || nested.containsKey("payer_refund"))) {
+            return nested;
+        }
+        return node;
+    }
+
+    private JSONObject firstRefundNode(JSONObject responseJson) {
+        JSONArray refunds = unwrapJSONArray(responseJson.get("refunds"));
+        if (ObjectUtil.isNull(refunds) || refunds.isEmpty()) {
+            return null;
+        }
+        return unwrapJSONObject(refunds.get(0));
+    }
+
+    private JSONObject unwrapJSONObject(Object data) {
+        if (ObjectUtil.isNull(data)) {
+            return null;
+        }
+        if (data instanceof JSONObject) {
+            return (JSONObject) data;
+        }
+        if (data instanceof JSONArray) {
+            JSONArray arr = (JSONArray) data;
+            if (arr.isEmpty()) {
+                return null;
+            }
+            Object first = arr.get(0);
+            if (first instanceof JSONObject) {
+                return (JSONObject) first;
+            }
+        }
+        return null;
+    }
+
+    private JSONArray unwrapJSONArray(Object data) {
+        if (ObjectUtil.isNull(data)) {
+            return null;
+        }
+        if (data instanceof JSONArray) {
+            return (JSONArray) data;
+        }
+        if (data instanceof JSONObject) {
+            JSONArray arr = new JSONArray();
+            arr.add(data);
+            return arr;
+        }
+        return null;
+    }
+
+    private Integer firstNonNullInt(Integer primary, Integer fallback) {
+        return ObjectUtil.isNotNull(primary) ? primary : fallback;
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return StrUtil.isNotBlank(primary) ? primary : StrUtil.blankToDefault(fallback, "");
     }
 
     /**
