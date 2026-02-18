@@ -4,10 +4,12 @@ import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.*;
 import com.zbkj.common.response.*;
 import com.zbkj.common.result.CommonResult;
+import com.zbkj.common.utils.SecurityUtil;
 import com.zbkj.common.vo.ExpressSheetVo;
 import com.zbkj.common.vo.LogisticsResultVo;
 import com.zbkj.service.service.StoreOrderService;
 import com.zbkj.service.service.StoreOrderVerification;
+import com.zbkj.service.service.impl.payment.RefundExecutionAccessService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
@@ -44,6 +46,9 @@ public class StoreOrderController {
 
     @Autowired
     private StoreOrderVerification storeOrderVerification;
+
+    @Autowired
+    private RefundExecutionAccessService refundExecutionAccessService;
 
     /**
      * 分页显示订单表
@@ -163,6 +168,7 @@ public class StoreOrderController {
     @ApiOperation(value = "退款")
     @RequestMapping(value = "/refund", method = RequestMethod.GET)
     public CommonResult<Boolean> refund(@Validated StoreOrderRefundRequest request) {
+        refundExecutionAccessService.assertManualRefundAllowed(SecurityUtil.getLoginUserVo().getUser());
         return CommonResult.success(storeOrderService.refund(request));
     }
 
@@ -173,6 +179,7 @@ public class StoreOrderController {
     @ApiOperation(value = "拒绝退款")
     @RequestMapping(value = "/refund/refuse", method = RequestMethod.GET)
     public CommonResult<Object> refundRefuse(@RequestParam String orderNo, @RequestParam String reason) {
+        refundExecutionAccessService.assertManualRefundAllowed(SecurityUtil.getLoginUserVo().getUser());
         if (storeOrderService.refundRefuse(orderNo, reason)) {
             return CommonResult.success();
         }
@@ -283,5 +290,4 @@ public class StoreOrderController {
     }
 
 }
-
 

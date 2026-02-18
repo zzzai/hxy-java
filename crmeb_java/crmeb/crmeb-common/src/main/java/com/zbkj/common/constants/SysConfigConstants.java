@@ -86,6 +86,12 @@ public class SysConfigConstants {
     public static final String CONFIG_PAY_REFUND_AUTO_MAX_AMOUNT = "payment_refund_auto_max_amount";
     /** 命中后转人工复核的风险关键词(逗号分隔) */
     public static final String CONFIG_PAY_REFUND_MANUAL_KEYWORDS = "payment_refund_manual_keywords";
+    /** 手工退款执行是否仅允许总部账号(1开启,0关闭) */
+    public static final String CONFIG_PAY_REFUND_HQ_ONLY_ENABLE = "payment_refund_hq_only_enable";
+    /** 总部退款执行账号白名单(管理员ID,逗号分隔) */
+    public static final String CONFIG_PAY_REFUND_HQ_ADMIN_IDS = "payment_refund_hq_admin_ids";
+    /** 总部退款执行角色白名单(角色ID,逗号分隔) */
+    public static final String CONFIG_PAY_REFUND_HQ_ROLE_IDS = "payment_refund_hq_role_ids";
 
     /** 版权-授权标签 */
     public static final String CONFIG_COPYRIGHT_LABEL = "copyright_label";
