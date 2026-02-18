@@ -39,6 +39,7 @@ import com.zbkj.common.vo.*;
 import com.zbkj.service.dao.StoreOrderDao;
 import com.zbkj.service.delete.OrderUtils;
 import com.zbkj.service.service.*;
+import com.zbkj.service.util.DistributedLockUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +138,9 @@ public class StoreOrderServiceImpl extends ServiceImpl<StoreOrderDao, StoreOrder
 
     @Autowired
     private SmsTemplateService smsTemplateService;
+
+    @Autowired
+    private DistributedLockUtil distributedLockUtil;
 
 
 //    @Autowired
@@ -544,6 +548,15 @@ public class StoreOrderServiceImpl extends ServiceImpl<StoreOrderDao, StoreOrder
      */
     @Override
     public boolean refund(StoreOrderRefundRequest request) {
+        String orderNo = StrUtil.trimToEmpty(request.getOrderNo());
+        if (StrUtil.isBlank(orderNo)) {
+            throw new CrmebException("订单编号不能为空");
+        }
+        String lockKey = "pay:refund:lock:" + orderNo;
+        return distributedLockUtil.executeWithLock(lockKey, 20, () -> doRefund(request));
+    }
+
+    private boolean doRefund(StoreOrderRefundRequest request) {
         StoreOrder storeOrder = getInfoException(request.getOrderNo());
         if (!storeOrder.getPaid()) {
             throw new CrmebException("未支付无法退款");
