@@ -84,18 +84,48 @@ public class PaymentConfigStartupChecker implements CommandLineRunner {
     }
 
     private boolean shouldCheckRoutine() {
-        return isAnyConfigured("pay_routine_sp_mchid", "pay_routine_sp_key", "pay_routine_sub_mchid")
-                || isAllConfigured("pay_routine_appid", "pay_routine_mchid", "pay_routine_key");
+        return isAnyConfigured(
+                "pay_routine_sp_mchid",
+                "pay_routine_sp_key",
+                "pay_routine_sub_mchid",
+                "pay_routine_sp_apiv3_key",
+                "pay_routine_sp_serial_no",
+                "pay_routine_sp_private_key_path",
+                "pay_routine_sp_platform_cert_path")
+                || isAllConfigured("pay_routine_appid", "pay_routine_mchid", "pay_routine_key")
+                || isAllConfigured("pay_routine_appid", "pay_routine_mchid",
+                "pay_routine_apiv3_key", "pay_routine_serial_no",
+                "pay_routine_private_key_path", "pay_routine_platform_cert_path");
     }
 
     private boolean shouldCheckPublicAndH5() {
-        return isAnyConfigured("pay_weixin_sp_mchid", "pay_weixin_sp_key", "pay_weixin_sub_mchid")
-                || isAllConfigured("pay_weixin_appid", "pay_weixin_mchid", "pay_weixin_key");
+        return isAnyConfigured(
+                "pay_weixin_sp_mchid",
+                "pay_weixin_sp_key",
+                "pay_weixin_sub_mchid",
+                "pay_weixin_sp_apiv3_key",
+                "pay_weixin_sp_serial_no",
+                "pay_weixin_sp_private_key_path",
+                "pay_weixin_sp_platform_cert_path")
+                || isAllConfigured("pay_weixin_appid", "pay_weixin_mchid", "pay_weixin_key")
+                || isAllConfigured("pay_weixin_appid", "pay_weixin_mchid",
+                "pay_weixin_apiv3_key", "pay_weixin_serial_no",
+                "pay_weixin_private_key_path", "pay_weixin_platform_cert_path");
     }
 
     private boolean shouldCheckApp() {
-        return isAnyConfigured("pay_weixin_app_sp_mchid", "pay_weixin_app_sp_key", "pay_weixin_app_sub_mchid")
-                || isAllConfigured("pay_weixin_app_appid", "pay_weixin_app_mchid", "pay_weixin_app_key");
+        return isAnyConfigured(
+                "pay_weixin_app_sp_mchid",
+                "pay_weixin_app_sp_key",
+                "pay_weixin_app_sub_mchid",
+                "pay_weixin_app_sp_apiv3_key",
+                "pay_weixin_app_sp_serial_no",
+                "pay_weixin_app_sp_private_key_path",
+                "pay_weixin_app_sp_platform_cert_path")
+                || isAllConfigured("pay_weixin_app_appid", "pay_weixin_app_mchid", "pay_weixin_app_key")
+                || isAllConfigured("pay_weixin_app_appid", "pay_weixin_app_mchid",
+                "pay_weixin_app_apiv3_key", "pay_weixin_app_serial_no",
+                "pay_weixin_app_private_key_path", "pay_weixin_app_platform_cert_path");
     }
 
     private boolean isAnyConfigured(String... keys) {

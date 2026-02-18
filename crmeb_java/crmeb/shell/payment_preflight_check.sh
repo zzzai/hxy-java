@@ -152,8 +152,13 @@ SELECT name, IFNULL(value,'')
 FROM eb_system_config
 WHERE name IN (
   'pay_weixin_open','api_url',
+  'pay_routine_api_version',
   'pay_routine_appid','pay_routine_mchid','pay_routine_key',
   'pay_routine_sp_appid','pay_routine_sp_mchid','pay_routine_sp_key',
+  'pay_routine_sp_apiv3_key','pay_routine_sp_serial_no',
+  'pay_routine_sp_private_key_path','pay_routine_sp_platform_cert_path',
+  'pay_routine_apiv3_key','pay_routine_serial_no',
+  'pay_routine_private_key_path','pay_routine_platform_cert_path',
   'pay_routine_sub_mchid','pay_routine_sub_appid',
   'pay_routine_sp_certificate_path',
   'payment_refund_hq_only_enable',
@@ -225,9 +230,18 @@ fi
 routine_appid="$(get_cfg_value "pay_routine_appid")"
 routine_mchid="$(get_cfg_value "pay_routine_mchid")"
 routine_key="$(get_cfg_value "pay_routine_key")"
+routine_api_version="$(normalize_switch "$(get_cfg_value "pay_routine_api_version")")"
+routine_apiv3_key="$(get_cfg_value "pay_routine_apiv3_key")"
+routine_serial_no="$(get_cfg_value "pay_routine_serial_no")"
+routine_private_key_path="$(get_cfg_value "pay_routine_private_key_path")"
+routine_platform_cert_path="$(get_cfg_value "pay_routine_platform_cert_path")"
 sp_appid="$(get_cfg_value "pay_routine_sp_appid")"
 sp_mchid="$(get_cfg_value "pay_routine_sp_mchid")"
 sp_key="$(get_cfg_value "pay_routine_sp_key")"
+sp_apiv3_key="$(get_cfg_value "pay_routine_sp_apiv3_key")"
+sp_serial_no="$(get_cfg_value "pay_routine_sp_serial_no")"
+sp_private_key_path="$(get_cfg_value "pay_routine_sp_private_key_path")"
+sp_platform_cert_path="$(get_cfg_value "pay_routine_sp_platform_cert_path")"
 sub_mchid="$(get_cfg_value "pay_routine_sub_mchid")"
 sub_appid="$(get_cfg_value "pay_routine_sub_appid")"
 sp_cert_path="$(get_cfg_value "pay_routine_sp_certificate_path")"
@@ -235,17 +249,50 @@ refund_hq_only_enable="$(normalize_switch "$(get_cfg_value "payment_refund_hq_on
 refund_hq_admin_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_admin_ids")")"
 refund_hq_role_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_role_ids")")"
 
+routine_api_version="${routine_api_version:-v2}"
+routine_api_version_lc="$(printf '%s' "${routine_api_version}" | tr '[:upper:]' '[:lower:]')"
+
+provider_mode=0
+provider_mode_detail=""
 if [[ -n "${sp_mchid}" && -n "${sp_key}" ]]; then
-  add_result "PASS" "支付模式" "服务商模式（pay_routine_sp_mchid 已配置）"
+  provider_mode=1
+  provider_mode_detail="v2"
+fi
+if [[ -n "${sp_mchid}" && -n "${sp_apiv3_key}" && -n "${sp_serial_no}" && -n "${sp_private_key_path}" && -n "${sp_platform_cert_path}" ]]; then
+  provider_mode=1
+  if [[ -n "${provider_mode_detail}" ]]; then
+    provider_mode_detail="${provider_mode_detail}+v3"
+  else
+    provider_mode_detail="v3"
+  fi
+fi
+
+direct_mode=0
+direct_mode_detail=""
+if [[ -n "${routine_appid}" && -n "${routine_mchid}" && -n "${routine_key}" ]]; then
+  direct_mode=1
+  direct_mode_detail="v2"
+fi
+if [[ -n "${routine_appid}" && -n "${routine_mchid}" && -n "${routine_apiv3_key}" && -n "${routine_serial_no}" && -n "${routine_private_key_path}" && -n "${routine_platform_cert_path}" ]]; then
+  direct_mode=1
+  if [[ -n "${direct_mode_detail}" ]]; then
+    direct_mode_detail="${direct_mode_detail}+v3"
+  else
+    direct_mode_detail="v3"
+  fi
+fi
+
+if [[ "${provider_mode}" == "1" ]]; then
+  add_result "PASS" "支付模式" "服务商模式（${provider_mode_detail:-unknown}）"
 else
-  if [[ -n "${routine_appid}" && -n "${routine_mchid}" && -n "${routine_key}" ]]; then
-    add_result "WARN" "支付模式" "当前为直连模式（未配置服务商号）"
+  if [[ "${direct_mode}" == "1" ]]; then
+    add_result "WARN" "支付模式" "当前为直连模式（${direct_mode_detail:-unknown}，未配置服务商号）"
   else
     add_result "FAIL" "支付模式" "服务商与直连配置均不完整"
   fi
 fi
 
-if [[ -n "${sp_mchid}" && -n "${sp_key}" ]]; then
+if [[ "${provider_mode}" == "1" ]]; then
   store_map_count="$("${MYSQL_CMD[@]}" -e "SELECT COUNT(1) FROM eb_system_config WHERE name LIKE 'pay_routine_sub_mchid_%' AND IFNULL(value,'') <> '';" 2>/dev/null || echo "0")"
   if [[ -n "${sub_mchid}" || "${store_map_count}" =~ ^[1-9][0-9]*$ ]]; then
     add_result "PASS" "子商户配置" "默认子商户或门店映射已配置（store_map_count=${store_map_count:-0}）"
@@ -254,8 +301,10 @@ if [[ -n "${sp_mchid}" && -n "${sp_key}" ]]; then
   fi
   if [[ -n "${sub_appid}" || -n "${sp_appid}" ]]; then
     add_result "PASS" "子商户AppID" "sub_appid/sp_appid 已配置"
+  elif [[ -n "${routine_appid}" ]]; then
+    add_result "PASS" "子商户AppID" "sub_appid/sp_appid 未单独配置，将回退使用 pay_routine_appid"
   else
-    add_result "WARN" "子商户AppID" "sub_appid/sp_appid 均为空，可能影响特定场景"
+    add_result "WARN" "子商户AppID" "sub_appid/sp_appid 与 pay_routine_appid 均为空，可能影响特定场景"
   fi
 
 fi
@@ -319,14 +368,58 @@ else
 fi
 
 # 6) 证书路径（退款相关）
-if [[ -n "${sp_cert_path}" ]]; then
-  if [[ -f "${sp_cert_path}" ]]; then
-    add_result "PASS" "退款证书" "证书文件存在: ${sp_cert_path}"
+if [[ "${routine_api_version_lc}" == "v3" ]]; then
+  if [[ "${provider_mode}" == "1" ]]; then
+    if [[ -n "${sp_private_key_path}" ]]; then
+      if [[ -f "${sp_private_key_path}" ]]; then
+        add_result "PASS" "服务商私钥路径" "文件存在: ${sp_private_key_path}"
+      else
+        add_result "FAIL" "服务商私钥路径" "文件不存在: ${sp_private_key_path}"
+      fi
+    else
+      add_result "FAIL" "服务商私钥路径" "pay_routine_sp_private_key_path 未配置"
+    fi
+    if [[ -n "${sp_platform_cert_path}" ]]; then
+      if [[ -f "${sp_platform_cert_path}" ]]; then
+        add_result "PASS" "服务商平台证书路径" "文件存在: ${sp_platform_cert_path}"
+      else
+        add_result "FAIL" "服务商平台证书路径" "文件不存在: ${sp_platform_cert_path}"
+      fi
+    else
+      add_result "FAIL" "服务商平台证书路径" "pay_routine_sp_platform_cert_path 未配置"
+    fi
+  elif [[ "${direct_mode}" == "1" ]]; then
+    if [[ -n "${routine_private_key_path}" ]]; then
+      if [[ -f "${routine_private_key_path}" ]]; then
+        add_result "PASS" "直连私钥路径" "文件存在: ${routine_private_key_path}"
+      else
+        add_result "FAIL" "直连私钥路径" "文件不存在: ${routine_private_key_path}"
+      fi
+    else
+      add_result "FAIL" "直连私钥路径" "pay_routine_private_key_path 未配置"
+    fi
+    if [[ -n "${routine_platform_cert_path}" ]]; then
+      if [[ -f "${routine_platform_cert_path}" ]]; then
+        add_result "PASS" "直连平台证书路径" "文件存在: ${routine_platform_cert_path}"
+      else
+        add_result "FAIL" "直连平台证书路径" "文件不存在: ${routine_platform_cert_path}"
+      fi
+    else
+      add_result "FAIL" "直连平台证书路径" "pay_routine_platform_cert_path 未配置"
+    fi
   else
-    add_result "FAIL" "退款证书" "证书路径不存在: ${sp_cert_path}"
+    add_result "WARN" "退款证书" "未识别支付模式，跳过 v3 证书路径检查"
   fi
 else
-  add_result "WARN" "退款证书" "pay_routine_sp_certificate_path 未配置（退款联调会失败）"
+  if [[ -n "${sp_cert_path}" ]]; then
+    if [[ -f "${sp_cert_path}" ]]; then
+      add_result "PASS" "退款证书" "证书文件存在: ${sp_cert_path}"
+    else
+      add_result "FAIL" "退款证书" "证书路径不存在: ${sp_cert_path}"
+    fi
+  else
+    add_result "WARN" "退款证书" "pay_routine_sp_certificate_path 未配置（退款联调会失败）"
+  fi
 fi
 
 # 7) cron 托管任务
