@@ -228,6 +228,21 @@ ORDER BY so.update_time DESC;
 "
 record_check "R04" "WARN" "退款成功但退款金额异常（<=0 或 > pay_price）" "${FILE_04}" "$(count_tsv_rows "${FILE_04}")"
 
+# R05: 非退款态却存在退款金额（告警）
+FILE_05="${RUN_DIR}/05_non_refund_state_has_refund_price.tsv"
+run_sql_to_file "${FILE_05}" "
+SELECT so.order_id, so.out_trade_no, so.refund_status, so.refund_price, so.pay_price, so.update_time
+FROM eb_store_order so
+WHERE so.pay_type='weixin'
+  AND so.paid=1
+  AND so.refund_status=0
+  AND so.refund_price > 0
+  AND so.update_time >= '${START_TIME}'
+  ${ORDER_FILTER}
+ORDER BY so.update_time DESC;
+"
+record_check "R05" "WARN" "订单非退款态但存在退款金额（疑似渠道已退/本地未收敛）" "${FILE_05}" "$(count_tsv_rows "${FILE_05}")"
+
 GATE_RESULT="GREEN"
 EXIT_CODE=0
 if (( BLOCK_CHECK_COUNT > 0 )); then
