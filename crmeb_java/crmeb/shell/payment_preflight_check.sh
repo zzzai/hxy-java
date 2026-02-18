@@ -166,6 +166,7 @@ required_scripts=(
   "shell/payment_ops_cron.sh"
   "shell/payment_ops_morning_bundle.sh"
   "shell/payment_ops_status.sh"
+  "shell/payment_incident_bundle.sh"
   "shell/payment_ops_status_smoke.sh"
   "shell/payment_ops_cron_smoke.sh"
   "shell/payment_decision_chain_smoke.sh"

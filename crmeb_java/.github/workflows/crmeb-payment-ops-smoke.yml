@@ -10,6 +10,7 @@ on:
       - develop
     paths:
       - "crmeb/shell/payment_ops_status.sh"
+      - "crmeb/shell/payment_incident_bundle.sh"
       - "crmeb/shell/payment_ops_morning_bundle.sh"
       - "crmeb/shell/payment_cutover_gate.sh"
       - "crmeb/shell/payment_cutover_gate_smoke.sh"
@@ -24,6 +25,7 @@ on:
   pull_request:
     paths:
       - "crmeb/shell/payment_ops_status.sh"
+      - "crmeb/shell/payment_incident_bundle.sh"
       - "crmeb/shell/payment_ops_morning_bundle.sh"
       - "crmeb/shell/payment_cutover_gate.sh"
       - "crmeb/shell/payment_cutover_gate_smoke.sh"
@@ -50,6 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           bash -n crmeb/shell/payment_ops_status.sh
+          bash -n crmeb/shell/payment_incident_bundle.sh
           bash -n crmeb/shell/payment_ops_morning_bundle.sh
           bash -n crmeb/shell/payment_cutover_gate.sh
           bash -n crmeb/shell/payment_cutover_gate_smoke.sh
