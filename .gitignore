@@ -27,3 +27,10 @@
 **/secret.yaml
 **/deploy/docker/.env
 **/deploy/k8s/base/secret.yaml
+hxy/tools/scripts/.repo_sync.env
+
+# 含密码的环境配置（使用 application-*.yml.sample 作为示例）
+**/application-dev.yml
+**/application-beta.yml
+**/application-trip.yml
+**/application-prod.yml
