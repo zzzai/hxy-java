@@ -712,8 +712,9 @@ public class CallbackServiceImpl implements CallbackService {
         }
         String outRefundNo = notifyRecord.getStr("out_refund_no");
         String transactionId = StrUtil.trimToEmpty(notifyRecord.getStr("transaction_id"));
+        String outTradeNo = StrUtil.trimToEmpty(notifyRecord.getStr("out_trade_no"));
         String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, transactionId, "v2");
-        settleRefundSuccess(outRefundNo, xmlInfo, callbackDedupKey);
+        settleRefundSuccess(outRefundNo, outTradeNo, transactionId, xmlInfo, callbackDedupKey);
         return refundRecord.getStr("returnXml");
     }
 
@@ -756,10 +757,11 @@ public class CallbackServiceImpl implements CallbackService {
             if (!"SUCCESS".equalsIgnoreCase(refundStatus)) {
                 return v3AckSuccess();
             }
+            String outTradeNo = StrUtil.trimToEmpty(refund.getString("out_trade_no"));
             String transactionId = StrUtil.trimToEmpty(refund.getString("transaction_id"));
             String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, transactionId, eventId);
 
-            settleRefundSuccess(outRefundNo, body, callbackDedupKey);
+            settleRefundSuccess(outRefundNo, outTradeNo, transactionId, body, callbackDedupKey);
             return v3AckSuccess();
         } catch (Exception e) {
             logger.error("wechat v3 refund callback error: {}", e.getMessage(), e);
@@ -769,22 +771,27 @@ public class CallbackServiceImpl implements CallbackService {
 
     private void settleRefundSuccess(String outRefundNo, String rawData) {
         String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, "", "legacy");
-        settleRefundSuccess(outRefundNo, rawData, callbackDedupKey);
+        settleRefundSuccess(outRefundNo, "", "", rawData, callbackDedupKey);
     }
 
     private void settleRefundSuccess(String outRefundNo, String rawData, String callbackDedupKey) {
+        settleRefundSuccess(outRefundNo, "", "", rawData, callbackDedupKey);
+    }
+
+    private void settleRefundSuccess(String outRefundNo, String outTradeNo, String transactionId, String rawData, String callbackDedupKey) {
         String dedupKey = StrUtil.blankToDefault(callbackDedupKey, buildRefundCallbackDedupKey(outRefundNo, "", "legacy"));
         String lockKey = "pay:refund:callback:dedup:" + SecureUtil.md5(dedupKey);
         distributedLockUtil.executeWithLock(lockKey, 20, () -> {
-            settleRefundSuccessCore(outRefundNo, rawData, dedupKey);
+            settleRefundSuccessCore(outRefundNo, outTradeNo, transactionId, rawData, dedupKey);
             return Boolean.TRUE;
         });
     }
 
-    private void settleRefundSuccessCore(String outRefundNo, String rawData, String callbackDedupKey) {
-        StoreOrder storeOrder = resolveRefundTargetOrder(outRefundNo);
+    private void settleRefundSuccessCore(String outRefundNo, String outTradeNo, String transactionId, String rawData, String callbackDedupKey) {
+        StoreOrder storeOrder = resolveRefundTargetOrder(outRefundNo, outTradeNo, transactionId);
         if (ObjectUtil.isNull(storeOrder)) {
-            logger.error("微信退款订单查询失败==> orderNo={}, rawData==>{}", outRefundNo, rawData);
+            logger.error("微信退款订单查询失败==> outRefundNo={}, outTradeNo={}, transactionId={}, rawData==>{}",
+                    outRefundNo, outTradeNo, transactionId, rawData);
             throw new CrmebException("微信退款订单不存在：" + outRefundNo);
         }
         if (hasRefundCallbackConsumed(storeOrder.getId(), callbackDedupKey)) {
@@ -823,12 +830,44 @@ public class CallbackServiceImpl implements CallbackService {
     }
 
     private StoreOrder resolveRefundTargetOrder(String outRefundNo) {
+        return resolveRefundTargetOrder(outRefundNo, "", "");
+    }
+
+    private StoreOrder resolveRefundTargetOrder(String outRefundNo, String outTradeNo, String transactionId) {
         StoreOrder byOrderId = storeOrderService.getByOderId(outRefundNo);
         if (ObjectUtil.isNotNull(byOrderId)) {
             return byOrderId;
         }
+        StoreOrder byOutRefundNo = queryOrderByOutTradeNo(outRefundNo);
+        if (ObjectUtil.isNotNull(byOutRefundNo)) {
+            return byOutRefundNo;
+        }
+        if (StrUtil.isNotBlank(outTradeNo) && !StrUtil.equals(outTradeNo, outRefundNo)) {
+            StoreOrder byOutTradeNo = queryOrderByOutTradeNo(outTradeNo);
+            if (ObjectUtil.isNotNull(byOutTradeNo)) {
+                return byOutTradeNo;
+            }
+        }
+        if (StrUtil.isNotBlank(transactionId)) {
+            WechatPayInfo payInfo = wechatPayInfoService.getOne(
+                    new LambdaQueryWrapper<WechatPayInfo>()
+                            .eq(WechatPayInfo::getTransactionId, transactionId)
+                            .orderByDesc(WechatPayInfo::getId)
+                            .last("limit 1"),
+                    false);
+            if (ObjectUtil.isNotNull(payInfo) && StrUtil.isNotBlank(payInfo.getOutTradeNo())) {
+                return queryOrderByOutTradeNo(payInfo.getOutTradeNo());
+            }
+        }
+        return null;
+    }
+
+    private StoreOrder queryOrderByOutTradeNo(String outTradeNo) {
+        if (StrUtil.isBlank(outTradeNo)) {
+            return null;
+        }
         LambdaQueryWrapper<StoreOrder> outTradeLqw = new LambdaQueryWrapper<>();
-        outTradeLqw.eq(StoreOrder::getOutTradeNo, outRefundNo).last("limit 1");
+        outTradeLqw.eq(StoreOrder::getOutTradeNo, outTradeNo).last("limit 1");
         return storeOrderService.getOne(outTradeLqw, false);
     }
 

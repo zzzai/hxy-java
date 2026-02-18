@@ -6,9 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.zbkj.common.constants.Constants;
 import com.zbkj.common.model.order.StoreOrder;
+import com.zbkj.common.model.wechat.WechatPayInfo;
 import com.zbkj.common.utils.RedisUtil;
 import com.zbkj.service.service.StoreOrderService;
 import com.zbkj.service.service.StoreOrderStatusService;
+import com.zbkj.service.service.WechatPayInfoService;
 import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
 import com.zbkj.service.util.DistributedLockUtil;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -40,17 +42,21 @@ class CallbackServiceImplRefundFallbackTest {
     private StoreOrderStatusService storeOrderStatusService;
     @Mock
     private DistributedLockUtil distributedLockUtil;
+    @Mock
+    private WechatPayInfoService wechatPayInfoService;
 
     private CallbackServiceImpl service;
 
     @BeforeEach
     void setUp() {
         initStoreOrderTableInfo();
+        initWechatPayInfoTableInfo();
         service = new CallbackServiceImpl();
         ReflectionTestUtils.setField(service, "storeOrderService", storeOrderService);
         ReflectionTestUtils.setField(service, "redisUtil", redisUtil);
         ReflectionTestUtils.setField(service, "storeOrderStatusService", storeOrderStatusService);
         ReflectionTestUtils.setField(service, "distributedLockUtil", distributedLockUtil);
+        ReflectionTestUtils.setField(service, "wechatPayInfoService", wechatPayInfoService);
         lenient().when(distributedLockUtil.executeWithLock(any(), any(Integer.class), any(Supplier.class)))
                 .thenAnswer(invocation -> {
                     Supplier<Boolean> supplier = invocation.getArgument(2);
@@ -122,12 +128,44 @@ class CallbackServiceImplRefundFallbackTest {
         verify(redisUtil, never()).lPush(any(String.class), any());
     }
 
+    @Test
+    void resolveRefundTargetOrderShouldFallbackByTransactionId() {
+        StoreOrder expected = new StoreOrder();
+        expected.setId(66);
+        expected.setOutTradeNo("wxNoByTxn");
+
+        WechatPayInfo payInfo = new WechatPayInfo();
+        payInfo.setOutTradeNo("wxNoByTxn");
+
+        when(storeOrderService.getByOderId("out_refund_txn")).thenReturn(null);
+        when(storeOrderService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(null, expected);
+        when(wechatPayInfoService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(payInfo);
+
+        StoreOrder actual = ReflectionTestUtils.invokeMethod(service, "resolveRefundTargetOrder",
+                "out_refund_txn", "", "420000000000000009");
+
+        Assertions.assertSame(expected, actual);
+        verify(wechatPayInfoService).getOne(any(LambdaQueryWrapper.class), eq(false));
+    }
+
     private void initStoreOrderTableInfo() {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
         try {
             TableInfoHelper.getTableInfo(StoreOrder.class);
             if (TableInfoHelper.getTableInfo(StoreOrder.class) == null) {
                 TableInfoHelper.initTableInfo(assistant, StoreOrder.class);
+            }
+        } catch (Exception ignore) {
+            // Ignore duplicate init in repeated runs; tests only need lambda metadata cache.
+        }
+    }
+
+    private void initWechatPayInfoTableInfo() {
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        try {
+            TableInfoHelper.getTableInfo(WechatPayInfo.class);
+            if (TableInfoHelper.getTableInfo(WechatPayInfo.class) == null) {
+                TableInfoHelper.initTableInfo(assistant, WechatPayInfo.class);
             }
         } catch (Exception ignore) {
             // Ignore duplicate init in repeated runs; tests only need lambda metadata cache.
