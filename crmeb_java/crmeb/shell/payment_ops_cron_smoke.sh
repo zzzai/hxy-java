@@ -12,6 +12,7 @@ set -euo pipefail
 # - --mapping-audit-notify
 # - --mapping-smoke-notify
 # - --cutover-gate-notify
+# - --cutover-gate-require-hq-refund-policy
 
 OUT_DIR="${OUT_DIR:-}"
 BOOKING_REPAIR_WINDOW_HOURS="${BOOKING_REPAIR_WINDOW_HOURS:-72}"
