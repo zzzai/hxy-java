@@ -74,6 +74,7 @@ jobs:
           ./shell/payment_cutover_gate_smoke.sh
           ./shell/payment_ops_cron_smoke.sh --no-alert
           ./shell/payment_mock_replay.sh --skip-store-mapping-audit --no-alert
+          ./shell/payment_incident_bundle.sh --date 2026-02-18
           ./shell/payment_smoke_artifact_index.sh --runtime-root ./runtime --out ./runtime/payment_ops_smoke_artifact_index.md
 
       - name: Upload smoke runtime
@@ -88,4 +89,5 @@ jobs:
             crmeb/runtime/payment_cutover_gate_smoke
             crmeb/runtime/payment_ops_cron_smoke
             crmeb/runtime/payment_mock_replay
+            crmeb/runtime/payment_incident_bundle
             crmeb/runtime/payment_ops_smoke_artifact_index.md
