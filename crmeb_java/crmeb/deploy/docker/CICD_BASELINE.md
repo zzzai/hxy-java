@@ -75,7 +75,7 @@
 - `crmeb-ci-gate` 会先调用 `crmeb-payment-ops-smoke`（离线值守回归），通过后再进入 Docker gate。
 - `crmeb-ci-gate` 已启用同分支并发互斥（`concurrency`），新任务会自动取消旧任务，避免资源堆积。
 - `crmeb-payment-ops-smoke` 会产出统一索引：`crmeb/runtime/payment_ops_smoke_artifact_index.md`，用于快速查看各 smoke 子任务最新 summary/report。
-- `crmeb-ci-gate` 会产出统一入口：`crmeb/runtime/ci_gate_artifacts/artifact_index.md`，同页索引 `payment-ops-smoke` 与 `ci-gate` 日志文件。
+- `crmeb-ci-gate` 会产出统一入口：`crmeb/runtime/ci_gate_artifacts/artifact_index.md`，同页索引 `payment-ops-smoke`、`ci-gate` 日志、失败高亮片段与支付 runtime latest summary。
 
 触发方式：
 1. `push` 到 `main/master/develop` 且变更命中 `crmeb/**`
