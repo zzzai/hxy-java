@@ -1,0 +1,10 @@
+.git
+.idea
+**/.idea
+**/*.iml
+**/target
+**/.DS_Store
+runtime
+crmeb-admin/crmeb_admin_log
+*.log
+

@@ -1,0 +1,1904 @@
+diff --git a/crmeb/.gitignore b/crmeb/.gitignore
+index c6fc8195..af2bbdb9 100644
+--- a/crmeb/.gitignore
++++ b/crmeb/.gitignore
+@@ -43,5 +43,7 @@ src/main/.DS_Store
+ .DS_Store
+ 
+ 
++deploy/docker/.env
++runtime/docker/
+ 
+-xx
+\ No newline at end of file
++xx
+diff --git a/crmeb/crmeb-admin/src/main/java/com/zbkj/admin/controller/ScheduleJobController.java b/crmeb/crmeb-admin/src/main/java/com/zbkj/admin/controller/ScheduleJobController.java
+deleted file mode 100644
+index 424d5a19..00000000
+--- a/crmeb/crmeb-admin/src/main/java/com/zbkj/admin/controller/ScheduleJobController.java
++++ /dev/null
+@@ -1,124 +0,0 @@
+-package com.zbkj.admin.controller;
+-
+-import com.zbkj.admin.model.ScheduleJob;
+-import com.zbkj.admin.model.ScheduleJobLog;
+-import com.zbkj.admin.service.ScheduleJobLogService;
+-import com.zbkj.admin.service.ScheduleJobService;
+-
+-import com.zbkj.common.page.CommonPage;
+-import com.zbkj.common.request.PageParamRequest;
+-import com.zbkj.common.request.ScheduleJobLogSearchRequest;
+-import com.zbkj.common.request.ScheduleJobRequest;
+-import com.zbkj.common.result.CommonResult;
+-import io.swagger.annotations.Api;
+-import io.swagger.annotations.ApiOperation;
+-import lombok.extern.slf4j.Slf4j;
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.security.access.prepost.PreAuthorize;
+-import org.springframework.validation.annotation.Validated;
+-import org.springframework.web.bind.annotation.*;
+-
+-import java.util.List;
+-
+-
+-/**
+- * 定时任务控制器
+- * +----------------------------------------------------------------------
+- * | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+- * +----------------------------------------------------------------------
+- * | Copyright (c) 2016~2025 https://www.crmeb.com All rights reserved.
+- * +----------------------------------------------------------------------
+- * | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+- * +----------------------------------------------------------------------
+- * | Author: CRMEB Team <admin@crmeb.com>
+- * +----------------------------------------------------------------------
+- */
+-@Slf4j
+-@RestController
+-@RequestMapping("api/admin/schedule/job")
+-@Api(tags = "定时任务控制器")
+-public class ScheduleJobController {
+-
+-    @Autowired
+-    private ScheduleJobService scheduleJobService;
+-    @Autowired
+-    private ScheduleJobLogService scheduleJobLogService;
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:list')")
+-    @ApiOperation(value = "定时任务列表")
+-    @RequestMapping(value = "/list", method = RequestMethod.GET)
+-    public CommonResult<List<ScheduleJob>> getList() {
+-        return CommonResult.success(scheduleJobService.getAll());
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:add')")
+-    @ApiOperation(value = "添加定时任务")
+-    @RequestMapping(value = "/add", method = RequestMethod.POST)
+-    public CommonResult<String> add(@RequestBody @Validated ScheduleJobRequest request) {
+-        if (scheduleJobService.add(request)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:update')")
+-    @ApiOperation(value = "定时任务编辑")
+-    @RequestMapping(value = "/update", method = RequestMethod.POST)
+-    public CommonResult<String> update(@RequestBody @Validated ScheduleJobRequest request) {
+-        if (scheduleJobService.edit(request)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:suspend')")
+-    @ApiOperation(value = "暂停定时任务")
+-    @RequestMapping(value = "/suspend/{jobId}", method = RequestMethod.POST)
+-    public CommonResult<String> suspend(@PathVariable(value = "jobId") Integer jobId) {
+-        if (scheduleJobService.suspend(jobId)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:start')")
+-    @ApiOperation(value = "启动定时任务")
+-    @RequestMapping(value = "/start/{jobId}", method = RequestMethod.POST)
+-    public CommonResult<String> start(@PathVariable(value = "jobId") Integer jobId) {
+-        if (scheduleJobService.start(jobId)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:delete')")
+-    @ApiOperation(value = "删除定时任务")
+-    @RequestMapping(value = "/delete/{jobId}", method = RequestMethod.POST)
+-    public CommonResult<String> delete(@PathVariable(value = "jobId") Integer jobId) {
+-        if (scheduleJobService.delete(jobId)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:trig')")
+-    @ApiOperation(value = "立即执行定时任务（一次）")
+-    @RequestMapping(value = "/trig/{jobId}", method = RequestMethod.POST)
+-    public CommonResult<String> trig(@PathVariable(value = "jobId") Integer jobId) {
+-        if (scheduleJobService.trig(jobId)) {
+-            return CommonResult.success();
+-        }
+-        return CommonResult.failed();
+-    }
+-
+-    @PreAuthorize("hasAuthority('admin:schedule:job:log:list')")
+-    @ApiOperation(value = "定时任务日志分页列表")
+-    @RequestMapping(value = "/log/list", method = RequestMethod.GET)
+-    public CommonResult<CommonPage<ScheduleJobLog>> getLogList(@Validated ScheduleJobLogSearchRequest request,
+-                                                               @Validated PageParamRequest pageParamRequest) {
+-        return CommonResult.success(CommonPage.restPage(scheduleJobLogService.findLogPageList(request, pageParamRequest)));
+-    }
+-}
+-
+-
+-
+diff --git a/crmeb/crmeb-admin/src/main/resources/application-dev.yml b/crmeb/crmeb-admin/src/main/resources/application-dev.yml
+index 64bfb3ef..9e807f3f 100644
+--- a/crmeb/crmeb-admin/src/main/resources/application-dev.yml
++++ b/crmeb/crmeb-admin/src/main/resources/application-dev.yml
+@@ -26,13 +26,13 @@ spring:
+   datasource:
+     type: com.alibaba.druid.pool.DruidDataSource
+     driver-class-name: com.mysql.jdbc.Driver
+-    url: jdbc:mysql://127.0.0.1:3306/single_open?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
+-    username: single_open
+-    password: 111111
++    url: jdbc:mysql://127.0.0.1:3306/crmeb_java?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
++    username: crmeb
++    password: crmeb123
+   redis:
+     host: 127.0.0.1 #地址
+     port: 6379 #端口
+-    password: 111111
++    password: 
+     timeout: 10000 # 连接超时时间（毫秒）
+     database: 6 #默认数据库
+     jedis:
+diff --git a/crmeb/crmeb-admin/src/main/resources/application.yml b/crmeb/crmeb-admin/src/main/resources/application.yml
+index df2e2ae4..11b3068e 100644
+--- a/crmeb/crmeb-admin/src/main/resources/application.yml
++++ b/crmeb/crmeb-admin/src/main/resources/application.yml
+@@ -54,9 +54,9 @@ spring:
+   datasource:
+     type: com.alibaba.druid.pool.DruidDataSource
+     driver-class-name: com.mysql.jdbc.Driver
+-    url: jdbc:mysql://127.0.0.1:3306/single_open?serverTimezone=UTC
+-    username: single_open
+-    password: 111111
++    url: jdbc:mysql://127.0.0.1:3306/crmeb_java?serverTimezone=UTC
++    username: root
++    password: 
+   # quartz
+   quartz:
+     properties:
+@@ -86,7 +86,7 @@ spring:
+   redis:
+     host: 127.0.0.1 #地址
+     port: 6379 #端口
+-    password: 111111
++    password: 
+     timeout: 30000 # 连接超时时间（毫秒）
+     database: 6  #默认数据库
+     jedis:
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/Constants.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/Constants.java
+index 4572e82d..21789603 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/Constants.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/Constants.java
+@@ -445,6 +445,7 @@ public class Constants {
+     //需要支付的业务类型
+     public static final String SERVICE_PAY_TYPE_ORDER = "order"; //订单
+     public static final String SERVICE_PAY_TYPE_RECHARGE = "recharge"; //充值
++    public static final String SERVICE_PAY_TYPE_BOOKING = "booking"; //服务预约
+ 
+ 
+ 
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/PayConstants.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/PayConstants.java
+index bde75a69..d1705207 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/PayConstants.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/constants/PayConstants.java
+@@ -40,6 +40,8 @@ public class PayConstants {
+     public static final String WX_PAY_API_URI = "pay/unifiedorder";
+     // 微信查询订单
+     public static final String WX_PAY_ORDER_QUERY_API_URI = "pay/orderquery";
++    // 微信查询退款
++    public static final String WX_PAY_REFUND_QUERY_API_URI = "pay/refundquery";
+     // 微信支付回调地址
+     public static final String WX_PAY_NOTIFY_API_URI = "/api/admin/payment/callback/wechat";
+     // 微信退款回调地址
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/interceptor/SwaggerInterceptor.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/interceptor/SwaggerInterceptor.java
+index fcf152f6..7904a405 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/interceptor/SwaggerInterceptor.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/interceptor/SwaggerInterceptor.java
+@@ -6,12 +6,12 @@ import org.springframework.core.io.support.ResourcePatternResolver;
+ import org.springframework.util.AntPathMatcher;
+ import org.springframework.util.FileCopyUtils;
+ import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
+-import sun.misc.BASE64Decoder;
+ 
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+ import java.io.IOException;
+ import java.io.PrintWriter;
++import java.util.Base64;
+ 
+ /**
+  *  Swagger 文档
+@@ -52,7 +52,7 @@ public class SwaggerInterceptor extends HandlerInterceptorAdapter {
+     public boolean httpBasicAuth(String authorization) throws IOException {
+         if(check){
+             if (authorization != null && authorization.split(" ").length == 2) {
+-                String userAndPass = new String(new BASE64Decoder().decodeBuffer(authorization.split(" ")[1]));
++                String userAndPass = new String(Base64.getDecoder().decode(authorization.split(" ")[1]));
+                 String username = userAndPass.split(":").length == 2 ? userAndPass.split(":")[0] : null;
+                 String password = userAndPass.split(":").length == 2 ? userAndPass.split(":")[1] : null;
+                 return this.username.equals(username) && this.password.equals(password);
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/utils/WxPayUtil.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/utils/WxPayUtil.java
+index bbb9e815..f3fae847 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/utils/WxPayUtil.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/utils/WxPayUtil.java
+@@ -58,6 +58,46 @@ public class WxPayUtil {
+         }
+     }
+ 
++    /**
++     * 处理 HTTPS API返回数据，转换成Map对象并校验签名。
++     *
++     * @param xmlStr API返回的XML格式数据
++     * @param signKey 微信签名key
++     * @return Map类型数据
++     * @throws Exception
++     */
++    public static HashMap<String, Object> processResponseXml(String xmlStr, String signKey) throws Exception {
++        HashMap<String, Object> respData = processResponseXml(xmlStr);
++        verifySign(respData, signKey);
++        return respData;
++    }
++
++    /**
++     * 校验微信v2签名。
++     *
++     * @param respData 回调/接口返回参数
++     * @param signKey 微信签名key
++     */
++    public static void verifySign(Map<String, ?> respData, String signKey) {
++        if (respData == null || respData.isEmpty()) {
++            throw new CrmebException("签名校验失败：响应数据为空");
++        }
++        if (StrUtil.isBlank(signKey)) {
++            throw new CrmebException("签名校验失败：signKey为空");
++        }
++        Object signObj = respData.get(PayConstants.FIELD_SIGN);
++        String actualSign = signObj == null ? "" : String.valueOf(signObj);
++        if (StrUtil.isBlank(actualSign)) {
++            throw new CrmebException("签名校验失败：缺少sign");
++        }
++        Map<String, String> signMap = new HashMap<>();
++        respData.forEach((k, v) -> signMap.put(k, v == null ? "" : String.valueOf(v)));
++        String expectedSign = getSign(signMap, signKey);
++        if (!expectedSign.equalsIgnoreCase(actualSign)) {
++            throw new CrmebException("签名校验失败：sign不一致");
++        }
++    }
++
+     /**
+      * 获取随机字符串，长度要求在32位以内。
+      */
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/AttachVo.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/AttachVo.java
+index 3855eef8..0312841d 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/AttachVo.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/AttachVo.java
+@@ -32,7 +32,7 @@ public class AttachVo {
+         this.userId = userId;
+     }
+ 
+-    @ApiModelProperty(value = "业务类型， 订单 = order， 充值 = recharge", required = true)
++    @ApiModelProperty(value = "业务类型，订单=order，充值=recharge，预约=booking", required = true)
+     private String type = "order";
+ 
+     @ApiModelProperty(value = "用户id", required = true)
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/CreateOrderRequestVo.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/CreateOrderRequestVo.java
+index e4294e1b..09a36d4b 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/CreateOrderRequestVo.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/CreateOrderRequestVo.java
+@@ -86,6 +86,15 @@ public class CreateOrderRequestVo {
+     @ApiModelProperty(value = "trade_type=JSAPI，此参数必传，用户在商户appid下的唯一标识。openid如何获取，可参考【获取openid】。企业号请使用【企业号OAuth2.0接口】获取企业号内成员userid，再调用【企业号userid转openid接口】进行转换")
+     private String openid;
+ 
++    @ApiModelProperty(value = "服务商模式下子商户公众账号ID")
++    private String sub_appid;
++
++    @ApiModelProperty(value = "服务商模式下子商户号")
++    private String sub_mch_id;
++
++    @ApiModelProperty(value = "服务商模式下用户在子商户appid下的唯一标识")
++    private String sub_openid;
++
+     @ApiModelProperty(value = "Y，传入Y时，支付成功消息和支付详情页将出现开票入口。需要在微信支付商户平台或微信公众平台开通电子发票功能，传此字段才可生效")
+     private String receipt = "N";
+ 
+diff --git a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/WxRefundVo.java b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/WxRefundVo.java
+index 91ed9099..d5d93522 100644
+--- a/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/WxRefundVo.java
++++ b/crmeb/crmeb-common/src/main/java/com/zbkj/common/vo/WxRefundVo.java
+@@ -31,6 +31,12 @@ public class WxRefundVo {
+     @ApiModelProperty(value = "直连商户的商户号，由微信支付生成并下发", required = true)
+     private String mch_id;
+ 
++    @ApiModelProperty(value = "服务商模式下子商户公众号ID")
++    private String sub_appid;
++
++    @ApiModelProperty(value = "服务商模式下子商户号")
++    private String sub_mch_id;
++
+     @ApiModelProperty(value = "随机字符串，不长于32位", required = true)
+     private String nonce_str;
+ 
+@@ -62,4 +68,3 @@ public class WxRefundVo {
+     private String notify_url;
+ 
+ }
+-
+diff --git a/crmeb/crmeb-front/src/main/java/com/zbkj/front/config/WebConfig.java b/crmeb/crmeb-front/src/main/java/com/zbkj/front/config/WebConfig.java
+index e3e2296e..79c4ca5c 100644
+--- a/crmeb/crmeb-front/src/main/java/com/zbkj/front/config/WebConfig.java
++++ b/crmeb/crmeb-front/src/main/java/com/zbkj/front/config/WebConfig.java
+@@ -102,6 +102,8 @@ public class WebConfig implements WebMvcConfigurer {
+                 excludePathPatterns("/api/front/menu/user").
+                 excludePathPatterns("/api/front/combination/header").
+                 excludePathPatterns("/api/front/combination/detail").
++                excludePathPatterns("/api/front/booking/time-slots/**").
++                excludePathPatterns("/api/front/booking/detail/**").
+                 excludePathPatterns("/swagger-resources/**", "/webjars/**", "/v2/**", "/swagger-ui.html/**");
+     }
+ 
+diff --git a/crmeb/crmeb-front/src/main/resources/application-dev.yml b/crmeb/crmeb-front/src/main/resources/application-dev.yml
+index 81c5afa2..353140cb 100644
+--- a/crmeb/crmeb-front/src/main/resources/application-dev.yml
++++ b/crmeb/crmeb-front/src/main/resources/application-dev.yml
+@@ -1,33 +1,31 @@
+ # CRMEB 相关配置
+ crmeb:
+-  version: CRMEB-JAVA-KY-v1.4 # 当前代码版本
+-  imagePath: /JAVA_PROJECT/OPEN/dev/admin/ # 服务器图片路径配置 斜杠结尾
+-  asyncConfig: false #是否同步config表数据到redis
++  version: CRMEB-JAVA-KY-v1.4
++  imagePath: /JAVA_PROJECT/OPEN/dev/admin/
++  asyncConfig: false
+ 
+ server:
+   port: 20510
+ 
+ spring:
+   profiles:
+-    #  配置的环境
+     active: dev
+-    #  数据库配置
+   datasource:
+     type: com.alibaba.druid.pool.DruidDataSource
+     driver-class-name: com.mysql.jdbc.Driver
+-    url: jdbc:mysql://127.0.0.1:3306/single_open?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
+-    username: single_open
+-    password: 111111
++    url: jdbc:mysql://127.0.0.1:3306/crmeb_java?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
++    username: crmeb
++    password: crmeb123
+   redis:
+-    host: 127.0.0.1 #地址
+-    port: 6379 #端口
+-    password: 111111
+-    timeout: 10000 # 连接超时时间（毫秒）
+-    database: 6 #默认数据库
++    host: 127.0.0.1
++    port: 6379
++    password:
++    timeout: 10000
++    database: 6
+     jedis:
+       pool:
+-        max-active: 200 # 连接池最大连接数（使用负值表示没有限制）
+-        max-wait: -1 # 连接池最大阻塞等待时间（使用负值表示没有限制）
+-        max-idle: 10 # 连接池中的最大空闲连接
+-        min-idle: 0 # 连接池中的最小空闲连接
+-        time-between-eviction-runs: -1 #逐出扫描的时间间隔(毫秒) 如果为负数,则不运行逐出线程, 默认-1
++        max-active: 200
++        max-wait: -1
++        max-idle: 10
++        min-idle: 0
++        time-between-eviction-runs: -1
+diff --git a/crmeb/crmeb-front/src/main/resources/application.yml b/crmeb/crmeb-front/src/main/resources/application.yml
+index c5f4d356..4ceede78 100644
+--- a/crmeb/crmeb-front/src/main/resources/application.yml
++++ b/crmeb/crmeb-front/src/main/resources/application.yml
+@@ -47,14 +47,14 @@ spring:
+   #  数据库配置
+   datasource:
+     type: com.alibaba.druid.pool.DruidDataSource
+-    driver-class-name: com.mysql.jdbc.Driver
+-    url: jdbc:mysql://127.0.0.1:3306/single_open?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
+-    username: single_open
+-    password: 111111
++    driver-class-name: com.mysql.cj.jdbc.Driver
++    url: jdbc:mysql://127.0.0.1:3306/crmeb_java?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
++    username: crmeb
++    password: crmeb123
+   redis:
+     host: 127.0.0.1 #地址
+     port: 6379 #端口
+-    password: 111111
++    password: crmeb123
+     timeout: 30000 # 连接超时时间（毫秒）
+     database: 6  #默认数据库
+     jedis:
+diff --git a/crmeb/crmeb-service/pom.xml b/crmeb/crmeb-service/pom.xml
+index abacdc85..5efa9e83 100644
+--- a/crmeb/crmeb-service/pom.xml
++++ b/crmeb/crmeb-service/pom.xml
+@@ -33,6 +33,28 @@
+             <artifactId>gson</artifactId>
+             <version>2.8.9</version>
+         </dependency>
++        <!-- FastJSON 依赖 -->
++        <dependency>
++            <groupId>com.alibaba</groupId>
++            <artifactId>fastjson</artifactId>
++            <version>1.2.83</version>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-test</artifactId>
++            <scope>test</scope>
++        </dependency>
+     </dependencies>
+ 
+-</project>
+\ No newline at end of file
++    <build>
++        <plugins>
++            <!-- Ensure JUnit5 tests are actually discovered/executed for this module. -->
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-surefire-plugin</artifactId>
++                <version>2.22.2</version>
++            </plugin>
++        </plugins>
++    </build>
++
++</project>
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/exception/GlobalExceptionHandler.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/exception/GlobalExceptionHandler.java
+deleted file mode 100644
+index 0aad6192..00000000
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/exception/GlobalExceptionHandler.java
++++ /dev/null
+@@ -1,174 +0,0 @@
+-package com.zbkj.service.exception;
+-
+-import com.zbkj.common.exception.CrmebException;
+-import com.zbkj.common.model.exception.ExceptionLog;
+-import com.zbkj.common.result.CommonResult;
+-import com.zbkj.service.service.ExceptionLogService;
+-import lombok.extern.slf4j.Slf4j;
+-import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.dao.DataIntegrityViolationException;
+-import org.springframework.http.HttpStatus;
+-import org.springframework.jdbc.BadSqlGrammarException;
+-import org.springframework.jdbc.UncategorizedSQLException;
+-import org.springframework.validation.BindException;
+-import org.springframework.validation.BindingResult;
+-import org.springframework.web.HttpMediaTypeNotSupportedException;
+-import org.springframework.web.bind.MethodArgumentNotValidException;
+-import org.springframework.web.bind.MissingServletRequestParameterException;
+-import org.springframework.web.bind.annotation.ExceptionHandler;
+-import org.springframework.web.bind.annotation.ResponseBody;
+-import org.springframework.web.bind.annotation.ResponseStatus;
+-import org.springframework.web.bind.annotation.RestControllerAdvice;
+-
+-import javax.servlet.http.HttpServletRequest;
+-import java.io.IOException;
+-import java.io.PrintWriter;
+-import java.io.StringWriter;
+-import java.util.Objects;
+-
+-/**
+- * 全局参数、异常拦截
+- * +----------------------------------------------------------------------
+- * | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+- * +----------------------------------------------------------------------
+- * | Copyright (c) 2016~2025 https://www.crmeb.com All rights reserved.
+- * +----------------------------------------------------------------------
+- * | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+- * +----------------------------------------------------------------------
+- * | Author: CRMEB Team <admin@crmeb.com>
+- * +----------------------------------------------------------------------
+- */
+-@Slf4j
+-@RestControllerAdvice
+-public class GlobalExceptionHandler {
+-
+-//    private static String REQUESTBODY = "requestBodyMessage";
+-
+-    @Autowired
+-    private ExceptionLogService exceptionLogService;
+-
+-    /**
+-     * 拦截表单参数校验
+-     */
+-    @ResponseStatus(HttpStatus.OK)
+-    @ExceptionHandler({BindException.class})
+-    public CommonResult bindException(HttpServletRequest request, BindException e) {
+-        doLog(request, e);
+-        BindingResult bindingResult = e.getBindingResult();
+-        return CommonResult.failed(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+-    }
+-
+-    /**
+-     * 拦截JSON参数校验
+-     */
+-    @ResponseStatus(HttpStatus.OK)
+-    @ExceptionHandler(MethodArgumentNotValidException.class)
+-    public CommonResult bindException(HttpServletRequest request, MethodArgumentNotValidException e) {
+-        doLog(request, e);
+-        BindingResult bindingResult = e.getBindingResult();
+-        return CommonResult.failed(Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
+-    }
+-
+-    /**
+-     * 拦截参数类型不正确
+-     *
+-     * @param e
+-     * @return
+-     */
+-    @ResponseStatus(HttpStatus.OK)
+-    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+-    public CommonResult bindException(HttpServletRequest request, HttpMediaTypeNotSupportedException e) {
+-        doLog(request, e);
+-        return CommonResult.failed().setMessage(Objects.requireNonNull(e.getMessage()));
+-    }
+-
+-    /**
+-     * 错误SQL语句异常
+-     */
+-    @ExceptionHandler(BadSqlGrammarException.class)
+-    public CommonResult handleBadSqlGrammarException(HttpServletRequest request, BadSqlGrammarException e) {
+-        doLog(request, e);
+-        return CommonResult.failed().setMessage("服务器数据异常，请联系管理员");
+-    }
+-
+-    /**
+-     * 拦截表示违反数据库的完整性约束导致的异常
+-     */
+-    @ExceptionHandler(DataIntegrityViolationException.class)
+-    public CommonResult handleDataIntegrityViolationException(HttpServletRequest request, DataIntegrityViolationException e) {
+-        doLog(request, e);
+-        return CommonResult.failed().setMessage( "服务器数据异常，请联系管理员");
+-    }
+-
+-    /**
+-     * 拦截违反数据库的非完整性约束导致的异常，可能也会拦截一些也包括 SQL 语句错误、连接问题、权限问题等各种数据库异常
+-     */
+-    @ExceptionHandler(UncategorizedSQLException.class)
+-    public CommonResult handleUncategorizedSqlException(HttpServletRequest request, UncategorizedSQLException e) {
+-        doLog(request, e);
+-        return CommonResult.failed().setMessage("服务器数据异常，请联系管理员");
+-    }
+-
+-    //声明要捕获的异常
+-    @ResponseStatus(HttpStatus.OK)
+-    @ExceptionHandler(Exception.class)
+-    @ResponseBody
+-    public <T> CommonResult<?> defaultExceptionHandler(HttpServletRequest request, Exception e) {
+-        doLog(request, e);
+-        e.printStackTrace();
+-        if (e instanceof CrmebException) {
+-            return CommonResult.failed().setMessage(Objects.requireNonNull(e.getMessage()));
+-        }
+-        if (e instanceof MissingServletRequestParameterException) {
+-            return CommonResult.failed().setMessage(Objects.requireNonNull(e.getMessage()));
+-        }
+-        //未知错误
+-        return CommonResult.failed().setMessage(e.getMessage());
+-    }
+-
+-    /**
+-     * 打印日志
+-     */
+-    private void doLog(HttpServletRequest request, Exception e) {
+-        log.error("捕获到异常：", e);
+-        // 加入数据库日志记录
+-        StringWriter sw = new StringWriter();
+-        e.printStackTrace(new PrintWriter(sw, true));
+-        // 异常的详情
+-        String expDetail = sw.toString();
+-
+-        try {
+-            sw.close();
+-        } catch (IOException ioException) {
+-            log.error("异常日志：关闭异常详情Writer异常");
+-        }
+-
+-        // 异常的url
+-        String expUrl = request.getRequestURI();
+-
+-        // 异常的参数 暂时不记录入参
+-//        Object body = request.getAttribute(REQUESTBODY);
+-//        String expParams = ObjectUtil.isNotNull(body) ? body.toString() : "";
+-
+-        // 异常的类型
+-        String expType = e.getClass().getName();
+-
+-        // 异常的类名
+-        StackTraceElement stackTraceElement = e.getStackTrace()[0];
+-        String expController = stackTraceElement.getClassName();
+-
+-        // 异常的方法名
+-        String expMethod = stackTraceElement.getMethodName();
+-
+-        ExceptionLog exceptionLog = new ExceptionLog();
+-        exceptionLog.setExpUrl(expUrl);
+-//        exceptionLog.setExpParams(expParams);
+-        exceptionLog.setExpParams("");
+-        exceptionLog.setExpType(expType);
+-        exceptionLog.setExpController(expController);
+-        exceptionLog.setExpMethod(expMethod);
+-        exceptionLog.setExpDetail(expDetail);
+-
+-        exceptionLogService.save(exceptionLog);
+-    }
+-}
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/WechatNewService.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/WechatNewService.java
+index 6f7f1a9e..382cf829 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/WechatNewService.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/WechatNewService.java
+@@ -93,6 +93,12 @@ public interface WechatNewService {
+      */
+     MyRecord payOrderQuery(Map<String, String> payVo);
+ 
++    /**
++     * 微信退款查询
++     * @return 退款查询结果
++     */
++    MyRecord payRefundQuery(Map<String, String> payVo);
++
+     /**
+      * 微信公众号发送模板消息
+      * @param templateMessage 模板消息对象
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/CallbackServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/CallbackServiceImpl.java
+index 812df342..1b152fc5 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/CallbackServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/CallbackServiceImpl.java
+@@ -6,8 +6,10 @@ import cn.hutool.core.util.ObjectUtil;
+ import cn.hutool.core.util.StrUtil;
+ import cn.hutool.crypto.SecureUtil;
+ import com.alibaba.fastjson.JSONObject;
++import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+ 
+ import com.zbkj.common.constants.Constants;
++import com.zbkj.common.constants.PayConstants;
+ import com.zbkj.common.constants.TaskConstants;
+ import com.zbkj.common.exception.CrmebException;
+ import com.zbkj.common.model.combination.StoreCombination;
+@@ -24,6 +26,11 @@ import com.zbkj.common.utils.WxPayUtil;
+ import com.zbkj.common.vo.AttachVo;
+ import com.zbkj.common.vo.CallbackVo;
+ import com.zbkj.common.vo.MyRecord;
++import com.zbkj.common.vo.WeChatPayChannelConfig;
++import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
++import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
++import com.zbkj.service.service.impl.payment.WeChatPaySignKeyResolver;
++import com.zbkj.service.service.impl.payment.WeChatRefundSignKeyResolver;
+ import com.zbkj.service.service.*;
+ import org.bouncycastle.jce.provider.BouncyCastleProvider;
+ import org.slf4j.Logger;
+@@ -36,6 +43,7 @@ import javax.crypto.Cipher;
+ import javax.crypto.spec.SecretKeySpec;
+ import javax.servlet.http.HttpServletRequest;
+ import java.io.UnsupportedEncodingException;
++import java.math.BigDecimal;
+ import java.nio.charset.StandardCharsets;
+ import java.security.Security;
+ import java.util.*;
+@@ -64,6 +72,9 @@ public class CallbackServiceImpl implements CallbackService {
+     @Autowired
+     private StoreOrderService storeOrderService;
+ 
++    @Autowired
++    private ServiceBookingService serviceBookingService;
++
+     @Autowired
+     private UserService userService;
+ 
+@@ -88,6 +99,18 @@ public class CallbackServiceImpl implements CallbackService {
+     @Autowired
+     private WechatPayInfoService wechatPayInfoService;
+ 
++    @Autowired
++    private WeChatRefundSignKeyResolver weChatRefundSignKeyResolver;
++
++    @Autowired
++    private WeChatPaySignKeyResolver weChatPaySignKeyResolver;
++
++    @Autowired
++    private WeChatPayConfigSupport weChatPayConfigSupport;
++
++    @Autowired
++    private WechatNewService wechatNewService;
++
+     /**
+      * 微信支付回调
+      */
+@@ -104,7 +127,9 @@ public class CallbackServiceImpl implements CallbackService {
+         }
+ 
+         try{
+-            HashMap<String, Object> map = WxPayUtil.processResponseXml(xmlInfo);
++            Map<String, String> callbackRawMap = WxPayUtil.xmlToMap(xmlInfo);
++            String signKey = weChatPaySignKeyResolver.resolve(callbackRawMap.get("appid"), callbackRawMap.get("mch_id"));
++            HashMap<String, Object> map = WxPayUtil.processResponseXml(xmlInfo, signKey);
+             // 通信是否成功
+             String returnCode = (String) map.get("return_code");
+             if (!returnCode.equals(Constants.SUCCESS)) {
+@@ -136,7 +161,9 @@ public class CallbackServiceImpl implements CallbackService {
+             }
+ 
+             //根据类型判断是订单或者充值
+-            if (!Constants.SERVICE_PAY_TYPE_ORDER.equals(attachVo.getType()) && !Constants.SERVICE_PAY_TYPE_RECHARGE.equals(attachVo.getType())) {
++            if (!Constants.SERVICE_PAY_TYPE_ORDER.equals(attachVo.getType())
++                    && !Constants.SERVICE_PAY_TYPE_RECHARGE.equals(attachVo.getType())
++                    && !Constants.SERVICE_PAY_TYPE_BOOKING.equals(attachVo.getType())) {
+                 logger.error("wechat pay err : 未知的支付类型==》" + callbackVo.getOutTradeNo());
+                 throw new CrmebException("未知的支付类型！");
+             }
+@@ -170,6 +197,9 @@ public class CallbackServiceImpl implements CallbackService {
+                 wechatPayInfo.setTransactionId(callbackVo.getTransactionId());
+                 wechatPayInfo.setTimeEnd(callbackVo.getTimeEnd());
+ 
++                // 主动查单确认，避免伪回调或金额错单
++                verifyOrderByQuery(storeOrder, callbackVo);
++
+                 // 添加支付成功redis队列
+                 Boolean execute = transactionTemplate.execute(e -> {
+                     storeOrder.setPaid(true);
+@@ -248,6 +278,14 @@ public class CallbackServiceImpl implements CallbackService {
+                 }
+                 redisUtil.lPush(TaskConstants.ORDER_TASK_PAY_SUCCESS_AFTER, storeOrder.getOrderId());
+             }
++            // 服务预约
++            if (Constants.SERVICE_PAY_TYPE_BOOKING.equals(attachVo.getType())) {
++                Boolean bookingPaySuccess = serviceBookingService.paySuccess(callbackVo.getOutTradeNo());
++                if (!bookingPaySuccess) {
++                    logger.error("wechat pay error : 预约订单更新失败==》" + callbackVo.getOutTradeNo());
++                    throw new CrmebException("wechat pay error : 预约订单更新失败==》" + callbackVo.getOutTradeNo());
++                }
++            }
+             // 充值
+             if (Constants.SERVICE_PAY_TYPE_RECHARGE.equals(attachVo.getType())) {
+                 UserRecharge userRecharge = userRechargeService.getByOutTradeNo(callbackVo.getOutTradeNo());
+@@ -279,6 +317,69 @@ public class CallbackServiceImpl implements CallbackService {
+         return sb.toString();
+     }
+ 
++    /**
++     * 回调落库前做主动查单与关键字段一致性校验。
++     */
++    private void verifyOrderByQuery(StoreOrder storeOrder, CallbackVo callbackVo) {
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
++        Map<String, String> queryPayVo = buildOrderQueryPayVo(storeOrder.getOutTradeNo(), payConfig);
++        MyRecord queryRecord = wechatNewService.payOrderQuery(queryPayVo);
++
++        String queryOutTradeNo = queryRecord.getStr("out_trade_no");
++        if (StrUtil.isBlank(queryOutTradeNo) || !queryOutTradeNo.equals(storeOrder.getOutTradeNo())) {
++            throw new CrmebException("查单校验失败：out_trade_no不一致");
++        }
++
++        int expectTotalFee = storeOrder.getPayPrice().multiply(BigDecimal.TEN).multiply(BigDecimal.TEN).intValue();
++        int queryTotalFee = parsePositiveInt(queryRecord.getStr("total_fee"), "total_fee");
++        if (expectTotalFee != queryTotalFee) {
++            throw new CrmebException("查单校验失败：total_fee不一致");
++        }
++
++        String queryMchId = StrUtil.trimToEmpty(queryRecord.getStr("mch_id"));
++        if (StrUtil.isNotBlank(payConfig.getMchId()) && !payConfig.getMchId().equals(queryMchId)) {
++            throw new CrmebException("查单校验失败：mch_id不一致");
++        }
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode()) && StrUtil.isNotBlank(payConfig.getSubMchId())) {
++            String querySubMchId = StrUtil.trimToEmpty(queryRecord.getStr("sub_mch_id"));
++            if (!payConfig.getSubMchId().equals(querySubMchId)) {
++                throw new CrmebException("查单校验失败：sub_mch_id不一致");
++            }
++        }
++
++        if (StrUtil.isNotBlank(callbackVo.getTransactionId())) {
++            String queryTransactionId = StrUtil.trimToEmpty(queryRecord.getStr("transaction_id"));
++            if (StrUtil.isNotBlank(queryTransactionId) && !callbackVo.getTransactionId().equals(queryTransactionId)) {
++                throw new CrmebException("查单校验失败：transaction_id不一致");
++            }
++        }
++    }
++
++    private Map<String, String> buildOrderQueryPayVo(String outTradeNo, WeChatPayChannelConfig payConfig) {
++        Map<String, String> map = new HashMap<>();
++        map.put("appid", payConfig.getAppId());
++        map.put("mch_id", payConfig.getMchId());
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            map.put("sub_mch_id", payConfig.getSubMchId());
++            if (StrUtil.isNotBlank(payConfig.getSubAppId()) && !payConfig.getSubAppId().equals(payConfig.getAppId())) {
++                map.put("sub_appid", payConfig.getSubAppId());
++            }
++        }
++        map.put("out_trade_no", outTradeNo);
++        map.put("nonce_str", WxPayUtil.getNonceStr());
++        map.put("sign_type", PayConstants.WX_PAY_SIGN_TYPE_MD5);
++        map.put("sign", WxPayUtil.getSign(map, payConfig.getSignKey()));
++        return map;
++    }
++
++    private int parsePositiveInt(String value, String fieldName) {
++        try {
++            return Integer.parseInt(StrUtil.trim(value));
++        } catch (Exception e) {
++            throw new CrmebException("查单校验失败：" + fieldName + "非法");
++        }
++    }
++
+ 
+     /**
+      * 将request中的参数转换成Map
+@@ -327,17 +428,30 @@ public class CallbackServiceImpl implements CallbackService {
+             logger.error("微信退款订单查询失败==>" + refundRecord.getColumns() + ", rawData==>" + xmlInfo + ", data==>" + notifyRecord);
+             return refundRecord.getStr("returnXml");
+         }
+-        if (storeOrder.getRefundStatus() == 2) {
++        if (OrderRefundStateMachine.isFinalSuccess(storeOrder.getRefundStatus())) {
+             logger.warn("微信退款订单已确认成功==>" + refundRecord.getColumns() + ", rawData==>" + xmlInfo + ", data==>" + notifyRecord);
+             return refundRecord.getStr("returnXml");
+         }
+-        storeOrder.setRefundStatus(2);
+-        storeOrder.setUpdateTime(DateUtil.date());
+-        boolean update = storeOrderService.updateById(storeOrder);
++        if (!OrderRefundStateMachine.canSwitchToSuccess(storeOrder.getRefundStatus())) {
++            logger.warn("微信退款订单状态非法，拒绝变更==> refundStatus={}, orderNo={}, rawData==>{}", storeOrder.getRefundStatus(), outRefundNo, xmlInfo);
++            return refundRecord.getStr("returnXml");
++        }
++        boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
++                .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_SUCCESS)
++                .set(StoreOrder::getUpdateTime, DateUtil.date())
++                .eq(StoreOrder::getId, storeOrder.getId())
++                .in(StoreOrder::getRefundStatus,
++                        OrderRefundStateMachine.REFUND_STATUS_APPLYING,
++                        OrderRefundStateMachine.REFUND_STATUS_REFUNDING));
+         if (update) {
+             // 退款task
+             redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
+         } else {
++            StoreOrder latestOrder = storeOrderService.getById(storeOrder.getId());
++            if (ObjectUtil.isNotNull(latestOrder) && OrderRefundStateMachine.isFinalSuccess(latestOrder.getRefundStatus())) {
++                logger.warn("微信退款订单并发更新已完成==> orderNo={}, rawData==>{}", outRefundNo, xmlInfo);
++                return refundRecord.getStr("returnXml");
++            }
+             logger.warn("微信退款订单更新失败==>" + refundRecord.getColumns() + ", rawData==>" + xmlInfo + ", data==>" + notifyRecord);
+         }
+         return refundRecord.getStr("returnXml");
+@@ -376,11 +490,15 @@ public class CallbackServiceImpl implements CallbackService {
+         String return_code = respMap.get("return_code");
+         if (return_code.equals(Constants.SUCCESS)) {
+             String appid = respMap.get("appid");
+-            String signKey = getSignKey(appid);
+-            // 解码加密信息
+-            String reqInfo = respMap.get("req_info");
+-            System.out.println("encodeReqInfo==>" + reqInfo);
++            String mchId = respMap.get("mch_id");
++            String signKey = weChatRefundSignKeyResolver.resolve(appid, mchId);
+             try {
++                WxPayUtil.verifySign(respMap, signKey);
++                // 解码加密信息
++                String reqInfo = respMap.get("req_info");
++                if (StrUtil.isBlank(reqInfo)) {
++                    throw new CrmebException("微信退款回调缺少req_info");
++                }
+                 String decodeInfo = decryptToStr(reqInfo, signKey);
+                 Map<String, String> infoMap = WxPayUtil.xmlToMap(decodeInfo);
+                 notifyRecord.setColums(_strMap2ObjMap(infoMap));
+@@ -401,26 +519,6 @@ public class CallbackServiceImpl implements CallbackService {
+         return refundRecord.set("returnXml", sb.toString()).set("status", "ok");
+     }
+ 
+-    private String getSignKey(String appid) {
+-        String publicAppid = systemConfigService.getValueByKey(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-        String miniAppid = systemConfigService.getValueByKey(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-        String appAppid = systemConfigService.getValueByKey(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_APP_ID);
+-        String signKey = "";
+-        if (StrUtil.isBlank(publicAppid) && StrUtil.isBlank(miniAppid) && StrUtil.isBlank(appAppid)) {
+-            throw new CrmebException("pay_weixin_appid或pay_routine_appid不能都为空");
+-        }
+-        if (StrUtil.isNotBlank(publicAppid) && appid.equals(publicAppid)) {
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
+-        if (StrUtil.isNotBlank(miniAppid) && appid.equals(miniAppid)) {
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-        }
+-        if (StrUtil.isNotBlank(appAppid) && appid.equals(appAppid)) {
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_APP_KEY);
+-        }
+-        return signKey;
+-    }
+-
+     /**
+      * java自带的是PKCS5Padding填充，不支持PKCS7Padding填充。
+      * 通过BouncyCastle组件来让java里面支持PKCS7Padding填充
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderPayServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderPayServiceImpl.java
+index 6b6e0bc3..1e9b847a 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderPayServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderPayServiceImpl.java
+@@ -32,6 +32,7 @@ import com.zbkj.common.utils.RedisUtil;
+ import com.zbkj.common.utils.WxPayUtil;
+ import com.zbkj.common.vo.*;
+ import com.zbkj.service.delete.OrderUtils;
++import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
+ import com.zbkj.service.service.*;
+ import lombok.Data;
+ import org.apache.commons.lang3.StringUtils;
+@@ -155,6 +156,9 @@ public class OrderPayServiceImpl implements OrderPayService {
+     @Autowired
+     private WechatNewService wechatNewService;
+ 
++    @Autowired
++    private WeChatPayConfigSupport weChatPayConfigSupport;
++
+     @Autowired
+     private UserExperienceRecordService userExperienceRecordService;
+ 
+@@ -812,39 +816,41 @@ public class OrderPayServiceImpl implements OrderPayService {
+             throw new CrmebException("该用户没有openId");
+         }
+ 
+-        // 获取appid、mch_id
+-        // 微信签名key
+-        String appId = "";
+-        String mchId = "";
+-        String signKey = "";
+-        if (storeOrder.getIsChannel() == 0) {// 公众号
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
+-        if (storeOrder.getIsChannel() == 1) {// 小程序
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-        }
+-        if (storeOrder.getIsChannel() == 2) {// H5,使用公众号的
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
+         // 获取微信预下单对象
+-        CreateOrderRequestVo unifiedorderVo = getUnifiedorderVo(storeOrder, userToken.getToken(), ip, appId, mchId, signKey);
++        CreateOrderRequestVo unifiedorderVo = getUnifiedorderVo(storeOrder, userToken.getToken(), ip, payConfig);
++        logger.info(
++                "wx.unifiedorder.request biz=store_order orderNo={} outTradeNo={} channel={} storeId={} serviceProviderMode={} mchId={} subMchId={}",
++                storeOrder.getOrderId(),
++                unifiedorderVo.getOut_trade_no(),
++                storeOrder.getIsChannel(),
++                storeOrder.getStoreId(),
++                Boolean.TRUE.equals(payConfig.getServiceProviderMode()),
++                payConfig.getMchId(),
++                StrUtil.blankToDefault(payConfig.getSubMchId(), "-")
++        );
+         // 预下单（统一下单）
+         CreateOrderResponseVo responseVo = wechatNewService.payUnifiedorder(unifiedorderVo);
++        logger.info(
++                "wx.unifiedorder.response biz=store_order orderNo={} outTradeNo={} channel={} storeId={} serviceProviderMode={} mchId={} subMchId={} prepayId={}",
++                storeOrder.getOrderId(),
++                unifiedorderVo.getOut_trade_no(),
++                storeOrder.getIsChannel(),
++                storeOrder.getStoreId(),
++                Boolean.TRUE.equals(payConfig.getServiceProviderMode()),
++                payConfig.getMchId(),
++                StrUtil.blankToDefault(payConfig.getSubMchId(), "-"),
++                responseVo.getPrepayId()
++        );
+         // 组装前端预下单参数
+         Map<String, String> map = new HashMap<>();
+-        map.put("appId", unifiedorderVo.getAppid());
++        map.put("appId", StrUtil.isNotBlank(payConfig.getClientAppId()) ? payConfig.getClientAppId() : unifiedorderVo.getAppid());
+         map.put("nonceStr", unifiedorderVo.getAppid());
+         map.put("package", "prepay_id=".concat(responseVo.getPrepayId()));
+         map.put("signType", unifiedorderVo.getSign_type());
+         Long currentTimestamp = WxPayUtil.getCurrentTimestamp();
+         map.put("timeStamp", Long.toString(currentTimestamp));
+-        String paySign = WxPayUtil.getSign(map, signKey);
++        String paySign = WxPayUtil.getSign(map, payConfig.getSignKey());
+         map.put("paySign", paySign);
+         map.put("prepayId", responseVo.getPrepayId());
+         map.put("prepayTime", CrmebDateUtil.nowDateTimeStr());
+@@ -859,7 +865,7 @@ public class OrderPayServiceImpl implements OrderPayService {
+      * 获取微信预下单对象
+      * @return 微信预下单对象
+      */
+-    private CreateOrderRequestVo getUnifiedorderVo(StoreOrder storeOrder, String openid, String ip, String appId, String mchId, String signKey) {
++    private CreateOrderRequestVo getUnifiedorderVo(StoreOrder storeOrder, String openid, String ip, WeChatPayChannelConfig payConfig) {
+         // 获取域名
+         String domain = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_SITE_URL);
+         String apiDomain = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_API_URL);
+@@ -867,8 +873,8 @@ public class OrderPayServiceImpl implements OrderPayService {
+         AttachVo attachVo = new AttachVo(Constants.SERVICE_PAY_TYPE_ORDER, storeOrder.getUid());
+         CreateOrderRequestVo vo = new CreateOrderRequestVo();
+ 
+-        vo.setAppid(appId);
+-        vo.setMch_id(mchId);
++        vo.setAppid(payConfig.getAppId());
++        vo.setMch_id(payConfig.getMchId());
+         vo.setNonce_str(WxPayUtil.getNonceStr());
+         vo.setSign_type(PayConstants.WX_PAY_SIGN_TYPE_MD5);
+         String siteName = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_SITE_NAME);
+@@ -881,14 +887,30 @@ public class OrderPayServiceImpl implements OrderPayService {
+         vo.setSpbill_create_ip(ip);
+         vo.setNotify_url(apiDomain + PayConstants.WX_PAY_NOTIFY_API_URI);
+         vo.setTrade_type(PayConstants.WX_PAY_TRADE_TYPE_JS);
+-        vo.setOpenid(openid);
++        String payOpenId = openid;
+         if (storeOrder.getIsChannel() == 2){// H5
+             vo.setTrade_type(PayConstants.WX_PAY_TRADE_TYPE_H5);
+-            vo.setOpenid(null);
++            payOpenId = null;
+         }
+         if (storeOrder.getIsChannel() == 4 || storeOrder.getIsChannel() == 5) {
+             vo.setTrade_type("APP");
+-            vo.setOpenid(null);
++            payOpenId = null;
++        }
++
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            vo.setSub_mch_id(payConfig.getSubMchId());
++            if (StrUtil.isNotBlank(payConfig.getSubAppId())) {
++                vo.setSub_appid(payConfig.getSubAppId());
++            }
++            if (StrUtil.isNotBlank(payOpenId) && StrUtil.isNotBlank(payConfig.getSubAppId())
++                    && !payConfig.getAppId().equals(payConfig.getSubAppId())) {
++                vo.setSub_openid(payOpenId);
++                vo.setOpenid(null);
++            } else {
++                vo.setOpenid(payOpenId);
++            }
++        } else {
++            vo.setOpenid(payOpenId);
+         }
+         CreateOrderH5SceneInfoVo createOrderH5SceneInfoVo = new CreateOrderH5SceneInfoVo(
+                 new CreateOrderH5SceneInfoDetailVo(
+@@ -897,7 +919,7 @@ public class OrderPayServiceImpl implements OrderPayService {
+                 )
+         );
+         vo.setScene_info(JSONObject.toJSONString(createOrderH5SceneInfoVo));
+-        String sign = WxPayUtil.getSign(vo, signKey);
++        String sign = WxPayUtil.getSign(vo, payConfig.getSignKey());
+         vo.setSign(sign);
+         return vo;
+     }
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderTaskServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderTaskServiceImpl.java
+index 4d847072..511bc9b5 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderTaskServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/OrderTaskServiceImpl.java
+@@ -7,7 +7,10 @@ import cn.hutool.core.date.DateUtil;
+ import cn.hutool.core.util.ObjectUtil;
+ import cn.hutool.core.util.StrUtil;
+ import com.alibaba.fastjson.JSONObject;
++import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
++import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+ import com.zbkj.common.constants.Constants;
++import com.zbkj.common.constants.PayConstants;
+ import com.zbkj.common.constants.TaskConstants;
+ import com.zbkj.common.exception.CrmebException;
+ import com.zbkj.common.model.order.StoreOrder;
+@@ -16,15 +19,22 @@ import com.zbkj.common.model.product.StoreProductReply;
+ import com.zbkj.common.model.user.User;
+ import com.zbkj.common.utils.CrmebDateUtil;
+ import com.zbkj.common.utils.RedisUtil;
++import com.zbkj.common.utils.WxPayUtil;
++import com.zbkj.common.vo.MyRecord;
+ import com.zbkj.common.vo.StoreOrderInfoOldVo;
++import com.zbkj.common.vo.WeChatPayChannelConfig;
+ import com.zbkj.service.service.*;
++import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
++import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.support.TransactionTemplate;
+ 
++import java.util.HashMap;
+ import java.util.List;
++import java.util.Map;
+ 
+ /**
+  * StoreOrderServiceImpl 接口实现
+@@ -42,6 +52,14 @@ import java.util.List;
+ public class OrderTaskServiceImpl implements OrderTaskService {
+     //日志
+     private static final Logger logger = LoggerFactory.getLogger(OrderTaskServiceImpl.class);
++    private static final int DEFAULT_REFUND_COMPENSATE_TIMEOUT_MINUTES = 30;
++    private static final int DEFAULT_REFUND_COMPENSATE_BATCH_SIZE = 50;
++    private static final String REFUND_COMPENSATE_TIMEOUT_MINUTES_KEY = "pay_refund_compensate_timeout_minutes";
++    private static final String REFUND_COMPENSATE_BATCH_SIZE_KEY = "pay_refund_compensate_batch_size";
++    private static final String REFUND_QUERY_STATUS_SUCCESS = "SUCCESS";
++    private static final String REFUND_QUERY_STATUS_PROCESSING = "PROCESSING";
++    private static final String REFUND_QUERY_STATUS_REFUNDCLOSE = "REFUNDCLOSE";
++    private static final String REFUND_QUERY_STATUS_CHANGE = "CHANGE";
+ 
+     @Autowired
+     private RedisUtil redisUtil;
+@@ -73,6 +91,12 @@ public class OrderTaskServiceImpl implements OrderTaskService {
+     @Autowired
+     private SystemConfigService systemConfigService;
+ 
++    @Autowired
++    private WechatNewService wechatNewService;
++
++    @Autowired
++    private WeChatPayConfigSupport weChatPayConfigSupport;
++
+     /**
+      * 用户取消订单
+      * @author Mr.Zhang
+@@ -119,31 +143,170 @@ public class OrderTaskServiceImpl implements OrderTaskService {
+         String redisKey = Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER;
+         Long size = redisUtil.getListSize(redisKey);
+         logger.info("OrderTaskServiceImpl.refundApply | size:" + size);
+-        if (size < 1) {
++        try {
++            if (size > 0) {
++                for (int i = 0; i < size; i++) {
++                    //如果10秒钟拿不到一个数据，那么退出循环
++                    Object orderId = redisUtil.getRightPop(redisKey, 10L);
++                    if (null == orderId) {
++                        continue;
++                    }
++                    try {
++                        StoreOrder storeOrder = storeOrderService.getById(Integer.valueOf(orderId.toString()));
++                        if (ObjectUtil.isNull(storeOrder)) {
++                            throw new CrmebException("订单不存在,orderNo = " + orderId);
++                        }
++                        if (!OrderRefundStateMachine.shouldRunRefundTask(storeOrder.getRefundStatus())) {
++                            logger.warn("退款任务跳过，状态不匹配：orderId={}, refundStatus={}", storeOrder.getId(), storeOrder.getRefundStatus());
++                            continue;
++                        }
++                        boolean result = storeOrderTaskService.refundOrder(storeOrder);
++                        if (!result) {
++                            logger.error("订单退款错误：result = " + result);
++                            redisUtil.lPush(redisKey, orderId);
++                        }
++                    } catch (Exception e) {
++                        logger.error("订单退款错误：" + e.getMessage());
++                        redisUtil.lPush(redisKey, orderId);
++                    }
++                }
++            }
++        } finally {
++            refundTimeoutCompensate();
++        }
++    }
++
++    /**
++     * 退款中超时补偿：主动查退款状态，避免长期停留在“退款中”。
++     */
++    private void refundTimeoutCompensate() {
++        int timeoutMinutes = getRefundCompensateTimeoutMinutes();
++        int batchSize = getRefundCompensateBatchSize();
++        DateTime timeoutAt = DateUtil.offsetMinute(DateUtil.date(), -timeoutMinutes);
++
++        LambdaQueryWrapper<StoreOrder> lqw = new LambdaQueryWrapper<>();
++        lqw.select(StoreOrder::getId, StoreOrder::getOrderId, StoreOrder::getOutTradeNo, StoreOrder::getPayType,
++                        StoreOrder::getPaid, StoreOrder::getIsChannel, StoreOrder::getStoreId,
++                        StoreOrder::getRefundStatus, StoreOrder::getRefundPrice, StoreOrder::getUpdateTime)
++                .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING)
++                .eq(StoreOrder::getPayType, Constants.PAY_TYPE_WE_CHAT)
++                .eq(StoreOrder::getPaid, true)
++                .le(StoreOrder::getUpdateTime, timeoutAt)
++                .orderByAsc(StoreOrder::getUpdateTime)
++                .last("limit " + batchSize);
++        List<StoreOrder> timeoutOrderList = storeOrderService.list(lqw);
++        if (CollUtil.isEmpty(timeoutOrderList)) {
+             return;
+         }
+-        for (int i = 0; i < size; i++) {
+-            //如果10秒钟拿不到一个数据，那么退出循环
+-            Object orderId = redisUtil.getRightPop(redisKey, 10L);
+-            if (null == orderId) {
+-                continue;
++        logger.info("OrderTaskServiceImpl.refundTimeoutCompensate | timeoutMinutes={}, batchSize={}, hit={}",
++                timeoutMinutes, batchSize, timeoutOrderList.size());
++        timeoutOrderList.forEach(this::compensateTimeoutRefundOrder);
++    }
++
++    private void compensateTimeoutRefundOrder(StoreOrder storeOrder) {
++        try {
++            if (StrUtil.isBlank(storeOrder.getOrderId())) {
++                return;
+             }
+-            try {
+-                StoreOrder storeOrder = storeOrderService.getById(Integer.valueOf(orderId.toString()));
+-                if (ObjectUtil.isNull(storeOrder)) {
+-                    throw new CrmebException("订单不存在,orderNo = " + orderId);
++            WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
++            Map<String, String> queryPayVo = buildRefundQueryPayVo(storeOrder.getOrderId(), payConfig);
++            MyRecord queryRecord = wechatNewService.payRefundQuery(queryPayVo);
++            String refundStatus = parseRefundStatus(queryRecord);
++            if (StrUtil.isBlank(refundStatus)) {
++                logger.warn("退款补偿查单无状态，orderNo={}, record={}", storeOrder.getOrderId(), queryRecord.getColumns());
++                return;
++            }
++            if (REFUND_QUERY_STATUS_PROCESSING.equalsIgnoreCase(refundStatus)) {
++                logger.info("退款补偿查单仍处理中，orderNo={}", storeOrder.getOrderId());
++                return;
++            }
++
++            if (REFUND_QUERY_STATUS_SUCCESS.equalsIgnoreCase(refundStatus)) {
++                boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
++                        .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_SUCCESS)
++                        .set(StoreOrder::getUpdateTime, DateUtil.date())
++                        .eq(StoreOrder::getId, storeOrder.getId())
++                        .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING));
++                if (update) {
++                    redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
++                    logger.info("退款补偿查单成功并收敛，orderNo={}", storeOrder.getOrderId());
+                 }
+-//                boolean result = storeOrderTaskService.refundApply(storeOrder);
+-                boolean result = storeOrderTaskService.refundOrder(storeOrder);
+-                if (!result) {
+-                    logger.error("订单退款错误：result = " + result);
+-                    redisUtil.lPush(redisKey, orderId);
++                return;
++            }
++
++            if (REFUND_QUERY_STATUS_REFUNDCLOSE.equalsIgnoreCase(refundStatus)
++                    || REFUND_QUERY_STATUS_CHANGE.equalsIgnoreCase(refundStatus)) {
++                boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
++                        .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_APPLYING)
++                        .set(StoreOrder::getUpdateTime, DateUtil.date())
++                        .eq(StoreOrder::getId, storeOrder.getId())
++                        .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING));
++                if (update) {
++                    storeOrderStatusService.saveRefund(storeOrder.getId(), storeOrder.getRefundPrice(), "失败(" + refundStatus + "), 待人工处理");
+                 }
+-            } catch (Exception e) {
+-                logger.error("订单退款错误：" + e.getMessage());
+-                redisUtil.lPush(redisKey, orderId);
++                logger.warn("退款补偿查单返回失败态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
++                return;
++            }
++
++            logger.warn("退款补偿查单返回未知状态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
++        } catch (Exception e) {
++            logger.error("退款补偿查单异常，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
++        }
++    }
++
++    private Map<String, String> buildRefundQueryPayVo(String outRefundNo, WeChatPayChannelConfig payConfig) {
++        Map<String, String> map = new HashMap<>();
++        map.put("appid", payConfig.getAppId());
++        map.put("mch_id", payConfig.getMchId());
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            map.put("sub_mch_id", payConfig.getSubMchId());
++            if (StrUtil.isNotBlank(payConfig.getSubAppId()) && !payConfig.getSubAppId().equals(payConfig.getAppId())) {
++                map.put("sub_appid", payConfig.getSubAppId());
+             }
+         }
++        map.put("out_refund_no", outRefundNo);
++        map.put("nonce_str", WxPayUtil.getNonceStr());
++        map.put("sign_type", PayConstants.WX_PAY_SIGN_TYPE_MD5);
++        map.put("sign", WxPayUtil.getSign(map, payConfig.getSignKey()));
++        return map;
++    }
++
++    private String parseRefundStatus(MyRecord record) {
++        String status = StrUtil.trimToEmpty(record.getStr("refund_status_0"));
++        if (StrUtil.isNotBlank(status)) {
++            return status.toUpperCase();
++        }
++        for (String key : record.getColumns().keySet()) {
++            if (key != null && key.startsWith("refund_status_")) {
++                String keyStatus = StrUtil.trimToEmpty(record.getStr(key));
++                if (StrUtil.isNotBlank(keyStatus)) {
++                    return keyStatus.toUpperCase();
++                }
++            }
++        }
++        return "";
++    }
++
++    private int getRefundCompensateTimeoutMinutes() {
++        String value = systemConfigService.getValueByKey(REFUND_COMPENSATE_TIMEOUT_MINUTES_KEY);
++        return parsePositiveInt(value, DEFAULT_REFUND_COMPENSATE_TIMEOUT_MINUTES);
++    }
++
++    private int getRefundCompensateBatchSize() {
++        String value = systemConfigService.getValueByKey(REFUND_COMPENSATE_BATCH_SIZE_KEY);
++        return parsePositiveInt(value, DEFAULT_REFUND_COMPENSATE_BATCH_SIZE);
++    }
++
++    private int parsePositiveInt(String value, int defaultValue) {
++        if (StrUtil.isBlank(value)) {
++            return defaultValue;
++        }
++        try {
++            int parsed = Integer.parseInt(value.trim());
++            return parsed > 0 ? parsed : defaultValue;
++        } catch (Exception e) {
++            return defaultValue;
++        }
+     }
+ 
+     /**
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderRefundServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderRefundServiceImpl.java
+index b4d8fdb4..90b52d5f 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderRefundServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderRefundServiceImpl.java
+@@ -6,9 +6,11 @@ import com.zbkj.common.constants.PayConstants;
+ import com.zbkj.common.request.StoreOrderRefundRequest;
+ import com.zbkj.common.utils.RestTemplateUtil;
+ import com.zbkj.common.utils.WxPayUtil;
++import com.zbkj.common.vo.WeChatPayChannelConfig;
+ import com.zbkj.common.vo.WxRefundVo;
+ import com.zbkj.common.model.order.StoreOrder;
+ import com.zbkj.service.dao.StoreOrderDao;
++import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
+ import com.zbkj.service.service.StoreOrderRefundService;
+ import com.zbkj.service.service.SystemConfigService;
+ import com.zbkj.service.service.WechatNewService;
+@@ -40,6 +42,9 @@ public class StoreOrderRefundServiceImpl extends ServiceImpl<StoreOrderDao, Stor
+     @Autowired
+     private WechatNewService wechatNewService;
+ 
++    @Autowired
++    private WeChatPayConfigSupport weChatPayConfigSupport;
++
+     /**
+      * 退款
+      */
+@@ -54,58 +59,34 @@ public class StoreOrderRefundServiceImpl extends ServiceImpl<StoreOrderDao, Stor
+      * @param storeOrder
+      */
+     private void refundWx(StoreOrderRefundRequest request, StoreOrder storeOrder) {
+-        // 获取appid、mch_id
+-        // 微信签名key
+-        String appId = "";
+-        String mchId = "";
+-        String signKey = "";
+-        String path = "";
+-        if (storeOrder.getIsChannel() == 0) {// 公众号
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-//            path = systemConfigService.getValueByKeyException("pay_routine_client_p12");
+-            path = systemConfigService.getValueByKeyException("pay_weixin_certificate_path");
+-        }
+-        if (storeOrder.getIsChannel() == 1) {// 小程序
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-//            path = systemConfigService.getValueByKeyException("pay_mini_client_p12");
+-            path = systemConfigService.getValueByKeyException("pay_routine_certificate_path");
+-        }
+-        if (storeOrder.getIsChannel() == 2) {// H5, 使用公众号的
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-//            path = systemConfigService.getValueByKeyException("pay_mini_client_p12");
+-            path = systemConfigService.getValueByKeyException("pay_weixin_certificate_path");
+-        }
+-        if (storeOrder.getIsChannel() == 4 || storeOrder.getIsChannel() == 5) {// 微信App
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_APP_KEY);
+-//            path = systemConfigService.getValueByKeyException("pay_mini_app_client_p12");
+-            path = systemConfigService.getValueByKeyException("pay_weixin_app_certificate_path");
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
++        String path = payConfig.getCertificatePath();
++        if (cn.hutool.core.util.StrUtil.isBlank(path)) {
++            throw new RuntimeException("未配置微信退款证书路径，请检查支付配置");
+         }
+ 
+         String apiDomain = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_API_URL);
+ 
+         //统一下单数据
+         WxRefundVo wxRefundVo = new WxRefundVo();
+-        wxRefundVo.setAppid(appId);
+-        wxRefundVo.setMch_id(mchId);
++        wxRefundVo.setAppid(payConfig.getAppId());
++        wxRefundVo.setMch_id(payConfig.getMchId());
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            wxRefundVo.setSub_mch_id(payConfig.getSubMchId());
++            if (cn.hutool.core.util.StrUtil.isNotBlank(payConfig.getSubAppId())) {
++                wxRefundVo.setSub_appid(payConfig.getSubAppId());
++            }
++        }
+         wxRefundVo.setNonce_str(WxPayUtil.getNonceStr());
+         wxRefundVo.setOut_trade_no(storeOrder.getOutTradeNo());
+         wxRefundVo.setOut_refund_no(storeOrder.getOrderId());
+         wxRefundVo.setTotal_fee(storeOrder.getPayPrice().multiply(BigDecimal.TEN).multiply(BigDecimal.TEN).intValue());
+         wxRefundVo.setRefund_fee(request.getAmount().multiply(BigDecimal.TEN).multiply(BigDecimal.TEN).intValue());
+         wxRefundVo.setNotify_url(apiDomain + PayConstants.WX_PAY_REFUND_NOTIFY_API_URI);
+-        String sign = WxPayUtil.getSign(wxRefundVo, signKey);
++        String sign = WxPayUtil.getSign(wxRefundVo, payConfig.getSignKey());
+         wxRefundVo.setSign(sign);
+ 
+         wechatNewService.payRefund(wxRefundVo, path);
+     }
+ 
+ }
+-
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderTaskServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderTaskServiceImpl.java
+index c918b5a7..fb8eb5a6 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderTaskServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/StoreOrderTaskServiceImpl.java
+@@ -7,6 +7,7 @@ import cn.hutool.core.date.DateUnit;
+ import cn.hutool.core.date.DateUtil;
+ import cn.hutool.core.util.ObjectUtil;
+ import cn.hutool.core.util.StrUtil;
++import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+ import com.zbkj.common.constants.*;
+ import com.zbkj.common.exception.CrmebException;
+ import com.zbkj.common.model.product.StoreProduct;
+@@ -21,11 +22,13 @@ import com.zbkj.common.model.coupon.StoreCouponUser;
+ import com.zbkj.common.model.seckill.StoreSeckill;
+ import com.zbkj.common.model.order.StoreOrder;
+ import com.zbkj.common.model.order.StoreOrderInfo;
++import com.zbkj.common.model.order.StoreOrderStatus;
+ import com.zbkj.common.model.product.StoreProductAttrValue;
+ import com.zbkj.common.model.system.SystemAdmin;
+ import com.zbkj.common.utils.RedisUtil;
+ import com.zbkj.service.delete.OrderUtils;
+ import com.zbkj.service.service.*;
++import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.BeanUtils;
+@@ -273,6 +276,14 @@ public class StoreOrderTaskServiceImpl implements StoreOrderTaskService {
+      */
+     @Override
+     public Boolean refundOrder(StoreOrder storeOrder) {
++        if (!OrderRefundStateMachine.shouldRunRefundTask(storeOrder.getRefundStatus())) {
++            logger.warn("退款后置处理跳过，状态不匹配：orderId={}, refundStatus={}", storeOrder.getId(), storeOrder.getRefundStatus());
++            return Boolean.TRUE;
++        }
++        if (OrderRefundStateMachine.isFinalSuccess(storeOrder.getRefundStatus()) && hasRefundSuccessRecord(storeOrder.getId())) {
++            logger.info("退款后置处理幂等命中，已存在成功退款日志：orderId={}", storeOrder.getId());
++            return Boolean.TRUE;
++        }
+         /**
+          * 1、写订单日志
+          * 2、回滚消耗积分
+@@ -397,6 +408,18 @@ public class StoreOrderTaskServiceImpl implements StoreOrderTaskService {
+         return execute;
+     }
+ 
++    /**
++     * 是否已写入“退款成功”订单日志，用于幂等保护。
++     */
++    private boolean hasRefundSuccessRecord(Integer orderId) {
++        LambdaQueryWrapper<StoreOrderStatus> lqw = new LambdaQueryWrapper<>();
++        lqw.eq(StoreOrderStatus::getOid, orderId)
++                .eq(StoreOrderStatus::getChangeType, Constants.ORDER_LOG_REFUND_PRICE)
++                .like(StoreOrderStatus::getChangeMessage, "成功")
++                .last("limit 1");
++        return storeOrderStatusService.count(lqw) > 0;
++    }
++
+     /**
+      * 超时未支付系统自动取消
+      */
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WeChatPayServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WeChatPayServiceImpl.java
+index 121949dd..1b7e9994 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WeChatPayServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WeChatPayServiceImpl.java
+@@ -6,6 +6,8 @@ import cn.hutool.core.date.DateUtil;
+ import cn.hutool.core.util.ObjectUtil;
+ import cn.hutool.core.util.StrUtil;
+ import com.alibaba.fastjson.JSONObject;
++import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
++import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+ import com.zbkj.common.constants.Constants;
+ import com.zbkj.common.constants.PayConstants;
+ import com.zbkj.common.constants.TaskConstants;
+@@ -19,6 +21,9 @@ import com.zbkj.common.model.user.UserToken;
+ import com.zbkj.common.model.wechat.WechatPayInfo;
+ import com.zbkj.common.utils.*;
+ import com.zbkj.common.vo.*;
++import com.zbkj.service.dao.BookingOrderDao;
++import com.zbkj.service.model.BookingOrder;
++import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
+ import com.zbkj.service.service.*;
+ import lombok.Data;
+ import org.slf4j.Logger;
+@@ -61,6 +66,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+     @Autowired
+     private StoreOrderInfoService storeOrderInfoService;
+ 
++    @Autowired
++    private BookingOrderDao bookingOrderDao;
++
+     @Autowired
+     private SystemConfigService systemConfigService;
+ 
+@@ -100,6 +108,12 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+     @Autowired
+     private WechatPayInfoService wechatPayInfoService;
+ 
++    @Autowired
++    private ServiceBookingService serviceBookingService;
++
++    @Autowired
++    private WeChatPayConfigSupport weChatPayConfigSupport;
++
+     /**
+      * 查询支付结果
+      * @param orderNo 订单编号
+@@ -110,6 +124,12 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+         if (StrUtil.isBlank(orderNo)) {
+             throw new CrmebException("订单编号不能为空");
+         }
++
++        BookingOrder bookingOrder = getBookingOrderByOrderNo(orderNo);
++        if (ObjectUtil.isNotNull(bookingOrder)) {
++            return bookingQueryPayResult(bookingOrder);
++        }
++
+         // 切割字符串，判断是支付订单还是充值订单
+         String pre = StrUtil.subPre(orderNo, 5);
+         if (pre.equals("order")) {// 支付订单
+@@ -137,29 +157,9 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+             if (ObjectUtil.isNull(user)) throw new CrmebException("用户不存在");
+ 
+ 
+-            // 获取appid、mch_id
+-            // 微信签名key
+-            String appId = "";
+-            String mchId = "";
+-            String signKey = "";
+-            if (storeOrder.getIsChannel() == 0) {// 公众号
+-                appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-                mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-                signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-            }
+-            if (storeOrder.getIsChannel() == 1) {// 小程序
+-                appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-                mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_MCH_ID);
+-                signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-            }
+-            if (storeOrder.getIsChannel() == 2) {// H5
+-                appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-                mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-                signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-            }
+-
++            WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
+             // 生成查询订单对象
+-            Map<String, String> payVo = getWxChantQueryPayVo(wechatPayInfo.getOutTradeNo(), appId, mchId, signKey);
++            Map<String, String> payVo = getWxChantQueryPayVo(wechatPayInfo.getOutTradeNo(), payConfig);
+             // 查询订单信息
+             MyRecord record = wechatNewService.payOrderQuery(payVo);
+ 
+@@ -259,23 +259,10 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+             return Boolean.TRUE;
+         }
+         // 查询订单
+-        // 获取appid、mch_id
+-        // 微信签名key
+-        String appId = "";
+-        String mchId = "";
+-        String signKey = "";
+-        if (userRecharge.getRechargeType().equals("public")) {// 公众号
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
+-        if (userRecharge.getRechargeType().equals("routine")) {// 小程序
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-        }
++        Integer rechargeChannel = weChatPayConfigSupport.parseRechargeChannel(userRecharge.getRechargeType());
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(rechargeChannel, 0);
+         // 生成查询订单对象
+-        Map<String, String> payVo = getWxChantQueryPayVo(userRecharge.getOutTradeNo(), appId, mchId, signKey);
++        Map<String, String> payVo = getWxChantQueryPayVo(userRecharge.getOutTradeNo(), payConfig);
+         // 查询订单信息
+         MyRecord record = wechatNewService.payOrderQuery(payVo);
+         // 支付成功处理
+@@ -286,6 +273,51 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+         return rechargePayAfter;
+     }
+ 
++    private BookingOrder getBookingOrderByOrderNo(String orderNo) {
++        LambdaQueryWrapper<BookingOrder> lqw = Wrappers.lambdaQuery();
++        lqw.eq(BookingOrder::getOrderNo, orderNo);
++        return bookingOrderDao.selectOne(lqw);
++    }
++
++    private Boolean bookingQueryPayResult(BookingOrder bookingOrder) {
++        if (bookingOrder.getStatus() == 2) {
++            return Boolean.TRUE;
++        }
++        if (bookingOrder.getStatus() != 1) {
++            throw new CrmebException("当前预约订单状态不可查询支付");
++        }
++
++        WechatPayInfo wechatPayInfo = wechatPayInfoService.getByNo(bookingOrder.getOrderNo());
++        if (ObjectUtil.isNull(wechatPayInfo)) {
++            throw new CrmebException("未找到对应微信订单");
++        }
++
++        // 预约支付当前仅支持公众号/小程序/H5，按微信订单中的appid反查渠道配置
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByAppId(wechatPayInfo.getAppId(), bookingOrder.getStoreId());
++
++        Map<String, String> payVo = getWxChantQueryPayVo(wechatPayInfo.getOutTradeNo(), payConfig);
++        MyRecord record = wechatNewService.payOrderQuery(payVo);
++
++        wechatPayInfo.setIsSubscribe(record.getStr("is_subscribe"));
++        wechatPayInfo.setTradeState(record.getStr("trade_state"));
++        wechatPayInfo.setBankType(record.getStr("bank_type"));
++        wechatPayInfo.setCashFee(record.getInt("cash_fee"));
++        wechatPayInfo.setCouponFee(record.getInt("coupon_fee"));
++        wechatPayInfo.setTransactionId(record.getStr("transaction_id"));
++        wechatPayInfo.setTimeEnd(record.getStr("time_end"));
++        wechatPayInfo.setTradeStateDesc(record.getStr("trade_state_desc"));
++
++        Boolean execute = transactionTemplate.execute(e -> {
++            wechatPayInfoService.updateById(wechatPayInfo);
++            serviceBookingService.paySuccess(bookingOrder.getOrderNo());
++            return Boolean.TRUE;
++        });
++        if (!execute) {
++            throw new CrmebException("预约支付结果更新失败");
++        }
++        return Boolean.TRUE;
++    }
++
+     /**
+      * 微信充值预下单接口
+      * @param userRecharge 充值订单
+@@ -314,41 +346,44 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+             throw new CrmebException("该用户没有openId");
+         }
+ 
+-        // 获取appid、mch_id
+-        // 微信签名key
+-        String appId = "";
+-        String mchId = "";
+-        String signKey = "";
+-        if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_PUBLIC)) {// 公众号
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
+-        if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_PROGRAM)) {// 小程序
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_ROUTINE_APP_KEY);
+-        }
+-        if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_H5)) {// H5,使用公众号的
+-            appId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_ID);
+-            mchId = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_MCH_ID);
+-            signKey = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_PAY_WE_CHAT_APP_KEY);
+-        }
++        Integer rechargeChannel = weChatPayConfigSupport.parseRechargeChannel(userRecharge.getRechargeType());
++        WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(rechargeChannel, 0);
+ 
+         // 获取微信预下单对象
+-        CreateOrderRequestVo unifiedorderVo = getUnifiedorderVo(userRecharge, userToken.getToken(), clientIp, appId, mchId, signKey);
++        CreateOrderRequestVo unifiedorderVo = getUnifiedorderVo(userRecharge, userToken.getToken(), clientIp, payConfig);
++        logger.info(
++                "wx.unifiedorder.request biz=recharge orderNo={} outTradeNo={} channel={} storeId={} serviceProviderMode={} mchId={} subMchId={}",
++                userRecharge.getOrderId(),
++                unifiedorderVo.getOut_trade_no(),
++                rechargeChannel,
++                0,
++                Boolean.TRUE.equals(payConfig.getServiceProviderMode()),
++                payConfig.getMchId(),
++                StrUtil.blankToDefault(payConfig.getSubMchId(), "-")
++        );
+         // 预下单
+         CreateOrderResponseVo responseVo = unifiedOrder(unifiedorderVo);
++        logger.info(
++                "wx.unifiedorder.response biz=recharge orderNo={} outTradeNo={} channel={} storeId={} serviceProviderMode={} mchId={} subMchId={} prepayId={}",
++                userRecharge.getOrderId(),
++                unifiedorderVo.getOut_trade_no(),
++                rechargeChannel,
++                0,
++                Boolean.TRUE.equals(payConfig.getServiceProviderMode()),
++                payConfig.getMchId(),
++                StrUtil.blankToDefault(payConfig.getSubMchId(), "-"),
++                responseVo.getPrepayId()
++        );
+ 
+         // 组装前端预下单参数
+         Map<String, String> map = new HashMap<>();
+-        map.put("appId", unifiedorderVo.getAppid());
++        map.put("appId", StrUtil.isNotBlank(payConfig.getClientAppId()) ? payConfig.getClientAppId() : unifiedorderVo.getAppid());
+         map.put("nonceStr", unifiedorderVo.getNonce_str());
+         map.put("package", "prepay_id=".concat(responseVo.getPrepayId()));
+         map.put("signType", unifiedorderVo.getSign_type());
+         Long currentTimestamp = WxPayUtil.getCurrentTimestamp();
+         map.put("timeStamp", Long.toString(currentTimestamp));
+-        String paySign = WxPayUtil.getSign(map, signKey);
++        String paySign = WxPayUtil.getSign(map, payConfig.getSignKey());
+         map.put("outTradeNo", unifiedorderVo.getOut_trade_no());
+         map.put("paySign", paySign);
+         if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_H5)) {
+@@ -362,14 +397,20 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+      * 生成微信查询订单对象
+      * @return
+      */
+-    private Map<String, String> getWxChantQueryPayVo(String orderNo, String appId, String mchId, String signKey) {
++    private Map<String, String> getWxChantQueryPayVo(String orderNo, WeChatPayChannelConfig payConfig) {
+         Map<String, String> map = CollUtil.newHashMap();
+-        map.put("appid", appId);
+-        map.put("mch_id", mchId);
++        map.put("appid", payConfig.getAppId());
++        map.put("mch_id", payConfig.getMchId());
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            map.put("sub_mch_id", payConfig.getSubMchId());
++            if (StrUtil.isNotBlank(payConfig.getSubAppId()) && !payConfig.getSubAppId().equals(payConfig.getAppId())) {
++                map.put("sub_appid", payConfig.getSubAppId());
++            }
++        }
+         map.put("out_trade_no", orderNo);
+         map.put("nonce_str", WxPayUtil.getNonceStr());
+         map.put("sign_type", PayConstants.WX_PAY_SIGN_TYPE_MD5);
+-        map.put("sign", WxPayUtil.getSign(map, signKey));
++        map.put("sign", WxPayUtil.getSign(map, payConfig.getSignKey()));
+         return map;
+     }
+ 
+@@ -377,7 +418,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+      * 获取微信预下单对象
+      * @return
+      */
+-    private CreateOrderRequestVo getUnifiedorderVo(UserRecharge userRecharge, String openid, String ip, String appId, String mchId, String signKey) {
++    private CreateOrderRequestVo getUnifiedorderVo(UserRecharge userRecharge, String openid, String ip, WeChatPayChannelConfig payConfig) {
+ 
+         // 获取域名
+         String domain = systemConfigService.getValueByKeyException(Constants.CONFIG_KEY_SITE_URL);
+@@ -386,8 +427,8 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+         AttachVo attachVo = new AttachVo(Constants.SERVICE_PAY_TYPE_RECHARGE, userRecharge.getUid());
+         CreateOrderRequestVo vo = new CreateOrderRequestVo();
+ 
+-        vo.setAppid(appId);
+-        vo.setMch_id(mchId);
++        vo.setAppid(payConfig.getAppId());
++        vo.setMch_id(payConfig.getMchId());
+         vo.setNonce_str(WxPayUtil.getNonceStr());
+         vo.setSign_type(PayConstants.WX_PAY_SIGN_TYPE_MD5);
+         vo.setBody(PayConstants.PAY_BODY);
+@@ -398,14 +439,29 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+         vo.setSpbill_create_ip(ip);
+         vo.setNotify_url(apiDomain + PayConstants.WX_PAY_NOTIFY_API_URI);
+         vo.setTrade_type(PayConstants.WX_PAY_TRADE_TYPE_JS);
+-        vo.setOpenid(openid);
++        String payOpenId = openid;
+         if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_H5)) {// H5
+             vo.setTrade_type(PayConstants.WX_PAY_TRADE_TYPE_H5);
+-            vo.setOpenid(null);
++            payOpenId = null;
+         }
+         if (userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_APP_IOS) || userRecharge.getRechargeType().equals(PayConstants.PAY_CHANNEL_WE_CHAT_APP_ANDROID)) {
+             vo.setTrade_type("APP");
+-            vo.setOpenid(null);
++            payOpenId = null;
++        }
++        if (Boolean.TRUE.equals(payConfig.getServiceProviderMode())) {
++            vo.setSub_mch_id(payConfig.getSubMchId());
++            if (StrUtil.isNotBlank(payConfig.getSubAppId())) {
++                vo.setSub_appid(payConfig.getSubAppId());
++            }
++            if (StrUtil.isNotBlank(payOpenId) && StrUtil.isNotBlank(payConfig.getSubAppId())
++                    && !payConfig.getAppId().equals(payConfig.getSubAppId())) {
++                vo.setSub_openid(payOpenId);
++                vo.setOpenid(null);
++            } else {
++                vo.setOpenid(payOpenId);
++            }
++        } else {
++            vo.setOpenid(payOpenId);
+         }
+         CreateOrderH5SceneInfoVo createOrderH5SceneInfoVo = new CreateOrderH5SceneInfoVo(
+                 new CreateOrderH5SceneInfoDetailVo(
+@@ -414,7 +470,7 @@ public class WeChatPayServiceImpl implements WeChatPayService {
+                 )
+         );
+         vo.setScene_info(JSONObject.toJSONString(createOrderH5SceneInfoVo));
+-        String sign = WxPayUtil.getSign(vo, signKey);
++        String sign = WxPayUtil.getSign(vo, payConfig.getSignKey());
+         vo.setSign(sign);
+         return vo;
+     }
+diff --git a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WechatNewServiceImpl.java b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WechatNewServiceImpl.java
+index 6cb6403e..24d34b97 100644
+--- a/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WechatNewServiceImpl.java
++++ b/crmeb/crmeb-service/src/main/java/com/zbkj/service/service/impl/WechatNewServiceImpl.java
+@@ -451,6 +451,36 @@ public class WechatNewServiceImpl implements WechatNewService {
+         }
+     }
+ 
++    /**
++     * 微信退款查询
++     */
++    @Override
++    public MyRecord payRefundQuery(Map<String, String> payVo) {
++        String url = PayConstants.WX_PAY_API_URL + PayConstants.WX_PAY_REFUND_QUERY_API_URI;
++        try {
++            String request = XmlUtil.mapToXml(payVo);
++            String xml = restTemplateUtil.postXml(url, request);
++            HashMap<String, Object> map = XmlUtil.xmlToMap(xml);
++            MyRecord record = new MyRecord();
++            if (null == map) {
++                throw new CrmebException("微信退款查询失败！");
++            }
++            record.setColums(map);
++            if (record.getStr("return_code").toUpperCase().equals("FAIL")) {
++                wxPayQueryExceptionDispose(record, "微信退款查询通信异常");
++                throw new CrmebException("微信退款查询失败1！" + record.getStr("return_msg"));
++            }
++            if (record.getStr("result_code").toUpperCase().equals("FAIL")) {
++                wxPayQueryExceptionDispose(record, "微信退款查询结果异常");
++                throw new CrmebException("微信退款查询失败2！" + record.getStr("err_code") + record.getStr("err_code_des"));
++            }
++            return record;
++        } catch (Exception e) {
++            e.printStackTrace();
++            throw new CrmebException("查询微信退款mapToXml异常===》" + e.getMessage());
++        }
++    }
++
+     /**
+      * 微信公众号发送模板消息
+      * @param templateMessage 模板消息对象
+@@ -942,4 +972,3 @@ public class WechatNewServiceImpl implements WechatNewService {
+     }
+ 
+ }
+-
+diff --git a/crmeb/pom.xml b/crmeb/pom.xml
+index 21f741f2..070731b2 100644
+--- a/crmeb/pom.xml
++++ b/crmeb/pom.xml
+@@ -23,6 +23,7 @@
+ 
+     <properties>
+         <java.version>1.8</java.version>
++        <lombok.version>1.18.30</lombok.version>
+         <springfox.version>2.9.2</springfox.version>
+         <swagger-models.version>1.5.22</swagger-models.version>
+         <swagger-bootstrap-ui.version>1.9.3</swagger-bootstrap-ui.version>
+@@ -61,7 +62,7 @@
+         <dependency>
+             <groupId>mysql</groupId>
+             <artifactId>mysql-connector-java</artifactId>
+-            <version>5.1.24</version>
++            <version>8.0.28</version>
+         </dependency>
+ 
+         <!--代码自动生成工具-->
+@@ -308,6 +309,12 @@
+             <artifactId>jwks-rsa</artifactId>
+             <version>0.9.0</version>
+         </dependency>
++        <!-- Lombok 升级到支持 Java 21 -->
++        <dependency>
++            <groupId>org.projectlombok</groupId>
++            <artifactId>lombok</artifactId>
++            <version>${lombok.version}</version>
++        </dependency>
+ 
+     </dependencies>
+     </dependencyManagement>

@@ -1,0 +1,29 @@
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+
+# Local Maven cache in project
+.m2/
+
+# Logs & runtime
+*.log
+**/crmeb_log/
+**/LOG_HOME_IS_UNDEFINED
+
+# Large artifacts
+*.zip
+*.dump
+*.tar.gz
+*.rar
+*.7z
+
+# Local working dirs
+.claude/
+**/unpackage
+
+# Env & secrets
+**/.env
+**/secret.yaml
+**/deploy/docker/.env
+**/deploy/k8s/base/secret.yaml

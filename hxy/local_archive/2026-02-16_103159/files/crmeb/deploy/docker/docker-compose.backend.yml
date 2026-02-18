@@ -1,0 +1,119 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: crmeb-mysql
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    ports:
+      - "${MYSQL_HOST_PORT}:3306"
+    volumes:
+      - ../../runtime/docker/mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crmeb-net
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: crmeb-redis
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: >
+      sh -c '
+      if [ -n "$${REDIS_PASSWORD}" ]; then
+        redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}";
+      else
+        redis-server --appendonly yes;
+      fi
+      '
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
+    volumes:
+      - ../../runtime/docker/redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - crmeb-net
+
+  admin:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.admin
+    image: crmeb-admin:local
+    container_name: crmeb-admin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+      JAVA_OPTS: ${JAVA_OPTS_ADMIN}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CRMEB_IMAGE_PATH: /data/images/
+    ports:
+      - "${ADMIN_HOST_PORT}:20500"
+    volumes:
+      - ../../runtime/docker/admin-log:/app/crmeb_log
+      - ../../runtime/docker/images:/data/images
+    networks:
+      - crmeb-net
+
+  front:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile.front
+    image: crmeb-front:local
+    container_name: crmeb-front
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+      JAVA_OPTS: ${JAVA_OPTS_FRONT}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?characterEncoding=utf-8&useSSL=false&serverTimeZone=GMT+8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CRMEB_IMAGE_PATH: /data/images/
+    ports:
+      - "${FRONT_HOST_PORT}:20510"
+    volumes:
+      - ../../runtime/docker/front-log:/app/crmeb_log
+      - ../../runtime/docker/images:/data/images
+    networks:
+      - crmeb-net
+
+networks:
+  crmeb-net:
+    driver: bridge

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.BookingDao">
+
+    <!-- 根据预约编号查询 -->
+    <select id="selectByBookingNo" resultType="com.zbkj.common.model.booking.BookingPO">
+        SELECT * FROM eb_booking WHERE booking_no = #{bookingNo} LIMIT 1
+    </select>
+
+    <!-- 查询用户预约列表 -->
+    <select id="selectByUserId" resultType="com.zbkj.common.model.booking.BookingPO">
+        SELECT * FROM eb_booking 
+        WHERE user_id = #{userId}
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询技师预约列表 -->
+    <select id="selectByTechnicianAndTimeRange" resultType="com.zbkj.common.model.booking.BookingPO">
+        SELECT * FROM eb_booking
+        WHERE technician_id = #{technicianId}
+        AND booking_time BETWEEN #{startTime} AND #{endTime}
+        AND status IN (0, 1, 2)
+        ORDER BY booking_time ASC
+    </select>
+
+    <!-- 查询门店预约列表 -->
+    <select id="selectByStoreAndDate" resultType="com.zbkj.common.model.booking.BookingPO">
+        SELECT * FROM eb_booking
+        WHERE store_id = #{storeId}
+        AND DATE(booking_time) = DATE(#{date})
+        ORDER BY booking_time ASC
+    </select>
+
+    <!-- 查询超时未支付的预约 -->
+    <select id="selectTimeoutPendingBookings" resultType="com.zbkj.common.model.booking.BookingPO">
+        SELECT * FROM eb_booking
+        WHERE status = 0
+        AND TIMESTAMPDIFF(MINUTE, create_time, NOW()) > #{timeoutMinutes}
+    </select>
+
+</mapper>
+
+
