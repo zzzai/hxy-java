@@ -14,7 +14,7 @@
 2. 内层仓库（CRMEB 源码仓）  
 路径：`/root/crmeb-java/crmeb_java`  
 默认分支：`1.4`  
-远端：`origin=https://github.com/crmeb/crmeb_java.git`
+远端：`origin=https://github.com/zzzai/crmeb_java.git`
 
 3. 风险点  
 外层仓库把 `crmeb_java` 记录为 gitlink（子仓库指针）。  
@@ -49,7 +49,7 @@ set +a
 ## 3. 同步策略（默认）
 
 1. 日常只推外层仓库 `main`。  
-2. 内层仓库默认仅用于本地开发，不直接向官方 `crmeb` 远端推送。  
+2. 内层仓库默认直接推送到私有 `zzzai/crmeb_java`，不依赖官方开源远端。  
 3. 若确需更新外层的 `crmeb_java` 指针，必须先确保内层 `HEAD` 已存在于可访问远端，再允许推送外层。  
 4. 禁止 `git push --force` 到 `main`。  
 5. 同步顺序（`all` 场景）：先内层、后外层。
