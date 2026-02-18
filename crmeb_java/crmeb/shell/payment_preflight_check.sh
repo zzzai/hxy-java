@@ -108,6 +108,19 @@ normalize_switch() {
   printf '%s' "${v}"
 }
 
+normalize_csv_ids() {
+  local v="$1"
+  v="${v//\'/}"
+  v="${v//\"/}"
+  v="$(printf '%s' "${v}" | tr -d '[:space:]')"
+  printf '%s' "${v}"
+}
+
+is_csv_ids() {
+  local v="$1"
+  [[ -z "${v}" || "${v}" =~ ^[0-9]+(,[0-9]+)*$ ]]
+}
+
 is_placeholder_sub_mchid() {
   local v
   v="$(normalize_switch "$1")"
@@ -142,7 +155,10 @@ WHERE name IN (
   'pay_routine_appid','pay_routine_mchid','pay_routine_key',
   'pay_routine_sp_appid','pay_routine_sp_mchid','pay_routine_sp_key',
   'pay_routine_sub_mchid','pay_routine_sub_appid',
-  'pay_routine_sp_certificate_path'
+  'pay_routine_sp_certificate_path',
+  'payment_refund_hq_only_enable',
+  'payment_refund_hq_admin_ids',
+  'payment_refund_hq_role_ids'
 );")"
   while IFS=$'\t' read -r name value; do
     [[ -z "${name}" ]] && continue
@@ -215,6 +231,9 @@ sp_key="$(get_cfg_value "pay_routine_sp_key")"
 sub_mchid="$(get_cfg_value "pay_routine_sub_mchid")"
 sub_appid="$(get_cfg_value "pay_routine_sub_appid")"
 sp_cert_path="$(get_cfg_value "pay_routine_sp_certificate_path")"
+refund_hq_only_enable="$(normalize_switch "$(get_cfg_value "payment_refund_hq_only_enable")")"
+refund_hq_admin_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_admin_ids")")"
+refund_hq_role_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_role_ids")")"
 
 if [[ -n "${sp_mchid}" && -n "${sp_key}" ]]; then
   add_result "PASS" "支付模式" "服务商模式（pay_routine_sp_mchid 已配置）"
@@ -262,6 +281,29 @@ if (( ${#placeholder_hits[@]} > 0 )); then
   add_result "FAIL" "子商户占位号" "检测到占位 sub_mchid(99xxxxxxxx): ${placeholder_hits[*]}"
 else
   add_result "PASS" "子商户占位号" "未发现 99xxxxxxxx 占位号"
+fi
+
+# 4.1) 总部退款执行权限策略
+if [[ -z "${refund_hq_only_enable}" || "${refund_hq_only_enable}" == "1" ]]; then
+  add_result "PASS" "退款执行权限策略" "已开启仅总部可手工退款（payment_refund_hq_only_enable=${refund_hq_only_enable:-<empty->default1>})"
+else
+  add_result "WARN" "退款执行权限策略" "已关闭仅总部可手工退款（payment_refund_hq_only_enable=${refund_hq_only_enable}）"
+fi
+
+if ! is_csv_ids "${refund_hq_admin_ids}"; then
+  add_result "FAIL" "退款总部管理员白名单" "payment_refund_hq_admin_ids 格式非法（需逗号分隔数字ID）"
+elif [[ -n "${refund_hq_admin_ids}" ]]; then
+  add_result "PASS" "退款总部管理员白名单" "payment_refund_hq_admin_ids=${refund_hq_admin_ids}"
+fi
+
+if ! is_csv_ids "${refund_hq_role_ids}"; then
+  add_result "FAIL" "退款总部角色白名单" "payment_refund_hq_role_ids 格式非法（需逗号分隔数字ID）"
+elif [[ -n "${refund_hq_role_ids}" ]]; then
+  add_result "PASS" "退款总部角色白名单" "payment_refund_hq_role_ids=${refund_hq_role_ids}"
+fi
+
+if [[ -z "${refund_hq_admin_ids}" && -z "${refund_hq_role_ids}" ]]; then
+  add_result "WARN" "退款总部白名单覆盖" "未配置管理员/角色白名单，当前仅超管可手工退款"
 fi
 
 # 5) 回调域名
