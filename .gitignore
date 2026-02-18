@@ -8,6 +8,7 @@
 
 # Logs & runtime
 *.log
+*.log.*
 **/crmeb_log/
 **/crmeb_admin_log/
 **/crmeb_front_log/
@@ -24,6 +25,7 @@ crmeb_java/crmeb/runtime/
 
 # Local working dirs
 .claude/
+.git_backup/
 **/unpackage
 **/target/
 
