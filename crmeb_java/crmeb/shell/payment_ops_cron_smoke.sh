@@ -101,6 +101,7 @@ set +e
   --cutover-gate-mapping-strict-missing 0 \
   --cutover-gate-require-mapping-green 0 \
   --cutover-gate-require-mock-green 0 \
+  --cutover-gate-require-hq-refund-policy 1 \
   --go-nogo-notify 1 \
   --go-nogo-require-booking-repair-pass 1 \
   --morning-bundle-notify 1 \
@@ -137,7 +138,7 @@ expect_contains "decision_ticketize" "payment_decision_ticketize.sh"
 expect_contains "cron_healthcheck" "payment_cron_healthcheck.sh"
 expect_contains "mapping_audit" "payment_store_mapping_audit.sh --strict-missing 0"
 expect_contains "mapping_smoke" "payment_store_mapping_pipeline_smoke.sh"
-expect_contains "cutover_gate" "payment_cutover_gate.sh --require-apply-ready 0 --require-booking-repair-pass 1 --require-mapping-smoke-green 0 --mapping-strict-missing 0 --require-mapping-green 0 --require-mock-green 0 --owner-default payment-ops --owner-p1 payment-oncall"
+expect_contains "cutover_gate" "payment_cutover_gate.sh --require-apply-ready 0 --require-booking-repair-pass 1 --require-mapping-smoke-green 0 --mapping-strict-missing 0 --require-mapping-green 0 --require-mock-green 0 --require-hq-refund-policy 1 --owner-default payment-ops --owner-p1 payment-oncall"
 expect_contains "ticket_owner_defaults" "payment_reconcile_ticketize.sh --max-rows 200 --amount-p1-threshold-cent 100000 --owner-default payment-ops --owner-p1 payment-oncall"
 expect_contains "gonogo_gate" "payment_go_nogo_decision.sh --require-apply-ready 0 --require-booking-repair-pass 1"
 expect_contains "gonogo_mapping_smoke_gate" "payment_go_nogo_decision.sh --require-apply-ready 0 --require-booking-repair-pass 1 --require-mapping-smoke-green 0"

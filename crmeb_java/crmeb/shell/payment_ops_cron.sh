@@ -79,6 +79,7 @@ CUTOVER_GATE_REQUIRE_MAPPING_SMOKE_GREEN="${CUTOVER_GATE_REQUIRE_MAPPING_SMOKE_G
 CUTOVER_GATE_MAPPING_STRICT_MISSING="${CUTOVER_GATE_MAPPING_STRICT_MISSING:-0}"
 CUTOVER_GATE_REQUIRE_MAPPING_GREEN="${CUTOVER_GATE_REQUIRE_MAPPING_GREEN:-0}"
 CUTOVER_GATE_REQUIRE_MOCK_GREEN="${CUTOVER_GATE_REQUIRE_MOCK_GREEN:-0}"
+CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY="${CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY:-1}"
 CUTOVER_GATE_OWNER_MAP_FILE="${CUTOVER_GATE_OWNER_MAP_FILE:-}"
 MAPPING_SMOKE_NOTIFY="${MAPPING_SMOKE_NOTIFY:-0}"
 DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -99,7 +100,7 @@ END_MARK="# <<< payment ops managed <<<"
 usage() {
   cat <<'USAGE'
 用法：
-  ./shell/payment_ops_cron.sh [--apply] [--remove] [--webhook URL] [--type wecom|dingtalk|feishu] [--report-notify 0|1] [--report-cron EXPR] [--ticket-notify 0|1] [--ticket-cron EXPR] [--ticket-max-rows N] [--ticket-amount-p1-threshold-cent N] [--ticket-owner-map-file FILE] [--ticket-owner-default NAME] [--ticket-owner-p1 NAME] [--decision-ticket-notify 0|1] [--decision-ticket-cron EXPR] [--warroom-notify 0|1] [--warroom-cron EXPR] [--warroom-window-hours N] [--go-nogo-notify 0|1] [--go-nogo-cron EXPR] [--go-nogo-require-apply-ready 0|1] [--go-nogo-require-booking-repair-pass 0|1] [--go-nogo-require-mapping-smoke-green 0|1] [--morning-bundle-notify 0|1] [--morning-bundle-cron EXPR] [--morning-bundle-require-apply-ready 0|1] [--morning-bundle-require-booking-repair-pass 0|1] [--morning-bundle-require-mapping-smoke-green 0|1] [--morning-bundle-window-hours N] [--morning-bundle-window N] [--morning-bundle-tail N] [--morning-bundle-strict-preflight 0|1] [--status-notify 0|1] [--status-cron EXPR] [--status-refresh 0|1] [--status-refresh-require-apply-ready 0|1] [--status-require-booking-repair-pass 0|1] [--status-require-decision-chain-pass 0|1] [--status-max-summary-age-minutes N] [--status-max-recon-age-days N] [--status-max-daily-report-age-days N] [--contract-notify 0|1] [--contract-cron EXPR] [--contract-require-all 0|1] [--sla-notify 0|1] [--sla-cron EXPR] [--sla-lookback-days N] [--sla-days N] [--retention-notify 0|1] [--retention-cron EXPR] [--retention-keep-days N] [--booking-repair-notify 0|1] [--booking-repair-cron EXPR] [--booking-repair-window-hours N] [--booking-repair-apply 0|1] [--decision-chain-notify 0|1] [--decision-chain-cron EXPR] [--cron-health-notify 0|1] [--cron-health-cron EXPR] [--mapping-audit-notify 0|1] [--mapping-audit-cron EXPR] [--mapping-audit-strict-missing 0|1] [--mapping-smoke-notify 0|1] [--mapping-smoke-cron EXPR] [--cutover-gate-notify 0|1] [--cutover-gate-cron EXPR] [--cutover-gate-require-apply-ready 0|1] [--cutover-gate-require-booking-repair-pass 0|1] [--cutover-gate-require-mapping-smoke-green 0|1] [--cutover-gate-mapping-strict-missing 0|1] [--cutover-gate-require-mapping-green 0|1] [--cutover-gate-require-mock-green 0|1] [--cutover-gate-owner-map-file FILE] [--db-host HOST] [--db-port PORT] [--db-name NAME] [--db-user USER] [--db-pass PASS] [--mysql-defaults-file FILE] [--window N] [--tail N]
+  ./shell/payment_ops_cron.sh [--apply] [--remove] [--webhook URL] [--type wecom|dingtalk|feishu] [--report-notify 0|1] [--report-cron EXPR] [--ticket-notify 0|1] [--ticket-cron EXPR] [--ticket-max-rows N] [--ticket-amount-p1-threshold-cent N] [--ticket-owner-map-file FILE] [--ticket-owner-default NAME] [--ticket-owner-p1 NAME] [--decision-ticket-notify 0|1] [--decision-ticket-cron EXPR] [--warroom-notify 0|1] [--warroom-cron EXPR] [--warroom-window-hours N] [--go-nogo-notify 0|1] [--go-nogo-cron EXPR] [--go-nogo-require-apply-ready 0|1] [--go-nogo-require-booking-repair-pass 0|1] [--go-nogo-require-mapping-smoke-green 0|1] [--morning-bundle-notify 0|1] [--morning-bundle-cron EXPR] [--morning-bundle-require-apply-ready 0|1] [--morning-bundle-require-booking-repair-pass 0|1] [--morning-bundle-require-mapping-smoke-green 0|1] [--morning-bundle-window-hours N] [--morning-bundle-window N] [--morning-bundle-tail N] [--morning-bundle-strict-preflight 0|1] [--status-notify 0|1] [--status-cron EXPR] [--status-refresh 0|1] [--status-refresh-require-apply-ready 0|1] [--status-require-booking-repair-pass 0|1] [--status-require-decision-chain-pass 0|1] [--status-max-summary-age-minutes N] [--status-max-recon-age-days N] [--status-max-daily-report-age-days N] [--contract-notify 0|1] [--contract-cron EXPR] [--contract-require-all 0|1] [--sla-notify 0|1] [--sla-cron EXPR] [--sla-lookback-days N] [--sla-days N] [--retention-notify 0|1] [--retention-cron EXPR] [--retention-keep-days N] [--booking-repair-notify 0|1] [--booking-repair-cron EXPR] [--booking-repair-window-hours N] [--booking-repair-apply 0|1] [--decision-chain-notify 0|1] [--decision-chain-cron EXPR] [--cron-health-notify 0|1] [--cron-health-cron EXPR] [--mapping-audit-notify 0|1] [--mapping-audit-cron EXPR] [--mapping-audit-strict-missing 0|1] [--mapping-smoke-notify 0|1] [--mapping-smoke-cron EXPR] [--cutover-gate-notify 0|1] [--cutover-gate-cron EXPR] [--cutover-gate-require-apply-ready 0|1] [--cutover-gate-require-booking-repair-pass 0|1] [--cutover-gate-require-mapping-smoke-green 0|1] [--cutover-gate-mapping-strict-missing 0|1] [--cutover-gate-require-mapping-green 0|1] [--cutover-gate-require-mock-green 0|1] [--cutover-gate-require-hq-refund-policy 0|1] [--cutover-gate-owner-map-file FILE] [--db-host HOST] [--db-port PORT] [--db-name NAME] [--db-user USER] [--db-pass PASS] [--mysql-defaults-file FILE] [--window N] [--tail N]
 
 参数：
   --apply            真正写入当前用户 crontab（默认 dry-run）
@@ -174,6 +175,7 @@ usage() {
   --cutover-gate-mapping-strict-missing 0|1      上线拦截规则映射审计 missing 是否阻断（默认 0）
   --cutover-gate-require-mapping-green 0|1       上线拦截规则是否要求 mapping_audit=GREEN（默认 0）
   --cutover-gate-require-mock-green 0|1          上线拦截规则是否要求 mock_replay=GREEN（默认 0）
+  --cutover-gate-require-hq-refund-policy 0|1    上线拦截规则是否要求总部退款策略达标（默认 1）
   --cutover-gate-owner-map-file FILE             上线拦截规则 mock 回放 owner 规则（默认沿用 ticket owner map）
   --db-host HOST     MySQL 地址（默认 127.0.0.1）
   --db-port PORT     MySQL 端口（默认 3306）
@@ -502,6 +504,10 @@ while [[ $# -gt 0 ]]; do
       CUTOVER_GATE_REQUIRE_MOCK_GREEN="$2"
       shift 2
       ;;
+    --cutover-gate-require-hq-refund-policy)
+      CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY="$2"
+      shift 2
+      ;;
     --cutover-gate-owner-map-file)
       CUTOVER_GATE_OWNER_MAP_FILE="$2"
       shift 2
@@ -796,6 +802,10 @@ if [[ "${CUTOVER_GATE_REQUIRE_MOCK_GREEN}" != "0" && "${CUTOVER_GATE_REQUIRE_MOC
   echo "参数错误: --cutover-gate-require-mock-green 仅支持 0 或 1"
   exit 1
 fi
+if [[ "${CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY}" != "0" && "${CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY}" != "1" ]]; then
+  echo "参数错误: --cutover-gate-require-hq-refund-policy 仅支持 0 或 1"
+  exit 1
+fi
 if [[ -n "${CUTOVER_GATE_OWNER_MAP_FILE}" && ! -f "${CUTOVER_GATE_OWNER_MAP_FILE}" ]]; then
   echo "参数错误: --cutover-gate-owner-map-file 文件不存在 -> ${CUTOVER_GATE_OWNER_MAP_FILE}"
   exit 1
@@ -957,7 +967,7 @@ if [[ "${CUTOVER_GATE_NOTIFY}" == "1" ]]; then
   if [[ -z "${cutover_owner_map_file}" ]]; then
     cutover_owner_map_file="${TICKET_OWNER_MAP_FILE}"
   fi
-  cutover_gate_cmd="./shell/payment_cutover_gate.sh --require-apply-ready ${CUTOVER_GATE_REQUIRE_APPLY_READY} --require-booking-repair-pass ${CUTOVER_GATE_REQUIRE_BOOKING_REPAIR_PASS} --require-mapping-smoke-green ${CUTOVER_GATE_REQUIRE_MAPPING_SMOKE_GREEN} --mapping-strict-missing ${CUTOVER_GATE_MAPPING_STRICT_MISSING} --require-mapping-green ${CUTOVER_GATE_REQUIRE_MAPPING_GREEN} --require-mock-green ${CUTOVER_GATE_REQUIRE_MOCK_GREEN} --owner-default ${TICKET_OWNER_DEFAULT} --owner-p1 ${TICKET_OWNER_P1}"
+  cutover_gate_cmd="./shell/payment_cutover_gate.sh --require-apply-ready ${CUTOVER_GATE_REQUIRE_APPLY_READY} --require-booking-repair-pass ${CUTOVER_GATE_REQUIRE_BOOKING_REPAIR_PASS} --require-mapping-smoke-green ${CUTOVER_GATE_REQUIRE_MAPPING_SMOKE_GREEN} --mapping-strict-missing ${CUTOVER_GATE_MAPPING_STRICT_MISSING} --require-mapping-green ${CUTOVER_GATE_REQUIRE_MAPPING_GREEN} --require-mock-green ${CUTOVER_GATE_REQUIRE_MOCK_GREEN} --require-hq-refund-policy ${CUTOVER_GATE_REQUIRE_HQ_REFUND_POLICY} --owner-default ${TICKET_OWNER_DEFAULT} --owner-p1 ${TICKET_OWNER_P1}"
   if [[ -n "${cutover_owner_map_file}" ]]; then
     cutover_gate_cmd="${cutover_gate_cmd} --owner-map-file ${cutover_owner_map_file}"
   fi
