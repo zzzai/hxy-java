@@ -20,6 +20,9 @@ PREFLIGHT_STRICT="${PREFLIGHT_STRICT:-0}"
 REFUND_WINDOW_HOURS="${REFUND_WINDOW_HOURS:-72}"
 REFUND_TIMEOUT_MINUTES="${REFUND_TIMEOUT_MINUTES:-30}"
 ALLOW_SHARED_SUBMCHID="${ALLOW_SHARED_SUBMCHID:-0}"
+INCIDENT_BUNDLE_ON_FAIL="${INCIDENT_BUNDLE_ON_FAIL:-1}"
+INCIDENT_BUNDLE_ON_WARN="${INCIDENT_BUNDLE_ON_WARN:-0}"
+INCIDENT_BUNDLE_LOG_LINES="${INCIDENT_BUNDLE_LOG_LINES:-300}"
 
 SKIP_PREFLIGHT=0
 SKIP_MAPPING_AUDIT=0
@@ -41,6 +44,7 @@ usage() {
     [--require-apply-ready 0|1] [--require-booking-repair-pass 0|1] [--require-mapping-smoke-green 0|1]
     [--mapping-strict-missing 0|1] [--require-mapping-green 0|1] [--require-mock-green 0|1] [--require-refund-green 0|1]
     [--refund-window-hours N] [--refund-timeout-minutes N]
+    [--incident-bundle-on-fail 0|1] [--incident-bundle-on-warn 0|1] [--incident-bundle-log-lines N]
     [--preflight-strict 0|1] [--allow-shared-submchid 0|1]
     [--owner-map-file FILE] [--owner-default NAME] [--owner-p1 NAME]
     [--skip-preflight] [--skip-mapping-audit] [--skip-mock-replay] [--skip-refund-convergence] [--skip-ops-status]
@@ -58,6 +62,9 @@ usage() {
   --require-refund-green 0|1       是否要求退款收敛巡检必须 GREEN（默认 0，GREEN_WITH_WARN 记告警不阻断）
   --refund-window-hours N          退款收敛巡检窗口（默认 72）
   --refund-timeout-minutes N       退款收敛超时阈值（默认 30）
+  --incident-bundle-on-fail 0|1    gate=NO_GO 时自动打应急证据包（默认 1）
+  --incident-bundle-on-warn 0|1    gate=GO_WITH_WARN 时自动打应急证据包（默认 0）
+  --incident-bundle-log-lines N    应急证据包日志 tail 行数（默认 300）
   --allow-shared-submchid 0|1      是否允许多个门店共享同一 sub_mchid（默认 0）
   --preflight-strict 0|1           preflight 是否开启 strict（默认 0）
   --owner-map-file FILE            mock 回放里 decision_ticketize 的 owner 规则文件
@@ -122,6 +129,18 @@ while [[ $# -gt 0 ]]; do
       ;;
     --refund-timeout-minutes)
       REFUND_TIMEOUT_MINUTES="$2"
+      shift 2
+      ;;
+    --incident-bundle-on-fail)
+      INCIDENT_BUNDLE_ON_FAIL="$2"
+      shift 2
+      ;;
+    --incident-bundle-on-warn)
+      INCIDENT_BUNDLE_ON_WARN="$2"
+      shift 2
+      ;;
+    --incident-bundle-log-lines)
+      INCIDENT_BUNDLE_LOG_LINES="$2"
       shift 2
       ;;
     --preflight-strict)
@@ -193,6 +212,8 @@ for sw in \
   "${REQUIRE_MOCK_GREEN}" \
   "${REQUIRE_REFUND_GREEN}" \
   "${ALLOW_SHARED_SUBMCHID}" \
+  "${INCIDENT_BUNDLE_ON_FAIL}" \
+  "${INCIDENT_BUNDLE_ON_WARN}" \
   "${PREFLIGHT_STRICT}"; do
   if [[ "${sw}" != "0" && "${sw}" != "1" ]]; then
     echo "参数错误: 开关参数仅支持 0 或 1"
@@ -205,6 +226,10 @@ if ! [[ "${REFUND_WINDOW_HOURS}" =~ ^[1-9][0-9]*$ ]]; then
 fi
 if ! [[ "${REFUND_TIMEOUT_MINUTES}" =~ ^[1-9][0-9]*$ ]]; then
   echo "参数错误: --refund-timeout-minutes 必须是正整数"
+  exit 1
+fi
+if ! [[ "${INCIDENT_BUNDLE_LOG_LINES}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "参数错误: --incident-bundle-log-lines 必须是正整数"
   exit 1
 fi
 if [[ -z "${OWNER_DEFAULT}" || -z "${OWNER_P1}" ]]; then
@@ -340,7 +365,7 @@ run_step() {
 }
 
 echo "[cutover-gate] run_dir=${RUN_DIR}"
-echo "[cutover-gate] report_date=${REPORT_DATE}, order_no=${ORDER_NO:-<none>}, require_apply_ready=${REQUIRE_APPLY_READY}, require_booking_repair_pass=${REQUIRE_BOOKING_REPAIR_PASS}, require_mapping_smoke_green=${REQUIRE_MAPPING_SMOKE_GREEN}, preflight_strict=${PREFLIGHT_STRICT}, require_refund_green=${REQUIRE_REFUND_GREEN}, allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}"
+echo "[cutover-gate] report_date=${REPORT_DATE}, order_no=${ORDER_NO:-<none>}, require_apply_ready=${REQUIRE_APPLY_READY}, require_booking_repair_pass=${REQUIRE_BOOKING_REPAIR_PASS}, require_mapping_smoke_green=${REQUIRE_MAPPING_SMOKE_GREEN}, preflight_strict=${PREFLIGHT_STRICT}, require_refund_green=${REQUIRE_REFUND_GREEN}, allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}, incident_bundle_on_fail=${INCIDENT_BUNDLE_ON_FAIL}, incident_bundle_on_warn=${INCIDENT_BUNDLE_ON_WARN}"
 
 preflight_rc="-"
 preflight_fail_count="-"
@@ -558,6 +583,44 @@ done
 block_hint_text="$(join_by_semicolon "${block_hints[@]}")"
 warn_hint_text="$(join_by_semicolon "${warn_hints[@]}")"
 
+incident_bundle_triggered=0
+incident_bundle_reason="none"
+incident_bundle_rc="-"
+incident_bundle_summary=""
+incident_bundle_report=""
+
+if (( exit_code != 0 )) && [[ "${INCIDENT_BUNDLE_ON_FAIL}" == "1" ]]; then
+  incident_bundle_triggered=1
+  incident_bundle_reason="fail"
+elif (( exit_code == 0 )) && (( warn_count > 0 )) && [[ "${INCIDENT_BUNDLE_ON_WARN}" == "1" ]]; then
+  incident_bundle_triggered=1
+  incident_bundle_reason="warn"
+fi
+
+if (( incident_bundle_triggered == 1 )); then
+  incident_cmd=(
+    ./shell/payment_incident_bundle.sh
+    --date "${REPORT_DATE}"
+    --log-lines "${INCIDENT_BUNDLE_LOG_LINES}"
+    --out-dir "${RUN_DIR}/incident_bundle"
+  )
+  if [[ -n "${ORDER_NO}" ]]; then
+    incident_cmd+=(--order-no "${ORDER_NO}")
+  fi
+  incident_bundle_rc="$(run_step "07_incident_bundle" "${incident_cmd[@]}")"
+  incident_bundle_run_dir="$(sed -n 's/^\[payment-incident-bundle\] run_dir=//p' "${RUN_DIR}/07_incident_bundle.log" | tail -n 1 || true)"
+  if [[ -n "${incident_bundle_run_dir}" ]]; then
+    incident_bundle_summary="${incident_bundle_run_dir}/summary.txt"
+    incident_bundle_report="${incident_bundle_run_dir}/report.md"
+  fi
+  if [[ -z "${incident_bundle_summary}" || ! -f "${incident_bundle_summary}" ]]; then
+    incident_bundle_summary="$(latest_summary "${RUN_DIR}/incident_bundle")"
+  fi
+  if [[ -z "${incident_bundle_report}" || ! -f "${incident_bundle_report}" ]]; then
+    incident_bundle_report="$(find "${RUN_DIR}/incident_bundle" -maxdepth 3 -type f -name 'report.md' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n 1 | cut -d' ' -f2- || true)"
+  fi
+fi
+
 {
   echo "run_id=${RUN_ID}"
   echo "run_time=$(date '+%Y-%m-%d %H:%M:%S')"
@@ -571,6 +634,14 @@ warn_hint_text="$(join_by_semicolon "${warn_hints[@]}")"
   echo "require_mock_green=${REQUIRE_MOCK_GREEN}"
   echo "require_refund_green=${REQUIRE_REFUND_GREEN}"
   echo "allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}"
+  echo "incident_bundle_on_fail=${INCIDENT_BUNDLE_ON_FAIL}"
+  echo "incident_bundle_on_warn=${INCIDENT_BUNDLE_ON_WARN}"
+  echo "incident_bundle_log_lines=${INCIDENT_BUNDLE_LOG_LINES}"
+  echo "incident_bundle_triggered=${incident_bundle_triggered}"
+  echo "incident_bundle_reason=${incident_bundle_reason}"
+  echo "incident_bundle_rc=${incident_bundle_rc}"
+  echo "incident_bundle_summary=${incident_bundle_summary}"
+  echo "incident_bundle_report=${incident_bundle_report}"
   echo "refund_window_hours=${REFUND_WINDOW_HOURS}"
   echo "refund_timeout_minutes=${REFUND_TIMEOUT_MINUTES}"
   echo "preflight_strict=${PREFLIGHT_STRICT}"
@@ -646,6 +717,12 @@ warn_hint_text="$(join_by_semicolon "${warn_hints[@]}")"
   echo "## 追溯"
   echo "- summary: \`${SUMMARY_FILE}\`"
   echo "- run_dir: \`${RUN_DIR}\`"
+  if [[ -n "${incident_bundle_summary}" ]]; then
+    echo "- incident_bundle_summary: \`${incident_bundle_summary}\`"
+  fi
+  if [[ -n "${incident_bundle_report}" ]]; then
+    echo "- incident_bundle_report: \`${incident_bundle_report}\`"
+  fi
 } > "${REPORT_FILE}"
 
 echo "[cutover-gate] summary=${SUMMARY_FILE}"
