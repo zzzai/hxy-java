@@ -110,6 +110,41 @@ exit 0
 SH
   chmod +x "${TMP_SHELL}/payment_alert_notify.sh"
 
+  cat > "${TMP_SHELL}/payment_incident_bundle.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OUT_DIR="${ROOT_DIR}/runtime/incident_stub"
+REPORT_DATE="$(date -d 'yesterday' +%F)"
+ORDER_NO=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --out-dir) OUT_DIR="$2"; shift 2 ;;
+    --date) REPORT_DATE="$2"; shift 2 ;;
+    --order-no) ORDER_NO="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+RUN_DIR="${OUT_DIR}/run-stub-$(date '+%Y%m%d%H%M%S')"
+mkdir -p "${RUN_DIR}"
+cat > "${RUN_DIR}/summary.txt" <<TXT
+report_date=${REPORT_DATE}
+order_no=${ORDER_NO}
+incident_level=P1
+run_dir=${RUN_DIR}
+TXT
+cat > "${RUN_DIR}/report.md" <<MD
+# incident stub
+- report_date: ${REPORT_DATE}
+- order_no: ${ORDER_NO}
+MD
+echo "[payment-incident-bundle] run_dir=${RUN_DIR}"
+echo "[payment-incident-bundle] summary=${RUN_DIR}/summary.txt"
+echo "[payment-incident-bundle] report=${RUN_DIR}/report.md"
+exit 0
+SH
+  chmod +x "${TMP_SHELL}/payment_incident_bundle.sh"
+
   cat > "${TMP_SHELL}/payment_preflight_check.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -292,6 +327,8 @@ PASS_SUMMARY="$(sed -n 's/^\[cutover-gate\] summary=//p' "${PASS_LOG}" | tail -n
 PASS_OVERALL="$(kv "${PASS_SUMMARY}" "overall")"
 PASS_DECISION="$(kv "${PASS_SUMMARY}" "gate_decision")"
 PASS_BLOCKS="$(kv "${PASS_SUMMARY}" "block_count")"
+PASS_INCIDENT_TRIGGERED="$(kv "${PASS_SUMMARY}" "incident_bundle_triggered")"
+PASS_INCIDENT_RC="$(kv "${PASS_SUMMARY}" "incident_bundle_rc")"
 
 FAIL_LOG="${RUN_DIR}/case_fail.log"
 set +e
@@ -311,6 +348,8 @@ FAIL_SUMMARY="$(sed -n 's/^\[cutover-gate\] summary=//p' "${FAIL_LOG}" | tail -n
 FAIL_OVERALL="$(kv "${FAIL_SUMMARY}" "overall")"
 FAIL_DECISION="$(kv "${FAIL_SUMMARY}" "gate_decision")"
 FAIL_BLOCKS="$(kv "${FAIL_SUMMARY}" "block_count")"
+FAIL_INCIDENT_TRIGGERED="$(kv "${FAIL_SUMMARY}" "incident_bundle_triggered")"
+FAIL_INCIDENT_RC="$(kv "${FAIL_SUMMARY}" "incident_bundle_rc")"
 
 severity="PASS"
 exit_code=0
@@ -328,6 +367,9 @@ fi
 if [[ "${PASS_BLOCKS}" != "0" ]]; then
   fails+=("pass_case block_count=${PASS_BLOCKS:-N/A}（预期 0）")
 fi
+if [[ "${PASS_INCIDENT_TRIGGERED}" != "0" ]]; then
+  fails+=("pass_case incident_bundle_triggered=${PASS_INCIDENT_TRIGGERED:-N/A}（预期 0）")
+fi
 
 if [[ "${FAIL_RC}" != "2" ]]; then
   fails+=("fail_case rc=${FAIL_RC}（预期 2）")
@@ -340,6 +382,12 @@ if [[ "${FAIL_DECISION}" != "NO_GO" ]]; then
 fi
 if ! [[ "${FAIL_BLOCKS}" =~ ^[1-9][0-9]*$ ]]; then
   fails+=("fail_case block_count=${FAIL_BLOCKS:-N/A}（预期 >=1）")
+fi
+if [[ "${FAIL_INCIDENT_TRIGGERED}" != "1" ]]; then
+  fails+=("fail_case incident_bundle_triggered=${FAIL_INCIDENT_TRIGGERED:-N/A}（预期 1）")
+fi
+if [[ "${FAIL_INCIDENT_RC}" != "0" ]]; then
+  fails+=("fail_case incident_bundle_rc=${FAIL_INCIDENT_RC:-N/A}（预期 0）")
 fi
 
 if (( ${#fails[@]} > 0 )); then
@@ -364,10 +412,14 @@ pass_case_rc=${PASS_RC}
 pass_case_overall=${PASS_OVERALL}
 pass_case_gate_decision=${PASS_DECISION}
 pass_case_block_count=${PASS_BLOCKS}
+pass_case_incident_bundle_triggered=${PASS_INCIDENT_TRIGGERED}
+pass_case_incident_bundle_rc=${PASS_INCIDENT_RC}
 fail_case_rc=${FAIL_RC}
 fail_case_overall=${FAIL_OVERALL}
 fail_case_gate_decision=${FAIL_DECISION}
 fail_case_block_count=${FAIL_BLOCKS}
+fail_case_incident_bundle_triggered=${FAIL_INCIDENT_TRIGGERED}
+fail_case_incident_bundle_rc=${FAIL_INCIDENT_RC}
 fail_reasons=${fail_text}
 temp_root=${TMP_ROOT}
 run_dir=${RUN_DIR}
@@ -383,10 +435,10 @@ TXT
   echo
   echo "## 用例结果"
   echo
-  echo "| 用例 | 预期 rc | 实际 rc | overall | gate_decision | block_count |"
+  echo "| 用例 | 预期 rc | 实际 rc | overall | gate_decision | block_count | incident_bundle_triggered | incident_bundle_rc |"
   echo "|---|---:|---:|---|---|---:|"
-  echo "| pass_case | 0 | ${PASS_RC} | ${PASS_OVERALL:-N/A} | ${PASS_DECISION:-N/A} | ${PASS_BLOCKS:-N/A} |"
-  echo "| fail_case | 2 | ${FAIL_RC} | ${FAIL_OVERALL:-N/A} | ${FAIL_DECISION:-N/A} | ${FAIL_BLOCKS:-N/A} |"
+  echo "| pass_case | 0 | ${PASS_RC} | ${PASS_OVERALL:-N/A} | ${PASS_DECISION:-N/A} | ${PASS_BLOCKS:-N/A} | ${PASS_INCIDENT_TRIGGERED:-N/A} | ${PASS_INCIDENT_RC:-N/A} |"
+  echo "| fail_case | 2 | ${FAIL_RC} | ${FAIL_OVERALL:-N/A} | ${FAIL_DECISION:-N/A} | ${FAIL_BLOCKS:-N/A} | ${FAIL_INCIDENT_TRIGGERED:-N/A} | ${FAIL_INCIDENT_RC:-N/A} |"
   echo
   echo "## 失败明细"
   echo
