@@ -71,6 +71,7 @@ import java.util.*;
 public class CallbackServiceImpl implements CallbackService {
 
     private static final Logger logger = LoggerFactory.getLogger(CallbackServiceImpl.class);
+    private static final String REFUND_CALLBACK_DEDUP_CHANGE_TYPE = "refund_callback_dedup";
 
     @Autowired
     private RechargePayService rechargePayService;
@@ -710,7 +711,9 @@ public class CallbackServiceImpl implements CallbackService {
             return refundRecord.getStr("returnXml");
         }
         String outRefundNo = notifyRecord.getStr("out_refund_no");
-        settleRefundSuccess(outRefundNo, xmlInfo);
+        String transactionId = StrUtil.trimToEmpty(notifyRecord.getStr("transaction_id"));
+        String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, transactionId, "v2");
+        settleRefundSuccess(outRefundNo, xmlInfo, callbackDedupKey);
         return refundRecord.getStr("returnXml");
     }
 
@@ -733,6 +736,7 @@ public class CallbackServiceImpl implements CallbackService {
             if (ObjectUtil.isNull(callbackJson)) {
                 throw new CrmebException("微信v3退款回调报文解析失败");
             }
+            String eventId = StrUtil.trimToEmpty(callbackJson.getString("id"));
             String eventType = callbackJson.getString("event_type");
             if (!"REFUND.SUCCESS".equalsIgnoreCase(eventType)) {
                 return v3AckSuccess();
@@ -752,8 +756,10 @@ public class CallbackServiceImpl implements CallbackService {
             if (!"SUCCESS".equalsIgnoreCase(refundStatus)) {
                 return v3AckSuccess();
             }
+            String transactionId = StrUtil.trimToEmpty(refund.getString("transaction_id"));
+            String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, transactionId, eventId);
 
-            settleRefundSuccess(outRefundNo, body);
+            settleRefundSuccess(outRefundNo, body, callbackDedupKey);
             return v3AckSuccess();
         } catch (Exception e) {
             logger.error("wechat v3 refund callback error: {}", e.getMessage(), e);
@@ -762,12 +768,31 @@ public class CallbackServiceImpl implements CallbackService {
     }
 
     private void settleRefundSuccess(String outRefundNo, String rawData) {
+        String callbackDedupKey = buildRefundCallbackDedupKey(outRefundNo, "", "legacy");
+        settleRefundSuccess(outRefundNo, rawData, callbackDedupKey);
+    }
+
+    private void settleRefundSuccess(String outRefundNo, String rawData, String callbackDedupKey) {
+        String dedupKey = StrUtil.blankToDefault(callbackDedupKey, buildRefundCallbackDedupKey(outRefundNo, "", "legacy"));
+        String lockKey = "pay:refund:callback:dedup:" + SecureUtil.md5(dedupKey);
+        distributedLockUtil.executeWithLock(lockKey, 20, () -> {
+            settleRefundSuccessCore(outRefundNo, rawData, dedupKey);
+            return Boolean.TRUE;
+        });
+    }
+
+    private void settleRefundSuccessCore(String outRefundNo, String rawData, String callbackDedupKey) {
         StoreOrder storeOrder = resolveRefundTargetOrder(outRefundNo);
         if (ObjectUtil.isNull(storeOrder)) {
             logger.error("微信退款订单查询失败==> orderNo={}, rawData==>{}", outRefundNo, rawData);
             throw new CrmebException("微信退款订单不存在：" + outRefundNo);
         }
+        if (hasRefundCallbackConsumed(storeOrder.getId(), callbackDedupKey)) {
+            logger.warn("微信退款回调重复通知，幂等跳过==> orderNo={}, callbackDedupKey={}", outRefundNo, callbackDedupKey);
+            return;
+        }
         if (OrderRefundStateMachine.isFinalSuccess(storeOrder.getRefundStatus())) {
+            markRefundCallbackConsumed(storeOrder.getId(), callbackDedupKey);
             logger.warn("微信退款订单已确认成功==> orderNo={}, rawData==>{}", outRefundNo, rawData);
             return;
         }
@@ -784,11 +809,13 @@ public class CallbackServiceImpl implements CallbackService {
                         OrderRefundStateMachine.REFUND_STATUS_APPLYING,
                         OrderRefundStateMachine.REFUND_STATUS_REFUNDING));
         if (update) {
+            markRefundCallbackConsumed(storeOrder.getId(), callbackDedupKey);
             redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
             return;
         }
         StoreOrder latestOrder = storeOrderService.getById(storeOrder.getId());
         if (ObjectUtil.isNotNull(latestOrder) && OrderRefundStateMachine.isFinalSuccess(latestOrder.getRefundStatus())) {
+            markRefundCallbackConsumed(storeOrder.getId(), callbackDedupKey);
             logger.warn("微信退款订单并发更新已完成==> orderNo={}, rawData==>{}", outRefundNo, rawData);
             return;
         }
@@ -803,6 +830,26 @@ public class CallbackServiceImpl implements CallbackService {
         LambdaQueryWrapper<StoreOrder> outTradeLqw = new LambdaQueryWrapper<>();
         outTradeLqw.eq(StoreOrder::getOutTradeNo, outRefundNo).last("limit 1");
         return storeOrderService.getOne(outTradeLqw, false);
+    }
+
+    private String buildRefundCallbackDedupKey(String outRefundNo, String transactionId, String eventId) {
+        String safeOutRefundNo = StrUtil.blankToDefault(StrUtil.trimToEmpty(outRefundNo), "na");
+        String safeTransactionId = StrUtil.blankToDefault(StrUtil.trimToEmpty(transactionId), "na");
+        String safeEventId = StrUtil.blankToDefault(StrUtil.trimToEmpty(eventId), "na");
+        return "out_refund_no=" + safeOutRefundNo + "|transaction_id=" + safeTransactionId + "|event_id=" + safeEventId;
+    }
+
+    private boolean hasRefundCallbackConsumed(Integer orderId, String callbackDedupKey) {
+        LambdaQueryWrapper<com.zbkj.common.model.order.StoreOrderStatus> lqw = new LambdaQueryWrapper<>();
+        lqw.eq(com.zbkj.common.model.order.StoreOrderStatus::getOid, orderId)
+                .eq(com.zbkj.common.model.order.StoreOrderStatus::getChangeType, REFUND_CALLBACK_DEDUP_CHANGE_TYPE)
+                .eq(com.zbkj.common.model.order.StoreOrderStatus::getChangeMessage, callbackDedupKey)
+                .last("limit 1");
+        return storeOrderStatusService.count(lqw) > 0;
+    }
+
+    private void markRefundCallbackConsumed(Integer orderId, String callbackDedupKey) {
+        storeOrderStatusService.createLog(orderId, REFUND_CALLBACK_DEDUP_CHANGE_TYPE, callbackDedupKey);
     }
 
     /**

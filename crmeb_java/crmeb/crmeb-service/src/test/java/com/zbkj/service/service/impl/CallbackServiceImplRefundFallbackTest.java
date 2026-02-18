@@ -8,7 +8,9 @@ import com.zbkj.common.constants.Constants;
 import com.zbkj.common.model.order.StoreOrder;
 import com.zbkj.common.utils.RedisUtil;
 import com.zbkj.service.service.StoreOrderService;
+import com.zbkj.service.service.StoreOrderStatusService;
 import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
+import com.zbkj.service.util.DistributedLockUtil;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,11 +20,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.function.Supplier;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class CallbackServiceImplRefundFallbackTest {
@@ -31,6 +36,10 @@ class CallbackServiceImplRefundFallbackTest {
     private StoreOrderService storeOrderService;
     @Mock
     private RedisUtil redisUtil;
+    @Mock
+    private StoreOrderStatusService storeOrderStatusService;
+    @Mock
+    private DistributedLockUtil distributedLockUtil;
 
     private CallbackServiceImpl service;
 
@@ -40,6 +49,13 @@ class CallbackServiceImplRefundFallbackTest {
         service = new CallbackServiceImpl();
         ReflectionTestUtils.setField(service, "storeOrderService", storeOrderService);
         ReflectionTestUtils.setField(service, "redisUtil", redisUtil);
+        ReflectionTestUtils.setField(service, "storeOrderStatusService", storeOrderStatusService);
+        ReflectionTestUtils.setField(service, "distributedLockUtil", distributedLockUtil);
+        lenient().when(distributedLockUtil.executeWithLock(any(), any(Integer.class), any(Supplier.class)))
+                .thenAnswer(invocation -> {
+                    Supplier<Boolean> supplier = invocation.getArgument(2);
+                    return supplier.get();
+                });
     }
 
     @Test
@@ -68,6 +84,7 @@ class CallbackServiceImplRefundFallbackTest {
         when(storeOrderService.getByOderId("wxNo89809177138520395483906")).thenReturn(null);
         when(storeOrderService.getOne(any(LambdaQueryWrapper.class), eq(false))).thenReturn(target);
         when(storeOrderService.update(any(LambdaUpdateWrapper.class))).thenReturn(true);
+        when(storeOrderStatusService.count(any(LambdaQueryWrapper.class))).thenReturn(0);
 
         ReflectionTestUtils.invokeMethod(service, "settleRefundSuccess", "wxNo89809177138520395483906", "{\"event_type\":\"REFUND.SUCCESS\"}");
 
@@ -82,8 +99,24 @@ class CallbackServiceImplRefundFallbackTest {
         target.setOrderId("order_test_final");
         target.setRefundStatus(OrderRefundStateMachine.REFUND_STATUS_SUCCESS);
         when(storeOrderService.getByOderId("order_test_final")).thenReturn(target);
+        when(storeOrderStatusService.count(any(LambdaQueryWrapper.class))).thenReturn(0);
 
         ReflectionTestUtils.invokeMethod(service, "settleRefundSuccess", "order_test_final", "{\"event_type\":\"REFUND.SUCCESS\"}");
+
+        verify(storeOrderService, never()).update(any(LambdaUpdateWrapper.class));
+        verify(redisUtil, never()).lPush(any(String.class), any());
+    }
+
+    @Test
+    void settleRefundSuccessShouldSkipWhenCallbackAlreadyConsumed() {
+        StoreOrder target = new StoreOrder();
+        target.setId(50);
+        target.setOrderId("order_dedup_hit");
+        target.setRefundStatus(OrderRefundStateMachine.REFUND_STATUS_APPLYING);
+        when(storeOrderService.getByOderId("order_dedup_hit")).thenReturn(target);
+        when(storeOrderStatusService.count(any(LambdaQueryWrapper.class))).thenReturn(1);
+
+        ReflectionTestUtils.invokeMethod(service, "settleRefundSuccess", "order_dedup_hit", "{\"event_type\":\"REFUND.SUCCESS\"}");
 
         verify(storeOrderService, never()).update(any(LambdaUpdateWrapper.class));
         verify(redisUtil, never()).lPush(any(String.class), any());
