@@ -161,6 +161,8 @@ REPORT="${OUT_DIR}/preflight-$(date '+%Y%m%d%H%M%S').md"
 cat > "${REPORT}" <<'MD'
 # preflight stub
 - [PASS] shell 存在
+- [PASS] 退款执行权限策略: payment_refund_hq_only_enable=1
+- [PASS] 退款总部管理员白名单: payment_refund_hq_admin_ids=6
 MD
 echo "[preflight] report=${REPORT}"
 exit "${PREFLIGHT_STUB_RC:-0}"

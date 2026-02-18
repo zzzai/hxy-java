@@ -16,6 +16,7 @@ MAPPING_STRICT_MISSING="${MAPPING_STRICT_MISSING:-0}"
 REQUIRE_MAPPING_GREEN="${REQUIRE_MAPPING_GREEN:-0}"
 REQUIRE_MOCK_GREEN="${REQUIRE_MOCK_GREEN:-0}"
 REQUIRE_REFUND_GREEN="${REQUIRE_REFUND_GREEN:-0}"
+REQUIRE_HQ_REFUND_POLICY="${REQUIRE_HQ_REFUND_POLICY:-1}"
 PREFLIGHT_STRICT="${PREFLIGHT_STRICT:-0}"
 REFUND_WINDOW_HOURS="${REFUND_WINDOW_HOURS:-72}"
 REFUND_TIMEOUT_MINUTES="${REFUND_TIMEOUT_MINUTES:-30}"
@@ -43,6 +44,7 @@ usage() {
   ./shell/payment_cutover_gate.sh [--date YYYY-MM-DD] [--order-no ORDER_NO]
     [--require-apply-ready 0|1] [--require-booking-repair-pass 0|1] [--require-mapping-smoke-green 0|1]
     [--mapping-strict-missing 0|1] [--require-mapping-green 0|1] [--require-mock-green 0|1] [--require-refund-green 0|1]
+    [--require-hq-refund-policy 0|1]
     [--refund-window-hours N] [--refund-timeout-minutes N]
     [--incident-bundle-on-fail 0|1] [--incident-bundle-on-warn 0|1] [--incident-bundle-log-lines N]
     [--preflight-strict 0|1] [--allow-shared-submchid 0|1]
@@ -60,6 +62,7 @@ usage() {
   --require-mapping-green 0|1      是否要求映射审计必须 GREEN（默认 0，YELLOW 记告警不阻断）
   --require-mock-green 0|1         是否要求 mock 回放必须 GREEN（默认 0，YELLOW 记告警不阻断）
   --require-refund-green 0|1       是否要求退款收敛巡检必须 GREEN（默认 0，GREEN_WITH_WARN 记告警不阻断）
+  --require-hq-refund-policy 0|1   是否要求 preflight 命中“仅总部手工退款 + 白名单”检查（默认 1）
   --refund-window-hours N          退款收敛巡检窗口（默认 72）
   --refund-timeout-minutes N       退款收敛超时阈值（默认 30）
   --incident-bundle-on-fail 0|1    gate=NO_GO 时自动打应急证据包（默认 1）
@@ -121,6 +124,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-refund-green)
       REQUIRE_REFUND_GREEN="$2"
+      shift 2
+      ;;
+    --require-hq-refund-policy)
+      REQUIRE_HQ_REFUND_POLICY="$2"
       shift 2
       ;;
     --refund-window-hours)
@@ -211,6 +218,7 @@ for sw in \
   "${REQUIRE_MAPPING_GREEN}" \
   "${REQUIRE_MOCK_GREEN}" \
   "${REQUIRE_REFUND_GREEN}" \
+  "${REQUIRE_HQ_REFUND_POLICY}" \
   "${ALLOW_SHARED_SUBMCHID}" \
   "${INCIDENT_BUNDLE_ON_FAIL}" \
   "${INCIDENT_BUNDLE_ON_WARN}" \
@@ -365,7 +373,7 @@ run_step() {
 }
 
 echo "[cutover-gate] run_dir=${RUN_DIR}"
-echo "[cutover-gate] report_date=${REPORT_DATE}, order_no=${ORDER_NO:-<none>}, require_apply_ready=${REQUIRE_APPLY_READY}, require_booking_repair_pass=${REQUIRE_BOOKING_REPAIR_PASS}, require_mapping_smoke_green=${REQUIRE_MAPPING_SMOKE_GREEN}, preflight_strict=${PREFLIGHT_STRICT}, require_refund_green=${REQUIRE_REFUND_GREEN}, allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}, incident_bundle_on_fail=${INCIDENT_BUNDLE_ON_FAIL}, incident_bundle_on_warn=${INCIDENT_BUNDLE_ON_WARN}"
+echo "[cutover-gate] report_date=${REPORT_DATE}, order_no=${ORDER_NO:-<none>}, require_apply_ready=${REQUIRE_APPLY_READY}, require_booking_repair_pass=${REQUIRE_BOOKING_REPAIR_PASS}, require_mapping_smoke_green=${REQUIRE_MAPPING_SMOKE_GREEN}, preflight_strict=${PREFLIGHT_STRICT}, require_refund_green=${REQUIRE_REFUND_GREEN}, require_hq_refund_policy=${REQUIRE_HQ_REFUND_POLICY}, allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}, incident_bundle_on_fail=${INCIDENT_BUNDLE_ON_FAIL}, incident_bundle_on_warn=${INCIDENT_BUNDLE_ON_WARN}"
 
 preflight_rc="-"
 preflight_fail_count="-"
@@ -398,6 +406,46 @@ if [[ ${SKIP_PREFLIGHT} -eq 0 ]]; then
   fi
 else
   add_row "preflight" "SKIP" "${preflight_rc}" "-" "skip_preflight=1"
+fi
+
+refund_policy_rc="-"
+refund_policy_detail=""
+if [[ "${REQUIRE_HQ_REFUND_POLICY}" == "1" ]]; then
+  if [[ -n "${preflight_report:-}" && -f "${preflight_report}" ]]; then
+    policy_pass=0
+    whitelist_pass=0
+    if grep -q '\[PASS\] 退款执行权限策略:' "${preflight_report}"; then
+      policy_pass=1
+    fi
+    if grep -q '\[PASS\] 退款总部管理员白名单:' "${preflight_report}" || grep -q '\[PASS\] 退款总部角色白名单:' "${preflight_report}"; then
+      whitelist_pass=1
+    fi
+    if [[ "${policy_pass}" == "1" && "${whitelist_pass}" == "1" ]]; then
+      refund_policy_rc="0"
+      refund_policy_detail="policy=enabled, whitelist=ok"
+      add_row "refund_hq_policy" "PASS" "${refund_policy_rc}" "-" "${refund_policy_detail}"
+    else
+      refund_policy_rc="2"
+      missing_parts=()
+      if [[ "${policy_pass}" != "1" ]]; then
+        missing_parts+=("policy")
+      fi
+      if [[ "${whitelist_pass}" != "1" ]]; then
+        missing_parts+=("whitelist")
+      fi
+      missing_text="$(join_by_semicolon "${missing_parts[@]}")"
+      refund_policy_detail="missing=${missing_text:-unknown}"
+      add_block "refund_hq_policy 未达标(${refund_policy_detail})"
+      add_row "refund_hq_policy" "FAIL" "${refund_policy_rc}" "BLOCK" "${refund_policy_detail}"
+    fi
+  else
+    refund_policy_rc="2"
+    refund_policy_detail="preflight_report_missing"
+    add_block "refund_hq_policy 校验失败(缺少 preflight 报告)"
+    add_row "refund_hq_policy" "FAIL" "${refund_policy_rc}" "BLOCK" "${refund_policy_detail}"
+  fi
+else
+  add_row "refund_hq_policy" "SKIP" "${refund_policy_rc}" "-" "require_hq_refund_policy=0"
 fi
 
 mapping_rc="-"
@@ -633,6 +681,7 @@ fi
   echo "require_mapping_green=${REQUIRE_MAPPING_GREEN}"
   echo "require_mock_green=${REQUIRE_MOCK_GREEN}"
   echo "require_refund_green=${REQUIRE_REFUND_GREEN}"
+  echo "require_hq_refund_policy=${REQUIRE_HQ_REFUND_POLICY}"
   echo "allow_shared_submchid=${ALLOW_SHARED_SUBMCHID}"
   echo "incident_bundle_on_fail=${INCIDENT_BUNDLE_ON_FAIL}"
   echo "incident_bundle_on_warn=${INCIDENT_BUNDLE_ON_WARN}"
@@ -653,6 +702,8 @@ fi
   echo "preflight_rc=${preflight_rc}"
   echo "preflight_fail_count=${preflight_fail_count}"
   echo "preflight_fail_items=${preflight_fail_items}"
+  echo "refund_hq_policy_rc=${refund_policy_rc}"
+  echo "refund_hq_policy_detail=${refund_policy_detail}"
   echo "mapping_rc=${mapping_rc}"
   echo "mapping_overall=${mapping_overall}"
   echo "mock_replay_rc=${mock_rc}"
