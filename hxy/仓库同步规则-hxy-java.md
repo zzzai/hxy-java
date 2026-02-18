@@ -46,6 +46,8 @@ source /root/crmeb-java/hxy/tools/scripts/.repo_sync.env
 set +a
 ```
 
+注意：如果要推送 `.github/workflows/*` 变更，PAT 需要包含 `workflow` 权限（除 `repo` 外）。
+
 ## 3. 同步策略（默认）
 
 1. 日常只推外层仓库 `main`。  
