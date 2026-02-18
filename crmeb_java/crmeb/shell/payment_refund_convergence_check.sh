@@ -243,6 +243,27 @@ ORDER BY so.update_time DESC;
 "
 record_check "R05" "WARN" "订单非退款态但存在退款金额（疑似渠道已退/本地未收敛）" "${FILE_05}" "$(count_tsv_rows "${FILE_05}")"
 
+R05_ACTIONS_FILE="${RUN_DIR}/05_non_refund_state_has_refund_price_actions.sh"
+{
+  echo "#!/usr/bin/env bash"
+  echo "set -euo pipefail"
+  echo
+  echo "# 由 payment_refund_convergence_check.sh 自动生成"
+  echo "# 场景: 订单非退款态但存在退款金额（疑似渠道已退/本地未收敛）"
+  echo "# 用法: 逐条执行，执行前请先核实微信侧到账证据。"
+  echo
+} > "${R05_ACTIONS_FILE}"
+if [[ -f "${FILE_05}" ]]; then
+  tail -n +2 "${FILE_05}" | while IFS=$'\t' read -r order_id out_trade_no _ _ _ _; do
+    [[ -n "${order_id}" ]] || continue
+    safe_reason="渠道已退款到账，巡检命中R05，人工收敛"
+    echo "DB_HOST=\${DB_HOST:-${DB_HOST}} DB_PORT=\${DB_PORT:-${DB_PORT}} DB_NAME=\${DB_NAME:-${DB_NAME}} DB_USER=\${DB_USER:-${DB_USER}} DB_PASS=\${DB_PASS:-} REDIS_HOST=\${REDIS_HOST:-127.0.0.1} REDIS_PORT=\${REDIS_PORT:-36379} REDIS_DB=\${REDIS_DB:-6} ./shell/payment_refund_manual_converge.sh --order-no '${order_id}' --reason '${safe_reason}' --operator '\${OPERATOR:-ops}'" >> "${R05_ACTIONS_FILE}"
+    echo "# out_trade_no=${out_trade_no}" >> "${R05_ACTIONS_FILE}"
+    echo >> "${R05_ACTIONS_FILE}"
+  done
+fi
+chmod +x "${R05_ACTIONS_FILE}" || true
+
 GATE_RESULT="GREEN"
 EXIT_CODE=0
 if (( BLOCK_CHECK_COUNT > 0 )); then
@@ -262,6 +283,7 @@ fi
   echo "block_rows=${BLOCK_ROW_COUNT}"
   echo "warn_rows=${WARN_ROW_COUNT}"
   echo "run_dir=${RUN_DIR}"
+  echo "r05_actions_file=${R05_ACTIONS_FILE}"
 } > "${SUMMARY_FILE}"
 
 {
@@ -287,6 +309,7 @@ fi
     IFS='|' read -r _ _ _ _ _ file <<< "${item}"
     echo "- \`${file}\`"
   done
+  echo "- \`${R05_ACTIONS_FILE}\`（R05 人工收敛建议命令）"
 } > "${REPORT_FILE}"
 
 if [[ "${NO_ALERT}" -eq 0 && "${GATE_RESULT}" != "GREEN" && -x "${ALERT_SCRIPT}" ]]; then
