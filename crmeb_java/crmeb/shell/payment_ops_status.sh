@@ -573,6 +573,11 @@ exception_warn_check_count="$(kv "${exception_summary}" "warn_check_count")"
 refund_convergence_result="$(kv "${refund_convergence_summary}" "gate_result")"
 refund_convergence_block_count="$(kv "${refund_convergence_summary}" "block_check_count")"
 refund_convergence_warn_count="$(kv "${refund_convergence_summary}" "warn_check_count")"
+refund_r05_actions_file="$(kv "${refund_convergence_summary}" "r05_actions_file")"
+refund_r05_action_count=0
+if [[ -n "${refund_r05_actions_file}" && -f "${refund_r05_actions_file}" ]]; then
+  refund_r05_action_count="$(grep -c 'payment_refund_manual_converge.sh' "${refund_r05_actions_file}" || true)"
+fi
 
 sla_severity="$(kv "${sla_summary}" "severity")"
 sla_issue_days="$(kv "${sla_summary}" "issue_days")"
@@ -813,6 +818,9 @@ case "${refund_convergence_result:-UNKNOWN}" in
   GREEN) ;;
   *) add_warn "payment_refund_convergence gate_result=${refund_convergence_result}" ;;
 esac
+if is_positive_int "${refund_r05_action_count}" && (( refund_r05_action_count > 0 )); then
+  add_warn "payment_refund_convergence 存在可人工收敛异常(action_count=${refund_r05_action_count}, actions=${refund_r05_actions_file})"
+fi
 
 if [[ -n "${sla_summary}" ]]; then
   case "${sla_severity:-UNKNOWN}" in
@@ -957,6 +965,8 @@ refund_convergence_summary_age_minutes=${refund_convergence_age_minutes}
 refund_convergence_result=${refund_convergence_result}
 refund_convergence_block_check_count=${refund_convergence_block_count}
 refund_convergence_warn_check_count=${refund_convergence_warn_count}
+refund_r05_actions_file=${refund_r05_actions_file}
+refund_r05_action_count=${refund_r05_action_count}
 reconcile_sla_summary=${sla_summary}
 reconcile_sla_summary_age_minutes=${sla_age_minutes}
 reconcile_sla_severity=${sla_severity}
@@ -1015,6 +1025,7 @@ TXT
   echo "| store_mapping_smoke(latest) | ${mapping_smoke_overall:-N/A} | summary=$(printf '\`%s\`' "${mapping_smoke_summary:-N/A}") |"
   echo "| exception_acceptance(latest) | ${exception_overall:-N/A} | block_checks=${exception_block_check_count:-N/A}, warn_checks=${exception_warn_check_count:-N/A} |"
   echo "| refund_convergence(latest) | ${refund_convergence_result:-N/A} | block_checks=${refund_convergence_block_count:-N/A}, warn_checks=${refund_convergence_warn_count:-N/A} |"
+  echo "| refund_R05_actions(latest) | count=${refund_r05_action_count:-0} | file=$(printf '\`%s\`' "${refund_r05_actions_file:-N/A}") |"
   echo
   echo "## 二、数据新鲜度"
   echo
@@ -1078,6 +1089,7 @@ TXT
   echo "- mapping_smoke_summary: \`${mapping_smoke_summary}\`"
   echo "- exception_summary: \`${exception_summary}\`"
   echo "- refund_convergence_summary: \`${refund_convergence_summary}\`"
+  echo "- refund_r05_actions_file: \`${refund_r05_actions_file}\`"
   echo "- reconcile_summary: \`${recon_summary}\`"
   echo "- ticketize_summary: \`${ticketize_summary}\`"
   echo "- daily_report: \`${daily_report_file}\`"
