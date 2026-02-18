@@ -9,7 +9,11 @@
 # Logs & runtime
 *.log
 **/crmeb_log/
+**/crmeb_admin_log/
+**/crmeb_front_log/
 **/LOG_HOME_IS_UNDEFINED
+**/runtime/docker/
+crmeb_java/crmeb/runtime/
 
 # Large artifacts
 *.zip
@@ -21,6 +25,7 @@
 # Local working dirs
 .claude/
 **/unpackage
+**/target/
 
 # Env & secrets
 **/.env

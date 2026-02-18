@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - patch-admin-deployment.yaml
+  - patch-front-deployment.yaml
+  - patch-ingress.yaml
+
+images:
+  - name: crmeb-admin
+    newName: crmeb-admin
+    newTag: local
+  - name: crmeb-front
+    newName: crmeb-front
+    newTag: local

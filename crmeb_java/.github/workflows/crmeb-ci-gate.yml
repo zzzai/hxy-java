@@ -1,0 +1,106 @@
+name: crmeb-ci-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_build:
+        description: "Run full docker build gate"
+        required: true
+        type: boolean
+        default: true
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - "crmeb/**"
+      - ".github/workflows/crmeb-ci-gate.yml"
+      - ".github/workflows/crmeb-payment-ops-smoke.yml"
+  pull_request:
+    paths:
+      - "crmeb/**"
+      - ".github/workflows/crmeb-ci-gate.yml"
+      - ".github/workflows/crmeb-payment-ops-smoke.yml"
+
+concurrency:
+  group: crmeb-ci-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payment-ops-smoke:
+    uses: ./.github/workflows/crmeb-payment-ops-smoke.yml
+
+  gate:
+    needs:
+      - payment-ops-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare docker env
+        run: |
+          cp crmeb/deploy/docker/.env.example crmeb/deploy/docker/.env
+          sed -i 's/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=ci_root_123/' crmeb/deploy/docker/.env
+          sed -i 's/^MYSQL_PASSWORD=.*/MYSQL_PASSWORD=crmeb123/' crmeb/deploy/docker/.env
+          sed -i 's/^MYSQL_USER=.*/MYSQL_USER=crmeb/' crmeb/deploy/docker/.env
+          sed -i 's/^SPRING_PROFILES_ACTIVE=.*/SPRING_PROFILES_ACTIVE=dev/' crmeb/deploy/docker/.env
+
+      - name: Run gate
+        id: run_gate
+        run: |
+          mkdir -p crmeb/runtime/ci_gate_artifacts/logs
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.full_build }}" != "true" ]]; then
+            bash crmeb/deploy/docker/scripts/ci_gate.sh --init-db --db-mode strict 2>&1 | tee crmeb/runtime/ci_gate_artifacts/logs/ci_gate.log
+          else
+            bash crmeb/deploy/docker/scripts/ci_gate.sh --full --init-db --db-mode strict 2>&1 | tee crmeb/runtime/ci_gate_artifacts/logs/ci_gate.log
+          fi
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          bash crmeb/deploy/docker/scripts/ps.sh || true
+          bash crmeb/deploy/docker/scripts/logs.sh admin || true
+          bash crmeb/deploy/docker/scripts/logs.sh front || true
+
+      - name: Collect ci-gate logs
+        if: always()
+        run: |
+          mkdir -p crmeb/runtime/ci_gate_artifacts/logs
+          bash crmeb/deploy/docker/scripts/ps.sh > crmeb/runtime/ci_gate_artifacts/logs/ps.log 2>&1 || true
+          bash crmeb/deploy/docker/scripts/logs.sh admin > crmeb/runtime/ci_gate_artifacts/logs/admin.log 2>&1 || true
+          bash crmeb/deploy/docker/scripts/logs.sh front > crmeb/runtime/ci_gate_artifacts/logs/front.log 2>&1 || true
+
+      - name: Download payment smoke artifact
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          name: payment-ops-smoke-runtime
+          path: crmeb/runtime/ci_gate_artifacts/smoke
+        continue-on-error: true
+
+      - name: Build unified artifact index
+        if: always()
+        run: |
+          bash crmeb/deploy/docker/scripts/ci_gate_artifact_index.sh \
+            --out-dir crmeb/runtime/ci_gate_artifacts \
+            --log-dir crmeb/runtime/ci_gate_artifacts/logs \
+            --smoke-index crmeb/runtime/ci_gate_artifacts/smoke/payment_ops_smoke_artifact_index.md \
+            --gate-status "${{ job.status }}"
+
+      - name: Upload ci-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-gate-artifacts
+          path: |
+            crmeb/runtime/ci_gate_artifacts
+
+      - name: Cleanup
+        if: always()
+        run: |
+          bash crmeb/deploy/docker/scripts/down.sh -v || true

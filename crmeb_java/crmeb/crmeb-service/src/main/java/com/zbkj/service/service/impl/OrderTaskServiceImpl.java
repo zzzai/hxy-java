@@ -1,0 +1,746 @@
+package com.zbkj.service.service.impl;
+
+
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.date.DateTime;
+import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.zbkj.common.constants.Constants;
+import com.zbkj.common.constants.TaskConstants;
+import com.zbkj.common.exception.CrmebException;
+import com.zbkj.common.model.order.StoreOrder;
+import com.zbkj.common.model.order.StoreOrderStatus;
+import com.zbkj.common.model.product.StoreProductReply;
+import com.zbkj.common.model.user.User;
+import com.zbkj.common.utils.CrmebDateUtil;
+import com.zbkj.common.utils.RedisUtil;
+import com.zbkj.common.vo.MyRecord;
+import com.zbkj.common.vo.StoreOrderInfoOldVo;
+import com.zbkj.common.vo.WeChatPayChannelConfig;
+import com.zbkj.service.service.*;
+import com.zbkj.service.service.impl.payment.OrderRefundStateMachine;
+import com.zbkj.service.service.impl.payment.WeChatPayConfigSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.List;
+
+/**
+ * StoreOrderServiceImpl 接口实现
+ * +----------------------------------------------------------------------
+ * | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+ * +----------------------------------------------------------------------
+ * | Copyright (c) 2016~2025 https://www.crmeb.com All rights reserved.
+ * +----------------------------------------------------------------------
+ * | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+ * +----------------------------------------------------------------------
+ * | Author: CRMEB Team <admin@crmeb.com>
+ * +----------------------------------------------------------------------
+ */
+@Service
+public class OrderTaskServiceImpl implements OrderTaskService {
+    //日志
+    private static final Logger logger = LoggerFactory.getLogger(OrderTaskServiceImpl.class);
+    private static final int DEFAULT_REFUND_COMPENSATE_TIMEOUT_MINUTES = 30;
+    private static final int DEFAULT_REFUND_COMPENSATE_BATCH_SIZE = 50;
+    private static final String REFUND_COMPENSATE_TIMEOUT_MINUTES_KEY = "pay_refund_compensate_timeout_minutes";
+    private static final String REFUND_COMPENSATE_BATCH_SIZE_KEY = "pay_refund_compensate_batch_size";
+    private static final int DEFAULT_PAY_COMPENSATE_TIMEOUT_MINUTES = 3;
+    private static final int DEFAULT_PAY_COMPENSATE_BATCH_SIZE = 50;
+    private static final String PAY_COMPENSATE_TIMEOUT_MINUTES_KEY = "pay_callback_compensate_timeout_minutes";
+    private static final String PAY_COMPENSATE_BATCH_SIZE_KEY = "pay_callback_compensate_batch_size";
+    private static final String REFUND_QUERY_STATUS_SUCCESS = "SUCCESS";
+    private static final String REFUND_QUERY_STATUS_PROCESSING = "PROCESSING";
+    private static final String REFUND_QUERY_STATUS_REFUNDCLOSE = "REFUNDCLOSE";
+    private static final String REFUND_QUERY_STATUS_CHANGE = "CHANGE";
+    private static final String REFUND_QUERY_STATUS_CLOSED = "CLOSED";
+    private static final String REFUND_QUERY_STATUS_ABNORMAL = "ABNORMAL";
+    private static final int REFUND_STATUS_NONE = 0;
+
+    @Autowired
+    private RedisUtil redisUtil;
+
+    @Autowired
+    private StoreOrderTaskService storeOrderTaskService;
+
+    @Autowired
+    private StoreOrderService storeOrderService;
+
+    @Autowired
+    private StoreOrderStatusService storeOrderStatusService;
+
+    @Autowired
+    private StoreOrderInfoService storeOrderInfoService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private StoreProductReplyService storeProductReplyService;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Autowired
+    private OrderPayService orderPayService;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
+
+    @Autowired
+    private WechatNewService wechatNewService;
+
+    @Autowired
+    private WeChatPayConfigSupport weChatPayConfigSupport;
+
+    @Autowired
+    private WeChatPayService weChatPayService;
+
+    /**
+     * 用户取消订单
+     * @author Mr.Zhang
+     * @since 2020-07-09
+     */
+    @Override
+    public void cancelByUser() {
+        String redisKey = Constants.ORDER_TASK_REDIS_KEY_AFTER_CANCEL_BY_USER;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.cancelByUser | size:" + size);
+        if (size < 1) {
+            return;
+        }
+        for (int i = 0; i < size; i++) {
+            //如果10秒钟拿不到一个数据，那么退出循环
+            Object data = redisUtil.getRightPop(redisKey, 10L);
+            if (null == data) {
+                continue;
+            }
+            try {
+//                StoreOrder storeOrder = getJavaBeanStoreOrder(data);
+                StoreOrder storeOrder = storeOrderService.getById(Integer.valueOf(data.toString()));
+                boolean result = storeOrderTaskService.cancelByUser(storeOrder);
+                if (!result) {
+                    redisUtil.lPush(redisKey, data);
+                }
+            } catch (Exception e) {
+                redisUtil.lPush(redisKey, data);
+            }
+        }
+    }
+
+    private StoreOrder getJavaBeanStoreOrder(Object data) {
+        return JSONObject.toJavaObject(JSONObject.parseObject(data.toString()), StoreOrder.class);
+    }
+
+    /**
+     * 执行 用户退款申请
+     * @author Mr.Zhang
+     * @since 2020-07-09
+     */
+    @Override
+    public void refundApply() {
+        String redisKey = Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.refundApply | size:" + size);
+        try {
+            if (size > 0) {
+                for (int i = 0; i < size; i++) {
+                    //如果10秒钟拿不到一个数据，那么退出循环
+                    Object orderId = redisUtil.getRightPop(redisKey, 10L);
+                    if (null == orderId) {
+                        continue;
+                    }
+                    try {
+                        StoreOrder storeOrder = storeOrderService.getById(Integer.valueOf(orderId.toString()));
+                        if (ObjectUtil.isNull(storeOrder)) {
+                            throw new CrmebException("订单不存在,orderNo = " + orderId);
+                        }
+                        if (!OrderRefundStateMachine.shouldRunRefundTask(storeOrder.getRefundStatus())) {
+                            logger.warn("退款任务跳过，状态不匹配：orderId={}, refundStatus={}", storeOrder.getId(), storeOrder.getRefundStatus());
+                            continue;
+                        }
+                        boolean result = storeOrderTaskService.refundOrder(storeOrder);
+                        if (!result) {
+                            logger.error("订单退款错误：result = " + result);
+                            redisUtil.lPush(redisKey, orderId);
+                        }
+                    } catch (Exception e) {
+                        logger.error("订单退款错误：" + e.getMessage());
+                        redisUtil.lPush(redisKey, orderId);
+                    }
+                }
+            }
+        } finally {
+            refundTimeoutCompensate();
+        }
+    }
+
+    /**
+     * 退款超时补偿：主动查退款状态，避免长期停留在“申请中/退款中”。
+     */
+    private void refundTimeoutCompensate() {
+        int timeoutMinutes = getRefundCompensateTimeoutMinutes();
+        int batchSize = getRefundCompensateBatchSize();
+        DateTime timeoutAt = DateUtil.offsetMinute(DateUtil.date(), -timeoutMinutes);
+
+        LambdaQueryWrapper<StoreOrder> applyingLqw = new LambdaQueryWrapper<>();
+        applyingLqw.select(StoreOrder::getId, StoreOrder::getOrderId, StoreOrder::getOutTradeNo, StoreOrder::getPayType,
+                        StoreOrder::getPaid, StoreOrder::getIsChannel, StoreOrder::getStoreId,
+                        StoreOrder::getRefundStatus, StoreOrder::getRefundPrice, StoreOrder::getUpdateTime)
+                .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_APPLYING)
+                .eq(StoreOrder::getPayType, Constants.PAY_TYPE_WE_CHAT)
+                .eq(StoreOrder::getPaid, true)
+                .le(StoreOrder::getUpdateTime, timeoutAt)
+                .orderByAsc(StoreOrder::getUpdateTime)
+                .last("limit " + batchSize);
+        List<StoreOrder> applyingOrderList = storeOrderService.list(applyingLqw);
+        if (CollUtil.isNotEmpty(applyingOrderList)) {
+            logger.info("OrderTaskServiceImpl.refundApplyingCompensate | timeoutMinutes={}, batchSize={}, hit={}",
+                    timeoutMinutes, batchSize, applyingOrderList.size());
+            applyingOrderList.forEach(this::compensateApplyingRefundOrder);
+        }
+
+        LambdaQueryWrapper<StoreOrder> lqw = new LambdaQueryWrapper<>();
+        lqw.select(StoreOrder::getId, StoreOrder::getOrderId, StoreOrder::getOutTradeNo, StoreOrder::getPayType,
+                        StoreOrder::getPaid, StoreOrder::getIsChannel, StoreOrder::getStoreId,
+                        StoreOrder::getRefundStatus, StoreOrder::getRefundPrice, StoreOrder::getUpdateTime)
+                .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING)
+                .eq(StoreOrder::getPayType, Constants.PAY_TYPE_WE_CHAT)
+                .eq(StoreOrder::getPaid, true)
+                .le(StoreOrder::getUpdateTime, timeoutAt)
+                .orderByAsc(StoreOrder::getUpdateTime)
+                .last("limit " + batchSize);
+        List<StoreOrder> timeoutOrderList = storeOrderService.list(lqw);
+        if (CollUtil.isEmpty(timeoutOrderList)) {
+            return;
+        }
+        logger.info("OrderTaskServiceImpl.refundTimeoutCompensate | timeoutMinutes={}, batchSize={}, hit={}",
+                timeoutMinutes, batchSize, timeoutOrderList.size());
+        timeoutOrderList.forEach(this::compensateTimeoutRefundOrder);
+    }
+
+    private void compensateApplyingRefundOrder(StoreOrder storeOrder) {
+        try {
+            if (StrUtil.isBlank(storeOrder.getOrderId()) && StrUtil.isBlank(storeOrder.getOutTradeNo())) {
+                return;
+            }
+            WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
+            MyRecord queryRecord = queryRefundRecordWithFallback(storeOrder, payConfig);
+            String refundStatus = parseRefundStatus(queryRecord);
+            if (StrUtil.isBlank(refundStatus)) {
+                logger.warn("退款申请补偿查单无状态，orderNo={}, record={}", storeOrder.getOrderId(), queryRecord.getColumns());
+                return;
+            }
+            if (REFUND_QUERY_STATUS_PROCESSING.equalsIgnoreCase(refundStatus)) {
+                boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
+                        .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING)
+                        .set(StoreOrder::getUpdateTime, DateUtil.date())
+                        .eq(StoreOrder::getId, storeOrder.getId())
+                        .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_APPLYING));
+                if (update) {
+                    logger.info("退款申请补偿查单转退款中，orderNo={}", storeOrder.getOrderId());
+                }
+                return;
+            }
+
+            if (REFUND_QUERY_STATUS_SUCCESS.equalsIgnoreCase(refundStatus)) {
+                boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
+                        .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_SUCCESS)
+                        .set(StoreOrder::getUpdateTime, DateUtil.date())
+                        .eq(StoreOrder::getId, storeOrder.getId())
+                        .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_APPLYING));
+                if (update) {
+                    redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
+                    logger.info("退款申请补偿查单成功并收敛，orderNo={}", storeOrder.getOrderId());
+                }
+                return;
+            }
+
+            if (isRefundFailStatus(refundStatus)) {
+                markRefundCompensateFailed(storeOrder, "失败(" + refundStatus + "), 已收敛为失败", OrderRefundStateMachine.REFUND_STATUS_APPLYING);
+                logger.warn("退款申请补偿查单返回失败态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
+                return;
+            }
+
+            logger.warn("退款申请补偿查单返回未知状态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
+        } catch (Exception e) {
+            if (isRefundQueryNotFound(e)) {
+                logger.info("退款申请补偿查单未命中，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+                return;
+            }
+            if (isRefundQueryDeterministicFail(e)) {
+                markRefundCompensateFailed(storeOrder,
+                        "失败(" + sanitizeErrorMessage(e.getMessage()) + "), 已收敛为失败",
+                        OrderRefundStateMachine.REFUND_STATUS_APPLYING);
+                logger.warn("退款申请补偿查单确定性失败，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+                return;
+            }
+            logger.error("退款申请补偿查单异常，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+        }
+    }
+
+    private void compensateTimeoutRefundOrder(StoreOrder storeOrder) {
+        try {
+            if (StrUtil.isBlank(storeOrder.getOrderId()) && StrUtil.isBlank(storeOrder.getOutTradeNo())) {
+                return;
+            }
+            WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
+            MyRecord queryRecord = queryRefundRecordWithFallback(storeOrder, payConfig);
+            String refundStatus = parseRefundStatus(queryRecord);
+            if (StrUtil.isBlank(refundStatus)) {
+                logger.warn("退款补偿查单无状态，orderNo={}, record={}", storeOrder.getOrderId(), queryRecord.getColumns());
+                return;
+            }
+            if (REFUND_QUERY_STATUS_PROCESSING.equalsIgnoreCase(refundStatus)) {
+                logger.info("退款补偿查单仍处理中，orderNo={}", storeOrder.getOrderId());
+                return;
+            }
+
+            if (REFUND_QUERY_STATUS_SUCCESS.equalsIgnoreCase(refundStatus)) {
+                boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
+                        .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_SUCCESS)
+                        .set(StoreOrder::getUpdateTime, DateUtil.date())
+                        .eq(StoreOrder::getId, storeOrder.getId())
+                        .eq(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_REFUNDING));
+                if (update) {
+                    redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
+                    logger.info("退款补偿查单成功并收敛，orderNo={}", storeOrder.getOrderId());
+                }
+                return;
+            }
+
+            if (isRefundFailStatus(refundStatus)) {
+                markRefundCompensateFailed(storeOrder, "失败(" + refundStatus + "), 已收敛为失败", OrderRefundStateMachine.REFUND_STATUS_REFUNDING);
+                logger.warn("退款补偿查单返回失败态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
+                return;
+            }
+
+            logger.warn("退款补偿查单返回未知状态，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
+        } catch (Exception e) {
+            if (isRefundQueryNotFound(e)) {
+                logger.info("退款补偿查单未命中，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+                return;
+            }
+            if (isRefundQueryDeterministicFail(e)) {
+                markRefundCompensateFailed(storeOrder,
+                        "失败(" + sanitizeErrorMessage(e.getMessage()) + "), 已收敛为失败",
+                        OrderRefundStateMachine.REFUND_STATUS_REFUNDING);
+                logger.warn("退款补偿查单确定性失败，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+                return;
+            }
+            logger.error("退款补偿查单异常，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+        }
+    }
+
+    private MyRecord queryRefundRecordWithFallback(StoreOrder storeOrder, WeChatPayChannelConfig payConfig) {
+        String primaryRefundNo = StrUtil.isNotBlank(storeOrder.getOrderId()) ? storeOrder.getOrderId() : storeOrder.getOutTradeNo();
+        try {
+            return wechatNewService.payRefundQuery(primaryRefundNo, payConfig);
+        } catch (Exception firstEx) {
+            if (!isRefundQueryNotFound(firstEx)) {
+                throw firstEx;
+            }
+            String fallbackRefundNo = storeOrder.getOutTradeNo();
+            if (StrUtil.isBlank(fallbackRefundNo) || fallbackRefundNo.equals(primaryRefundNo)) {
+                throw firstEx;
+            }
+            logger.warn("退款补偿主单号未命中，切换fallback重试，orderNo={}, primary={}, fallback={}, err={}",
+                    storeOrder.getOrderId(), primaryRefundNo, fallbackRefundNo, firstEx.getMessage());
+            return wechatNewService.payRefundQuery(fallbackRefundNo, payConfig);
+        }
+    }
+
+    private String parseRefundStatus(MyRecord record) {
+        String directStatus = StrUtil.trimToEmpty(record.getStr("status"));
+        if (StrUtil.isNotBlank(directStatus)) {
+            return directStatus.toUpperCase();
+        }
+        String status = StrUtil.trimToEmpty(record.getStr("refund_status_0"));
+        if (StrUtil.isNotBlank(status)) {
+            return status.toUpperCase();
+        }
+        for (String key : record.getColumns().keySet()) {
+            if (key != null && key.startsWith("refund_status_")) {
+                String keyStatus = StrUtil.trimToEmpty(record.getStr(key));
+                if (StrUtil.isNotBlank(keyStatus)) {
+                    return keyStatus.toUpperCase();
+                }
+            }
+        }
+        return "";
+    }
+
+    private boolean isRefundFailStatus(String refundStatus) {
+        if (StrUtil.isBlank(refundStatus)) {
+            return false;
+        }
+        return REFUND_QUERY_STATUS_REFUNDCLOSE.equalsIgnoreCase(refundStatus)
+                || REFUND_QUERY_STATUS_CHANGE.equalsIgnoreCase(refundStatus)
+                || REFUND_QUERY_STATUS_CLOSED.equalsIgnoreCase(refundStatus)
+                || REFUND_QUERY_STATUS_ABNORMAL.equalsIgnoreCase(refundStatus);
+    }
+
+    private boolean isRefundQueryNotFound(Exception e) {
+        String msg = StrUtil.blankToDefault(e.getMessage(), "").toUpperCase();
+        return msg.contains("ORDERNOTEXIST")
+                || msg.contains("RESOURCE_NOT_EXISTS")
+                || msg.contains("HTTPSTATUS=404");
+    }
+
+    private boolean isRefundQueryDeterministicFail(Exception e) {
+        String msg = StrUtil.blankToDefault(e.getMessage(), "");
+        String upper = msg.toUpperCase();
+        return msg.contains("受理关系不存在")
+                || msg.contains("受理机构必须传入sub_mch_id")
+                || upper.contains("SUB_MCH_ID")
+                || upper.contains("SUB_MCHID")
+                || upper.contains("HTTPSTATUS=403");
+    }
+
+    private String sanitizeErrorMessage(String message) {
+        String msg = StrUtil.blankToDefault(message, "unknown")
+                .replace('\n', ' ')
+                .replace('\r', ' ')
+                .trim();
+        if (msg.length() > 120) {
+            return msg.substring(0, 120) + "...";
+        }
+        return msg;
+    }
+
+    private void markRefundCompensateFailed(StoreOrder storeOrder, String message, int expectedStatus) {
+        boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
+                .set(StoreOrder::getRefundStatus, REFUND_STATUS_NONE)
+                .set(StoreOrder::getUpdateTime, DateUtil.date())
+                .eq(StoreOrder::getId, storeOrder.getId())
+                .eq(StoreOrder::getRefundStatus, expectedStatus));
+        if (update) {
+            storeOrderStatusService.saveRefund(storeOrder.getId(), storeOrder.getRefundPrice(), message);
+        }
+    }
+
+    private int getRefundCompensateTimeoutMinutes() {
+        String value = systemConfigService.getValueByKey(REFUND_COMPENSATE_TIMEOUT_MINUTES_KEY);
+        return parsePositiveInt(value, DEFAULT_REFUND_COMPENSATE_TIMEOUT_MINUTES);
+    }
+
+    private int getRefundCompensateBatchSize() {
+        String value = systemConfigService.getValueByKey(REFUND_COMPENSATE_BATCH_SIZE_KEY);
+        return parsePositiveInt(value, DEFAULT_REFUND_COMPENSATE_BATCH_SIZE);
+    }
+
+    private int parsePositiveInt(String value, int defaultValue) {
+        if (StrUtil.isBlank(value)) {
+            return defaultValue;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * 完成订单
+     * @author Mr.Zhang
+     * @since 2020-07-09
+     */
+    @Override
+    public void complete() {
+        String redisKey = Constants.ORDER_TASK_REDIS_KEY_AFTER_COMPLETE_BY_USER;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.complete | size:" + size);
+        if (size < 1) {
+            return;
+        }
+        for (int i = 0; i < size; i++) {
+            //如果10秒钟拿不到一个数据，那么退出循环
+            Object data = redisUtil.getRightPop(redisKey, 10L);
+            if (null == data) {
+                continue;
+            }
+            try {
+                StoreOrder storeOrder = storeOrderService.getById(Integer.valueOf(data.toString()));
+                if (ObjectUtil.isNull(storeOrder)) {
+                    logger.error("OrderTaskServiceImpl.orderPaySuccessAfter | 订单不存在，orderId: " + data);
+                    throw new CrmebException("订单不存在，orderId: " + data);
+                }
+                boolean result = storeOrderTaskService.complete(storeOrder);
+                if (!result) {
+                    redisUtil.lPush(redisKey, data);
+                }
+            } catch (Exception e) {
+                redisUtil.lPush(redisKey, data);
+            }
+        }
+    }
+
+    /**
+     * 订单支付成功后置处理
+     */
+    @Override
+    public void orderPaySuccessAfter() {
+        String redisKey = TaskConstants.ORDER_TASK_PAY_SUCCESS_AFTER;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.orderPaySuccessAfter | size:" + size);
+        if (size < 1) {
+            return;
+        }
+        for (int i = 0; i < size; i++) {
+            //如果10秒钟拿不到一个数据，那么退出循环
+            Object data = redisUtil.getRightPop(redisKey, 10L);
+            if (ObjectUtil.isNull(data)) {
+                continue;
+            }
+            try {
+                StoreOrder storeOrder = storeOrderService.getByOderId(String.valueOf(data));
+                if (ObjectUtil.isNull(storeOrder)) {
+                    logger.error("OrderTaskServiceImpl.orderPaySuccessAfter | 订单不存在，orderNo: " + data);
+                    throw new CrmebException("订单不存在，orderNo: " + data);
+                }
+                boolean result = orderPayService.paySuccess(storeOrder);
+                if (!result) {
+                    redisUtil.lPush(redisKey, data);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                redisUtil.lPush(redisKey, data);
+            }
+        }
+    }
+
+    /**
+     * 自动取消未支付订单
+     */
+    @Override
+    public void autoCancel() {
+        String redisKey = Constants.ORDER_AUTO_CANCEL_KEY;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.autoCancel | size:" + size);
+        try {
+            if (size < 1) {
+                return;
+            }
+            for (int i = 0; i < size; i++) {
+                //如果10秒钟拿不到一个数据，那么退出循环
+                Object data = redisUtil.getRightPop(redisKey, 10L);
+                if (null == data) {
+                    continue;
+                }
+                try {
+                    StoreOrder storeOrder = storeOrderService.getByOderId(String.valueOf(data));
+                    if (ObjectUtil.isNull(storeOrder)) {
+                        logger.error("OrderTaskServiceImpl.autoCancel | 订单不存在，orderNo: " + data);
+                        throw new CrmebException("订单不存在，orderNo: " + data);
+                    }
+                    boolean result = storeOrderTaskService.autoCancel(storeOrder);
+                    if (!result) {
+                        redisUtil.lPush(redisKey, data);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    redisUtil.lPush(redisKey, data);
+                }
+            }
+        } finally {
+            payResultTimeoutCompensate();
+        }
+    }
+
+    /**
+     * 支付回调超时补偿：主动查单收敛，兜底回调丢失/延迟场景。
+     */
+    private void payResultTimeoutCompensate() {
+        int timeoutMinutes = getPayCompensateTimeoutMinutes();
+        int batchSize = getPayCompensateBatchSize();
+        DateTime timeoutAt = DateUtil.offsetMinute(DateUtil.date(), -timeoutMinutes);
+
+        LambdaQueryWrapper<StoreOrder> lqw = new LambdaQueryWrapper<>();
+        lqw.select(StoreOrder::getId, StoreOrder::getOrderId, StoreOrder::getOutTradeNo,
+                        StoreOrder::getPaid, StoreOrder::getPayType, StoreOrder::getIsDel, StoreOrder::getCreateTime)
+                .eq(StoreOrder::getPayType, Constants.PAY_TYPE_WE_CHAT)
+                .eq(StoreOrder::getPaid, false)
+                .eq(StoreOrder::getIsDel, false)
+                .isNotNull(StoreOrder::getOutTradeNo)
+                .ne(StoreOrder::getOutTradeNo, "")
+                .le(StoreOrder::getCreateTime, timeoutAt)
+                .orderByAsc(StoreOrder::getCreateTime)
+                .last("limit " + batchSize);
+        List<StoreOrder> timeoutOrderList = storeOrderService.list(lqw);
+        if (CollUtil.isEmpty(timeoutOrderList)) {
+            return;
+        }
+        logger.info("OrderTaskServiceImpl.payResultTimeoutCompensate | timeoutMinutes={}, batchSize={}, hit={}",
+                timeoutMinutes, batchSize, timeoutOrderList.size());
+        timeoutOrderList.forEach(this::compensateTimeoutPayOrder);
+    }
+
+    private void compensateTimeoutPayOrder(StoreOrder storeOrder) {
+        try {
+            if (ObjectUtil.isNull(storeOrder) || StrUtil.isBlank(storeOrder.getOrderId())) {
+                return;
+            }
+            Boolean result = weChatPayService.queryPayResult(storeOrder.getOrderId());
+            if (Boolean.TRUE.equals(result)) {
+                logger.info("支付补偿查单成功并收敛，orderNo={}", storeOrder.getOrderId());
+            }
+        } catch (Exception e) {
+            logger.warn("支付补偿查单未收敛，orderNo={}, msg={}", storeOrder.getOrderId(), e.getMessage());
+        }
+    }
+
+    private int getPayCompensateTimeoutMinutes() {
+        String value = systemConfigService.getValueByKey(PAY_COMPENSATE_TIMEOUT_MINUTES_KEY);
+        return parsePositiveInt(value, DEFAULT_PAY_COMPENSATE_TIMEOUT_MINUTES);
+    }
+
+    private int getPayCompensateBatchSize() {
+        String value = systemConfigService.getValueByKey(PAY_COMPENSATE_BATCH_SIZE_KEY);
+        return parsePositiveInt(value, DEFAULT_PAY_COMPENSATE_BATCH_SIZE);
+    }
+
+    /**
+     * 订单收货
+     */
+    @Override
+    public void orderReceiving() {
+        String redisKey = TaskConstants.ORDER_TASK_REDIS_KEY_AFTER_TAKE_BY_USER;
+        Long size = redisUtil.getListSize(redisKey);
+        logger.info("OrderTaskServiceImpl.orderReceiving | size:" + size);
+        if (size < 1) {
+            return;
+        }
+        for (int i = 0; i < size; i++) {
+            //如果10秒钟拿不到一个数据，那么退出循环
+            Object id = redisUtil.getRightPop(redisKey, 10L);
+            if (null == id) {
+                continue;
+            }
+            try {
+                Boolean result = storeOrderTaskService.orderReceiving(Integer.valueOf(id.toString()));
+                if (!result) {
+                    redisUtil.lPush(redisKey, id);
+                }
+            } catch (Exception e) {
+                redisUtil.lPush(redisKey, id);
+            }
+        }
+    }
+
+    /**
+     * 订单自动完成
+     */
+    @Override
+    public void autoComplete() {
+        // 查找所有收获状态订单
+        List<StoreOrder> orderList = storeOrderService.findIdAndUidListByReceipt();
+        if (CollUtil.isEmpty(orderList)) {
+            return ;
+        }
+        logger.info("OrderTaskServiceImpl.autoComplete | size:0");
+
+        // 根据订单状态表判断订单是否可以自动完成
+        for (StoreOrder order : orderList) {
+            StoreOrderStatus orderStatus = storeOrderStatusService.getLastByOrderId(order.getId());
+            if (!orderStatus.getChangeType().equals("user_take_delivery")) {
+                logger.error("订单自动完成：订单记录最后一条不是收货状态，orderId = " + order.getId());
+                continue ;
+            }
+            // 判断是否到自动完成时间（收货时间向后偏移7天）
+            String comTime = CrmebDateUtil.addDay(orderStatus.getCreateTime(), 7, Constants.DATE_FORMAT);
+            int compareDate = CrmebDateUtil.compareDate(comTime, CrmebDateUtil.nowDateTime(Constants.DATE_FORMAT), Constants.DATE_FORMAT);
+            if (compareDate > 0) {
+                continue ;
+            }
+
+            /**
+             * ---------------
+             * 自动好评转完成
+             * ---------------
+             */
+            // 获取订单详情
+            List<StoreOrderInfoOldVo> orderInfoVoList = storeOrderInfoService.getOrderListByOrderId(order.getId());
+            if (CollUtil.isEmpty(orderInfoVoList)) {
+                logger.error("订单自动完成：无订单详情数据，orderId = " + order.getId());
+                continue;
+            }
+            List<StoreProductReply> replyList = CollUtil.newArrayList();
+            User user = userService.getById(order.getUid());
+            // 生成评论
+            for (StoreOrderInfoOldVo orderInfo : orderInfoVoList) {
+                // 判断是否已评论
+                if (orderInfo.getInfo().getIsReply().equals(1)) {
+                    continue;
+                }
+                String replyType = Constants.STORE_REPLY_TYPE_PRODUCT;
+
+                StoreProductReply reply = new StoreProductReply();
+                reply.setUid(order.getUid());
+                reply.setOid(order.getId());
+                reply.setProductId(orderInfo.getProductId());
+                reply.setUnique(orderInfo.getUnique());
+                reply.setReplyType(replyType);
+                reply.setProductScore(5);
+                reply.setServiceScore(5);
+                reply.setComment("");
+                reply.setPics("");
+                reply.setNickname(user.getNickname());
+                reply.setAvatar(user.getAvatar());
+                reply.setSku(orderInfo.getInfo().getSku());
+                reply.setCreateTime(CrmebDateUtil.nowDateTime());
+                replyList.add(reply);
+            }
+            order.setStatus(Constants.ORDER_STATUS_INT_COMPLETE);
+            Boolean execute = transactionTemplate.execute(e -> {
+                System.out.println("操作的订单ID：" + order.getId());
+                order.setUpdateTime(DateUtil.date());
+                storeOrderService.updateById(order);
+                storeProductReplyService.saveBatch(replyList);
+                return Boolean.TRUE;
+            });
+            if (execute) {
+                redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_COMPLETE_BY_USER, order.getId());
+            } else {
+                logger.error("订单自动完成：更新数据库失败，orderId = " + order.getId());
+            }
+        }
+    }
+
+    /**
+     * 订单自动收货
+     */
+    @Override
+    public void autoTakeDelivery() {
+        int day = 14;
+        String autoDay = systemConfigService.getValueByKey("auto_take_delivery_day");
+        if (StrUtil.isNotBlank(autoDay) && Integer.parseInt(autoDay) >= 1) {
+            day = Integer.parseInt(autoDay);
+        }
+        DateTime dateTime = cn.hutool.core.date.DateUtil.offsetDay(cn.hutool.core.date.DateUtil.date(), -day);
+        List<StoreOrder> storeOrderList = storeOrderService.findAwaitTakeDeliveryOrderList(dateTime.toString());
+
+        storeOrderList.forEach(order -> {
+            try {
+                //已收货，待评价
+                order.setStatus(Constants.ORDER_STATUS_INT_BARGAIN);
+                order.setUpdateTime(DateUtil.date());
+                boolean result = storeOrderService.updateById(order);
+                if (result) {
+                    //后续操作放入redis
+                    redisUtil.lPush(TaskConstants.ORDER_TASK_REDIS_KEY_AFTER_TAKE_BY_USER, order.getId());
+                }
+            } catch (Exception e) {
+                logger.error("自动收货异常：订单号:{},异常信息={}", order.getOrderId(), e.getMessage());
+            }
+        });
+
+    }
+}

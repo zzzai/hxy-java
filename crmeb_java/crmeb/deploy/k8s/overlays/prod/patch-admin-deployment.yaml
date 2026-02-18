@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crmeb-admin
+  namespace: crmeb
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: admin
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi

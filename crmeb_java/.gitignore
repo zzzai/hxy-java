@@ -1,0 +1,17 @@
+.idea/
+.DS_Store
+
+app/unpackage
+Crmeb-2022-01-04.log
+crmeb_front_log
+crmeb/LOG_HOME_IS_UNDEFINED
+
+# Large artifacts
+*.zip
+*.dump
+*.tar.gz
+*.rar
+*.7z
+
+# Local working directories
+.claude/

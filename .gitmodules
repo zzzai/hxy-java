@@ -1,4 +1,0 @@
-[submodule "crmeb_java"]
-	path = crmeb_java
-	url = https://github.com/zzzai/crmeb_java.git
-	branch = 1.4

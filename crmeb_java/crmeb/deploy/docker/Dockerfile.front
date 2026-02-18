@@ -1,0 +1,19 @@
+FROM maven:3.9.9-eclipse-temurin-8 AS build
+WORKDIR /workspace
+
+COPY . .
+RUN mvn -pl crmeb-front -am -DskipTests clean package
+
+FROM eclipse-temurin:8-jre
+WORKDIR /app
+
+ENV TZ=Asia/Shanghai
+ENV JAVA_OPTS="-Xms256m -Xmx1024m"
+ENV SPRING_PROFILES_ACTIVE=dev
+
+COPY --from=build /workspace/crmeb-front/target/Crmeb-front.jar /app/app.jar
+
+EXPOSE 20510
+
+ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE}"]
+

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.MemberDao">
+    
+    <resultMap id="BaseResultMap" type="com.zbkj.common.model.member.MemberPO">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="level" property="level" />
+        <result column="growth_value" property="growthValue" />
+        <result column="create_time" property="createTime" />
+        <result column="upgrade_time" property="upgradeTime" />
+    </resultMap>
+    
+</mapper>
+

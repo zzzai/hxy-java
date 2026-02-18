@@ -1,0 +1,230 @@
+/* 全局公共样式 */
+
+/* 颜色变量 */
+page {
+  --primary-color: #4CAF50;
+  --primary-light: #81C784;
+  --primary-dark: #388E3C;
+  --text-color: #333333;
+  --text-light: #666666;
+  --text-lighter: #999999;
+  --border-color: #E0E0E0;
+  --bg-color: #F8F8F8;
+  --white: #FFFFFF;
+  --error: #F44336;
+  --warning: #FF9800;
+  --success: #4CAF50;
+}
+
+/* 布局 */
+.container {
+  padding: 20rpx;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+/* 文字 */
+.text-primary {
+  color: var(--primary-color);
+}
+
+.text-light {
+  color: var(--text-light);
+}
+
+.text-lighter {
+  color: var(--text-lighter);
+}
+
+.text-white {
+  color: var(--white);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-bold {
+  font-weight: bold;
+}
+
+.text-sm {
+  font-size: 24rpx;
+}
+
+.text-md {
+  font-size: 28rpx;
+}
+
+.text-lg {
+  font-size: 32rpx;
+}
+
+.text-xl {
+  font-size: 36rpx;
+}
+
+/* 间距 */
+.mt-10 { margin-top: 10rpx; }
+.mt-20 { margin-top: 20rpx; }
+.mt-30 { margin-top: 30rpx; }
+.mb-10 { margin-bottom: 10rpx; }
+.mb-20 { margin-bottom: 20rpx; }
+.mb-30 { margin-bottom: 30rpx; }
+.ml-10 { margin-left: 10rpx; }
+.ml-20 { margin-left: 20rpx; }
+.mr-10 { margin-right: 10rpx; }
+.mr-20 { margin-right: 20rpx; }
+
+.p-10 { padding: 10rpx; }
+.p-20 { padding: 20rpx; }
+.p-30 { padding: 30rpx; }
+
+/* 卡片 */
+.card {
+  background: var(--white);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 按钮 */
+.btn {
+  padding: 20rpx 40rpx;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: var(--white);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2rpx solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-disabled {
+  background: #CCCCCC;
+  color: var(--white);
+}
+
+/* 分割线 */
+.divider {
+  height: 1rpx;
+  background: var(--border-color);
+  margin: 20rpx 0;
+}
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 8rpx 16rpx;
+  border-radius: 4rpx;
+  font-size: 24rpx;
+  background: #F5F5F5;
+  color: var(--text-light);
+}
+
+.tag-primary {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--primary-color);
+}
+
+.tag-error {
+  background: rgba(244, 67, 54, 0.1);
+  color: var(--error);
+}
+
+/* 徽章 */
+.badge {
+  position: absolute;
+  top: -10rpx;
+  right: -10rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: var(--error);
+  color: var(--white);
+  font-size: 20rpx;
+  text-align: center;
+}
+
+/* 空状态 */
+.empty {
+  padding: 100rpx 0;
+  text-align: center;
+  color: var(--text-lighter);
+}
+
+.empty-icon {
+  font-size: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+/* 加载中 */
+.loading {
+  padding: 40rpx 0;
+  text-align: center;
+  color: var(--text-lighter);
+}
+
+/* 单行省略 */
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 多行省略 */
+.ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 安全区域 */
+.safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+

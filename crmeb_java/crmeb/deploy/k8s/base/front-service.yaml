@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: crmeb-front
+  namespace: crmeb
+spec:
+  selector:
+    app: crmeb-front
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 20510
+  type: ClusterIP

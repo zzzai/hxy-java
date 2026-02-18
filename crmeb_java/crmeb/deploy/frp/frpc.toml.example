@@ -1,0 +1,24 @@
+# 内网开发机 frpc 配置示例
+# 机器角色：内网开发服务器（运行 crmeb-admin/crmeb-front）
+
+serverAddr = "115.190.245.14"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "REPLACE_ME_WITH_LONG_RANDOM_TOKEN"
+
+transport.tls.enable = true
+
+[[proxies]]
+name = "crmeb-admin"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 20500
+remotePort = 32000
+
+[[proxies]]
+name = "crmeb-front"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 20510
+remotePort = 32010
