@@ -10,6 +10,12 @@ INSERT INTO eb_system_config(name, title, form_id, value, status, create_time, u
 SELECT 'payment_refund_hq_only_enable', '手工退款仅总部可执行开关(1开0关)', 0, '1', 1, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM eb_system_config WHERE name='payment_refund_hq_only_enable');
 
+-- 未发货订单是否允许自动退款打款（建议保持关闭）
+UPDATE eb_system_config SET value='0', update_time=NOW() WHERE name='payment_refund_auto_allow_unshipped';
+INSERT INTO eb_system_config(name, title, form_id, value, status, create_time, update_time)
+SELECT 'payment_refund_auto_allow_unshipped', '未发货订单自动退款打款开关(1开0关)', 0, '0', 1, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM eb_system_config WHERE name='payment_refund_auto_allow_unshipped');
+
 -- 总部管理员ID白名单（逗号分隔）
 UPDATE eb_system_config SET value='REPLACE_ME_HQ_ADMIN_IDS', update_time=NOW() WHERE name='payment_refund_hq_admin_ids';
 INSERT INTO eb_system_config(name, title, form_id, value, status, create_time, update_time)
@@ -26,6 +32,7 @@ WHERE NOT EXISTS (SELECT 1 FROM eb_system_config WHERE name='payment_refund_hq_r
 SELECT name, value
 FROM eb_system_config
 WHERE name IN (
+  'payment_refund_auto_allow_unshipped',
   'payment_refund_hq_only_enable',
   'payment_refund_hq_admin_ids',
   'payment_refund_hq_role_ids'

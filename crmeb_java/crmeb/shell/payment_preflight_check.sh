@@ -161,6 +161,7 @@ WHERE name IN (
   'pay_routine_private_key_path','pay_routine_platform_cert_path',
   'pay_routine_sub_mchid','pay_routine_sub_appid',
   'pay_routine_sp_certificate_path',
+  'payment_refund_auto_allow_unshipped',
   'payment_refund_hq_only_enable',
   'payment_refund_hq_admin_ids',
   'payment_refund_hq_role_ids'
@@ -245,6 +246,7 @@ sp_platform_cert_path="$(get_cfg_value "pay_routine_sp_platform_cert_path")"
 sub_mchid="$(get_cfg_value "pay_routine_sub_mchid")"
 sub_appid="$(get_cfg_value "pay_routine_sub_appid")"
 sp_cert_path="$(get_cfg_value "pay_routine_sp_certificate_path")"
+refund_auto_allow_unshipped="$(normalize_switch "$(get_cfg_value "payment_refund_auto_allow_unshipped")")"
 refund_hq_only_enable="$(normalize_switch "$(get_cfg_value "payment_refund_hq_only_enable")")"
 refund_hq_admin_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_admin_ids")")"
 refund_hq_role_ids="$(normalize_csv_ids "$(get_cfg_value "payment_refund_hq_role_ids")")"
@@ -333,6 +335,12 @@ else
 fi
 
 # 4.1) 总部退款执行权限策略
+if [[ -z "${refund_auto_allow_unshipped}" || "${refund_auto_allow_unshipped}" == "0" ]]; then
+  add_result "PASS" "未发货自动退款打款策略" "已关闭（payment_refund_auto_allow_unshipped=${refund_auto_allow_unshipped:-<empty->default0>}）"
+else
+  add_result "WARN" "未发货自动退款打款策略" "已开启（payment_refund_auto_allow_unshipped=${refund_auto_allow_unshipped}），存在未履约资金外流风险"
+fi
+
 if [[ -z "${refund_hq_only_enable}" || "${refund_hq_only_enable}" == "1" ]]; then
   add_result "PASS" "退款执行权限策略" "已开启仅总部可手工退款（payment_refund_hq_only_enable=${refund_hq_only_enable:-<empty->default1>})"
 else

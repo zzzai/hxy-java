@@ -84,6 +84,8 @@ public class SysConfigConstants {
     public static final String CONFIG_PAY_REFUND_AUTO_MAX_MINUTES = "payment_refund_auto_max_minutes";
     /** 退款自动秒退金额上限(元) */
     public static final String CONFIG_PAY_REFUND_AUTO_MAX_AMOUNT = "payment_refund_auto_max_amount";
+    /** 未发货订单是否允许自动退款打款(1开启,0关闭) */
+    public static final String CONFIG_PAY_REFUND_AUTO_ALLOW_UNSHIPPED = "payment_refund_auto_allow_unshipped";
     /** 命中后转人工复核的风险关键词(逗号分隔) */
     public static final String CONFIG_PAY_REFUND_MANUAL_KEYWORDS = "payment_refund_manual_keywords";
     /** 手工退款执行是否仅允许总部账号(1开启,0关闭) */

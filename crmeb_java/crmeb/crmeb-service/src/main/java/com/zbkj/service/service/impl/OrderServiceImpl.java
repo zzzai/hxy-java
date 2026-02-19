@@ -396,6 +396,9 @@ public class OrderServiceImpl implements OrderService {
         if (!isSupportedAutoRefundPayType(order.getPayType())) {
             return RefundRouteDecision.manual("支付方式不在自动秒退范围");
         }
+        if (Objects.equals(order.getStatus(), Constants.ORDER_STATUS_INT_PAID) && !isAllowUnshippedAutoRefund()) {
+            return RefundRouteDecision.manual("未发货订单默认不自动退款打款");
+        }
         if (!Objects.equals(order.getStatus(), Constants.ORDER_STATUS_INT_PAID)) {
             return RefundRouteDecision.manual("订单已进入履约流程");
         }
@@ -464,6 +467,11 @@ public class OrderServiceImpl implements OrderService {
                 .filter(StrUtil::isNotBlank)
                 .collect(Collectors.toList());
         return keywordList.stream().map(String::toLowerCase).anyMatch(content::contains);
+    }
+
+    private boolean isAllowUnshippedAutoRefund() {
+        String raw = systemConfigService.getValueByKey(SysConfigConstants.CONFIG_PAY_REFUND_AUTO_ALLOW_UNSHIPPED);
+        return ConfigSwitchUtil.isOn(StrUtil.blankToDefault(raw, "0"));
     }
 
     private String sanitizeRefundErrorMsg(String message) {
