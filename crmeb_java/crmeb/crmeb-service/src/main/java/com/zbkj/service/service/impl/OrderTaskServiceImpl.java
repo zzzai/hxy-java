@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -218,12 +219,30 @@ public class OrderTaskServiceImpl implements OrderTaskService {
                 .orderByAsc(StoreOrder::getUpdateTime)
                 .last("limit " + batchSize);
         List<StoreOrder> timeoutOrderList = storeOrderService.list(lqw);
-        if (CollUtil.isEmpty(timeoutOrderList)) {
+        if (CollUtil.isNotEmpty(timeoutOrderList)) {
+            logger.info("OrderTaskServiceImpl.refundTimeoutCompensate | timeoutMinutes={}, batchSize={}, hit={}",
+                    timeoutMinutes, batchSize, timeoutOrderList.size());
+            timeoutOrderList.forEach(this::compensateTimeoutRefundOrder);
+        }
+
+        LambdaQueryWrapper<StoreOrder> residualLqw = new LambdaQueryWrapper<>();
+        residualLqw.select(StoreOrder::getId, StoreOrder::getOrderId, StoreOrder::getOutTradeNo, StoreOrder::getPayType,
+                        StoreOrder::getPaid, StoreOrder::getIsChannel, StoreOrder::getStoreId,
+                        StoreOrder::getRefundStatus, StoreOrder::getRefundPrice, StoreOrder::getUpdateTime)
+                .eq(StoreOrder::getRefundStatus, REFUND_STATUS_NONE)
+                .gt(StoreOrder::getRefundPrice, BigDecimal.ZERO)
+                .eq(StoreOrder::getPayType, Constants.PAY_TYPE_WE_CHAT)
+                .eq(StoreOrder::getPaid, true)
+                .le(StoreOrder::getUpdateTime, timeoutAt)
+                .orderByAsc(StoreOrder::getUpdateTime)
+                .last("limit " + batchSize);
+        List<StoreOrder> residualOrderList = storeOrderService.list(residualLqw);
+        if (CollUtil.isEmpty(residualOrderList)) {
             return;
         }
-        logger.info("OrderTaskServiceImpl.refundTimeoutCompensate | timeoutMinutes={}, batchSize={}, hit={}",
-                timeoutMinutes, batchSize, timeoutOrderList.size());
-        timeoutOrderList.forEach(this::compensateTimeoutRefundOrder);
+        logger.info("OrderTaskServiceImpl.refundResidualCompensate | timeoutMinutes={}, batchSize={}, hit={}",
+                timeoutMinutes, batchSize, residualOrderList.size());
+        residualOrderList.forEach(this::compensateResidualRefundOrder);
     }
 
     private void compensateApplyingRefundOrder(StoreOrder storeOrder) {
@@ -336,6 +355,46 @@ public class OrderTaskServiceImpl implements OrderTaskService {
                 return;
             }
             logger.error("退款补偿查单异常，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+        }
+    }
+
+    /**
+     * 残留异常补偿：退款状态仍是“未退款”，但已出现退款金额。
+     * 仅在查单为 SUCCESS 时收敛，其他状态保守处理避免误改。
+     */
+    private void compensateResidualRefundOrder(StoreOrder storeOrder) {
+        try {
+            if (StrUtil.isBlank(storeOrder.getOrderId()) && StrUtil.isBlank(storeOrder.getOutTradeNo())) {
+                return;
+            }
+            WeChatPayChannelConfig payConfig = weChatPayConfigSupport.resolveByChannel(storeOrder.getIsChannel(), storeOrder.getStoreId());
+            MyRecord queryRecord = queryRefundRecordWithFallback(storeOrder, payConfig);
+            String refundStatus = parseRefundStatus(queryRecord);
+            if (StrUtil.isBlank(refundStatus)) {
+                logger.warn("退款残留补偿查单无状态，orderNo={}, record={}", storeOrder.getOrderId(), queryRecord.getColumns());
+                return;
+            }
+            if (!REFUND_QUERY_STATUS_SUCCESS.equalsIgnoreCase(refundStatus)) {
+                logger.info("退款残留补偿保持现状，orderNo={}, refundStatus={}", storeOrder.getOrderId(), refundStatus);
+                return;
+            }
+
+            boolean update = storeOrderService.update(new LambdaUpdateWrapper<StoreOrder>()
+                    .set(StoreOrder::getRefundStatus, OrderRefundStateMachine.REFUND_STATUS_SUCCESS)
+                    .set(StoreOrder::getUpdateTime, DateUtil.date())
+                    .eq(StoreOrder::getId, storeOrder.getId())
+                    .eq(StoreOrder::getRefundStatus, REFUND_STATUS_NONE)
+                    .gt(StoreOrder::getRefundPrice, BigDecimal.ZERO));
+            if (update) {
+                redisUtil.lPush(Constants.ORDER_TASK_REDIS_KEY_AFTER_REFUND_BY_USER, storeOrder.getId());
+                logger.info("退款残留补偿查单成功并收敛，orderNo={}", storeOrder.getOrderId());
+            }
+        } catch (Exception e) {
+            if (isRefundQueryNotFound(e)) {
+                logger.info("退款残留补偿查单未命中，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
+                return;
+            }
+            logger.error("退款残留补偿查单异常，orderNo={}, err={}", storeOrder.getOrderId(), e.getMessage());
         }
     }
 
