@@ -1,0 +1,147 @@
+name: payment-stagea-p0-19-20
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/run_payment_abnormal_scenario_replay.sh"
+      - "script/dev/check_payment_release_blockers.sh"
+      - "script/dev/run_payment_stagea_p0_19_20.sh"
+      - "script/dev/config/payment_abnormal_scenarios_v1.tsv"
+      - "script/dev/check_payment_reconcile_daily.sh"
+      - "script/dev/run_payment_stagea_p0_17_18.sh"
+      - ".github/workflows/payment-stagea-p0-19-20.yml"
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "是否运行支付韧性回归测试"
+        required: true
+        default: false
+        type: boolean
+      run_notify_smoke:
+        description: "是否运行通知回放烟测"
+        required: true
+        default: true
+        type: boolean
+      require_ops_status:
+        description: "是否要求 ops 状态文件"
+        required: true
+        default: false
+        type: boolean
+      max_artifact_age_minutes:
+        description: "产物过期阈值（分钟）"
+        required: true
+        default: "1440"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  stagea-p0-19-20:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run #19 #20 pipeline
+        run: |
+          artifact_base="${RUNNER_TEMP}/payment_stagea_p0_19_20"
+          mkdir -p "${artifact_base}"
+
+          run_tests_input="${{ github.event.inputs.run_tests }}"
+          run_notify_smoke_input="${{ github.event.inputs.run_notify_smoke }}"
+          require_ops_input="${{ github.event.inputs.require_ops_status }}"
+          max_age_input="${{ github.event.inputs.max_artifact_age_minutes }}"
+
+          [[ -z "${run_tests_input}" ]] && run_tests_input="false"
+          [[ -z "${run_notify_smoke_input}" ]] && run_notify_smoke_input="true"
+          [[ -z "${require_ops_input}" ]] && require_ops_input="false"
+          [[ -z "${max_age_input}" ]] && max_age_input="1440"
+
+          run_tests=0
+          run_notify_smoke=0
+          require_ops_status=0
+          [[ "${run_tests_input}" == "true" ]] && run_tests=1
+          [[ "${run_notify_smoke_input}" == "true" ]] && run_notify_smoke=1
+          [[ "${require_ops_input}" == "true" ]] && require_ops_status=1
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          RUN_TESTS="${run_tests}" \
+          RUN_NOTIFY_SMOKE="${run_notify_smoke}" \
+          REQUIRE_OPS_STATUS="${require_ops_status}" \
+          MAX_ARTIFACT_AGE_MINUTES="${max_age_input}" \
+          REQUIRE_RECONCILE=0 \
+          bash script/dev/run_payment_stagea_p0_19_20.sh
+          rc=$?
+          set -e
+
+          out_dir="${artifact_base}/${run_id}"
+          if [[ ! -d "${out_dir}" ]]; then
+            latest_out_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_out_dir}" && -d "${latest_out_dir}" ]]; then
+              out_dir="${latest_out_dir}"
+            fi
+          fi
+
+          echo "PIPE_RC=${rc}" >> "$GITHUB_ENV"
+          echo "PIPE_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${PIPE_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Payment StageA #19 #20"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
+            echo "| scenario_result | $(kv "${summary_file}" scenario_result) |"
+            echo "| release_gate_result | $(kv "${summary_file}" gate_result) |"
+            echo "| release_gate_block_count | $(kv "${summary_file}" gate_block_count) |"
+            echo "| release_gate_warn_count | $(kv "${summary_file}" gate_warn_count) |"
+            echo "| scenario_summary_file | \`$(kv "${summary_file}" scenario_summary_file)\` |"
+            echo "| gate_report | \`$(kv "${summary_file}" gate_report)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-stagea-p0-19-20-${{ github.run_id }}
+          path: ${{ env.PIPE_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${PIPE_RC}" != "0" ]]; then
+            echo "stagea p0 19/20 failed: rc=${PIPE_RC}" >&2
+            exit "${PIPE_RC}"
+          fi
