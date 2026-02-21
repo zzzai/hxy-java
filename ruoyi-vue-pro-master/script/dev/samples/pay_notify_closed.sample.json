@@ -1,0 +1,14 @@
+{
+  "id": "EV-REPLACE-ME-CLOSED",
+  "create_time": "2026-02-19T00:05:00+08:00",
+  "resource_type": "encrypt-resource",
+  "event_type": "TRANSACTION.CLOSED",
+  "summary": "支付关闭",
+  "resource": {
+    "original_type": "transaction",
+    "algorithm": "AEAD_AES_256_GCM",
+    "ciphertext": "REPLACE_WITH_REAL_CIPHERTEXT",
+    "associated_data": "transaction",
+    "nonce": "REPLACE_WITH_REAL_NONCE"
+  }
+}

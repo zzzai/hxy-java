@@ -1,0 +1,25 @@
+yudao:
+  compat:
+    crmeb:
+      # 最终下线阶段：CRMEB 兼容接口统一返回 410
+      enabled: false
+      emit-deprecation-headers: true
+      audit-enabled: true
+      payment-core-only-mode: false
+      disabled-paths: []
+  trade:
+    compat:
+      crmeb:
+        # 兼容层下线时仍保持门店退款执行禁用
+        store-refund-execute-enabled: false
+    after-sale:
+      refund-rule:
+        enabled: true
+        # 自动退款上限（分）
+        auto-refund-max-price: 5000
+        # 单用户当日售后申请超过阈值进入人工复核
+        user-daily-apply-limit: 3
+        blacklist-user-ids: []
+        suspicious-order-keywords:
+          - TEST
+          - MOCK

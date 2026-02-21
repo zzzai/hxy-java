@@ -1,0 +1,169 @@
+name: payment-core-fast-track
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/run_payment_core_fast_track.sh"
+      - "script/dev/run_crmeb_compat_regression.sh"
+      - "script/dev/run_payment_resilience_regression.sh"
+      - "script/dev/payment_core_fast_track_artifact_index.sh"
+      - "script/dev/pay_notify_pipeline_smoke.sh"
+      - "script/dev/verify_payment_core_fast_track.sh"
+      - ".github/workflows/payment-core-fast-track.yml"
+      - "yudao-module-pay/src/main/java/**/compat/crmeb/**"
+      - "yudao-module-pay/src/test/java/**/compat/crmeb/**"
+      - "yudao-module-mall/yudao-module-trade/src/main/java/**/compat/crmeb/**"
+      - "yudao-module-member/src/main/java/**/compat/crmeb/**"
+      - "yudao-server/src/main/java/cn/iocoder/yudao/server/config/crmeb/**"
+      - "yudao-server/src/main/resources/application-crmeb-fast-track.yaml"
+      - "yudao-server/src/test/java/cn/iocoder/yudao/server/config/crmeb/**"
+  workflow_dispatch:
+    inputs:
+      run_notify_smoke:
+        description: "是否执行 pay notify pipeline smoke"
+        required: true
+        default: true
+        type: boolean
+      run_resilience_regression:
+        description: "是否执行支付韧性回归（回调/退款/关单）"
+        required: true
+        default: true
+        type: boolean
+      run_clean:
+        description: "是否执行 clean test"
+        required: true
+        default: false
+        type: boolean
+      extra_mvn_args:
+        description: "额外 Maven 参数（可空）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fast-track:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run payment core fast-track pipeline
+        run: |
+          artifact_base="${RUNNER_TEMP}/payment_core_fast_track"
+          mkdir -p "${artifact_base}"
+
+          run_notify_smoke="${{ github.event.inputs.run_notify_smoke }}"
+          run_resilience_input="${{ github.event.inputs.run_resilience_regression }}"
+          run_clean_input="${{ github.event.inputs.run_clean }}"
+          extra_args="${{ github.event.inputs.extra_mvn_args }}"
+          if [[ -z "${run_notify_smoke}" ]]; then
+            run_notify_smoke="true"
+          fi
+          if [[ -z "${run_resilience_input}" ]]; then
+            run_resilience_input="true"
+          fi
+          if [[ -z "${run_clean_input}" ]]; then
+            run_clean_input="false"
+          fi
+
+          run_notify=0
+          run_resilience=0
+          run_clean=0
+          if [[ "${run_notify_smoke}" == "true" ]]; then
+            run_notify=1
+          fi
+          if [[ "${run_resilience_input}" == "true" ]]; then
+            run_resilience=1
+          fi
+          if [[ "${run_clean_input}" == "true" ]]; then
+            run_clean=1
+          fi
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          artifact_dir="${artifact_base}/${run_id}"
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          RUN_NOTIFY_SMOKE="${run_notify}" \
+          RUN_RESILIENCE_REGRESSION="${run_resilience}" \
+          RUN_CLEAN="${run_clean}" \
+          BYTE_BUDDY_EXPERIMENTAL=1 \
+          EXTRA_MVN_ARGS_RAW="${extra_args}" \
+          VERIFY_FAST_TRACK=0 \
+          bash script/dev/run_payment_core_fast_track.sh
+          rc=$?
+          set -e
+
+          if [[ ! -d "${artifact_dir}" ]]; then
+            latest_artifact_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_artifact_dir}" && -d "${latest_artifact_dir}" ]]; then
+              artifact_dir="${latest_artifact_dir}"
+            fi
+          fi
+          mkdir -p "${artifact_dir}"
+
+          echo "PAYMENT_CORE_FAST_TRACK_RC=${rc}" >> "$GITHUB_ENV"
+          echo "PAYMENT_CORE_FAST_TRACK_OUT_DIR=${artifact_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${PAYMENT_CORE_FAST_TRACK_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Payment Core Fast Track"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| run_notify_smoke | $(kv "${summary_file}" run_notify_smoke) |"
+            echo "| run_resilience_regression | $(kv "${summary_file}" run_resilience_regression) |"
+            echo "| run_clean | $(kv "${summary_file}" run_clean) |"
+            echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
+            echo "| surefire_report_count | $(kv "${summary_file}" surefire_report_count) |"
+            echo "| pay_notify_smoke_dir | \`$(kv "${summary_file}" pay_notify_smoke_dir)\` |"
+            echo "| pay_notify_smoke_artifact_dir | \`$(kv "${summary_file}" pay_notify_smoke_artifact_dir)\` |"
+            echo "| final_gate_log | \`$(kv "${summary_file}" final_gate_log)\` |"
+            echo "| artifact_index | \`$(kv "${summary_file}" artifact_index)\` |"
+            echo "| log_file | \`$(kv "${summary_file}" log_file)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-core-fast-track-${{ github.run_id }}
+          path: ${{ env.PAYMENT_CORE_FAST_TRACK_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${PAYMENT_CORE_FAST_TRACK_RC}" != "0" ]]; then
+            echo "payment core fast-track failed: rc=${PAYMENT_CORE_FAST_TRACK_RC}" >&2
+            exit "${PAYMENT_CORE_FAST_TRACK_RC}"
+          fi

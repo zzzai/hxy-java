@@ -26,6 +26,8 @@ crmeb_java/crmeb/runtime/
 # Local working dirs
 .claude/
 .git_backup/
+_local_preservation/
+ruoyi-vue-pro-master/.tmp/
 **/unpackage
 **/target/
 

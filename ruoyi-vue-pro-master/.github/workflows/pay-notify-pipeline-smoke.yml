@@ -1,0 +1,83 @@
+name: pay-notify-pipeline-smoke
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/**"
+      - ".github/workflows/pay-notify-pipeline-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run smoke
+        run: |
+          bash script/dev/pay_notify_pipeline_smoke.sh \
+            --out-root "${RUNNER_TEMP}/pay_notify_pipeline_smoke" \
+            --workflow-run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --notify-dry-run 1
+
+      - name: Locate run dir
+        run: |
+          latest_run="$(find "${RUNNER_TEMP}/pay_notify_pipeline_smoke" -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+          if [[ -z "${latest_run}" ]]; then
+            echo "smoke run dir not found" >&2
+            exit 1
+          fi
+          echo "LATEST_RUN_DIR=${latest_run}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_DIR=${latest_run}/artifact" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        run: |
+          SUMMARY_FILE="${LATEST_RUN_DIR}/summary.txt"
+          if [[ ! -f "${SUMMARY_FILE}" ]]; then
+            echo "missing summary file: ${SUMMARY_FILE}" >&2
+            exit 1
+          fi
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Pay Notify Pipeline Smoke"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| smoke_result | **$(kv "${SUMMARY_FILE}" smoke_result)** |"
+            echo "| run_id | \`$(kv "${SUMMARY_FILE}" run_id)\` |"
+            echo "| merchant_order_id | \`$(kv "${SUMMARY_FILE}" merchant_order_id)\` |"
+            echo "| scenario | \`$(kv "${SUMMARY_FILE}" scenario)\` |"
+            echo "| biz_type | \`$(kv "${SUMMARY_FILE}" biz_type)\` |"
+            echo "| channel_id | \`$(kv "${SUMMARY_FILE}" channel_id)\` |"
+            echo "| notify_dry_run | $(kv "${SUMMARY_FILE}" notify_dry_run) |"
+            echo
+            echo "- report: \`$(kv "${SUMMARY_FILE}" report_file)\`"
+            echo "- index: \`$(kv "${SUMMARY_FILE}" index_file)\`"
+            echo "- ticket_tsv: \`$(kv "${SUMMARY_FILE}" ticket_tsv)\`"
+            echo "- notify_summary: \`$(kv "${SUMMARY_FILE}" notify_summary)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pay-notify-pipeline-smoke-${{ github.run_id }}
+          path: ${{ env.LATEST_RUN_DIR }}
+          if-no-files-found: error

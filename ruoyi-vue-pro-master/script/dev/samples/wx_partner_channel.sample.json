@@ -1,0 +1,13 @@
+{
+  "apiVersion": "v3",
+  "partnerMode": true,
+  "appId": "wx97fb30aed3983c2c",
+  "subAppId": "wx97fb30aed3983c2c",
+  "mchId": "1739427215",
+  "subMchId": "1900000109",
+  "apiV3Key": "0123456789ABCDEF0123456789ABCDEF",
+  "certSerialNo": "2453A4F2A3DCCDCFC314C35935ACAC03A03F8B06",
+  "privateKeyContent": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC...\n-----END PRIVATE KEY-----",
+  "publicKeyId": "PUB_KEY_ID_20260221",
+  "publicKeyContent": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD...\n-----END PUBLIC KEY-----"
+}

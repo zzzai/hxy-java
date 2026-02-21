@@ -1,0 +1,339 @@
+name: pay-notify-replay-acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_replay:
+        description: "是否执行回放请求（false=仅跑验收 SQL）"
+        required: true
+        default: false
+        type: boolean
+      base_url:
+        description: "回调地址前缀"
+        required: true
+        default: "https://api.hexiaoyue.com/admin-api/pay/notify"
+        type: string
+      biz_type:
+        description: "回调业务类型"
+        required: true
+        default: "order"
+        type: choice
+        options:
+          - order
+          - refund
+          - transfer
+      channel_id:
+        description: "支付渠道 ID"
+        required: true
+        default: "18"
+        type: string
+      scenario:
+        description: "回放场景"
+        required: true
+        default: "duplicate"
+        type: choice
+        options:
+          - duplicate
+          - out_of_order
+          - delayed
+      repeat_times:
+        description: "重复回放次数（duplicate）"
+        required: true
+        default: "3"
+        type: string
+      delay_seconds:
+        description: "延迟秒数（delayed）"
+        required: true
+        default: "120"
+        type: string
+      first_body_path:
+        description: "第一条回调 body 文件路径（仓库内）"
+        required: true
+        default: "script/dev/samples/pay_notify_success.sample.json"
+        type: string
+      second_body_path:
+        description: "第二条回调 body 文件（out_of_order 场景）"
+        required: false
+        default: ""
+        type: string
+      header_path:
+        description: "回调 Header 文件路径（仓库内）"
+        required: true
+        default: "script/dev/samples/pay_notify_headers.sample.txt"
+        type: string
+      query_path:
+        description: "回调 Query 文件路径（仓库内，可空）"
+        required: false
+        default: ""
+        type: string
+      insecure:
+        description: "是否跳过 HTTPS 证书校验（-k）"
+        required: true
+        default: false
+        type: boolean
+      merchant_order_id:
+        description: "验收商户单号"
+        required: true
+        default: ""
+        type: string
+      lookback_hours:
+        description: "验收窗口小时数"
+        required: true
+        default: "48"
+        type: string
+      grace_minutes:
+        description: "任务宽限分钟数"
+        required: true
+        default: "10"
+        type: string
+      emit_ticket_on_warn:
+        description: "WARN 场景是否也生成工单"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  replay-acceptance:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mysql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Prepare dirs
+        run: |
+          ARTIFACT_DIR="${RUNNER_TEMP}/pay_notify_ci_artifacts"
+          REPLAY_OUT_DIR="${ARTIFACT_DIR}/replay"
+          mkdir -p "${ARTIFACT_DIR}/logs" "${REPLAY_OUT_DIR}"
+          echo "ARTIFACT_DIR=${ARTIFACT_DIR}" >> "$GITHUB_ENV"
+          echo "REPLAY_OUT_DIR=${REPLAY_OUT_DIR}" >> "$GITHUB_ENV"
+          echo "FINAL_GATE_LOG=${ARTIFACT_DIR}/logs/final_gate.log" >> "$GITHUB_ENV"
+
+      - name: Replay callback
+        run: |
+          set +e
+          if [[ "${{ inputs.run_replay }}" == "true" ]]; then
+            cmd=(
+              bash script/dev/replay_pay_notify.sh
+              --base-url "${{ inputs.base_url }}"
+              --biz-type "${{ inputs.biz_type }}"
+              --channel-id "${{ inputs.channel_id }}"
+              --scenario "${{ inputs.scenario }}"
+              --repeat-times "${{ inputs.repeat_times }}"
+              --delay-seconds "${{ inputs.delay_seconds }}"
+              --first-body-file "${{ inputs.first_body_path }}"
+              --header-file "${{ inputs.header_path }}"
+              --out-dir "${REPLAY_OUT_DIR}"
+            )
+            if [[ -n "${{ inputs.second_body_path }}" ]]; then
+              cmd+=(--second-body-file "${{ inputs.second_body_path }}")
+            fi
+            if [[ -n "${{ inputs.query_path }}" ]]; then
+              cmd+=(--query-file "${{ inputs.query_path }}")
+            fi
+            if [[ "${{ inputs.insecure }}" == "true" ]]; then
+              cmd+=(--insecure)
+            fi
+            "${cmd[@]}" 2>&1 | tee "${ARTIFACT_DIR}/logs/replay.log"
+            rc=${PIPESTATUS[0]}
+          else
+            echo "run_replay=false, skip replay request" | tee "${ARTIFACT_DIR}/logs/replay.log"
+            rc=0
+          fi
+          set -e
+          echo "REPLAY_RC=${rc}" >> "$GITHUB_ENV"
+
+      - name: Check replay acceptance
+        env:
+          DB_HOST: ${{ secrets.PAY_REPLAY_DB_HOST }}
+          DB_PORT: ${{ secrets.PAY_REPLAY_DB_PORT }}
+          DB_USER: ${{ secrets.PAY_REPLAY_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PAY_REPLAY_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.PAY_REPLAY_DB_NAME }}
+        run: |
+          export DB_HOST="${DB_HOST:-127.0.0.1}"
+          export DB_PORT="${DB_PORT:-3306}"
+          export DB_USER="${DB_USER:-root}"
+          export DB_NAME="${DB_NAME:-ruoyi-vue-pro}"
+          set +e
+          bash script/dev/check_pay_notify_replay.sh \
+            --merchant-order-id "${{ inputs.merchant_order_id }}" \
+            --lookback-hours "${{ inputs.lookback_hours }}" \
+            --grace-minutes "${{ inputs.grace_minutes }}" \
+            2>&1 | tee "${ARTIFACT_DIR}/logs/acceptance.log"
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "ACCEPTANCE_RC=${rc}" >> "$GITHUB_ENV"
+
+      - name: Build artifact index
+        run: |
+          RUN_REPLAY_VAL=0
+          if [[ "${{ inputs.run_replay }}" == "true" ]]; then
+            RUN_REPLAY_VAL=1
+          fi
+          bash script/dev/pay_notify_replay_artifact_index.sh \
+            --out-dir "${ARTIFACT_DIR}" \
+            --replay-out-dir "${REPLAY_OUT_DIR}" \
+            --replay-log "${ARTIFACT_DIR}/logs/replay.log" \
+            --acceptance-log "${ARTIFACT_DIR}/logs/acceptance.log" \
+            --final-gate-log "${FINAL_GATE_LOG}" \
+            --run-replay "${RUN_REPLAY_VAL}" \
+            --replay-exit-code "${REPLAY_RC}" \
+            --acceptance-exit-code "${ACCEPTANCE_RC}" \
+            --merchant-order-id "${{ inputs.merchant_order_id }}" \
+            --scenario "${{ inputs.scenario }}" \
+            --biz-type "${{ inputs.biz_type }}" \
+            --channel-id "${{ inputs.channel_id }}" \
+            --report-file "${ARTIFACT_DIR}/pay_notify_replay_report.md" \
+            --ticket-dir "${ARTIFACT_DIR}/tickets" \
+            --workflow-run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Generate replay report
+        run: |
+          bash script/dev/generate_pay_notify_replay_report.sh \
+            --artifact-dir "${ARTIFACT_DIR}" \
+            --summary-file "${ARTIFACT_DIR}/summary.txt" \
+            --acceptance-log "${ARTIFACT_DIR}/logs/acceptance.log" \
+            --replay-log "${ARTIFACT_DIR}/logs/replay.log" \
+            --output-file "${ARTIFACT_DIR}/pay_notify_replay_report.md"
+
+      - name: Generate block ticket
+        run: |
+          EMIT_WARN=0
+          if [[ "${{ inputs.emit_ticket_on_warn }}" == "true" ]]; then
+            EMIT_WARN=1
+          fi
+          bash script/dev/create_pay_notify_block_ticket.sh \
+            --artifact-dir "${ARTIFACT_DIR}" \
+            --summary-file "${ARTIFACT_DIR}/summary.txt" \
+            --acceptance-log "${ARTIFACT_DIR}/logs/acceptance.log" \
+            --ticket-dir "${ARTIFACT_DIR}/tickets" \
+            --emit-on-warn "${EMIT_WARN}" \
+            --output-tsv "${ARTIFACT_DIR}/tickets/tickets.tsv"
+
+      - name: Notify tickets (optional)
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.PAY_REPLAY_TICKET_FEISHU_WEBHOOK }}
+          WEBHOOK_URL: ${{ secrets.PAY_REPLAY_TICKET_WEBHOOK }}
+        run: |
+          bash script/dev/notify_pay_notify_tickets.sh \
+            --ticket-tsv "${ARTIFACT_DIR}/tickets/tickets.tsv" \
+            --summary-file "${ARTIFACT_DIR}/summary.txt" \
+            --report-file "${ARTIFACT_DIR}/pay_notify_replay_report.md" \
+            --artifact-index "${ARTIFACT_DIR}/artifact_index.md" \
+            --notify-summary-file "${ARTIFACT_DIR}/tickets/notify_summary.txt" \
+            2>&1 | tee "${ARTIFACT_DIR}/logs/ticket_notify.log"
+
+      - name: Evaluate final gate
+        run: |
+          gate_rc=0
+          gate_reason="Replay acceptance gate passed"
+          if [[ "${REPLAY_RC}" != "0" ]]; then
+            gate_rc="${REPLAY_RC}"
+            gate_reason="Replay failed: rc=${REPLAY_RC}"
+          elif [[ "${ACCEPTANCE_RC}" != "0" ]]; then
+            gate_rc="${ACCEPTANCE_RC}"
+            gate_reason="Acceptance failed: rc=${ACCEPTANCE_RC}"
+          fi
+          {
+            echo "generated_at=$(date '+%Y-%m-%d %H:%M:%S')"
+            echo "replay_rc=${REPLAY_RC}"
+            echo "acceptance_rc=${ACCEPTANCE_RC}"
+            echo "final_gate_exit_code=${gate_rc}"
+            echo "final_gate_reason=${gate_reason}"
+          } | tee "${FINAL_GATE_LOG}"
+          echo "FINAL_GATE_RC=${gate_rc}" >> "$GITHUB_ENV"
+
+      - name: Refresh artifact index
+        run: |
+          RUN_REPLAY_VAL=0
+          if [[ "${{ inputs.run_replay }}" == "true" ]]; then
+            RUN_REPLAY_VAL=1
+          fi
+          bash script/dev/pay_notify_replay_artifact_index.sh \
+            --out-dir "${ARTIFACT_DIR}" \
+            --replay-out-dir "${REPLAY_OUT_DIR}" \
+            --replay-log "${ARTIFACT_DIR}/logs/replay.log" \
+            --acceptance-log "${ARTIFACT_DIR}/logs/acceptance.log" \
+            --final-gate-log "${FINAL_GATE_LOG}" \
+            --run-replay "${RUN_REPLAY_VAL}" \
+            --replay-exit-code "${REPLAY_RC}" \
+            --acceptance-exit-code "${ACCEPTANCE_RC}" \
+            --merchant-order-id "${{ inputs.merchant_order_id }}" \
+            --scenario "${{ inputs.scenario }}" \
+            --biz-type "${{ inputs.biz_type }}" \
+            --channel-id "${{ inputs.channel_id }}" \
+            --report-file "${ARTIFACT_DIR}/pay_notify_replay_report.md" \
+            --ticket-dir "${ARTIFACT_DIR}/tickets" \
+            --notify-summary-file "${ARTIFACT_DIR}/tickets/notify_summary.txt" \
+            --workflow-run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          kv() {
+            local file="$1"
+            local key="$2"
+            if [[ ! -f "${file}" ]]; then
+              printf ''
+              return
+            fi
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          SUMMARY_FILE="${ARTIFACT_DIR}/summary.txt"
+          NOTIFY_SUMMARY_FILE="${ARTIFACT_DIR}/tickets/notify_summary.txt"
+          FINAL_GATE_FILE="${FINAL_GATE_LOG}"
+          {
+            echo "## Pay Notify Replay Acceptance"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| merchant_order_id | \`$(kv "${SUMMARY_FILE}" merchant_order_id)\` |"
+            echo "| scenario | \`$(kv "${SUMMARY_FILE}" scenario)\` |"
+            echo "| biz_type | \`$(kv "${SUMMARY_FILE}" biz_type)\` |"
+            echo "| channel_id | \`$(kv "${SUMMARY_FILE}" channel_id)\` |"
+            echo "| replay_exit_code | $(kv "${SUMMARY_FILE}" replay_exit_code) |"
+            echo "| acceptance_exit_code | $(kv "${SUMMARY_FILE}" acceptance_exit_code) |"
+            echo "| acceptance_result | $(kv "${SUMMARY_FILE}" acceptance_result) |"
+            echo "| acceptance_block_count | $(kv "${SUMMARY_FILE}" acceptance_block_count) |"
+            echo "| acceptance_warn_count | $(kv "${SUMMARY_FILE}" acceptance_warn_count) |"
+            echo "| notify_status | $(kv "${NOTIFY_SUMMARY_FILE}" notify_status) |"
+            echo "| final_gate_exit_code | $(kv "${FINAL_GATE_FILE}" final_gate_exit_code) |"
+            echo "| final_gate_reason | $(kv "${FINAL_GATE_FILE}" final_gate_reason) |"
+            echo
+            echo "- artifact_index: \`${ARTIFACT_DIR}/artifact_index.md\`"
+            echo "- report: \`${ARTIFACT_DIR}/pay_notify_replay_report.md\`"
+            echo "- ticket_tsv: \`${ARTIFACT_DIR}/tickets/tickets.tsv\`"
+            echo "- final_gate_log: \`${FINAL_GATE_FILE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pay-notify-replay-${{ github.run_id }}
+          path: ${{ env.ARTIFACT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${FINAL_GATE_RC}" != "0" ]]; then
+            exit "${FINAL_GATE_RC}"
+          fi
+          echo "Replay acceptance gate passed"

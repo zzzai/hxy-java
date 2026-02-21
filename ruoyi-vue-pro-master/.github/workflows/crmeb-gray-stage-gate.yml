@@ -1,0 +1,163 @@
+name: crmeb-gray-stage-gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "灰度阶段"
+        required: true
+        type: choice
+        options:
+          - full-compat
+          - payment-core-only
+          - disabled
+        default: full-compat
+      base_url:
+        description: "待验收服务地址，例如 https://api.hexiaoyue.com"
+        required: true
+        default: "http://127.0.0.1:48080"
+        type: string
+      timeout_seconds:
+        description: "请求超时时间（秒）"
+        required: true
+        default: "8"
+        type: string
+      extra_expect_disabled:
+        description: "额外应拦截(410)路径，逗号分隔"
+        required: false
+        default: ""
+        type: string
+      extra_expect_enabled:
+        description: "额外应放行(非410)路径，逗号分隔"
+        required: false
+        default: ""
+        type: string
+      verify_ruoyi_baseline:
+        description: "是否校验 RuoYi 运行基线（admin-api/app-api）"
+        required: true
+        default: true
+        type: boolean
+      diagnose_entrypoint:
+        description: "是否生成入口路由诊断（建议开启）"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  gray-gate:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run gray stage gate
+        run: |
+          artifact_base="${RUNNER_TEMP}/crmeb_gray_stage_gate"
+          mkdir -p "${artifact_base}"
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          out_dir="${artifact_base}/${run_id}"
+
+          verify_ruoyi_baseline="${{ github.event.inputs.verify_ruoyi_baseline }}"
+          if [[ -z "${verify_ruoyi_baseline}" || "${verify_ruoyi_baseline}" == "true" ]]; then
+            verify_ruoyi_baseline="1"
+          else
+            verify_ruoyi_baseline="0"
+          fi
+
+          diagnose_entrypoint="${{ github.event.inputs.diagnose_entrypoint }}"
+          if [[ -z "${diagnose_entrypoint}" || "${diagnose_entrypoint}" == "true" ]]; then
+            diagnose_entrypoint="1"
+          else
+            diagnose_entrypoint="0"
+          fi
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          STAGE="${{ github.event.inputs.stage }}" \
+          BASE_URL="${{ github.event.inputs.base_url }}" \
+          TIMEOUT_SECONDS="${{ github.event.inputs.timeout_seconds }}" \
+          EXTRA_EXPECT_DISABLED="${{ github.event.inputs.extra_expect_disabled }}" \
+          EXTRA_EXPECT_ENABLED="${{ github.event.inputs.extra_expect_enabled }}" \
+          VERIFY_RUOYI_BASELINE="${verify_ruoyi_baseline}" \
+          DIAGNOSE_ENTRYPOINT="${diagnose_entrypoint}" \
+          bash script/dev/run_crmeb_gray_stage_gate.sh
+          rc=$?
+          set -e
+
+          if [[ ! -d "${out_dir}" ]]; then
+            latest_out_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_out_dir}" && -d "${latest_out_dir}" ]]; then
+              out_dir="${latest_out_dir}"
+            fi
+          fi
+          mkdir -p "${out_dir}"
+
+          echo "CRMEB_GRAY_GATE_RC=${rc}" >> "$GITHUB_ENV"
+          echo "CRMEB_GRAY_GATE_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${CRMEB_GRAY_GATE_OUT_DIR}/summary.txt"
+          diagnosis_summary_file="$(grep -E '^diagnosis_summary_file=' "${summary_file}" | head -n 1 | cut -d'=' -f2- || true)"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          diagnosis_kv() {
+            local key="$1"
+            if [[ -z "${diagnosis_summary_file}" || ! -f "${diagnosis_summary_file}" ]]; then
+              printf ''
+              return 0
+            fi
+            kv "${diagnosis_summary_file}" "${key}"
+          }
+          {
+            echo "## CRMEB Gray Stage Gate"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| stage | \`$(kv "${summary_file}" stage)\` |"
+            echo "| base_url | \`$(kv "${summary_file}" base_url)\` |"
+            echo "| timeout_seconds | $(kv "${summary_file}" timeout_seconds) |"
+            echo "| verify_ruoyi_baseline | $(kv "${summary_file}" verify_ruoyi_baseline) |"
+            echo "| diagnose_entrypoint | $(kv "${summary_file}" diagnose_entrypoint) |"
+            echo "| diagnosis_rc | $(kv "${summary_file}" diagnosis_rc) |"
+            echo "| diagnosis_status | \`$(diagnosis_kv diagnosis_status)\` |"
+            echo "| stage_guess | \`$(diagnosis_kv stage_guess)\` |"
+            echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
+            echo "| log_file | \`$(kv "${summary_file}" log_file)\` |"
+            echo "| diagnosis_summary_file | \`$(kv "${summary_file}" diagnosis_summary_file)\` |"
+            echo "| out_dir | \`$(kv "${summary_file}" out_dir)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crmeb-gray-stage-gate-${{ github.run_id }}
+          path: ${{ env.CRMEB_GRAY_GATE_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${CRMEB_GRAY_GATE_RC}" != "0" ]]; then
+            echo "crmeb gray stage gate failed: rc=${CRMEB_GRAY_GATE_RC}" >&2
+            exit "${CRMEB_GRAY_GATE_RC}"
+          fi

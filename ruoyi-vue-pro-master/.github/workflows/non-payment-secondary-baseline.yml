@@ -1,0 +1,180 @@
+name: non-payment-secondary-baseline
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/run_non_payment_secondary_baseline.sh"
+      - "script/dev/verify_crmeb_cutover_paths.sh"
+      - ".github/workflows/non-payment-secondary-baseline.yml"
+      - "yudao-module-member/src/main/java/**/compat/crmeb/**"
+      - "yudao-module-member/src/test/java/**/compat/crmeb/**"
+      - "yudao-module-mall/yudao-module-trade/src/main/java/**/compat/crmeb/**"
+      - "yudao-module-mall/yudao-module-trade/src/test/java/**/compat/crmeb/**"
+  workflow_dispatch:
+    inputs:
+      run_clean:
+        description: "是否 clean test"
+        required: true
+        default: false
+        type: boolean
+      run_runtime_verify:
+        description: "是否做运行时路径校验"
+        required: true
+        default: false
+        type: boolean
+      verify_stage:
+        description: "运行时校验阶段"
+        required: true
+        type: choice
+        options:
+          - full-compat
+          - payment-core-only
+          - disabled
+        default: full-compat
+      verify_base_url:
+        description: "运行时校验地址"
+        required: true
+        default: "http://127.0.0.1:48080"
+        type: string
+      verify_timeout_seconds:
+        description: "运行时校验超时（秒）"
+        required: true
+        default: "8"
+        type: string
+      extra_mvn_args:
+        description: "额外 Maven 参数（可空）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run non-payment secondary baseline
+        run: |
+          artifact_base="${RUNNER_TEMP}/non_payment_secondary_baseline"
+          mkdir -p "${artifact_base}"
+
+          run_clean_input="${{ github.event.inputs.run_clean }}"
+          run_runtime_verify_input="${{ github.event.inputs.run_runtime_verify }}"
+          verify_stage_input="${{ github.event.inputs.verify_stage }}"
+          verify_base_url_input="${{ github.event.inputs.verify_base_url }}"
+          verify_timeout_input="${{ github.event.inputs.verify_timeout_seconds }}"
+          extra_mvn_args_input="${{ github.event.inputs.extra_mvn_args }}"
+
+          if [[ -z "${run_clean_input}" ]]; then
+            run_clean_input="false"
+          fi
+          if [[ -z "${run_runtime_verify_input}" ]]; then
+            run_runtime_verify_input="false"
+          fi
+          if [[ -z "${verify_stage_input}" ]]; then
+            verify_stage_input="full-compat"
+          fi
+          if [[ -z "${verify_base_url_input}" ]]; then
+            verify_base_url_input="http://127.0.0.1:48080"
+          fi
+          if [[ -z "${verify_timeout_input}" ]]; then
+            verify_timeout_input="8"
+          fi
+
+          run_clean=0
+          run_runtime_verify=0
+          if [[ "${run_clean_input}" == "true" ]]; then
+            run_clean=1
+          fi
+          if [[ "${run_runtime_verify_input}" == "true" ]]; then
+            run_runtime_verify=1
+          fi
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          out_dir="${artifact_base}/${run_id}"
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          RUN_CLEAN="${run_clean}" \
+          BYTE_BUDDY_EXPERIMENTAL=1 \
+          EXTRA_MVN_ARGS_RAW="${extra_mvn_args_input}" \
+          VERIFY_RUNTIME="${run_runtime_verify}" \
+          VERIFY_STAGE="${verify_stage_input}" \
+          VERIFY_BASE_URL="${verify_base_url_input}" \
+          VERIFY_TIMEOUT_SECONDS="${verify_timeout_input}" \
+          bash script/dev/run_non_payment_secondary_baseline.sh
+          rc=$?
+          set -e
+
+          if [[ ! -d "${out_dir}" ]]; then
+            latest_out_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_out_dir}" && -d "${latest_out_dir}" ]]; then
+              out_dir="${latest_out_dir}"
+            fi
+          fi
+          mkdir -p "${out_dir}"
+
+          echo "NON_PAYMENT_BASELINE_RC=${rc}" >> "$GITHUB_ENV"
+          echo "NON_PAYMENT_BASELINE_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${NON_PAYMENT_BASELINE_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Non-Payment Secondary Baseline"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| run_clean | $(kv "${summary_file}" run_clean) |"
+            echo "| verify_runtime | $(kv "${summary_file}" verify_runtime) |"
+            echo "| verify_stage | \`$(kv "${summary_file}" verify_stage)\` |"
+            echo "| runtime_verify_rc | $(kv "${summary_file}" runtime_verify_rc) |"
+            echo "| surefire_report_count | $(kv "${summary_file}" surefire_report_count) |"
+            echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
+            echo "| log_file | \`$(kv "${summary_file}" log_file)\` |"
+            echo "| runtime_log | \`$(kv "${summary_file}" runtime_log)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: non-payment-secondary-baseline-${{ github.run_id }}
+          path: ${{ env.NON_PAYMENT_BASELINE_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${NON_PAYMENT_BASELINE_RC}" != "0" ]]; then
+            echo "non-payment secondary baseline failed: rc=${NON_PAYMENT_BASELINE_RC}" >&2
+            exit "${NON_PAYMENT_BASELINE_RC}"
+          fi

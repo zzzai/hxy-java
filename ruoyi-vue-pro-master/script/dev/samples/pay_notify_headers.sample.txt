@@ -1,0 +1,6 @@
+# Replace with real callback headers captured from channel.
+# Keep one header per line.
+Wechatpay-Timestamp: 1700000000
+Wechatpay-Nonce: REPLACE_WITH_REAL_NONCE
+Wechatpay-Signature: REPLACE_WITH_REAL_SIGNATURE
+Wechatpay-Serial: REPLACE_WITH_REAL_SERIAL

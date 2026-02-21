@@ -1,0 +1,242 @@
+name: stage-c-rollout-pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "待验收服务地址，例如 https://api.hexiaoyue.com"
+        required: true
+        default: "http://127.0.0.1:48080"
+        type: string
+      stages:
+        description: "阶段列表，逗号分隔（如 full-compat,payment-core-only,disabled）"
+        required: true
+        default: "full-compat"
+        type: string
+      mode:
+        description: "阶段执行模式：仅校验 或 切换+校验"
+        required: true
+        default: "verify-only"
+        type: choice
+        options:
+          - verify-only
+          - switch-and-verify
+      switch_deploy_mode:
+        description: "switch-and-verify 时的部署模式"
+        required: true
+        default: "verify-only"
+        type: choice
+        options:
+          - verify-only
+          - docker-compose
+      switch_apply:
+        description: "switch-and-verify 是否应用配置变更"
+        required: true
+        default: false
+        type: boolean
+      switch_restart_server:
+        description: "switch-and-verify 是否重启 server 容器"
+        required: true
+        default: false
+        type: boolean
+      switch_health_timeout_seconds:
+        description: "switch-and-verify 健康检查超时（秒）"
+        required: true
+        default: "120"
+        type: string
+      timeout_seconds:
+        description: "请求超时时间（秒）"
+        required: true
+        default: "8"
+        type: string
+      verify_ruoyi_baseline:
+        description: "是否校验 RuoYi 运行基线"
+        required: true
+        default: true
+        type: boolean
+      diagnose_entrypoint:
+        description: "是否生成入口路由诊断"
+        required: true
+        default: true
+        type: boolean
+      run_non_payment_baseline:
+        description: "是否执行非支付二开基线"
+        required: true
+        default: true
+        type: boolean
+      run_non_payment_runtime_verify:
+        description: "非支付基线是否执行运行时路径校验"
+        required: true
+        default: true
+        type: boolean
+      non_payment_run_clean:
+        description: "非支付基线是否 clean test"
+        required: true
+        default: false
+        type: boolean
+      non_payment_extra_mvn_args:
+        description: "非支付基线额外 Maven 参数（可空）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  stage-c:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run stage C rollout pipeline
+        run: |
+          artifact_base="${RUNNER_TEMP}/stage_c_rollout_pipeline"
+          mkdir -p "${artifact_base}"
+
+          verify_ruoyi_baseline="${{ github.event.inputs.verify_ruoyi_baseline }}"
+          if [[ -z "${verify_ruoyi_baseline}" || "${verify_ruoyi_baseline}" == "true" ]]; then
+            verify_ruoyi_baseline="1"
+          else
+            verify_ruoyi_baseline="0"
+          fi
+
+          diagnose_entrypoint="${{ github.event.inputs.diagnose_entrypoint }}"
+          if [[ -z "${diagnose_entrypoint}" || "${diagnose_entrypoint}" == "true" ]]; then
+            diagnose_entrypoint="1"
+          else
+            diagnose_entrypoint="0"
+          fi
+
+          run_non_payment_baseline="${{ github.event.inputs.run_non_payment_baseline }}"
+          if [[ -z "${run_non_payment_baseline}" || "${run_non_payment_baseline}" == "true" ]]; then
+            run_non_payment_baseline="1"
+          else
+            run_non_payment_baseline="0"
+          fi
+
+          run_non_payment_runtime_verify="${{ github.event.inputs.run_non_payment_runtime_verify }}"
+          if [[ -z "${run_non_payment_runtime_verify}" || "${run_non_payment_runtime_verify}" == "true" ]]; then
+            run_non_payment_runtime_verify="1"
+          else
+            run_non_payment_runtime_verify="0"
+          fi
+
+          non_payment_run_clean="${{ github.event.inputs.non_payment_run_clean }}"
+          if [[ -z "${non_payment_run_clean}" || "${non_payment_run_clean}" == "true" ]]; then
+            non_payment_run_clean="1"
+          else
+            non_payment_run_clean="0"
+          fi
+
+          switch_apply="${{ github.event.inputs.switch_apply }}"
+          if [[ -z "${switch_apply}" || "${switch_apply}" == "true" ]]; then
+            switch_apply="1"
+          else
+            switch_apply="0"
+          fi
+
+          switch_restart_server="${{ github.event.inputs.switch_restart_server }}"
+          if [[ -z "${switch_restart_server}" || "${switch_restart_server}" == "true" ]]; then
+            switch_restart_server="1"
+          else
+            switch_restart_server="0"
+          fi
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          out_dir="${artifact_base}/${run_id}"
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          BASE_URL="${{ github.event.inputs.base_url }}" \
+          STAGES="${{ github.event.inputs.stages }}" \
+          MODE="${{ github.event.inputs.mode }}" \
+          SWITCH_DEPLOY_MODE="${{ github.event.inputs.switch_deploy_mode }}" \
+          SWITCH_APPLY="${switch_apply}" \
+          SWITCH_RESTART_SERVER="${switch_restart_server}" \
+          SWITCH_HEALTH_TIMEOUT_SECONDS="${{ github.event.inputs.switch_health_timeout_seconds }}" \
+          TIMEOUT_SECONDS="${{ github.event.inputs.timeout_seconds }}" \
+          VERIFY_RUOYI_BASELINE="${verify_ruoyi_baseline}" \
+          DIAGNOSE_ENTRYPOINT="${diagnose_entrypoint}" \
+          RUN_NON_PAYMENT_BASELINE="${run_non_payment_baseline}" \
+          RUN_NON_PAYMENT_RUNTIME_VERIFY="${run_non_payment_runtime_verify}" \
+          NON_PAYMENT_RUN_CLEAN="${non_payment_run_clean}" \
+          NON_PAYMENT_EXTRA_MVN_ARGS="${{ github.event.inputs.non_payment_extra_mvn_args }}" \
+          bash script/dev/run_stage_c_rollout_pipeline.sh
+          rc=$?
+          set -e
+
+          if [[ ! -d "${out_dir}" ]]; then
+            latest_out_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_out_dir}" && -d "${latest_out_dir}" ]]; then
+              out_dir="${latest_out_dir}"
+            fi
+          fi
+          mkdir -p "${out_dir}"
+
+          echo "STAGE_C_PIPELINE_RC=${rc}" >> "$GITHUB_ENV"
+          echo "STAGE_C_PIPELINE_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${STAGE_C_PIPELINE_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Stage C Rollout Pipeline"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| base_url | \`$(kv "${summary_file}" base_url)\` |"
+            echo "| stages | \`$(kv "${summary_file}" stages)\` |"
+            echo "| mode | \`$(kv "${summary_file}" mode)\` |"
+            echo "| switch_deploy_mode | \`$(kv "${summary_file}" switch_deploy_mode)\` |"
+            echo "| switch_apply | $(kv "${summary_file}" switch_apply) |"
+            echo "| switch_restart_server | $(kv "${summary_file}" switch_restart_server) |"
+            echo "| verify_ruoyi_baseline | $(kv "${summary_file}" verify_ruoyi_baseline) |"
+            echo "| diagnose_entrypoint | $(kv "${summary_file}" diagnose_entrypoint) |"
+            echo "| run_non_payment_baseline | $(kv "${summary_file}" run_non_payment_baseline) |"
+            echo "| run_non_payment_runtime_verify | $(kv "${summary_file}" run_non_payment_runtime_verify) |"
+            echo "| non_payment_rc | $(kv "${summary_file}" non_payment_rc) |"
+            echo "| overall_rc | **$(kv "${summary_file}" overall_rc)** |"
+            echo "| stage_result_file | \`$(kv "${summary_file}" stage_result_file)\` |"
+            echo "| run_log | \`$(kv "${summary_file}" run_log)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage-c-rollout-pipeline-${{ github.run_id }}
+          path: ${{ env.STAGE_C_PIPELINE_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${STAGE_C_PIPELINE_RC}" != "0" ]]; then
+            echo "stage-c rollout pipeline failed: rc=${STAGE_C_PIPELINE_RC}" >&2
+            exit "${STAGE_C_PIPELINE_RC}"
+          fi

@@ -1,0 +1,150 @@
+name: crmeb-compat-regression
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/run_crmeb_compat_regression.sh"
+      - ".github/workflows/crmeb-compat-regression.yml"
+      - "**/compat/crmeb/**"
+      - "yudao-server/src/main/java/cn/iocoder/yudao/server/config/crmeb/**"
+      - "yudao-server/src/test/java/cn/iocoder/yudao/server/config/crmeb/**"
+  workflow_dispatch:
+    inputs:
+      fast_track_payment_only:
+        description: "仅验证支付核心迁移链路（跳过 trade/member 兼容回归）"
+        required: true
+        default: true
+        type: boolean
+      run_unstable_suites:
+        description: "是否运行不稳定扩展集（member）"
+        required: true
+        default: false
+        type: boolean
+      run_clean:
+        description: "是否对全部套件执行 clean test"
+        required: true
+        default: false
+        type: boolean
+      extra_mvn_args:
+        description: "额外 Maven 参数（可空）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Run regression suites
+        run: |
+          out_dir="${RUNNER_TEMP}/crmeb_compat_regression"
+          mkdir -p "${out_dir}"
+          log_file="${out_dir}/run.log"
+
+          unstable="${{ github.event.inputs.run_unstable_suites }}"
+          fast_track="${{ github.event.inputs.fast_track_payment_only }}"
+          clean_all="${{ github.event.inputs.run_clean }}"
+          extra_args="${{ github.event.inputs.extra_mvn_args }}"
+          if [[ -z "${unstable}" ]]; then
+            unstable="false"
+          fi
+          if [[ -z "${fast_track}" ]]; then
+            fast_track="false"
+          fi
+          if [[ -z "${clean_all}" ]]; then
+            clean_all="false"
+          fi
+
+          run_unstable=0
+          run_fast_track=0
+          run_clean=0
+          if [[ "${unstable}" == "true" ]]; then
+            run_unstable=1
+          fi
+          if [[ "${fast_track}" == "true" ]]; then
+            run_fast_track=1
+          fi
+          if [[ "${clean_all}" == "true" ]]; then
+            run_clean=1
+          fi
+
+          set +e
+          RUN_UNSTABLE_SUITES="${run_unstable}" \
+          FAST_TRACK_PAYMENT_ONLY="${run_fast_track}" \
+          RUN_CLEAN="${run_clean}" \
+          BYTE_BUDDY_EXPERIMENTAL=1 \
+          EXTRA_MVN_ARGS_RAW="${extra_args}" \
+          bash script/dev/run_crmeb_compat_regression.sh 2>&1 | tee "${log_file}"
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "fast_track_payment_only=${run_fast_track}"
+            echo "run_unstable_suites=${run_unstable}"
+            echo "run_clean=${run_clean}"
+            echo "extra_mvn_args=${extra_args}"
+            echo "regression_exit_code=${rc}"
+            echo "log_file=${log_file}"
+          } > "${out_dir}/summary.txt"
+
+          echo "CRMEB_COMPAT_RC=${rc}" >> "$GITHUB_ENV"
+          echo "CRMEB_COMPAT_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${CRMEB_COMPAT_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## CRMEB Compat Regression"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| fast_track_payment_only | $(kv "${summary_file}" fast_track_payment_only) |"
+            echo "| run_unstable_suites | $(kv "${summary_file}" run_unstable_suites) |"
+            echo "| run_clean | $(kv "${summary_file}" run_clean) |"
+            echo "| regression_exit_code | **$(kv "${summary_file}" regression_exit_code)** |"
+            echo "| log_file | \`$(kv "${summary_file}" log_file)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crmeb-compat-regression-${{ github.run_id }}
+          path: ${{ env.CRMEB_COMPAT_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${CRMEB_COMPAT_RC}" != "0" ]]; then
+            echo "crmeb compat regression failed: rc=${CRMEB_COMPAT_RC}" >&2
+            exit "${CRMEB_COMPAT_RC}"
+          fi

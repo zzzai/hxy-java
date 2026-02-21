@@ -1,0 +1,25 @@
+yudao:
+  compat:
+    crmeb:
+      # 灰度阶段：保留全部 CRMEB 兼容接口（仅打标审计，不做 410 下线）
+      enabled: true
+      emit-deprecation-headers: true
+      audit-enabled: true
+      payment-core-only-mode: false
+      disabled-paths: []
+  trade:
+    compat:
+      crmeb:
+        # 门店侧仅保留售后工单，不允许直接执行退款打款
+        store-refund-execute-enabled: false
+    after-sale:
+      refund-rule:
+        enabled: true
+        # 自动退款上限（分）
+        auto-refund-max-price: 5000
+        # 单用户当日售后申请超过阈值进入人工复核
+        user-daily-apply-limit: 3
+        blacklist-user-ids: []
+        suspicious-order-keywords:
+          - TEST
+          - MOCK

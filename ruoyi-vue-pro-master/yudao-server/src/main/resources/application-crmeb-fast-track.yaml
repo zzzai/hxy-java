@@ -1,0 +1,41 @@
+yudao:
+  compat:
+    crmeb:
+      # 快迁模式：兼容层只放行支付核心接口，其它旧接口统一返回 410
+      enabled: true
+      emit-deprecation-headers: true
+      audit-enabled: true
+      payment-core-only-mode: true
+      payment-core-paths:
+        - /api/front/wechat/authorize/program/login
+        - /api/front/order/pre/order
+        - /api/front/order/load/pre/**
+        - /api/front/order/computed/price
+        - /api/front/order/create
+        - /api/front/order/get/pay/config
+        - /api/front/order/refund
+        - /api/front/order/refund/reason
+        - /api/front/order/apply/refund/**
+        - /api/front/pay/payment
+        - /api/front/pay/queryPayResult
+        - /api/front/pay/get/config
+        - /api/admin/payment/callback/wechat
+        - /api/admin/payment/callback/wechat/refund
+        - /api/admin/system/config/**
+        - /api/admin/store/order/refund/**
+  trade:
+    compat:
+      crmeb:
+        # 门店侧仅保留售后工单，不允许直接执行退款打款
+        store-refund-execute-enabled: false
+    after-sale:
+      refund-rule:
+        enabled: true
+        # 自动退款上限（分）
+        auto-refund-max-price: 5000
+        # 单用户当日售后申请超过阈值进入人工复核
+        user-daily-apply-limit: 3
+        blacklist-user-ids: []
+        suspicious-order-keywords:
+          - TEST
+          - MOCK
