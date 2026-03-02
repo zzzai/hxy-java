@@ -1,0 +1,99 @@
+import request from '@/config/axios'
+
+export interface ProductStoreSku {
+  id?: number
+  storeId: number
+  storeName?: string
+  spuId?: number
+  spuName?: string
+  skuId?: number
+  skuSpecText?: string
+  saleStatus?: number
+  salePrice?: number
+  marketPrice?: number
+  stock?: number
+  sort?: number
+  remark?: string
+  createTime?: string
+  updateTime?: string
+}
+
+export interface ProductStoreOption {
+  id: number
+  name: string
+}
+
+export interface ProductStoreSpuOption {
+  id: number
+  name: string
+  productType?: number
+  status?: number
+}
+
+export interface ProductStoreSkuOption {
+  id: number
+  spuId: number
+  specText?: string
+  price?: number
+  marketPrice?: number
+  stock?: number
+}
+
+export interface ProductStoreSkuBatchSave {
+  storeIds: number[]
+  spuId?: number
+  skuId?: number
+  saleStatus?: number
+  salePrice?: number
+  marketPrice?: number
+  stock?: number
+  sort?: number
+  remark?: string
+}
+
+export interface ProductStoreSkuBatchAdjust {
+  storeIds: number[]
+  spuId?: number
+  skuId?: number
+  saleStatus?: number
+  salePrice?: number
+  marketPrice?: number
+  stock?: number
+  remark?: string
+}
+
+export const getStoreSkuPage = (params: PageParam) => {
+  return request.get({ url: '/product/store-sku/page', params })
+}
+
+export const getStoreSku = (id: number) => {
+  return request.get({ url: `/product/store-sku/get?id=${id}` })
+}
+
+export const saveStoreSku = (data: ProductStoreSku) => {
+  return request.post({ url: '/product/store-sku/save', data })
+}
+
+export const batchSaveStoreSku = (data: ProductStoreSkuBatchSave) => {
+  return request.post({ url: '/product/store-sku/batch-save', data })
+}
+
+export const batchAdjustStoreSku = (data: ProductStoreSkuBatchAdjust) => {
+  return request.post({ url: '/product/store-sku/batch-adjust', data })
+}
+
+export const deleteStoreSku = (id: number) => {
+  return request.delete({ url: `/product/store-sku/delete?id=${id}` })
+}
+
+export const getStoreOptions = (keyword?: string) => {
+  return request.get({ url: '/product/store-sku/store-options', params: { keyword } })
+}
+
+export const getSpuOptions = (productType?: number, keyword?: string) => {
+  return request.get({ url: '/product/store-sku/spu-options', params: { productType, keyword } })
+}
+
+export const getSkuOptions = (spuId: number) => {
+  return request.get({ url: '/product/store-sku/sku-options', params: { spuId } })
+}
