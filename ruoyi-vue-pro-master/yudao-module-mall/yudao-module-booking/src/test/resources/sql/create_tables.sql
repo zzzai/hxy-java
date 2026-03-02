@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission` (
     `biz_type` varchar(32) NOT NULL DEFAULT '' COMMENT '业务类型（冲正幂等键）',
     `biz_no` varchar(64) NOT NULL DEFAULT '' COMMENT '业务单号（冲正幂等键）',
     `staff_id` bigint DEFAULT NULL COMMENT '归属员工ID（冲正幂等键）',
+    `origin_commission_id` bigint DEFAULT NULL COMMENT '原佣金ID（冲正幂等键）',
     `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态 0待结算 1已结算 2已取消',
     `settlement_id` bigint DEFAULT NULL COMMENT '结算单ID',
     `settlement_time` timestamp DEFAULT NULL COMMENT '结算时间',
@@ -149,7 +150,8 @@ CREATE TABLE IF NOT EXISTS `technician_commission` (
     `deleted` bit NOT NULL DEFAULT FALSE,
     `tenant_id` bigint NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
-    UNIQUE (`biz_type`, `biz_no`, `staff_id`)
+    UNIQUE (`biz_type`, `biz_no`, `staff_id`),
+    UNIQUE (`origin_commission_id`)
 ) COMMENT '技师佣金记录表';
 
 -- technician_commission_config 技师佣金配置表

@@ -92,11 +92,30 @@ public interface TechnicianCommissionMapper extends BaseMapperX<TechnicianCommis
                 .set(TechnicianCommissionDO::getSettlementTime, null));
     }
 
+    default int releaseCancelledReversalIdempotentKeyById(Long id) {
+        if (id == null) {
+            return 0;
+        }
+        return update(null, new LambdaUpdateWrapper<TechnicianCommissionDO>()
+                .eq(TechnicianCommissionDO::getId, id)
+                .eq(TechnicianCommissionDO::getStatus, CommissionStatusEnum.CANCELLED.getStatus())
+                .set(TechnicianCommissionDO::getOriginCommissionId, null)
+                .set(TechnicianCommissionDO::getBizType, "")
+                .set(TechnicianCommissionDO::getBizNo, "")
+                .set(TechnicianCommissionDO::getStaffId, null));
+    }
+
     default TechnicianCommissionDO selectByBizKey(String bizType, String bizNo, Long staffId) {
         return selectOne(new LambdaQueryWrapperX<TechnicianCommissionDO>()
                 .eq(TechnicianCommissionDO::getBizType, bizType)
                 .eq(TechnicianCommissionDO::getBizNo, bizNo)
                 .eq(TechnicianCommissionDO::getStaffId, staffId)
+                .last("LIMIT 1"));
+    }
+
+    default TechnicianCommissionDO selectByOriginCommissionId(Long originCommissionId) {
+        return selectOne(new LambdaQueryWrapperX<TechnicianCommissionDO>()
+                .eq(TechnicianCommissionDO::getOriginCommissionId, originCommissionId)
                 .last("LIMIT 1"));
     }
 

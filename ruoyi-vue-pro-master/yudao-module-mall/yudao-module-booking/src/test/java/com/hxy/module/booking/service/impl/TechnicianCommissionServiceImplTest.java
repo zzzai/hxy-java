@@ -210,6 +210,7 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         assertEquals("ORDER_CANCEL_REVERSAL", reversal.getBizType());
         assertEquals(String.valueOf(settled.getId()), reversal.getBizNo());
         assertEquals(settled.getTechnicianId(), reversal.getStaffId());
+        assertEquals(settled.getId(), reversal.getOriginCommissionId());
         assertNull(reversal.getSettlementId());
         assertNull(reversal.getSettlementTime());
     }
@@ -236,7 +237,7 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
     }
 
     @Test
-    public void testCancelCommission_shouldReactivateCancelledReversalWithSameBizKey() {
+    public void testCancelCommission_shouldRegenerateReversalWhenExistingReversalCancelled() {
         Long orderId = 703L;
         TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
                 .technicianId(13L).orderId(orderId).userId(1003L).storeId(90L)
@@ -255,6 +256,7 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
                 .bizType("ORDER_CANCEL_REVERSAL")
                 .bizNo(String.valueOf(settled.getId()))
                 .staffId(13L)
+                .originCommissionId(settled.getId())
                 .settlementId(999L)
                 .build();
         commissionMapper.insert(cancelledReversal);
@@ -262,14 +264,21 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         commissionService.cancelCommission(orderId);
 
         List<TechnicianCommissionDO> rows = commissionMapper.selectListByOrderId(orderId);
-        assertEquals(2, rows.size());
-        TechnicianCommissionDO updatedReversal = commissionMapper.selectById(cancelledReversal.getId());
-        assertEquals(CommissionStatusEnum.PENDING.getStatus(), updatedReversal.getStatus());
-        assertEquals("ORDER_CANCEL_REVERSAL", updatedReversal.getBizType());
-        assertEquals(String.valueOf(settled.getId()), updatedReversal.getBizNo());
-        assertEquals(13L, updatedReversal.getStaffId());
-        assertNull(updatedReversal.getSettlementId());
-        assertNull(updatedReversal.getSettlementTime());
+        assertEquals(3, rows.size());
+        TechnicianCommissionDO cancelledHistory = commissionMapper.selectById(cancelledReversal.getId());
+        assertEquals(CommissionStatusEnum.CANCELLED.getStatus(), cancelledHistory.getStatus());
+        assertNull(cancelledHistory.getOriginCommissionId());
+        TechnicianCommissionDO regenerated = rows.stream()
+                .filter(row -> row.getCommissionAmount() != null
+                        && row.getCommissionAmount() < 0
+                        && !row.getId().equals(cancelledReversal.getId()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(CommissionStatusEnum.PENDING.getStatus(), regenerated.getStatus());
+        assertEquals(settled.getId(), regenerated.getOriginCommissionId());
+        assertEquals("ORDER_CANCEL_REVERSAL", regenerated.getBizType());
+        assertEquals(String.valueOf(settled.getId()), regenerated.getBizNo());
+        assertEquals(13L, regenerated.getStaffId());
     }
 
     @Test
