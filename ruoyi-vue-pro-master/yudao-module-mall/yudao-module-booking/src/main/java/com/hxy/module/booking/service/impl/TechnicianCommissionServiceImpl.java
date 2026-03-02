@@ -3,8 +3,12 @@ package com.hxy.module.booking.service.impl;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.TechnicianCommissionConfigDO;
 import com.hxy.module.booking.dal.dataobject.TechnicianCommissionDO;
+import com.hxy.module.booking.dal.dataobject.TechnicianCommissionSettlementDO;
+import com.hxy.module.booking.dal.dataobject.TechnicianCommissionSettlementLogDO;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionConfigMapper;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionMapper;
+import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementLogMapper;
+import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementMapper;
 import com.hxy.module.booking.enums.AddonTypeEnum;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.CommissionStatusEnum;
@@ -34,17 +38,24 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.COMMISSION_REVERSA
 public class TechnicianCommissionServiceImpl implements TechnicianCommissionService {
 
     private static final String REVERSAL_BIZ_TYPE = "ORDER_CANCEL_REVERSAL";
+    private static final String LOG_ACTION_REVERSAL = "REVERSAL";
 
     private final TechnicianCommissionMapper commissionMapper;
     private final TechnicianCommissionConfigMapper commissionConfigMapper;
+    private final TechnicianCommissionSettlementMapper settlementMapper;
+    private final TechnicianCommissionSettlementLogMapper settlementLogMapper;
     private final BookingOrderService bookingOrderService;
 
     public TechnicianCommissionServiceImpl(
             TechnicianCommissionMapper commissionMapper,
             TechnicianCommissionConfigMapper commissionConfigMapper,
+            TechnicianCommissionSettlementMapper settlementMapper,
+            TechnicianCommissionSettlementLogMapper settlementLogMapper,
             @Lazy BookingOrderService bookingOrderService) {
         this.commissionMapper = commissionMapper;
         this.commissionConfigMapper = commissionConfigMapper;
+        this.settlementMapper = settlementMapper;
+        this.settlementLogMapper = settlementLogMapper;
         this.bookingOrderService = bookingOrderService;
     }
 
@@ -148,6 +159,7 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                     commissionMapper.insert(reversal);
                     log.info("创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}, bizNo={}",
                             commission.getId(), reversal.getId(), orderId, reversalBizNo);
+                    appendSettlementReversalAudit(commission, reversalBizNo, expectedCommissionAmount);
                 } catch (DuplicateKeyException ex) {
                     TechnicianCommissionDO reversalByOrigin = commissionMapper.selectByOriginCommissionId(commission.getId());
                     if (reversalByOrigin == null) {
@@ -164,6 +176,7 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                             commissionMapper.insert(reversal);
                             log.info("重试后创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}, bizNo={}",
                                     commission.getId(), reversal.getId(), orderId, reversalBizNo);
+                            appendSettlementReversalAudit(commission, reversalBizNo, expectedCommissionAmount);
                         } catch (DuplicateKeyException retryEx) {
                             TechnicianCommissionDO existingAfterRetry = commissionMapper.selectByOriginCommissionId(commission.getId());
                             if (existingAfterRetry == null
@@ -333,6 +346,26 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
             return 0;
         }
         return -Math.abs(amount);
+    }
+
+    private void appendSettlementReversalAudit(TechnicianCommissionDO originCommission,
+                                               String reversalBizNo,
+                                               Integer reversalAmount) {
+        if (originCommission == null || originCommission.getSettlementId() == null) {
+            return;
+        }
+        TechnicianCommissionSettlementDO settlement = settlementMapper.selectById(originCommission.getSettlementId());
+        if (settlement == null) {
+            return;
+        }
+        settlementLogMapper.insert(new TechnicianCommissionSettlementLogDO()
+                .setSettlementId(settlement.getId())
+                .setAction(LOG_ACTION_REVERSAL)
+                .setFromStatus(settlement.getStatus())
+                .setToStatus(settlement.getStatus())
+                .setOperatorType("SYSTEM")
+                .setOperateRemark("BIZ#" + reversalBizNo + ",amount=" + reversalAmount)
+                .setActionTime(LocalDateTime.now()));
     }
 
 }

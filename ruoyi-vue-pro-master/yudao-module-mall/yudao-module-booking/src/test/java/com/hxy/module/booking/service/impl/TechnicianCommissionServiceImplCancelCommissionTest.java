@@ -3,8 +3,13 @@ package com.hxy.module.booking.service.impl;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.dal.dataobject.TechnicianCommissionDO;
+import com.hxy.module.booking.dal.dataobject.TechnicianCommissionSettlementDO;
+import com.hxy.module.booking.dal.dataobject.TechnicianCommissionSettlementLogDO;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionConfigMapper;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionMapper;
+import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementLogMapper;
+import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementMapper;
+import com.hxy.module.booking.enums.CommissionSettlementStatusEnum;
 import com.hxy.module.booking.enums.CommissionStatusEnum;
 import com.hxy.module.booking.enums.CommissionTypeEnum;
 import com.hxy.module.booking.service.BookingOrderService;
@@ -40,6 +45,10 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
     private TechnicianCommissionConfigMapper commissionConfigMapper;
     @Mock
     private BookingOrderService bookingOrderService;
+    @Mock
+    private TechnicianCommissionSettlementMapper settlementMapper;
+    @Mock
+    private TechnicianCommissionSettlementLogMapper settlementLogMapper;
 
     @Test
     void shouldCancelPositivePendingCommission() {
@@ -284,5 +293,36 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
         assertEquals(COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT.getCode(), ex.getCode());
         verify(commissionMapper, never()).insert(any(TechnicianCommissionDO.class));
         verify(commissionMapper, never()).releaseCancelledReversalIdempotentKeyById(any());
+    }
+
+    @Test
+    void shouldAppendSettlementReversalAuditLogWhenSettledCommissionHasSettlementId() {
+        Long orderId = 1008L;
+        TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
+                .id(81L)
+                .orderId(orderId)
+                .userId(2008L)
+                .storeId(3008L)
+                .technicianId(80L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(12000)
+                .commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(1200)
+                .settlementId(9001L)
+                .status(CommissionStatusEnum.SETTLED.getStatus())
+                .build();
+        when(commissionMapper.selectListByOrderId(orderId)).thenReturn(Collections.singletonList(settled));
+        TechnicianCommissionSettlementDO settlement = new TechnicianCommissionSettlementDO();
+        settlement.setId(9001L);
+        settlement.setStatus(CommissionSettlementStatusEnum.PAID.getStatus());
+        when(settlementMapper.selectById(9001L)).thenReturn(settlement);
+
+        service.cancelCommission(orderId);
+
+        ArgumentCaptor<TechnicianCommissionSettlementLogDO> captor =
+                ArgumentCaptor.forClass(TechnicianCommissionSettlementLogDO.class);
+        verify(settlementLogMapper).insert(captor.capture());
+        assertEquals(9001L, captor.getValue().getSettlementId());
+        assertEquals("REVERSAL", captor.getValue().getAction());
     }
 }
