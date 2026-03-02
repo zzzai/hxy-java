@@ -43,4 +43,29 @@ class TechnicianCommissionSettlementSlaWarnJobTest extends BaseMockitoUnitTest {
         verify(settlementService).warnNearDeadlinePending(15, 50);
         verify(settlementService).escalateOverduePendingToP0(45, 50);
     }
+
+    @Test
+    void shouldFallbackToDefaultWhenParamInvalid() {
+        when(settlementService.warnNearDeadlinePending(30, 200)).thenReturn(0);
+        when(settlementService.escalateOverduePendingToP0(30, 200)).thenReturn(0);
+
+        String result = job.execute("lead,delay,limit");
+
+        assertTrue(result.contains("0"));
+        verify(settlementService).warnNearDeadlinePending(30, 200);
+        verify(settlementService).escalateOverduePendingToP0(30, 200);
+    }
+
+    @Test
+    void shouldClampTooLargeParams() {
+        when(settlementService.warnNearDeadlinePending(1440, 1000)).thenReturn(3);
+        when(settlementService.escalateOverduePendingToP0(1440, 1000)).thenReturn(4);
+
+        String result = job.execute("9999,8888,99999");
+
+        assertTrue(result.contains("3"));
+        assertTrue(result.contains("4"));
+        verify(settlementService).warnNearDeadlinePending(1440, 1000);
+        verify(settlementService).escalateOverduePendingToP0(1440, 1000);
+    }
 }

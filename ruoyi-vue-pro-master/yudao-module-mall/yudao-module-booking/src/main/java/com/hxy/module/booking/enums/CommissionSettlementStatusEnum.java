@@ -15,9 +15,10 @@ public enum CommissionSettlementStatusEnum {
 
     DRAFT(0, "草稿"),
     PENDING_REVIEW(10, "待审核"),
+    ESCALATED(15, "升级待审"),
     APPROVED(20, "已审核"),
     REJECTED(30, "已驳回"),
-    EXPIRED(40, "已超时"),
+    VOIDED(40, "已作废"),
     PAID(50, "已打款");
 
     private final Integer status;

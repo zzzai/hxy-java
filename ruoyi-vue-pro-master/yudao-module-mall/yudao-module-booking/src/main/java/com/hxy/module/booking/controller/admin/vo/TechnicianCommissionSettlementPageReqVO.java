@@ -26,7 +26,7 @@ public class TechnicianCommissionSettlementPageReqVO extends PageParam {
     @Schema(description = "技师ID", example = "1001")
     private Long technicianId;
 
-    @Schema(description = "状态（0草稿 10待审核 20已通过 30已驳回 40已打款 50已过期）", example = "10")
+    @Schema(description = "状态（0草稿 10待审核 20已通过 30已驳回 40已作废 50已打款）", example = "10")
     private Integer status;
 
     @Schema(description = "审核人ID", example = "1")

@@ -136,6 +136,10 @@ CREATE TABLE IF NOT EXISTS `technician_commission` (
     `base_amount` int NOT NULL DEFAULT 0 COMMENT '订单金额（分）',
     `commission_rate` decimal(5, 4) NOT NULL DEFAULT 0 COMMENT '佣金比例',
     `commission_amount` int NOT NULL DEFAULT 0 COMMENT '佣金金额（分）',
+    `biz_type` varchar(32) NOT NULL DEFAULT '' COMMENT '业务类型（冲正幂等键）',
+    `biz_no` varchar(64) NOT NULL DEFAULT '' COMMENT '业务单号（冲正幂等键）',
+    `staff_id` bigint DEFAULT NULL COMMENT '归属员工ID（冲正幂等键）',
+    `origin_commission_id` bigint DEFAULT NULL COMMENT '原佣金ID（冲正幂等键）',
     `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态 0待结算 1已结算 2已取消',
     `settlement_id` bigint DEFAULT NULL COMMENT '结算单ID',
     `settlement_time` timestamp DEFAULT NULL COMMENT '结算时间',
@@ -145,7 +149,9 @@ CREATE TABLE IF NOT EXISTS `technician_commission` (
     `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `deleted` bit NOT NULL DEFAULT FALSE,
     `tenant_id` bigint NOT NULL DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE (`biz_type`, `biz_no`, `staff_id`),
+    UNIQUE (`origin_commission_id`)
 ) COMMENT '技师佣金记录表';
 
 -- technician_commission_config 技师佣金配置表
@@ -179,6 +185,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission_settlement` (
     `review_warn_time` timestamp DEFAULT NULL,
     `review_escalated` bit NOT NULL DEFAULT FALSE,
     `review_escalate_time` timestamp DEFAULT NULL,
+    `review_escalate_reason` varchar(255) NOT NULL DEFAULT '',
     `reviewed_time` timestamp DEFAULT NULL,
     `reviewer_id` bigint DEFAULT NULL,
     `review_remark` varchar(255) NOT NULL DEFAULT '',

@@ -60,6 +60,9 @@ public class TechnicianCommissionSettlementDO extends BaseDO {
     /** 升级时间 */
     private LocalDateTime reviewEscalateTime;
 
+    /** 升级原因 */
+    private String reviewEscalateReason;
+
     /** 审核时间 */
     private LocalDateTime reviewedTime;
 

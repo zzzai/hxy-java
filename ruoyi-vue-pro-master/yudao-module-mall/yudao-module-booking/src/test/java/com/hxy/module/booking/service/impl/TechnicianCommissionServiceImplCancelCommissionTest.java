@@ -1,5 +1,6 @@
 package com.hxy.module.booking.service.impl;
 
+import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.dal.dataobject.TechnicianCommissionDO;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionConfigMapper;
@@ -11,13 +12,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 
+import static com.hxy.module.booking.enums.ErrorCodeConstants.COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -93,6 +97,10 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
         assertEquals(CommissionStatusEnum.PENDING.getStatus(), reversal.getStatus());
         assertNull(reversal.getSettlementId());
         assertNull(reversal.getSettlementTime());
+        assertEquals("ORDER_CANCEL_REVERSAL", reversal.getBizType());
+        assertEquals("21", reversal.getBizNo());
+        assertEquals(settled.getTechnicianId(), reversal.getStaffId());
+        assertEquals(21L, reversal.getOriginCommissionId());
     }
 
     @Test
@@ -120,6 +128,10 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
                 .baseAmount(-8000)
                 .commissionRate(new BigDecimal("0.15"))
                 .commissionAmount(-1200)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("31")
+                .staffId(30L)
+                .originCommissionId(31L)
                 .status(CommissionStatusEnum.PENDING.getStatus())
                 .build();
         when(commissionMapper.selectListByOrderId(orderId))
@@ -176,6 +188,10 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
                 .baseAmount(-10000)
                 .commissionRate(new BigDecimal("0.10"))
                 .commissionAmount(-1000)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("51")
+                .staffId(50L)
+                .originCommissionId(51L)
                 .status(CommissionStatusEnum.CANCELLED.getStatus())
                 .build();
         when(commissionMapper.selectListByOrderId(orderId))
@@ -183,6 +199,90 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
 
         service.cancelCommission(orderId);
 
+        verify(commissionMapper, times(1)).releaseCancelledReversalIdempotentKeyById(52L);
+        ArgumentCaptor<TechnicianCommissionDO> captor = ArgumentCaptor.forClass(TechnicianCommissionDO.class);
+        verify(commissionMapper, times(1)).insert(captor.capture());
+        TechnicianCommissionDO regenerated = captor.getValue();
+        assertEquals(51L, regenerated.getOriginCommissionId());
+        assertEquals(CommissionStatusEnum.PENDING.getStatus(), regenerated.getStatus());
+    }
+
+    @Test
+    void shouldTreatDuplicateOriginCommissionIdAsIdempotentHit() {
+        Long orderId = 1007L;
+        TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
+                .id(71L)
+                .orderId(orderId)
+                .userId(2007L)
+                .storeId(3007L)
+                .technicianId(70L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(15000)
+                .commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(1500)
+                .status(CommissionStatusEnum.SETTLED.getStatus())
+                .build();
+        TechnicianCommissionDO existing = TechnicianCommissionDO.builder()
+                .id(72L)
+                .orderId(orderId)
+                .technicianId(70L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(-15000)
+                .commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(-1500)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("71")
+                .staffId(70L)
+                .originCommissionId(71L)
+                .status(CommissionStatusEnum.PENDING.getStatus())
+                .build();
+        when(commissionMapper.selectListByOrderId(orderId)).thenReturn(Collections.singletonList(settled));
+        when(commissionMapper.insert(any(TechnicianCommissionDO.class)))
+                .thenThrow(new DuplicateKeyException("uk_origin_commission_id"));
+        when(commissionMapper.selectByOriginCommissionId(71L)).thenReturn(existing);
+
+        service.cancelCommission(orderId);
+
         verify(commissionMapper, times(1)).insert(any(TechnicianCommissionDO.class));
+    }
+
+    @Test
+    void shouldThrowWhenReversalIdempotentKeyConflictDifferentAmount() {
+        Long orderId = 1006L;
+        TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
+                .id(61L)
+                .orderId(orderId)
+                .userId(2006L)
+                .storeId(3006L)
+                .technicianId(60L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(12000)
+                .commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(1200)
+                .status(CommissionStatusEnum.SETTLED.getStatus())
+                .build();
+        TechnicianCommissionDO conflicted = TechnicianCommissionDO.builder()
+                .id(62L)
+                .orderId(orderId)
+                .userId(2006L)
+                .storeId(3006L)
+                .technicianId(60L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(-11000)
+                .commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(-1100)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("61")
+                .staffId(60L)
+                .originCommissionId(61L)
+                .status(CommissionStatusEnum.PENDING.getStatus())
+                .build();
+        when(commissionMapper.selectListByOrderId(orderId)).thenReturn(Arrays.asList(settled, conflicted));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> service.cancelCommission(orderId));
+
+        assertEquals(COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT.getCode(), ex.getCode());
+        verify(commissionMapper, never()).insert(any(TechnicianCommissionDO.class));
+        verify(commissionMapper, never()).releaseCancelledReversalIdempotentKeyById(any());
     }
 }

@@ -49,6 +49,18 @@ public class TechnicianCommissionDO extends BaseDO {
     /** 佣金金额（分） */
     private Integer commissionAmount;
 
+    /** 业务类型（冲正幂等键） */
+    private String bizType;
+
+    /** 业务单号（冲正幂等键） */
+    private String bizNo;
+
+    /** 归属员工ID（冲正幂等键） */
+    private Long staffId;
+
+    /** 原佣金ID（冲正幂等键） */
+    private Long originCommissionId;
+
     /** 状态 0=待结算 1=已结算 2=已取消 */
     private Integer status;
 
