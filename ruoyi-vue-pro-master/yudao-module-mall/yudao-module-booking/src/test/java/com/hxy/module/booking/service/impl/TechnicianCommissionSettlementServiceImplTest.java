@@ -254,6 +254,27 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
     }
 
     @Test
+    void shouldSkipWarnWhenConcurrentWarned() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(612L, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+        settlement.setReviewDeadlineTime(LocalDateTime.now().plusMinutes(5));
+        settlement.setReviewWarned(Boolean.FALSE);
+        when(settlementMapper.selectListByStatusAndReviewDeadlineBetweenAndWarned(
+                eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                any(LocalDateTime.class), any(LocalDateTime.class), eq(Boolean.FALSE), eq(20)))
+                .thenReturn(Collections.singletonList(settlement));
+        when(settlementMapper.updateWarnedByIdAndStatusAndWarned(
+                eq(612L), eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                eq(Boolean.FALSE), any(TechnicianCommissionSettlementDO.class)))
+                .thenReturn(0);
+
+        int count = service.warnNearDeadlinePending(20, 20);
+
+        assertEquals(0, count);
+        verify(settlementLogMapper, never()).insert(any(TechnicianCommissionSettlementLogDO.class));
+        verify(notifyOutboxMapper, never()).insert(any(TechnicianCommissionSettlementNotifyOutboxDO.class));
+    }
+
+    @Test
     void shouldEscalateOverduePendingSettlementToP0() {
         TechnicianCommissionSettlementDO settlement = buildSettlement(62L, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
         settlement.setReviewDeadlineTime(LocalDateTime.now().minusMinutes(31));

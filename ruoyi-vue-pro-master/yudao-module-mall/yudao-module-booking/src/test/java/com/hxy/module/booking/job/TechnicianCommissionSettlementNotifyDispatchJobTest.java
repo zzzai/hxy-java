@@ -37,5 +37,14 @@ class TechnicianCommissionSettlementNotifyDispatchJobTest extends BaseMockitoUni
         assertTrue(result.contains("1"));
         verify(settlementService).dispatchPendingNotifyOutbox(50);
     }
-}
 
+    @Test
+    void shouldFallbackToDefaultWhenParamNonPositive() {
+        when(settlementService.dispatchPendingNotifyOutbox(200)).thenReturn(2);
+
+        String result = job.execute("0");
+
+        assertTrue(result.contains("2"));
+        verify(settlementService).dispatchPendingNotifyOutbox(200);
+    }
+}
