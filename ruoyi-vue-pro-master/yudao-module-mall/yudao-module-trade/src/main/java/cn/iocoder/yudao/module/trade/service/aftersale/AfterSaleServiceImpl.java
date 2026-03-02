@@ -208,10 +208,15 @@ public class AfterSaleServiceImpl implements AfterSaleService {
             return new RefundLimitDecision(upperBound, "SERVICE_ORDER_SNAPSHOT", JsonUtils.toJsonString(detail));
         }
 
-        Integer orderItemCapPrice = resolveBundleRefundablePrice(orderItem.getPriceSourceSnapshotJson());
+        BundleRefundComputation orderItemComputation = resolveBundleRefundableDetail(orderItem.getPriceSourceSnapshotJson());
+        Integer orderItemCapPrice = orderItemComputation == null ? null : orderItemComputation.getRefundablePrice();
         if (orderItemCapPrice != null) {
             int upperBound = Math.min(payPrice, orderItemCapPrice);
             detail.put("bundleRefundablePrice", orderItemCapPrice);
+            detail.put("snapshotField", "priceSourceSnapshotJson");
+            if (orderItemComputation.getHasChildComputation()) {
+                detail.put("bundleChildren", orderItemComputation.getBundleChildren());
+            }
             detail.put("upperBound", upperBound);
             return new RefundLimitDecision(upperBound, "ORDER_ITEM_PRICE_SOURCE", JsonUtils.toJsonString(detail));
         }
@@ -224,13 +229,21 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         if (serviceOrder == null || StrUtil.isBlank(serviceOrder.getOrderItemSnapshotJson())) {
             return null;
         }
-        String bundleRefundSnapshotJson = extractBundleRefundSnapshotJson(serviceOrder.getOrderItemSnapshotJson());
-        Integer cap = resolveBundleRefundablePrice(bundleRefundSnapshotJson);
+        BundleRefundSnapshotPayload snapshotPayload = extractBundleRefundSnapshot(serviceOrder.getOrderItemSnapshotJson());
+        if (snapshotPayload == null) {
+            return null;
+        }
+        BundleRefundComputation computation = resolveBundleRefundableDetail(snapshotPayload.getSnapshotJson());
+        Integer cap = computation == null ? null : computation.getRefundablePrice();
         if (cap == null) {
             return null;
         }
         detail.put("serviceOrderId", serviceOrder.getId());
         detail.put("serviceOrderStatus", serviceOrder.getStatus());
+        detail.put("serviceSnapshotField", snapshotPayload.getSnapshotField());
+        if (computation.getHasChildComputation()) {
+            detail.put("bundleChildren", computation.getBundleChildren());
+        }
         detail.put("bundleRefundablePrice", cap);
         if (ObjUtil.equal(serviceOrder.getStatus(), TradeServiceOrderStatusEnum.FINISHED.getStatus())) {
             detail.put("blockedByFinished", true);
@@ -239,7 +252,7 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         return cap;
     }
 
-    private String extractBundleRefundSnapshotJson(String orderItemSnapshotJson) {
+    private BundleRefundSnapshotPayload extractBundleRefundSnapshot(String orderItemSnapshotJson) {
         if (StrUtil.isBlank(orderItemSnapshotJson)) {
             return null;
         }
@@ -249,9 +262,13 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         }
         String bundleRefundSnapshotJson = parseJsonNodeAsString(snapshotRoot.get("bundleRefundSnapshotJson"));
         if (StrUtil.isNotBlank(bundleRefundSnapshotJson)) {
-            return bundleRefundSnapshotJson;
+            return new BundleRefundSnapshotPayload(bundleRefundSnapshotJson, "bundleRefundSnapshotJson");
         }
-        return parseJsonNodeAsString(snapshotRoot.get("priceSourceSnapshotJson"));
+        String priceSourceSnapshotJson = parseJsonNodeAsString(snapshotRoot.get("priceSourceSnapshotJson"));
+        if (StrUtil.isNotBlank(priceSourceSnapshotJson)) {
+            return new BundleRefundSnapshotPayload(priceSourceSnapshotJson, "priceSourceSnapshotJson");
+        }
+        return null;
     }
 
     private String parseJsonNodeAsString(JsonNode node) {
@@ -262,6 +279,11 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     }
 
     private Integer resolveBundleRefundablePrice(String priceSourceSnapshotJson) {
+        BundleRefundComputation computation = resolveBundleRefundableDetail(priceSourceSnapshotJson);
+        return computation == null ? null : computation.getRefundablePrice();
+    }
+
+    private BundleRefundComputation resolveBundleRefundableDetail(String priceSourceSnapshotJson) {
         if (StrUtil.isBlank(priceSourceSnapshotJson)) {
             return null;
         }
@@ -271,30 +293,40 @@ public class AfterSaleServiceImpl implements AfterSaleService {
             return null;
         }
 
-        Integer explicitRefundablePrice = normalizeNonNegative(bundleSnapshot.getBundleRefundablePrice());
-        if (explicitRefundablePrice != null) {
-            return explicitRefundablePrice;
-        }
-        if (ObjectUtil.isEmpty(bundleSnapshot.getBundleChildren())) {
-            return null;
-        }
-
         int sum = 0;
         boolean matched = false;
-        for (BundleChildRefundSnapshot child : bundleSnapshot.getBundleChildren()) {
-            if (child == null) {
-                continue;
-            }
-            Integer childRefundCap = normalizeNonNegative(child.getRefundCapPrice());
-            if (childRefundCap == null) {
-                continue;
-            }
-            if (Boolean.TRUE.equals(child.getRefundable()) || !Boolean.TRUE.equals(child.getFulfilled())) {
-                sum += childRefundCap;
-                matched = true;
+        List<Map<String, Object>> childDetails = new java.util.ArrayList<>();
+        if (bundleSnapshot.getBundleChildren() != null) {
+            for (BundleChildRefundSnapshot child : bundleSnapshot.getBundleChildren()) {
+                if (child == null) {
+                    continue;
+                }
+                Integer childRefundCap = normalizeNonNegative(child.getRefundCapPrice());
+                if (childRefundCap == null) {
+                    continue;
+                }
+                boolean included = Boolean.TRUE.equals(child.getRefundable()) || !Boolean.TRUE.equals(child.getFulfilled());
+                Map<String, Object> childDetail = new LinkedHashMap<>();
+                childDetail.put("childCode", child.getChildCode());
+                childDetail.put("refundCapPrice", childRefundCap);
+                childDetail.put("fulfilled", child.getFulfilled());
+                childDetail.put("refundable", child.getRefundable());
+                childDetail.put("included", included);
+                childDetails.add(childDetail);
+                if (included) {
+                    sum += childRefundCap;
+                    matched = true;
+                }
             }
         }
-        return matched ? sum : null;
+        if (matched) {
+            return new BundleRefundComputation(sum, childDetails, true);
+        }
+        Integer explicitRefundablePrice = normalizeNonNegative(bundleSnapshot.getBundleRefundablePrice());
+        if (explicitRefundablePrice != null) {
+            return new BundleRefundComputation(explicitRefundablePrice, childDetails, false);
+        }
+        return null;
     }
 
     private Integer normalizeNonNegative(Integer price) {
@@ -698,12 +730,42 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
     @Data
     private static class BundleChildRefundSnapshot {
+        @JsonAlias({"childCode", "code", "itemCode", "skuCode"})
+        private String childCode;
         @JsonAlias({"refundCapPrice", "refundablePrice", "maxRefundPrice"})
         private Integer refundCapPrice;
         @JsonAlias({"fulfilled", "served", "completed", "serviceFulfilled"})
         private Boolean fulfilled;
         @JsonAlias({"refundable", "allowRefund"})
         private Boolean refundable;
+    }
+
+    @Data
+    private static class BundleRefundComputation {
+        /**
+         * 可退金额（分）
+         */
+        private final Integer refundablePrice;
+        /**
+         * 子项明细快照（用于审计）
+         */
+        private final List<Map<String, Object>> bundleChildren;
+        /**
+         * true 表示由子项履约状态计算得出；false 表示显式金额兜底
+         */
+        private final Boolean hasChildComputation;
+    }
+
+    @Data
+    private static class BundleRefundSnapshotPayload {
+        /**
+         * 快照 JSON
+         */
+        private final String snapshotJson;
+        /**
+         * 快照字段来源
+         */
+        private final String snapshotField;
     }
 
 }

@@ -111,6 +111,20 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
+    void shouldUseChildFulfillmentCapWhenExplicitBundlePriceExists() {
+        Long userId = 1021L;
+        TradeOrderItemDO orderItem = buildOrderItem(1121L, 5000,
+                "{\"bundleRefundablePrice\":5000,\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":1200,\"fulfilled\":false}," +
+                        "{\"childCode\":\"B\",\"refundCapPrice\":1800,\"fulfilled\":true}]}");
+        when(tradeOrderQueryService.getOrderItem(userId, 1121L)).thenReturn(orderItem);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
+                service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 1500)));
+
+        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
     void shouldRejectRefundWhenServiceOrderFinishedAndBundleExists() {
         Long userId = 103L;
         TradeOrderItemDO orderItem = buildOrderItem(113L, 5000,
@@ -160,6 +174,8 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         String detailJson = captor.getValue().getRefundLimitDetailJson();
         assertTrue(detailJson.contains("serviceOrderId"));
         assertTrue(detailJson.contains("upperBound"));
+        assertTrue(detailJson.contains("bundleChildren"));
+        assertTrue(detailJson.contains("childCode"));
         assertTrue(JsonUtils.parseTree(detailJson).path("upperBound").asInt() > 0);
     }
 
