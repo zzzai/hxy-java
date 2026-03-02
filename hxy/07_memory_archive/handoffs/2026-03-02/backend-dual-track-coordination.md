@@ -57,3 +57,21 @@
    - `bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh`
    - `bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh`
    - 各自模块定向 `mvn -pl ... -am -Dtest=... test`
+
+## 2026-03-02 21:40 进度快照（项目总控）
+
+### 窗口 A（`feat/p1-package-refund-hardening`）
+- 已完成提交：
+  - `faac440c30`：套餐退款上限改为子项履约优先，审计明细补齐 `bundleChildren/snapshotField`。
+  - `941cbd2172`：服务履约单 `FINISHED` 状态即阻断退款（快照缺失也阻断），补 2 条回归测试。
+- 验证结果：
+  - `AfterSaleServiceImplBundleRefundValidationTest`：`Tests run: 8, Failures: 0, Errors: 0`。
+  - 命名门禁与记忆门禁：PASS。
+
+### 窗口 B（`feat/p1-settlement-sla`）
+- 已完成提交：
+  - `6c2a5334a6`：结算流程与作废状态守卫对齐（含 SQL、Service、Test）。
+
+### 下一轮建议分工
+1. A：继续“套餐子项履约/退款闭环增强”剩余项（退款上限来源可视化查询、异常场景回归）。
+2. B：继续“提成冲正幂等键 + SLA 升级 Job”并补回归。
