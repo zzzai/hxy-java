@@ -121,6 +121,7 @@ public class AfterSaleServiceTest extends BaseDbUnitTest {
             o.setType(AfterSaleTypeEnum.IN_SALE.getType());
             o.setOrderNo("202211190847450020500011");
             o.setSpuName("芋艿");
+            o.setRefundLimitSource("SERVICE_ORDER_SNAPSHOT");
             o.setCreateTime(buildTime(2022, 1, 15));
         });
         tradeAfterSaleMapper.insert(dbAfterSale);
@@ -136,6 +137,8 @@ public class AfterSaleServiceTest extends BaseDbUnitTest {
         tradeAfterSaleMapper.insert(cloneIgnoreId(dbAfterSale, o -> o.setOrderNo("202211190847450020500022")));
         // 测试 spuName 不匹配
         tradeAfterSaleMapper.insert(cloneIgnoreId(dbAfterSale, o -> o.setSpuName("土豆")));
+        // 测试 refundLimitSource 不匹配
+        tradeAfterSaleMapper.insert(cloneIgnoreId(dbAfterSale, o -> o.setRefundLimitSource("ORDER_ITEM_PAY_PRICE")));
         // 测试 createTime 不匹配
         tradeAfterSaleMapper.insert(cloneIgnoreId(dbAfterSale, o -> o.setCreateTime(buildTime(2022, 1, 20))));
         // 准备参数
@@ -146,6 +149,7 @@ public class AfterSaleServiceTest extends BaseDbUnitTest {
         reqVO.setType(AfterSaleTypeEnum.IN_SALE.getType());
         reqVO.setOrderNo("20221119084745002050001");
         reqVO.setSpuName("芋");
+        reqVO.setRefundLimitSource("SERVICE_ORDER_SNAPSHOT");
         reqVO.setCreateTime(new LocalDateTime[]{buildTime(2022, 1, 1), buildTime(2022, 1, 16)});
 
         // 调用

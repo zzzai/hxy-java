@@ -25,6 +25,7 @@ public interface AfterSaleMapper extends BaseMapperX<AfterSaleDO> {
                 .eqIfPresent(AfterSaleDO::getWay, reqVO.getWay())
                 .likeIfPresent(AfterSaleDO::getOrderNo, reqVO.getOrderNo())
                 .likeIfPresent(AfterSaleDO::getSpuName, reqVO.getSpuName())
+                .eqIfPresent(AfterSaleDO::getRefundLimitSource, reqVO.getRefundLimitSource())
                 .betweenIfPresent(AfterSaleDO::getCreateTime, reqVO.getCreateTime())
                 .orderByDesc(AfterSaleDO::getId));
     }
