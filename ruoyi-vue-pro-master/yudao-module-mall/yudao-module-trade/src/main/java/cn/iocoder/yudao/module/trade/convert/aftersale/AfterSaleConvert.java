@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.trade.convert.aftersale;
 
+import cn.hutool.core.util.StrUtil;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.member.api.user.dto.MemberUserRespDTO;
 import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundCreateReqDTO;
@@ -21,6 +23,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Mappings;
 import org.mapstruct.factory.Mappers;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.Map;
 
@@ -65,6 +68,7 @@ public interface AfterSaleConvert {
     default AfterSaleDetailRespVO convert(AfterSaleDO afterSale, TradeOrderDO order, TradeOrderItemDO orderItem,
                                           MemberUserRespDTO user, List<AfterSaleLogDO> logs) {
         AfterSaleDetailRespVO respVO = convert02(afterSale);
+        respVO.setRefundLimitDetail(parseRefundLimitDetail(afterSale));
         // 处理用户信息
         respVO.setUser(convert(user));
         // 处理订单信息
@@ -79,5 +83,13 @@ public interface AfterSaleConvert {
     AfterSaleDetailRespVO convert02(AfterSaleDO bean);
     AfterSaleDetailRespVO.OrderItem convert02(TradeOrderItemDO bean);
     TradeOrderBaseVO convert(TradeOrderDO bean);
+
+    default Map<String, Object> parseRefundLimitDetail(AfterSaleDO afterSale) {
+        if (afterSale == null || StrUtil.isBlank(afterSale.getRefundLimitDetailJson())) {
+            return null;
+        }
+        return JsonUtils.parseObjectQuietly(afterSale.getRefundLimitDetailJson(),
+                new TypeReference<Map<String, Object>>() {});
+    }
 
 }

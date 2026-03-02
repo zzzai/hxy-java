@@ -7,6 +7,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static cn.iocoder.yudao.framework.common.util.date.DateUtils.FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND;
 
@@ -97,6 +98,9 @@ public class AfterSaleBaseVO {
 
     @Schema(description = "退款上限审计明细快照（JSON）", example = "{\"upperBound\":2600}")
     private String refundLimitDetailJson;
+
+    @Schema(description = "退款上限审计明细（结构化）")
+    private Map<String, Object> refundLimitDetail;
 
     @Schema(description = "支付退款编号", example = "10271")
     private Long payRefundId;
