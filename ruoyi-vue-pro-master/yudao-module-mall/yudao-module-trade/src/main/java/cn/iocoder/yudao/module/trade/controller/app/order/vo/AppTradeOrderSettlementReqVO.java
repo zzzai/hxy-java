@@ -93,6 +93,21 @@ public class AppTradeOrderSettlementReqVO {
         @Schema(description = "购物车项的编号", example = "1024")
         private Long cartId;
 
+        @Schema(description = "服务加项类型：1=加钟 2=升级 3=加项目", example = "1")
+        private Integer addonType;
+
+        @Schema(description = "服务加项快照（JSON）", example = "{\"addonCode\":\"ADD_ON_HOT_STONE\"}")
+        private String addonSnapshotJson;
+
+        @Schema(description = "类目属性模板版本 ID", example = "2026030101")
+        private Long templateVersionId;
+
+        @Schema(description = "类目属性模板快照（JSON）", example = "{\"version\":\"v1\"}")
+        private String templateSnapshotJson;
+
+        @Schema(description = "价格来源快照（JSON）", example = "{\"source\":\"STORE_OVERRIDE\"}")
+        private String priceSourceSnapshotJson;
+
         @AssertTrue(message = "商品不正确")
         @JsonIgnore
         public boolean isValid() {

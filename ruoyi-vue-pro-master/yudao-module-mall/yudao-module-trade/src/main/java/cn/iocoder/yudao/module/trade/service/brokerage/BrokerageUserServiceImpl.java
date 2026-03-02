@@ -173,6 +173,18 @@ public class BrokerageUserServiceImpl implements BrokerageUserService {
     }
 
     @Override
+    public Map<Long, Long> getBrokerageUserCountMapByBindUserIds(Collection<Long> bindUserIds, Integer level) {
+        Map<Long, Long> result = new LinkedHashMap<>();
+        if (CollUtil.isEmpty(bindUserIds)) {
+            return result;
+        }
+        for (Long bindUserId : bindUserIds) {
+            result.put(bindUserId, getBrokerageUserCountByBindUserId(bindUserId, level));
+        }
+        return result;
+    }
+
+    @Override
     public boolean bindBrokerageUser(Long userId, Long bindUserId) {
         // 1. 获得分销用户
         boolean isNewBrokerageUser = false;

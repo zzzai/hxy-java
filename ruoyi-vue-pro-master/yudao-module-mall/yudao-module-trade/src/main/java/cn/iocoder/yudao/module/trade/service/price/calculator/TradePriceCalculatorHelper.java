@@ -51,7 +51,11 @@ public class TradePriceCalculatorHelper {
             TradePriceCalculateRespBO.OrderItem orderItem = new TradePriceCalculateRespBO.OrderItem();
             result.getItems().add(orderItem);
             orderItem.setSpuId(sku.getSpuId()).setSkuId(sku.getId())
-                    .setCount(item.getCount()).setCartId(item.getCartId()).setSelected(item.getSelected());
+                    .setCount(item.getCount()).setCartId(item.getCartId()).setSelected(item.getSelected())
+                    .setAddonType(item.getAddonType()).setAddonSnapshotJson(item.getAddonSnapshotJson())
+                    .setTemplateVersionId(item.getTemplateVersionId())
+                    .setTemplateSnapshotJson(item.getTemplateSnapshotJson())
+                    .setPriceSourceSnapshotJson(item.getPriceSourceSnapshotJson());
             // sku 价格
             orderItem.setPrice(sku.getPrice()).setPayPrice(sku.getPrice() * item.getCount())
                     .setDiscountPrice(0).setDeliveryPrice(0).setCouponPrice(0).setPointPrice(0).setVipPrice(0);
@@ -60,6 +64,7 @@ public class TradePriceCalculatorHelper {
                     .setWeight(sku.getWeight()).setVolume(sku.getVolume());
             // spu 信息
             orderItem.setSpuName(spu.getName()).setCategoryId(spu.getCategoryId())
+                    .setProductType(spu.getProductType())
                     .setDeliveryTypes(spu.getDeliveryTypes()).setDeliveryTemplateId(spu.getDeliveryTemplateId())
                     .setGivePoint(spu.getGiveIntegral()).setUsePoint(0);
             if (StrUtil.isBlank(orderItem.getPicUrl())) {

@@ -35,6 +35,21 @@ public class TradeOrderItemBaseVO {
     @Schema(description = "商品图片", requiredMode = Schema.RequiredMode.REQUIRED, example = "https://www.iocoder.cn/1.png")
     private String picUrl;
 
+    @Schema(description = "服务加项类型：1=加钟 2=升级 3=加项目", example = "1")
+    private Integer addonType;
+
+    @Schema(description = "服务加项快照（JSON）", example = "{\"addonCode\":\"ADD_ON_HOT_STONE\"}")
+    private String addonSnapshotJson;
+
+    @Schema(description = "类目属性模板版本 ID", example = "2026030101")
+    private Long templateVersionId;
+
+    @Schema(description = "类目属性模板快照（JSON）", example = "{\"version\":\"v1\"}")
+    private String templateSnapshotJson;
+
+    @Schema(description = "价格来源快照（JSON）", example = "{\"source\":\"STORE_OVERRIDE\"}")
+    private String priceSourceSnapshotJson;
+
     @Schema(description = "购买数量", requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
     private Integer count;
 
@@ -56,8 +71,6 @@ public class TradeOrderItemBaseVO {
     private Integer orderDividePrice;
 
     // ========== 营销基本信息 ==========
-
-    // TODO 芋艿：在捉摸一下
 
     // ========== 售后基本信息 ==========
 

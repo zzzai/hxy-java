@@ -53,8 +53,6 @@ public class AppCartDetailRespVO {
 
         // ========== 价格相关的字段，对应 PriceCalculateRespDTO.OrderItem 的属性 ==========
 
-        // TODO 芋艿：后续可以去除一些无用的字段
-
         @Schema(description = "商品原价（单）", requiredMode = Schema.RequiredMode.REQUIRED, example = "100")
         private Integer originalPrice;
         @Schema(description = "商品原价（总）", requiredMode = Schema.RequiredMode.REQUIRED, example = "200")
@@ -79,8 +77,6 @@ public class AppCartDetailRespVO {
     @Schema(description = "订单") // 对应 PriceCalculateRespDTO.Order 类，用于费用（合计）
     @Data
     public static class Order {
-
-        // TODO 芋艿：后续可以去除一些无用的字段
 
         @Schema(description = "商品原价（总）", requiredMode = Schema.RequiredMode.REQUIRED, example = "100")
         private Integer skuOriginalPrice;

@@ -6,6 +6,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.enums.UserTypeEnum;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.ObjectUtils;
 import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
 import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundCreateReqDTO;
@@ -25,7 +26,10 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.delivery.DeliveryExpressDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderLogDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleMapper;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.dal.redis.no.TradeNoRedisDAO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleOperateTypeEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleStatusEnum;
@@ -34,12 +38,18 @@ import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleWayEnum;
 import cn.iocoder.yudao.module.trade.enums.order.TradeOrderItemAfterSaleStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.order.TradeOrderStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.order.TradeOrderTypeEnum;
+import cn.iocoder.yudao.module.trade.enums.order.TradeServiceOrderStatusEnum;
 import cn.iocoder.yudao.module.trade.framework.aftersale.core.annotations.AfterSaleLog;
 import cn.iocoder.yudao.module.trade.framework.aftersale.core.utils.AfterSaleLogUtils;
 import cn.iocoder.yudao.module.trade.framework.order.config.TradeOrderProperties;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.delivery.DeliveryExpressService;
 import cn.iocoder.yudao.module.trade.service.order.TradeOrderQueryService;
 import cn.iocoder.yudao.module.trade.service.order.TradeOrderUpdateService;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.type.TypeReference;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -48,6 +58,9 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.json.JsonUtils.toJsonString;
@@ -74,12 +87,16 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     @Resource
     private AfterSaleMapper tradeAfterSaleMapper;
     @Resource
+    private TradeServiceOrderMapper tradeServiceOrderMapper;
+    @Resource
     private TradeNoRedisDAO tradeNoRedisDAO;
 
     @Resource
     private PayRefundApi payRefundApi;
     @Resource
     private CombinationRecordApi combinationRecordApi;
+    @Resource
+    private AfterSaleRefundDecisionService afterSaleRefundDecisionService;
 
     @Resource
     private TradeOrderProperties tradeOrderProperties;
@@ -110,9 +127,10 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     public Long createAfterSale(Long userId, AppAfterSaleCreateReqVO createReqVO) {
         // 第一步，前置校验
         TradeOrderItemDO tradeOrderItem = validateOrderItemApplicable(userId, createReqVO);
+        RefundLimitDecision refundLimitDecision = resolveRefundLimitDecision(tradeOrderItem);
 
         // 第二步，存储售后订单
-        AfterSaleDO afterSale = createAfterSale(createReqVO, tradeOrderItem);
+        AfterSaleDO afterSale = createAfterSale(createReqVO, tradeOrderItem, refundLimitDecision);
         return afterSale.getId();
     }
 
@@ -133,8 +151,9 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         if (!TradeOrderItemAfterSaleStatusEnum.isNone(orderItem.getAfterSaleStatus())) {
             throw exception(AFTER_SALE_CREATE_FAIL_ORDER_ITEM_APPLIED);
         }
-        // 申请的退款金额，不能超过商品的价格
-        if (createReqVO.getRefundPrice() > orderItem.getPayPrice()) {
+        // 申请退款金额上限：min(订单项实付金额, 套餐子项可退上限)
+        RefundLimitDecision refundLimitDecision = resolveRefundLimitDecision(orderItem);
+        if (createReqVO.getRefundPrice() > refundLimitDecision.getUpperBound()) {
             throw exception(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR);
         }
 
@@ -143,7 +162,14 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         if (order == null) {
             throw exception(ORDER_NOT_FOUND);
         }
-        // TODO 芋艿：超过一定时间，不允许售后
+        // 校验售后申请时间限制（从订单完成时间开始计算）
+        if (tradeOrderProperties.getAfterSaleExpireTime() != null
+                && order.getFinishTime() != null) {
+            LocalDateTime expireTime = order.getFinishTime().plus(tradeOrderProperties.getAfterSaleExpireTime());
+            if (LocalDateTime.now().isAfter(expireTime)) {
+                throw exception(AFTER_SALE_CREATE_FAIL_ORDER_EXPIRED);
+            }
+        }
         // 已取消，无法发起售后
         if (TradeOrderStatusEnum.isCanceled(order.getStatus())) {
             throw exception(AFTER_SALE_CREATE_FAIL_ORDER_STATUS_CANCELED);
@@ -168,12 +194,125 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         return orderItem;
     }
 
+    private RefundLimitDecision resolveRefundLimitDecision(TradeOrderItemDO orderItem) {
+        Integer payPrice = ObjUtil.defaultIfNull(orderItem.getPayPrice(), 0);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("orderItemId", orderItem.getId());
+        detail.put("payPrice", payPrice);
+
+        TradeServiceOrderDO serviceOrder = tradeServiceOrderMapper.selectByOrderItemId(orderItem.getId());
+        Integer serviceOrderCapPrice = resolveServiceOrderSnapshotCap(serviceOrder, detail);
+        if (serviceOrderCapPrice != null) {
+            int upperBound = Math.min(payPrice, serviceOrderCapPrice);
+            detail.put("upperBound", upperBound);
+            return new RefundLimitDecision(upperBound, "SERVICE_ORDER_SNAPSHOT", JsonUtils.toJsonString(detail));
+        }
+
+        Integer orderItemCapPrice = resolveBundleRefundablePrice(orderItem.getPriceSourceSnapshotJson());
+        if (orderItemCapPrice != null) {
+            int upperBound = Math.min(payPrice, orderItemCapPrice);
+            detail.put("bundleRefundablePrice", orderItemCapPrice);
+            detail.put("upperBound", upperBound);
+            return new RefundLimitDecision(upperBound, "ORDER_ITEM_PRICE_SOURCE", JsonUtils.toJsonString(detail));
+        }
+
+        detail.put("upperBound", payPrice);
+        return new RefundLimitDecision(payPrice, "ORDER_ITEM_PAY_PRICE", JsonUtils.toJsonString(detail));
+    }
+
+    private Integer resolveServiceOrderSnapshotCap(TradeServiceOrderDO serviceOrder, Map<String, Object> detail) {
+        if (serviceOrder == null || StrUtil.isBlank(serviceOrder.getOrderItemSnapshotJson())) {
+            return null;
+        }
+        String bundleRefundSnapshotJson = extractBundleRefundSnapshotJson(serviceOrder.getOrderItemSnapshotJson());
+        Integer cap = resolveBundleRefundablePrice(bundleRefundSnapshotJson);
+        if (cap == null) {
+            return null;
+        }
+        detail.put("serviceOrderId", serviceOrder.getId());
+        detail.put("serviceOrderStatus", serviceOrder.getStatus());
+        detail.put("bundleRefundablePrice", cap);
+        if (ObjUtil.equal(serviceOrder.getStatus(), TradeServiceOrderStatusEnum.FINISHED.getStatus())) {
+            detail.put("blockedByFinished", true);
+            return 0;
+        }
+        return cap;
+    }
+
+    private String extractBundleRefundSnapshotJson(String orderItemSnapshotJson) {
+        if (StrUtil.isBlank(orderItemSnapshotJson)) {
+            return null;
+        }
+        JsonNode snapshotRoot = JsonUtils.parseTree(orderItemSnapshotJson);
+        if (snapshotRoot == null || snapshotRoot.isMissingNode()) {
+            return null;
+        }
+        String bundleRefundSnapshotJson = parseJsonNodeAsString(snapshotRoot.get("bundleRefundSnapshotJson"));
+        if (StrUtil.isNotBlank(bundleRefundSnapshotJson)) {
+            return bundleRefundSnapshotJson;
+        }
+        return parseJsonNodeAsString(snapshotRoot.get("priceSourceSnapshotJson"));
+    }
+
+    private String parseJsonNodeAsString(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return node.isTextual() ? node.asText() : node.toString();
+    }
+
+    private Integer resolveBundleRefundablePrice(String priceSourceSnapshotJson) {
+        if (StrUtil.isBlank(priceSourceSnapshotJson)) {
+            return null;
+        }
+        BundleRefundSnapshot bundleSnapshot = JsonUtils.parseObjectQuietly(priceSourceSnapshotJson,
+                new TypeReference<BundleRefundSnapshot>() {});
+        if (bundleSnapshot == null) {
+            return null;
+        }
+
+        Integer explicitRefundablePrice = normalizeNonNegative(bundleSnapshot.getBundleRefundablePrice());
+        if (explicitRefundablePrice != null) {
+            return explicitRefundablePrice;
+        }
+        if (ObjectUtil.isEmpty(bundleSnapshot.getBundleChildren())) {
+            return null;
+        }
+
+        int sum = 0;
+        boolean matched = false;
+        for (BundleChildRefundSnapshot child : bundleSnapshot.getBundleChildren()) {
+            if (child == null) {
+                continue;
+            }
+            Integer childRefundCap = normalizeNonNegative(child.getRefundCapPrice());
+            if (childRefundCap == null) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(child.getRefundable()) || !Boolean.TRUE.equals(child.getFulfilled())) {
+                sum += childRefundCap;
+                matched = true;
+            }
+        }
+        return matched ? sum : null;
+    }
+
+    private Integer normalizeNonNegative(Integer price) {
+        if (price == null) {
+            return null;
+        }
+        return Math.max(price, 0);
+    }
+
     private AfterSaleDO createAfterSale(AppAfterSaleCreateReqVO createReqVO,
-                                        TradeOrderItemDO orderItem) {
+                                        TradeOrderItemDO orderItem,
+                                        RefundLimitDecision refundLimitDecision) {
         // 创建售后单
         AfterSaleDO afterSale = AfterSaleConvert.INSTANCE.convert(createReqVO, orderItem);
         afterSale.setNo(tradeNoRedisDAO.generate(TradeNoRedisDAO.AFTER_SALE_NO_PREFIX));
         afterSale.setStatus(AfterSaleStatusEnum.APPLY.getStatus());
+        afterSale.setRefundLimitSource(refundLimitDecision.getSource());
+        afterSale.setRefundLimitDetailJson(refundLimitDecision.getDetailJson());
         // 标记是售中还是售后
         TradeOrderDO order = tradeOrderQueryService.getOrder(orderItem.getUserId(), orderItem.getOrderId());
         afterSale.setOrderNo(order.getNo()); // 记录 orderNo 订单流水，方便后续检索
@@ -207,6 +346,12 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
         // 记录售后日志
         AfterSaleLogUtils.setAfterSaleInfo(afterSale.getId(), afterSale.getStatus(), newStatus);
+
+        // 退款型售后在同意后直接进入分层决策：低风险自动执行，高风险保留人工复核队列
+        if (ObjectUtil.equals(newStatus, AfterSaleStatusEnum.WAIT_REFUND.getStatus())
+                && ObjectUtil.equals(afterSale.getWay(), AfterSaleWayEnum.REFUND.getWay())) {
+            autoExecuteRefundIfEligible(afterSale.getId());
+        }
     }
 
     @Override
@@ -250,6 +395,47 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         int updateCount = tradeAfterSaleMapper.updateByIdAndStatus(id, status, updateObj);
         if (updateCount == 0) {
             throw exception(AFTER_SALE_UPDATE_STATUS_FAIL);
+        }
+    }
+
+    private void autoExecuteRefundIfEligible(Long afterSaleId) {
+        AfterSaleDO afterSale = tradeAfterSaleMapper.selectById(afterSaleId);
+        if (afterSale == null
+                || !ObjectUtil.equals(afterSale.getWay(), AfterSaleWayEnum.REFUND.getWay())
+                || !ObjectUtil.equals(afterSale.getStatus(), AfterSaleStatusEnum.WAIT_REFUND.getStatus())) {
+            return;
+        }
+
+        AfterSaleRefundDecisionBO decision = afterSaleRefundDecisionService.evaluate(afterSale);
+        afterSaleRefundDecisionService.auditDecision(
+                TradeOrderLogDO.USER_ID_SYSTEM, TradeOrderLogDO.USER_TYPE_SYSTEM, afterSale, decision, false);
+        if (!Boolean.TRUE.equals(decision.getAutoPass())) {
+            log.info("[autoExecuteRefundIfEligible][afterSale({}) 命中人工复核规则({}) reason({})]",
+                    afterSale.getId(), decision.getRuleCode(), decision.getReason());
+            return;
+        }
+
+        try {
+            processRefundAfterSale("system-auto", afterSale);
+            log.info("[autoExecuteRefundIfEligible][afterSale({}) 已触发自动退款执行]", afterSale.getId());
+        } catch (Exception e) {
+            // 自动路径失败不回滚售后同意动作，保留 WAIT_REFUND 供总部复核补偿
+            log.error("[autoExecuteRefundIfEligible][afterSale({}) 自动退款执行失败，需人工复核补偿]",
+                    afterSale.getId(), e);
+            try {
+                AfterSaleRefundDecisionBO failDecision = AfterSaleRefundDecisionBO.manual(
+                        "AUTO_REFUND_EXECUTE_FAIL",
+                        StrUtil.format("自动退款执行失败：{}", e.getClass().getSimpleName()));
+                afterSaleRefundDecisionService.auditDecision(
+                        TradeOrderLogDO.USER_ID_SYSTEM,
+                        TradeOrderLogDO.USER_TYPE_SYSTEM,
+                        afterSale,
+                        failDecision,
+                        false);
+            } catch (Exception auditEx) {
+                log.error("[autoExecuteRefundIfEligible][afterSale({}) 自动建工单审计失败]",
+                        afterSale.getId(), auditEx);
+            }
         }
     }
 
@@ -352,7 +538,10 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         if (ObjectUtil.notEqual(afterSale.getStatus(), AfterSaleStatusEnum.WAIT_REFUND.getStatus())) {
             throw exception(AFTER_SALE_REFUND_FAIL_STATUS_NOT_WAIT_REFUND);
         }
+        processRefundAfterSale(userIp, afterSale);
+    }
 
+    private void processRefundAfterSale(String userIp, AfterSaleDO afterSale) {
         Integer newStatus;
         if (ObjUtil.equals(afterSale.getRefundPrice(), 0)) {
             // 特殊：退款为 0 的订单，直接标记为完成（积分商城）。关联案例：https://t.zsxq.com/AQEvL
@@ -481,6 +670,40 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     @Override
     public Long getApplyingAfterSaleCount(Long userId) {
         return tradeAfterSaleMapper.selectCountByUserIdAndStatus(userId, AfterSaleStatusEnum.APPLYING_STATUSES);
+    }
+
+    @Data
+    private static class RefundLimitDecision {
+        /**
+         * 退款上限（分）
+         */
+        private final Integer upperBound;
+        /**
+         * 上限来源
+         */
+        private final String source;
+        /**
+         * 审计明细（JSON）
+         */
+        private final String detailJson;
+    }
+
+    @Data
+    private static class BundleRefundSnapshot {
+        @JsonAlias({"bundleRefundablePrice", "refundablePrice", "maxRefundPrice"})
+        private Integer bundleRefundablePrice;
+        @JsonAlias({"bundleChildren", "children", "items"})
+        private List<BundleChildRefundSnapshot> bundleChildren;
+    }
+
+    @Data
+    private static class BundleChildRefundSnapshot {
+        @JsonAlias({"refundCapPrice", "refundablePrice", "maxRefundPrice"})
+        private Integer refundCapPrice;
+        @JsonAlias({"fulfilled", "served", "completed", "serviceFulfilled"})
+        private Boolean fulfilled;
+        @JsonAlias({"refundable", "allowRefund"})
+        private Boolean refundable;
     }
 
 }

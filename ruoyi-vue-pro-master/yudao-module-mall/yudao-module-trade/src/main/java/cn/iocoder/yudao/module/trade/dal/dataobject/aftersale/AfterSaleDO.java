@@ -160,6 +160,16 @@ public class AfterSaleDO extends BaseDO {
      */
     private Integer refundPrice;
     /**
+     * 退款上限来源
+     *
+     * 例如：SERVICE_ORDER_SNAPSHOT / ORDER_ITEM_PRICE_SOURCE / ORDER_ITEM_PAY_PRICE
+     */
+    private String refundLimitSource;
+    /**
+     * 退款上限审计明细快照（JSON）
+     */
+    private String refundLimitDetailJson;
+    /**
      * 支付退款编号
      *
      * 对接 pay-module-biz 支付服务的退款订单编号，即 PayRefundDO 的 id 编号

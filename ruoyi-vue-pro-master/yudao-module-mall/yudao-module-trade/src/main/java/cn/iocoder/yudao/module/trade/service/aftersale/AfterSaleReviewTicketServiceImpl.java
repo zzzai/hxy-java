@@ -1,0 +1,297 @@
+package cn.iocoder.yudao.module.trade.service.aftersale;
+
+import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.StrUtil;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
+import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
+import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
+
+import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REVIEW_TICKET_NOT_FOUND;
+import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING;
+
+/**
+ * 售后人工复核工单服务实现
+ *
+ * @author HXY
+ */
+@Service
+@Validated
+public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketService {
+
+    private static final int DEFAULT_ESCALATE_BATCH_LIMIT = 200;
+    private static final DateTimeFormatter ESCALATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String DEFAULT_RESOLVE_ACTION_MANUAL = "MANUAL_RESOLVE";
+    private static final String DEFAULT_RESOLVE_ACTION_AUTO = "AUTO_RESOLVE";
+
+    @Resource
+    private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
+
+    @Override
+    public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
+        return afterSaleReviewTicketMapper.selectPage(pageReqVO);
+    }
+
+    @Override
+    public AfterSaleReviewTicketDO getReviewTicket(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return afterSaleReviewTicketMapper.selectById(id);
+    }
+
+    @Override
+    public Long createReviewTicket(AfterSaleReviewTicketCreateReqBO reqBO) {
+        if (reqBO == null) {
+            return null;
+        }
+        TicketRoute route = buildRoute(reqBO.getRuleCode());
+        LocalDateTime now = LocalDateTime.now();
+        String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
+        String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
+        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        Integer slaMinutes = resolveSlaMinutes(reqBO.getSlaMinutes(), route.getSlaMinutes());
+        String sourceBizNo = StrUtil.blankToDefault(reqBO.getSourceBizNo(),
+                reqBO.getAfterSaleId() == null ? "" : String.valueOf(reqBO.getAfterSaleId()));
+
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO()
+                .setTicketType(ticketType)
+                .setAfterSaleId(reqBO.getAfterSaleId())
+                .setOrderId(reqBO.getOrderId())
+                .setOrderItemId(reqBO.getOrderItemId())
+                .setUserId(reqBO.getUserId())
+                .setSourceBizNo(sourceBizNo)
+                .setRuleCode(StrUtil.blankToDefault(reqBO.getRuleCode(), "MANUAL_CREATE"))
+                .setDecisionReason(abbreviate(reqBO.getDecisionReason(), 500))
+                .setSeverity(severity)
+                .setEscalateTo(escalateTo)
+                .setSlaDeadlineTime(now.plusMinutes(slaMinutes))
+                .setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                .setFirstTriggerTime(now)
+                .setLastTriggerTime(now)
+                .setTriggerCount(1)
+                .setRemark(abbreviate(reqBO.getRemark(), 255));
+        afterSaleReviewTicketMapper.insert(ticket);
+        return ticket.getId();
+    }
+
+    @Override
+    public void upsertManualReviewTicket(AfterSaleDO afterSale, AfterSaleRefundDecisionBO decision) {
+        if (afterSale == null || decision == null || afterSale.getId() == null) {
+            return;
+        }
+        TicketRoute route = buildRoute(decision.getRuleCode());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime slaDeadlineTime = now.plusMinutes(route.getSlaMinutes());
+        AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByAfterSaleId(afterSale.getId());
+        if (existed == null) {
+            afterSaleReviewTicketMapper.insert(new AfterSaleReviewTicketDO()
+                    .setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType())
+                    .setAfterSaleId(afterSale.getId())
+                    .setOrderId(afterSale.getOrderId())
+                    .setOrderItemId(afterSale.getOrderItemId())
+                    .setUserId(afterSale.getUserId())
+                    .setSourceBizNo(StrUtil.blankToDefault(afterSale.getNo(), String.valueOf(afterSale.getId())))
+                    .setRuleCode(StrUtil.blankToDefault(decision.getRuleCode(), "UNKNOWN"))
+                    .setDecisionReason(abbreviate(decision.getReason(), 500))
+                    .setSeverity(route.getSeverity())
+                    .setEscalateTo(route.getEscalateTo())
+                    .setSlaDeadlineTime(slaDeadlineTime)
+                    .setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                    .setFirstTriggerTime(now)
+                    .setLastTriggerTime(now)
+                    .setTriggerCount(1)
+                    .setRemark(abbreviate(decision.getReason(), 255)));
+            return;
+        }
+        afterSaleReviewTicketMapper.updateById(new AfterSaleReviewTicketDO()
+                .setId(existed.getId())
+                .setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType())
+                .setRuleCode(StrUtil.blankToDefault(decision.getRuleCode(), "UNKNOWN"))
+                .setDecisionReason(abbreviate(decision.getReason(), 500))
+                .setSeverity(route.getSeverity())
+                .setEscalateTo(route.getEscalateTo())
+                .setSourceBizNo(StrUtil.blankToDefault(afterSale.getNo(), String.valueOf(afterSale.getId())))
+                .setSlaDeadlineTime(slaDeadlineTime)
+                .setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                .setFirstTriggerTime(ObjUtil.defaultIfNull(existed.getFirstTriggerTime(), now))
+                .setLastTriggerTime(now)
+                .setTriggerCount(ObjUtil.defaultIfNull(existed.getTriggerCount(), 0) + 1)
+                .setRemark(abbreviate(decision.getReason(), 255)));
+    }
+
+    @Override
+    public void resolveManualReviewTicket(Long afterSaleId, Long resolverId, Integer resolverType,
+                                          String resolveActionCode, String resolveBizNo, String resolveRemark) {
+        if (afterSaleId == null) {
+            return;
+        }
+        afterSaleReviewTicketMapper.updateByAfterSaleIdAndStatus(afterSaleId,
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                new AfterSaleReviewTicketDO()
+                        .setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus())
+                        .setResolverId(resolverId)
+                        .setResolverType(resolverType)
+                        .setResolveActionCode(normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_AUTO))
+                        .setResolveBizNo(normalizeResolveBizNo(resolveBizNo, afterSaleId))
+                        .setResolvedTime(LocalDateTime.now())
+                        .setRemark(abbreviate(resolveRemark, 255)));
+    }
+
+    @Override
+    public void resolveManualReviewTicketById(Long id, Long resolverId, Integer resolverType,
+                                              String resolveActionCode, String resolveBizNo, String resolveRemark) {
+        AfterSaleReviewTicketDO ticket = afterSaleReviewTicketMapper.selectById(id);
+        if (ticket == null) {
+            throw exception(AFTER_SALE_REVIEW_TICKET_NOT_FOUND);
+        }
+        if (!AfterSaleReviewTicketStatusEnum.isPending(ticket.getStatus())) {
+            throw exception(AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING);
+        }
+        int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(id,
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                new AfterSaleReviewTicketDO()
+                        .setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus())
+                        .setResolverId(resolverId)
+                        .setResolverType(resolverType)
+                        .setResolveActionCode(normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_MANUAL))
+                        .setResolveBizNo(normalizeResolveBizNo(resolveBizNo, id))
+                        .setResolvedTime(LocalDateTime.now())
+                        .setRemark(abbreviate(resolveRemark, 255)));
+        if (updateCount == 0) {
+            throw exception(AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING);
+        }
+    }
+
+    @Override
+    public int escalateOverduePendingTickets(Integer limit) {
+        int safeLimit = Math.max(1, Math.min(ObjUtil.defaultIfNull(limit, DEFAULT_ESCALATE_BATCH_LIMIT), 1000));
+        LocalDateTime now = LocalDateTime.now();
+        List<AfterSaleReviewTicketDO> overdueTickets = afterSaleReviewTicketMapper
+                .selectListByStatusAndSlaDeadlineTimeBefore(
+                        AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), now, safeLimit);
+        if (overdueTickets == null || overdueTickets.isEmpty()) {
+            return 0;
+        }
+        int affectedRows = 0;
+        for (AfterSaleReviewTicketDO ticket : overdueTickets) {
+            String newSeverity = nextSeverity(ticket.getSeverity());
+            String newEscalateTo = nextEscalateTo(ticket.getEscalateTo(), newSeverity);
+            String newRemark = buildEscalateRemark(ticket, now, newSeverity);
+            int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
+                    AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                    new AfterSaleReviewTicketDO()
+                            .setSeverity(newSeverity)
+                            .setEscalateTo(newEscalateTo)
+                            .setSlaDeadlineTime(now.plusMinutes(resolveEscalatedSlaMinutes(newSeverity)))
+                            .setLastTriggerTime(now)
+                            .setTriggerCount(ObjUtil.defaultIfNull(ticket.getTriggerCount(), 0) + 1)
+                            .setRemark(abbreviate(newRemark, 255)));
+            affectedRows += updateCount;
+        }
+        return affectedRows;
+    }
+
+    private TicketRoute buildRoute(String ruleCode) {
+        if (StrUtil.equalsAnyIgnoreCase(ruleCode, "BLACKLIST_USER", "SUSPICIOUS_ORDER")) {
+            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "AMOUNT_OVER_LIMIT")) {
+            return new TicketRoute("P1", "HQ_FINANCE", 120);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "HIGH_FREQUENCY")) {
+            return new TicketRoute("P1", "HQ_AFTER_SALE", 120);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "AUTO_REFUND_EXECUTE_FAIL")) {
+            return new TicketRoute("P0", "PAY_DEVOPS", 15);
+        }
+        return new TicketRoute("P1", "HQ_AFTER_SALE", 120);
+    }
+
+    private String abbreviate(String text, int maxLength) {
+        if (StrUtil.isBlank(text)) {
+            return "";
+        }
+        return StrUtil.maxLength(text.trim(), maxLength);
+    }
+
+    private String nextSeverity(String severity) {
+        if (StrUtil.equalsIgnoreCase("P2", severity)) {
+            return "P1";
+        }
+        if (StrUtil.equalsIgnoreCase("P1", severity)) {
+            return "P0";
+        }
+        if (StrUtil.equalsIgnoreCase("P0", severity)) {
+            return "P0";
+        }
+        return "P1";
+    }
+
+    private String nextEscalateTo(String currentEscalateTo, String severity) {
+        if (StrUtil.equalsIgnoreCase("P0", severity)) {
+            return "HQ_RISK_FINANCE";
+        }
+        if (StrUtil.isNotBlank(currentEscalateTo)) {
+            return currentEscalateTo;
+        }
+        return "HQ_AFTER_SALE";
+    }
+
+    private Integer resolveEscalatedSlaMinutes(String severity) {
+        return StrUtil.equalsIgnoreCase("P0", severity) ? 30 : 120;
+    }
+
+    private Integer resolveSlaMinutes(Integer requestSlaMinutes, Integer defaultSlaMinutes) {
+        int value = ObjUtil.defaultIfNull(requestSlaMinutes, ObjUtil.defaultIfNull(defaultSlaMinutes, 120));
+        if (value <= 0) {
+            return ObjUtil.defaultIfNull(defaultSlaMinutes, 120);
+        }
+        return Math.min(value, 7 * 24 * 60);
+    }
+
+    private String buildEscalateRemark(AfterSaleReviewTicketDO ticket, LocalDateTime now, String newSeverity) {
+        String baseRemark = StrUtil.blankToDefault(ticket.getRemark(), "");
+        String deadline = ticket.getSlaDeadlineTime() == null ? "unknown"
+                : ticket.getSlaDeadlineTime().format(ESCALATE_TIME_FORMATTER);
+        String append = StrUtil.format("AUTO_ESCALATE_OVERDUE@{} from {} -> {}",
+                now.format(ESCALATE_TIME_FORMATTER), deadline, newSeverity);
+        if (StrUtil.isBlank(baseRemark)) {
+            return append;
+        }
+        return baseRemark + " | " + append;
+    }
+
+    private String normalizeResolveActionCode(String resolveActionCode, String defaultCode) {
+        return StrUtil.maxLength(StrUtil.blankToDefault(resolveActionCode, defaultCode), 64);
+    }
+
+    private String normalizeResolveBizNo(String resolveBizNo, Long fallbackId) {
+        return StrUtil.maxLength(StrUtil.blankToDefault(resolveBizNo,
+                fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class TicketRoute {
+        private String severity;
+        private String escalateTo;
+        private Integer slaMinutes;
+    }
+
+}

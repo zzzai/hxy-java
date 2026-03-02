@@ -61,6 +61,12 @@ public class TradeOrderItemDO extends BaseDO {
      */
     private String spuName;
     /**
+     * 商品类型
+     *
+     * 1=实物 2=服务 3=卡项 4=虚拟
+     */
+    private Integer productType;
+    /**
      * 商品 SKU 编号
      *
      * 关联 ProductSkuDO 的 id 编号
@@ -77,6 +83,30 @@ public class TradeOrderItemDO extends BaseDO {
      * 商品图片
      */
     private String picUrl;
+    /**
+     * 服务加项类型
+     *
+     * 1=加钟 2=升级 3=加项目；为空表示普通订单项
+     */
+    private Integer addonType;
+    /**
+     * 服务加项快照（JSON）
+     *
+     * 记录加项选择、加价明细等上下文，便于结算追溯
+     */
+    private String addonSnapshotJson;
+    /**
+     * 模板版本 ID
+     */
+    private Long templateVersionId;
+    /**
+     * 模板快照（JSON）
+     */
+    private String templateSnapshotJson;
+    /**
+     * 价格来源快照（JSON）
+     */
+    private String priceSourceSnapshotJson;
     /**
      * 购买数量
      */
@@ -208,4 +238,3 @@ public class TradeOrderItemDO extends BaseDO {
     }
 
 }
-

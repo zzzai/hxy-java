@@ -53,4 +53,10 @@ public class TradeOrderProperties {
     @NotNull(message = "是否同步订单状态到微信小程序不能为空")
     private Boolean statusSyncToWxaEnable;
 
+    /**
+     * 售后申请时间限制（从订单完成时间开始计算）
+     * 默认 7 天，设置为 null 或 0 表示不限制
+     */
+    private Duration afterSaleExpireTime;
+
 }

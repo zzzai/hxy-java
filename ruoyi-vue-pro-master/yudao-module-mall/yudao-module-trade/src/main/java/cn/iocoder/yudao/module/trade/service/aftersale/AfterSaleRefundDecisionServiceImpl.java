@@ -1,6 +1,5 @@
 package cn.iocoder.yudao.module.trade.service.aftersale;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -9,9 +8,9 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderLogDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleOperateTypeEnum;
-import cn.iocoder.yudao.module.trade.framework.aftersale.config.TradeAfterSaleRefundRuleProperties;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleLogCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundRuleSnapshotBO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -34,36 +33,40 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_
 public class AfterSaleRefundDecisionServiceImpl implements AfterSaleRefundDecisionService {
 
     @Resource
-    private TradeAfterSaleRefundRuleProperties refundRuleProperties;
-    @Resource
     private AfterSaleMapper afterSaleMapper;
     @Resource
     private AfterSaleLogService afterSaleLogService;
+    @Resource
+    private AfterSaleRefundRuleResolver afterSaleRefundRuleResolver;
+    @Resource
+    private AfterSaleReviewTicketService afterSaleReviewTicketService;
 
     @Override
     public AfterSaleRefundDecisionBO evaluate(AfterSaleDO afterSale) {
         if (afterSale == null) {
             return AfterSaleRefundDecisionBO.manual("AFTER_SALE_NOT_FOUND", "售后单不存在");
         }
-        if (!Boolean.TRUE.equals(refundRuleProperties.getEnabled())) {
-            return AfterSaleRefundDecisionBO.auto("RULE_DISABLED", "退款风控规则未启用");
+        AfterSaleRefundRuleSnapshotBO rule = afterSaleRefundRuleResolver.resolve();
+        if (!Boolean.TRUE.equals(rule.getEnabled())) {
+            return AfterSaleRefundDecisionBO.auto("RULE_DISABLED",
+                    StrUtil.format("退款风控规则未启用（source={}）", rule.getSource()));
         }
-        if (isBlackUser(afterSale.getUserId())) {
+        if (isBlackUser(afterSale.getUserId(), rule.getBlacklistUserIds())) {
             return AfterSaleRefundDecisionBO.manual("BLACKLIST_USER", "用户命中退款黑名单");
         }
         Integer refundPrice = ObjectUtil.defaultIfNull(afterSale.getRefundPrice(), 0);
-        Integer maxAutoPrice = ObjectUtil.defaultIfNull(refundRuleProperties.getAutoRefundMaxPrice(), 0);
+        Integer maxAutoPrice = ObjectUtil.defaultIfNull(rule.getAutoRefundMaxPrice(), 0);
         if (refundPrice > maxAutoPrice) {
             return AfterSaleRefundDecisionBO.manual("AMOUNT_OVER_LIMIT",
                     StrUtil.format("退款金额{}元超过自动退款阈值{}元",
                             toYuan(refundPrice), toYuan(maxAutoPrice)));
         }
-        String keyword = hitSuspiciousKeyword(afterSale.getOrderNo());
+        String keyword = hitSuspiciousKeyword(afterSale.getOrderNo(), rule.getSuspiciousOrderKeywords());
         if (StrUtil.isNotBlank(keyword)) {
             return AfterSaleRefundDecisionBO.manual("SUSPICIOUS_ORDER",
                     StrUtil.format("订单号命中可疑关键字：{}", keyword));
         }
-        Integer dailyLimit = ObjectUtil.defaultIfNull(refundRuleProperties.getUserDailyApplyLimit(), 0);
+        Integer dailyLimit = ObjectUtil.defaultIfNull(rule.getUserDailyApplyLimit(), 0);
         if (dailyLimit > 0) {
             long todayCount = countTodayAfterSaleApply(afterSale.getUserId());
             if (todayCount > dailyLimit) {
@@ -110,6 +113,17 @@ public class AfterSaleRefundDecisionServiceImpl implements AfterSaleRefundDecisi
                 operateType.getType(),
                 content);
         afterSaleLogService.createAfterSaleLog(createReqBO);
+        if (Boolean.TRUE.equals(decision.getAutoPass())) {
+            afterSaleReviewTicketService.resolveManualReviewTicket(afterSale.getId(), operatorId, operatorType,
+                    "AUTO_PASS_RULE", "AFTER_SALE#" + afterSale.getId(), "auto-pass");
+            return;
+        }
+        if (forcePass) {
+            afterSaleReviewTicketService.resolveManualReviewTicket(afterSale.getId(), operatorId, operatorType,
+                    "FORCE_PASS_MANUAL", "AFTER_SALE#" + afterSale.getId(), "force-pass");
+            return;
+        }
+        afterSaleReviewTicketService.upsertManualReviewTicket(afterSale, decision);
     }
 
     private AfterSaleOperateTypeEnum resolveOperateType(AfterSaleRefundDecisionBO decision, boolean forcePass) {
@@ -122,18 +136,18 @@ public class AfterSaleRefundDecisionServiceImpl implements AfterSaleRefundDecisi
         return AfterSaleOperateTypeEnum.SYSTEM_REFUND_RULE_MANUAL_REVIEW;
     }
 
-    private boolean isBlackUser(Long userId) {
-        if (userId == null || CollUtil.isEmpty(refundRuleProperties.getBlacklistUserIds())) {
+    private boolean isBlackUser(Long userId, java.util.Set<Long> blacklistUserIds) {
+        if (userId == null || blacklistUserIds == null || blacklistUserIds.isEmpty()) {
             return false;
         }
-        return refundRuleProperties.getBlacklistUserIds().contains(userId);
+        return blacklistUserIds.contains(userId);
     }
 
-    private String hitSuspiciousKeyword(String orderNo) {
-        if (StrUtil.isBlank(orderNo) || CollUtil.isEmpty(refundRuleProperties.getSuspiciousOrderKeywords())) {
+    private String hitSuspiciousKeyword(String orderNo, java.util.Set<String> suspiciousOrderKeywords) {
+        if (StrUtil.isBlank(orderNo) || suspiciousOrderKeywords == null || suspiciousOrderKeywords.isEmpty()) {
             return null;
         }
-        for (String keyword : refundRuleProperties.getSuspiciousOrderKeywords()) {
+        for (String keyword : suspiciousOrderKeywords) {
             if (StrUtil.isNotBlank(keyword) && StrUtil.containsIgnoreCase(orderNo, keyword)) {
                 return keyword;
             }

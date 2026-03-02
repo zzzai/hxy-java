@@ -92,6 +92,12 @@ public class AfterSaleBaseVO {
     @NotNull(message = "退款金额，单位：分不能为空")
     private Integer refundPrice;
 
+    @Schema(description = "退款上限来源", example = "SERVICE_ORDER_SNAPSHOT")
+    private String refundLimitSource;
+
+    @Schema(description = "退款上限审计明细快照（JSON）", example = "{\"upperBound\":2600}")
+    private String refundLimitDetailJson;
+
     @Schema(description = "支付退款编号", example = "10271")
     private Long payRefundId;
 

@@ -102,6 +102,15 @@ public interface BrokerageUserService {
     Long getBrokerageUserCountByBindUserId(Long bindUserId, Integer level);
 
     /**
+     * 批量获得推广用户数量
+     *
+     * @param bindUserIds 绑定的推广员编号集合
+     * @param level       推广用户等级
+     * @return 推广用户数量 Map（key: 推广员编号, value: 推广用户数量）
+     */
+    java.util.Map<Long, Long> getBrokerageUserCountMapByBindUserIds(java.util.Collection<Long> bindUserIds, Integer level);
+
+    /**
      * 【会员】绑定推广员
      *
      * @param userId     用户编号

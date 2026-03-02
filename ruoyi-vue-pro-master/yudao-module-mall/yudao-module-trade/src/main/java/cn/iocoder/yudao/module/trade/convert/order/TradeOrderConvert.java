@@ -109,7 +109,7 @@ public interface TradeOrderConvert {
         String subject = orderItems.get(0).getSpuName();
         subject = StrUtils.maxLength(subject, PayOrderCreateReqDTO.SUBJECT_MAX_LENGTH); // 避免超过 32 位
         createReqDTO.setSubject(subject);
-        createReqDTO.setBody(subject); // TODO 芋艿：临时写死
+        createReqDTO.setBody(subject); // body 使用商品名称作为订单描述
         // 订单相关字段
         createReqDTO.setPrice(order.getPayPrice()).setExpireTime(addTime(orderProperties.getPayExpireTime()));
         return createReqDTO;
@@ -229,6 +229,10 @@ public interface TradeOrderConvert {
             // 情况一：skuId + count
             if (item.getSkuId() != null) {
                 reqBO.getItems().add(new TradePriceCalculateReqBO.Item().setSkuId(item.getSkuId()).setCount(item.getCount())
+                        .setAddonType(item.getAddonType()).setAddonSnapshotJson(item.getAddonSnapshotJson())
+                        .setTemplateVersionId(item.getTemplateVersionId())
+                        .setTemplateSnapshotJson(item.getTemplateSnapshotJson())
+                        .setPriceSourceSnapshotJson(item.getPriceSourceSnapshotJson())
                         .setSelected(true)); // true 的原因，下单一定选中
                 continue;
             }
@@ -238,6 +242,10 @@ public interface TradeOrderConvert {
                 continue;
             }
             reqBO.getItems().add(new TradePriceCalculateReqBO.Item().setSkuId(cart.getSkuId()).setCount(cart.getCount())
+                    .setAddonType(item.getAddonType()).setAddonSnapshotJson(item.getAddonSnapshotJson())
+                    .setTemplateVersionId(item.getTemplateVersionId())
+                    .setTemplateSnapshotJson(item.getTemplateSnapshotJson())
+                    .setPriceSourceSnapshotJson(item.getPriceSourceSnapshotJson())
                     .setCartId(item.getCartId()).setSelected(true)); // true 的原因，下单一定选中
         }
         return reqBO;

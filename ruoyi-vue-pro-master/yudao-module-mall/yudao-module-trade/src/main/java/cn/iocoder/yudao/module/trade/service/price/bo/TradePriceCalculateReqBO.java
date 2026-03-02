@@ -121,5 +121,32 @@ public class TradePriceCalculateReqBO {
         @NotNull(message = "是否选中不能为空")
         private Boolean selected;
 
+        /**
+         * 服务加项类型
+         *
+         * 1=加钟 2=升级 3=加项目；为空表示普通下单
+         */
+        private Integer addonType;
+
+        /**
+         * 服务加项快照（JSON）
+         */
+        private String addonSnapshotJson;
+
+        /**
+         * 模板版本 ID
+         */
+        private Long templateVersionId;
+
+        /**
+         * 模板快照（JSON）
+         */
+        private String templateSnapshotJson;
+
+        /**
+         * 价格来源快照（JSON）
+         */
+        private String priceSourceSnapshotJson;
+
     }
 }

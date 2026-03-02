@@ -233,6 +233,37 @@ public class TradePriceCalculateRespBO {
          * 分类编号
          */
         private Long categoryId;
+        /**
+         * 商品类型
+         *
+         * 1=实物 2=服务 3=卡项 4=虚拟
+         */
+        private Integer productType;
+        /**
+         * 服务加项类型
+         *
+         * 1=加钟 2=升级 3=加项目；为空表示普通订单项
+         */
+        private Integer addonType;
+        /**
+         * 服务加项快照（JSON）
+         */
+        private String addonSnapshotJson;
+
+        /**
+         * 模板版本 ID
+         */
+        private Long templateVersionId;
+
+        /**
+         * 模板快照（JSON）
+         */
+        private String templateSnapshotJson;
+
+        /**
+         * 价格来源快照（JSON）
+         */
+        private String priceSourceSnapshotJson;
 
         // ========== 物流相关字段 =========
 

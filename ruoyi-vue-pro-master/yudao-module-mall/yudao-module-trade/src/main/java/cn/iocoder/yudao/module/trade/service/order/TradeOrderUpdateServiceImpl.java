@@ -23,6 +23,7 @@ import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundCreateReqDTO;
 import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundRespDTO;
 import cn.iocoder.yudao.module.pay.enums.order.PayOrderStatusEnum;
 import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
+import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.product.api.comment.ProductCommentApi;
 import cn.iocoder.yudao.module.product.api.comment.dto.ProductCommentCreateReqDTO;
 import cn.iocoder.yudao.module.promotion.api.combination.CombinationRecordApi;
@@ -378,6 +379,12 @@ public class TradeOrderUpdateServiceImpl implements TradeOrderUpdateService {
         // 1.2 校验 deliveryType 是否为快递，是快递才可以发货
         if (ObjectUtil.notEqual(order.getDeliveryType(), DeliveryTypeEnum.EXPRESS.getType())) {
             throw exception(ORDER_DELIVERY_FAIL_DELIVERY_TYPE_NOT_EXPRESS);
+        }
+        // 1.3 服务商品禁止走物流发货分支，必须走服务履约链路
+        List<TradeOrderItemDO> orderItems = tradeOrderItemMapper.selectListByOrderId(order.getId());
+        if (CollUtil.isNotEmpty(orderItems) && orderItems.stream()
+                .anyMatch(orderItem -> ProductTypeEnum.isService(orderItem.getProductType()))) {
+            throw exception(ORDER_DELIVERY_FAIL_CONTAINS_SERVICE_ITEM);
         }
 
         // 2. 更新订单为已发货
