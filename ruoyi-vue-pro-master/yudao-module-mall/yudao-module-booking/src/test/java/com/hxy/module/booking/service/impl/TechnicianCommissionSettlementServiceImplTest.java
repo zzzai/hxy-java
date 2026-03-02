@@ -208,6 +208,11 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
         int count = service.expireOverduePending(200);
 
         assertEquals(1, count);
+        ArgumentCaptor<TechnicianCommissionSettlementDO> settlementCaptor =
+                ArgumentCaptor.forClass(TechnicianCommissionSettlementDO.class);
+        verify(settlementMapper).updateByIdAndStatus(eq(5L), eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                settlementCaptor.capture());
+        assertEquals(CommissionSettlementStatusEnum.VOIDED.getStatus(), settlementCaptor.getValue().getStatus());
         verify(commissionMapper).clearSettlementBindingBySettlementId(5L, CommissionStatusEnum.PENDING.getStatus());
     }
 
@@ -548,6 +553,14 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
         when(settlementMapper.selectById(6L)).thenReturn(settlement);
 
         assertThrows(ServiceException.class, () -> service.approve(6L, 1L, "非法审批"));
+    }
+
+    @Test
+    void shouldThrowWhenSubmitFromIllegalStatus() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(7L, CommissionSettlementStatusEnum.REJECTED.getStatus());
+        when(settlementMapper.selectById(7L)).thenReturn(settlement);
+
+        assertThrows(ServiceException.class, () -> service.submitForReview(7L, 60, "重复提审"));
     }
 
     private static TechnicianCommissionDO buildCommission(Long id, Long technicianId, Long storeId, Integer amount) {

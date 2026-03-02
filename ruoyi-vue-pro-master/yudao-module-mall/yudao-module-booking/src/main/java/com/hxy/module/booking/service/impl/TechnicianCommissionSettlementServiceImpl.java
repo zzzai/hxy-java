@@ -242,12 +242,12 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
             int updated = settlementMapper.updateByIdAndStatus(settlement.getId(),
                     CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
                     new TechnicianCommissionSettlementDO()
-                            .setStatus(CommissionSettlementStatusEnum.EXPIRED.getStatus())
+                            .setStatus(CommissionSettlementStatusEnum.VOIDED.getStatus())
                             .setRejectReason("SLA_EXPIRED"));
             if (updated > 0) {
                 commissionMapper.clearSettlementBindingBySettlementId(settlement.getId(), CommissionStatusEnum.PENDING.getStatus());
                 appendLog(settlement.getId(), LOG_ACTION_EXPIRE, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
-                        CommissionSettlementStatusEnum.EXPIRED.getStatus(), null, OPERATOR_TYPE_SYSTEM, "SLA_EXPIRED");
+                        CommissionSettlementStatusEnum.VOIDED.getStatus(), null, OPERATOR_TYPE_SYSTEM, "SLA_EXPIRED");
                 affected++;
             }
         }

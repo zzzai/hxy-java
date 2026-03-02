@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission_settlement`
     `settlement_no`        VARCHAR(64) NOT NULL DEFAULT '' COMMENT '结算单号',
     `store_id`             BIGINT               DEFAULT NULL COMMENT '门店ID',
     `technician_id`        BIGINT      NOT NULL COMMENT '技师ID',
-    `status`               TINYINT     NOT NULL DEFAULT 0 COMMENT '状态 0草稿 10待审 20已审 30驳回 40超时 50已打款',
+    `status`               TINYINT     NOT NULL DEFAULT 0 COMMENT '状态 0草稿 10待审 20已审 30驳回 40作废 50已打款',
     `commission_count`     INT         NOT NULL DEFAULT 0 COMMENT '佣金条目数',
     `total_commission_amount` INT      NOT NULL DEFAULT 0 COMMENT '佣金总额（分）',
     `review_submit_time`   DATETIME             DEFAULT NULL COMMENT '提审时间',
