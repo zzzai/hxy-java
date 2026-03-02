@@ -499,6 +499,29 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
     }
 
     @Test
+    void shouldAttachLastActionDimensionsWhenGetSettlementPage() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(104L, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+        TechnicianCommissionSettlementPageReqVO reqVO = new TechnicianCommissionSettlementPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        when(settlementMapper.selectPage(reqVO)).thenReturn(new PageResult<>(Collections.singletonList(settlement), 1L));
+        TechnicianCommissionSettlementLogDO latestLog = new TechnicianCommissionSettlementLogDO();
+        latestLog.setSettlementId(104L);
+        latestLog.setAction("SUBMIT_REVIEW");
+        latestLog.setOperateRemark("BIZ#SET104");
+        latestLog.setActionTime(LocalDateTime.now());
+        when(settlementLogMapper.selectLatestListBySettlementIds(List.of(104L)))
+                .thenReturn(Collections.singletonList(latestLog));
+
+        PageResult<TechnicianCommissionSettlementDO> result = service.getSettlementPage(reqVO);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals("SUBMIT_REVIEW", result.getList().get(0).getLastActionCode());
+        assertEquals("BIZ#SET104", result.getList().get(0).getLastActionBizNo());
+        assertNotNull(result.getList().get(0).getLastActionTime());
+    }
+
+    @Test
     void shouldRetryFailedNotifyOutbox() {
         TechnicianCommissionSettlementNotifyOutboxDO outbox = new TechnicianCommissionSettlementNotifyOutboxDO();
         outbox.setId(201L);

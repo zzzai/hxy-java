@@ -63,6 +63,15 @@ public class TechnicianCommissionSettlementRespVO {
     @Schema(description = "打款备注")
     private String payRemark;
 
+    @Schema(description = "最近审计动作编码")
+    private String lastActionCode;
+
+    @Schema(description = "最近审计业务号")
+    private String lastActionBizNo;
+
+    @Schema(description = "最近审计动作时间")
+    private LocalDateTime lastActionTime;
+
     @Schema(description = "备注")
     private String remark;
 

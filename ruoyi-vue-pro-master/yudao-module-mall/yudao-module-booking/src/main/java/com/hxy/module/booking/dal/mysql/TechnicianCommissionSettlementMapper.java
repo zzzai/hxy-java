@@ -1,6 +1,7 @@
 package com.hxy.module.booking.dal.mysql;
 
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
@@ -27,6 +28,37 @@ public interface TechnicianCommissionSettlementMapper extends BaseMapperX<Techni
                 .eqIfPresent(TechnicianCommissionSettlementDO::getReviewEscalated, reqVO.getReviewEscalated())
                 .betweenIfPresent(TechnicianCommissionSettlementDO::getReviewDeadlineTime, reqVO.getReviewDeadlineTime())
                 .orderByDesc(TechnicianCommissionSettlementDO::getId);
+        if (StrUtil.isNotBlank(reqVO.getLastActionCode())) {
+            queryWrapper.apply("EXISTS (SELECT 1 FROM technician_commission_settlement_log l " +
+                            "WHERE l.settlement_id = technician_commission_settlement.id " +
+                            "AND l.deleted = 0 " +
+                            "AND l.id = (SELECT MAX(l2.id) FROM technician_commission_settlement_log l2 " +
+                            "WHERE l2.settlement_id = technician_commission_settlement.id AND l2.deleted = 0) " +
+                            "AND l.action = {0})",
+                    reqVO.getLastActionCode());
+        }
+        if (StrUtil.isNotBlank(reqVO.getLastActionBizNo())) {
+            queryWrapper.apply("EXISTS (SELECT 1 FROM technician_commission_settlement_log l " +
+                            "WHERE l.settlement_id = technician_commission_settlement.id " +
+                            "AND l.deleted = 0 " +
+                            "AND l.id = (SELECT MAX(l2.id) FROM technician_commission_settlement_log l2 " +
+                            "WHERE l2.settlement_id = technician_commission_settlement.id AND l2.deleted = 0) " +
+                            "AND l.operate_remark = {0})",
+                    reqVO.getLastActionBizNo());
+        }
+        LocalDateTime[] lastActionTimeRange = reqVO.getLastActionTime();
+        if (lastActionTimeRange != null
+                && lastActionTimeRange.length == 2
+                && lastActionTimeRange[0] != null
+                && lastActionTimeRange[1] != null) {
+            queryWrapper.apply("EXISTS (SELECT 1 FROM technician_commission_settlement_log l " +
+                            "WHERE l.settlement_id = technician_commission_settlement.id " +
+                            "AND l.deleted = 0 " +
+                            "AND l.id = (SELECT MAX(l2.id) FROM technician_commission_settlement_log l2 " +
+                            "WHERE l2.settlement_id = technician_commission_settlement.id AND l2.deleted = 0) " +
+                            "AND l.action_time >= {0} AND l.action_time <= {1})",
+                    lastActionTimeRange[0], lastActionTimeRange[1]);
+        }
         if (reqVO.getOverdue() != null) {
             LocalDateTime now = LocalDateTime.now();
             if (Boolean.TRUE.equals(reqVO.getOverdue())) {

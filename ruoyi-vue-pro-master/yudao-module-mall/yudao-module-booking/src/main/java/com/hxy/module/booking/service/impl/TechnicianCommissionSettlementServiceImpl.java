@@ -370,23 +370,29 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
 
     @Override
     public TechnicianCommissionSettlementDO getSettlement(Long id) {
-        return settlementMapper.selectById(id);
+        return attachLastAction(settlementMapper.selectById(id));
     }
 
     @Override
     public PageResult<TechnicianCommissionSettlementDO> getSettlementPage(TechnicianCommissionSettlementPageReqVO pageReqVO) {
-        return settlementMapper.selectPage(pageReqVO);
+        PageResult<TechnicianCommissionSettlementDO> pageResult = settlementMapper.selectPage(pageReqVO);
+        attachLastActionFields(pageResult.getList());
+        return pageResult;
     }
 
     @Override
     public List<TechnicianCommissionSettlementDO> getSettlementList(Long technicianId, Integer status) {
-        return settlementMapper.selectListByTechnicianAndStatus(technicianId, status);
+        List<TechnicianCommissionSettlementDO> list = settlementMapper.selectListByTechnicianAndStatus(technicianId, status);
+        attachLastActionFields(list);
+        return list;
     }
 
     @Override
     public List<TechnicianCommissionSettlementDO> getSlaOverduePendingList(Integer limit) {
-        return settlementMapper.selectListByStatusAndReviewDeadlineBefore(
+        List<TechnicianCommissionSettlementDO> list = settlementMapper.selectListByStatusAndReviewDeadlineBefore(
                 CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(), LocalDateTime.now(), limit);
+        attachLastActionFields(list);
+        return list;
     }
 
     @Override
@@ -495,6 +501,50 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
                 .skippedNotExistsIds(skippedNotExistsIds)
                 .skippedStatusInvalidIds(skippedStatusInvalidIds)
                 .build();
+    }
+
+    private TechnicianCommissionSettlementDO attachLastAction(TechnicianCommissionSettlementDO settlement) {
+        if (settlement == null) {
+            return null;
+        }
+        attachLastActionFields(Collections.singletonList(settlement));
+        return settlement;
+    }
+
+    private void attachLastActionFields(List<TechnicianCommissionSettlementDO> settlements) {
+        if (settlements == null || settlements.isEmpty()) {
+            return;
+        }
+        List<Long> settlementIds = settlements.stream()
+                .filter(Objects::nonNull)
+                .map(TechnicianCommissionSettlementDO::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (settlementIds.isEmpty()) {
+            return;
+        }
+        Map<Long, TechnicianCommissionSettlementLogDO> latestLogMap = settlementLogMapper
+                .selectLatestListBySettlementIds(settlementIds).stream()
+                .filter(Objects::nonNull)
+                .filter(log -> log.getSettlementId() != null)
+                .collect(Collectors.toMap(TechnicianCommissionSettlementLogDO::getSettlementId,
+                        log -> log, (first, second) -> first));
+        for (TechnicianCommissionSettlementDO settlement : settlements) {
+            if (settlement == null) {
+                continue;
+            }
+            TechnicianCommissionSettlementLogDO latestLog = latestLogMap.get(settlement.getId());
+            if (latestLog == null) {
+                settlement.setLastActionCode(null);
+                settlement.setLastActionBizNo(null);
+                settlement.setLastActionTime(null);
+                continue;
+            }
+            settlement.setLastActionCode(latestLog.getAction());
+            settlement.setLastActionBizNo(latestLog.getOperateRemark());
+            settlement.setLastActionTime(latestLog.getActionTime());
+        }
     }
 
     private TechnicianCommissionSettlementDO getRequiredSettlement(Long settlementId) {

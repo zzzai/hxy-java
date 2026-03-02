@@ -44,4 +44,14 @@ public class TechnicianCommissionSettlementPageReqVO extends PageParam {
 
     @Schema(description = "是否超时（仅待审核状态按截止时间判定）")
     private Boolean overdue;
+
+    @Schema(description = "最近审计动作编码", example = "SUBMIT_REVIEW")
+    private String lastActionCode;
+
+    @Schema(description = "最近审计业务号", example = "BIZ#SET20260302")
+    private String lastActionBizNo;
+
+    @Schema(description = "最近审计动作时间范围")
+    @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
+    private LocalDateTime[] lastActionTime;
 }

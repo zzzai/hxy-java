@@ -2,6 +2,7 @@ package com.hxy.module.booking.dal.dataobject;
 
 import cn.iocoder.yudao.framework.mybatis.core.dataobject.BaseDO;
 import com.baomidou.mybatisplus.annotation.KeySequence;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
@@ -86,6 +87,18 @@ public class TechnicianCommissionSettlementDO extends BaseDO {
 
     /** 打款备注 */
     private String payRemark;
+
+    /** 最近审计动作编码（最新操作日志） */
+    @TableField(exist = false)
+    private String lastActionCode;
+
+    /** 最近审计业务号（最新操作日志） */
+    @TableField(exist = false)
+    private String lastActionBizNo;
+
+    /** 最近审计动作时间（最新操作日志） */
+    @TableField(exist = false)
+    private LocalDateTime lastActionTime;
 
     /** 备注 */
     private String remark;
