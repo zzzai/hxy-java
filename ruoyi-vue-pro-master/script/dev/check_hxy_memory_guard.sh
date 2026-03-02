@@ -49,10 +49,6 @@ if ! command -v git >/dev/null 2>&1; then
   echo "[hxy-memory-guard][FAIL] missing command: git" >&2
   exit 1
 fi
-if ! command -v rg >/dev/null 2>&1; then
-  echo "[hxy-memory-guard][FAIL] missing command: rg" >&2
-  exit 1
-fi
 
 for file in "${CORE_MEMORY_FILES[@]}" "${MEMORY_INDEX_FILE}"; do
   if [[ ! -f "${REPO_ROOT}/${file}" ]]; then
@@ -227,7 +223,7 @@ done
 
 declare -a MISSING_INDEX_DOMAINS=()
 for domain in "${CORE_DOMAINS[@]}"; do
-  if ! rg -n "^  ${domain}:" "${REPO_ROOT}/${MEMORY_INDEX_FILE}" >/dev/null; then
+  if ! grep -Eq "^  ${domain}:" "${REPO_ROOT}/${MEMORY_INDEX_FILE}"; then
     MISSING_INDEX_DOMAINS+=("${domain}")
   fi
 done
