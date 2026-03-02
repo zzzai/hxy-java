@@ -28,6 +28,14 @@ require_cmd() {
 require_cmd jq
 require_cmd mysql
 
+normalize_pem_content() {
+  local content="$1"
+  content="${content//$'\r'/}"
+  # Handle both real multi-line PEM and single-line PEM with literal \n.
+  content="${content//\\n/$'\n'}"
+  printf '%s' "${content}"
+}
+
 require_env DB_USER
 require_env DB_PASSWORD
 require_env DB_NAME
@@ -47,20 +55,22 @@ SUB_APP_ID="${SUB_APP_ID:-}"
 PUBLIC_KEY_FILE="${PUBLIC_KEY_FILE:-}"
 PARTNER_MODE="${PARTNER_MODE:-true}"
 DRY_RUN="${DRY_RUN:-0}"
+PAY_CLIENT_CONFIG_CLASS="${PAY_CLIENT_CONFIG_CLASS:-cn.iocoder.yudao.module.pay.framework.pay.core.client.impl.weixin.WxPayClientConfig}"
 
 require_file "${PRIVATE_KEY_FILE}"
 if [[ -n "${PUBLIC_KEY_FILE}" ]]; then
   require_file "${PUBLIC_KEY_FILE}"
 fi
 
-PRIVATE_KEY_CONTENT="$(cat "${PRIVATE_KEY_FILE}")"
+PRIVATE_KEY_CONTENT="$(normalize_pem_content "$(cat "${PRIVATE_KEY_FILE}")")"
 PUBLIC_KEY_CONTENT=""
 if [[ -n "${PUBLIC_KEY_FILE}" ]]; then
-  PUBLIC_KEY_CONTENT="$(cat "${PUBLIC_KEY_FILE}")"
+  PUBLIC_KEY_CONTENT="$(normalize_pem_content "$(cat "${PUBLIC_KEY_FILE}")")"
 fi
 
 CONFIG_JSON="$(
   jq -cn \
+    --arg payClientConfigClass "${PAY_CLIENT_CONFIG_CLASS}" \
     --arg appId "${SP_APP_ID}" \
     --arg mchId "${SP_MCH_ID}" \
     --arg apiVersion "v3" \
@@ -74,6 +84,7 @@ CONFIG_JSON="$(
     --arg partnerMode "${PARTNER_MODE}" \
     '
     {
+      "@class": $payClientConfigClass,
       appId: $appId,
       mchId: $mchId,
       apiVersion: $apiVersion,
@@ -98,10 +109,11 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   exit 0
 fi
 
-MYSQL_PWD="${DB_PASSWORD}" mysql \
+mysql \
   -h "${DB_HOST}" \
   -P "${DB_PORT}" \
   -u "${DB_USER}" \
+  --password="${DB_PASSWORD}" \
   --default-character-set=utf8mb4 \
   "${DB_NAME}" <<SQL
 SET NAMES utf8mb4;

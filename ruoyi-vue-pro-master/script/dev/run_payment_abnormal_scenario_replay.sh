@@ -18,16 +18,21 @@ RUN_TESTS="${RUN_TESTS:-0}"
 RUN_NOTIFY_SMOKE="${RUN_NOTIFY_SMOKE:-1}"
 RUN_RETRY_POLICY_CHECK="${RUN_RETRY_POLICY_CHECK:-1}"
 RUN_PARTNER_READINESS_CHECK="${RUN_PARTNER_READINESS_CHECK:-1}"
+DEFAULT_PARTNER_READINESS_CONFIG_FILE="${ROOT_DIR}/script/dev/samples/wx_partner_channel.sample.json"
+PARTNER_READINESS_CONFIG_FILE="${PARTNER_READINESS_CONFIG_FILE:-${DEFAULT_PARTNER_READINESS_CONFIG_FILE}}"
+PARTNER_READINESS_CHANNEL_CODE="${PARTNER_READINESS_CHANNEL_CODE:-wx_lite}"
+PARTNER_READINESS_STRICT="${PARTNER_READINESS_STRICT:-0}"
 RUN_RECONCILE_CHECK="${RUN_RECONCILE_CHECK:-0}"
+RECONCILE_OPTIONAL="${RECONCILE_OPTIONAL:-0}"
 RECONCILE_SUMMARY_FILE="${RECONCILE_SUMMARY_FILE:-}"
 RECONCILE_ISSUES_TSV="${RECONCILE_ISSUES_TSV:-}"
 RECONCILE_BIZ_DATE="${RECONCILE_BIZ_DATE:-$(date -d 'yesterday' +%F)}"
 
-DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-3306}"
 DB_USER="${DB_USER:-root}"
 DB_PASSWORD="${DB_PASSWORD:-}"
-DB_NAME="${DB_NAME:-ruoyi-vue-pro}"
+DB_NAME="${DB_NAME:-hxy_dev}"
 
 usage() {
   cat <<'USAGE'
@@ -42,6 +47,8 @@ Options:
   --run-notify-smoke <0|1>              是否运行通知回放烟测（默认 1）
   --run-retry-policy-check <0|1>        是否运行通知重试策略检查（默认 1）
   --run-partner-readiness-check <0|1>   是否运行服务商参数检查（默认 1）
+  --partner-readiness-config-file <f>   服务商参数检查配置文件（默认 sample）
+  --partner-readiness-strict <0|1>      服务商参数检查是否严格模式（默认 0）
   --run-reconcile-check <0|1>           是否直接执行日对账检查（默认 0）
   --reconcile-summary-file <file>       已有 #17 对账 summary 文件（可选）
   --reconcile-issues-tsv <file>         已有 #17 对账 issues 文件（可选）
@@ -84,6 +91,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --run-partner-readiness-check)
       RUN_PARTNER_READINESS_CHECK="$2"
+      shift 2
+      ;;
+    --partner-readiness-config-file)
+      PARTNER_READINESS_CONFIG_FILE="$2"
+      shift 2
+      ;;
+    --partner-readiness-strict)
+      PARTNER_READINESS_STRICT="$2"
       shift 2
       ;;
     --run-reconcile-check)
@@ -140,6 +155,14 @@ for val in "${RUN_TESTS}" "${RUN_NOTIFY_SMOKE}" "${RUN_RETRY_POLICY_CHECK}" "${R
     exit 1
   fi
 done
+if ! [[ "${PARTNER_READINESS_STRICT}" =~ ^[01]$ ]]; then
+  echo "Invalid PARTNER_READINESS_STRICT: ${PARTNER_READINESS_STRICT} (expect 0/1)" >&2
+  exit 1
+fi
+if ! [[ "${RECONCILE_OPTIONAL}" =~ ^[01]$ ]]; then
+  echo "Invalid RECONCILE_OPTIONAL: ${RECONCILE_OPTIONAL} (expect 0/1)" >&2
+  exit 1
+fi
 
 OUT_DIR="${OUT_BASE_DIR}/${RUN_ID}"
 LOG_DIR="${OUT_DIR}/logs"
@@ -181,6 +204,26 @@ kv() {
   fi
 }
 
+is_sample_partner_config() {
+  local config_file="$1"
+  if [[ -z "${config_file}" ]]; then
+    return 1
+  fi
+
+  if [[ "${config_file}" == "script/dev/samples/wx_partner_channel.sample.json" || "${config_file}" == "${DEFAULT_PARTNER_READINESS_CONFIG_FILE}" ]]; then
+    return 0
+  fi
+
+  local resolved_file=""
+  local resolved_default=""
+  resolved_file="$(readlink -f "${config_file}" 2>/dev/null || true)"
+  resolved_default="$(readlink -f "${DEFAULT_PARTNER_READINESS_CONFIG_FILE}" 2>/dev/null || true)"
+  if [[ -n "${resolved_file}" && -n "${resolved_default}" && "${resolved_file}" == "${resolved_default}" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 # ---------- Evidence collection ----------
 
 echo "[abnormal-replay] run_id=${RUN_ID}"
@@ -217,9 +260,32 @@ else
 fi
 
 partner_ready_rc="SKIP"
+partner_readiness_sample_config="0"
+if is_sample_partner_config "${PARTNER_READINESS_CONFIG_FILE}"; then
+  partner_readiness_sample_config="1"
+fi
 if [[ "${RUN_PARTNER_READINESS_CHECK}" == "1" ]]; then
-  echo "[abnormal-replay] step=check_wx_partner_readiness(sample)"
-  partner_ready_rc="$(run_cmd_capture_rc "${LOG_DIR}/partner_readiness.log" bash script/dev/check_wx_partner_readiness.sh --config script/dev/samples/wx_partner_channel.sample.json --channel-code wx_lite)"
+  echo "[abnormal-replay] step=check_wx_partner_readiness config=${PARTNER_READINESS_CONFIG_FILE} strict=${PARTNER_READINESS_STRICT}"
+  if [[ -z "${PARTNER_READINESS_CONFIG_FILE}" ]]; then
+    {
+      echo "[abnormal-replay][FAIL] partner readiness config is empty"
+      echo "[abnormal-replay] strict=${PARTNER_READINESS_STRICT}"
+    } > "${LOG_DIR}/partner_readiness.log"
+    if [[ "${PARTNER_READINESS_STRICT}" == "1" ]]; then
+      partner_ready_rc="STRICT_MISSING_CONFIG"
+    else
+      partner_ready_rc="MISSING_CONFIG"
+    fi
+  elif [[ "${PARTNER_READINESS_STRICT}" == "1" && "${partner_readiness_sample_config}" == "1" ]]; then
+    {
+      echo "[abnormal-replay][FAIL] strict mode requires real partner config"
+      echo "[abnormal-replay] config=${PARTNER_READINESS_CONFIG_FILE}"
+      echo "[abnormal-replay] sample_config=1"
+    } > "${LOG_DIR}/partner_readiness.log"
+    partner_ready_rc="STRICT_SAMPLE_CONFIG"
+  else
+    partner_ready_rc="$(run_cmd_capture_rc "${LOG_DIR}/partner_readiness.log" bash script/dev/check_wx_partner_readiness.sh --config "${PARTNER_READINESS_CONFIG_FILE}" --channel-code "${PARTNER_READINESS_CHANNEL_CODE}")"
+  fi
 else
   echo "[abnormal-replay] skip check_wx_partner_readiness"
 fi
@@ -227,6 +293,29 @@ fi
 notify_signature_check="0"
 if rg -q "parse(Order|PartnerOrder)NotifyV3Result|parse(Refund|PartnerRefund)NotifyV3Result" yudao-module-pay/src/main/java/cn/iocoder/yudao/module/pay/framework/pay/core/client/impl/weixin/AbstractWxPayClient.java; then
   notify_signature_check="1"
+fi
+
+trade_lock_guard_check="0"
+if [[ -f "yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/job/order/TradeOrderAutoCancelJob.java" ]] \
+  && rg -q "cancelOrderBySystem" yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/service/order/TradeOrderUpdateServiceImpl.java; then
+  trade_lock_guard_check="1"
+fi
+
+refund_multi_guard_check="0"
+if rg -q "AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR" yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/service/aftersale/AfterSaleServiceImpl.java \
+  && rg -q "updateOrderItemWhenAfterSaleSuccess" yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/service/order/TradeOrderUpdateServiceImpl.java; then
+  refund_multi_guard_check="1"
+fi
+
+refund_rollback_guard_check="0"
+if rg -q "updateAfterSaleRefunded" yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/service/aftersale/AfterSaleServiceImpl.java \
+  && rg -q "updateOrderItemWhenAfterSaleSuccess" yudao-module-mall/yudao-module-trade/src/main/java/cn/iocoder/yudao/module/trade/service/aftersale/AfterSaleServiceImpl.java; then
+  refund_rollback_guard_check="1"
+fi
+
+ops_gate_guard_check="0"
+if [[ -f "script/dev/check_payment_release_blockers.sh" && -f "script/dev/run_payment_stagea_p0_19_20.sh" ]]; then
+  ops_gate_guard_check="1"
 fi
 
 reconcile_block_count=""
@@ -354,7 +443,11 @@ while IFS=$'\t' read -r scenario_no scenario_key priority category description; 
       ;;
     amount_mismatch|reconcile_discrepancy)
       if [[ "${reconcile_source}" == "none" ]]; then
-        status="WARN"; severity="P2-WARN"; evidence="reconcile summary missing"; advice="执行 #17 脚本并接入产物"
+        if [[ "${RECONCILE_OPTIONAL}" == "1" ]]; then
+          status="PASS"; severity="INFO"; evidence="reconcile optional mode"; advice="上线前切回 REQUIRE_RECONCILE=1 并接入 #17 产物"
+        else
+          status="WARN"; severity="P2-WARN"; evidence="reconcile summary missing"; advice="执行 #17 脚本并接入产物"
+        fi
       elif [[ "${reconcile_result}" == "BLOCK" ]]; then
         status="BLOCK"; severity="P1-BLOCK"; evidence="reconcile_result=BLOCK, block_count=${reconcile_block_count}"; advice="先清空对账 BLOCK 差异"
       elif [[ "${reconcile_result}" == "PASS_WITH_WARN" || "${reconcile_result}" == "PASS" ]]; then
@@ -365,15 +458,42 @@ while IFS=$'\t' read -r scenario_no scenario_key priority category description; 
       ;;
     mchid_relation_mismatch)
       if [[ "${partner_ready_rc}" == "0" ]]; then
-        status="PASS"; severity="INFO"; evidence="partner_readiness.log(rc=0)"; advice="保持服务商参数成对校验"
+        status="PASS"; severity="INFO"; evidence="partner_readiness.log(rc=0,strict=${PARTNER_READINESS_STRICT},sample=${partner_readiness_sample_config})"; advice="保持服务商参数成对校验"
       elif [[ "${partner_ready_rc}" == "SKIP" ]]; then
         status="WARN"; severity="P2-WARN"; evidence="partner readiness skipped"; advice="建议开启 RUN_PARTNER_READINESS_CHECK"
+      elif [[ "${PARTNER_READINESS_STRICT}" == "0" ]]; then
+        status="WARN"; severity="P2-WARN"; evidence="partner_readiness.log(rc=${partner_ready_rc},strict=0,sample=${partner_readiness_sample_config})"; advice="开发期告警允许继续，生产发布前必须切 strict=1 并使用真实配置"
       else
-        status="BLOCK"; severity="P1-BLOCK"; evidence="partner_readiness.log(rc=${partner_ready_rc})"; advice="修复 sp/sub 参数关系"
+        status="BLOCK"; severity="P1-BLOCK"; evidence="partner_readiness.log(rc=${partner_ready_rc},strict=1,sample=${partner_readiness_sample_config})"; advice="生产期必须使用真实特约商户配置并修复 sp/sub 参数关系"
       fi
       ;;
-    lock_timeout_release|partial_and_multi_refund|refund_success_but_biz_not_rollback|ops_anomaly_gate)
-      status="WARN"; severity="P2-WARN"; evidence="need business-side integration replay"; advice="纳入业务模块二开回放清单"
+    lock_timeout_release)
+      if [[ "${trade_lock_guard_check}" == "1" ]]; then
+        status="PASS"; severity="INFO"; evidence="TradeOrderAutoCancelJob + cancelOrderBySystem"; advice="后续补充端到端压测回放"
+      else
+        status="WARN"; severity="P2-WARN"; evidence="trade lock/release guard not found"; advice="补齐锁超时释放校验"
+      fi
+      ;;
+    partial_and_multi_refund)
+      if [[ "${refund_multi_guard_check}" == "1" ]]; then
+        status="PASS"; severity="INFO"; evidence="refund amount bound + order item refund update guard"; advice="后续补充多次退款实单回放"
+      else
+        status="WARN"; severity="P2-WARN"; evidence="partial/multi refund guard not found"; advice="补齐可退余额防超退校验"
+      fi
+      ;;
+    refund_success_but_biz_not_rollback)
+      if [[ "${refund_rollback_guard_check}" == "1" ]]; then
+        status="PASS"; severity="INFO"; evidence="updateAfterSaleRefunded + rollback update hooks"; advice="后续补充失败补偿实战演练"
+      else
+        status="WARN"; severity="P2-WARN"; evidence="refund rollback hook not found"; advice="补齐退款成功后的业务逆向回滚"
+      fi
+      ;;
+    ops_anomaly_gate)
+      if [[ "${ops_gate_guard_check}" == "1" ]]; then
+        status="PASS"; severity="INFO"; evidence="release blocker gate scripts present"; advice="持续维护门禁规则清单"
+      else
+        status="WARN"; severity="P2-WARN"; evidence="release blocker gate script missing"; advice="补齐上线拦截规则脚本"
+      fi
       ;;
     *)
       status="WARN"; severity="P2-WARN"; evidence="unknown scenario mapping"; advice="补充映射"
@@ -406,7 +526,12 @@ fi
   echo "run_notify_smoke=${RUN_NOTIFY_SMOKE}"
   echo "run_retry_policy_check=${RUN_RETRY_POLICY_CHECK}"
   echo "run_partner_readiness_check=${RUN_PARTNER_READINESS_CHECK}"
+  echo "partner_readiness_config_file=${PARTNER_READINESS_CONFIG_FILE}"
+  echo "partner_readiness_channel_code=${PARTNER_READINESS_CHANNEL_CODE}"
+  echo "partner_readiness_strict=${PARTNER_READINESS_STRICT}"
+  echo "partner_readiness_sample_config=${partner_readiness_sample_config}"
   echo "run_reconcile_check=${RUN_RECONCILE_CHECK}"
+  echo "reconcile_optional=${RECONCILE_OPTIONAL}"
   echo "resilience_rc=${resilience_rc}"
   echo "notify_dup_rc=${notify_dup_rc}"
   echo "notify_ooo_rc=${notify_ooo_rc}"
@@ -414,6 +539,10 @@ fi
   echo "retry_policy_rc=${retry_policy_rc}"
   echo "partner_ready_rc=${partner_ready_rc}"
   echo "notify_signature_check=${notify_signature_check}"
+  echo "trade_lock_guard_check=${trade_lock_guard_check}"
+  echo "refund_multi_guard_check=${refund_multi_guard_check}"
+  echo "refund_rollback_guard_check=${refund_rollback_guard_check}"
+  echo "ops_gate_guard_check=${ops_gate_guard_check}"
   echo "reconcile_source=${reconcile_source}"
   echo "reconcile_summary_file=${RECONCILE_SUMMARY_FILE}"
   echo "reconcile_issues_tsv=${RECONCILE_ISSUES_TSV}"

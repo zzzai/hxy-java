@@ -8,6 +8,7 @@ STRICT="${STRICT:-1}"
 ENFORCE_ADMINS="${ENFORCE_ADMINS:-0}"
 DRY_RUN="${DRY_RUN:-1}"
 GITHUB_API="${GITHUB_API:-https://api.github.com}"
+INCLUDE_STAGEA_CHECKS="${INCLUDE_STAGEA_CHECKS:-0}"
 
 CONTEXTS=()
 
@@ -25,16 +26,44 @@ Options:
   --enforce-admins <0|1>     是否对管理员也生效（默认 0）
   --dry-run <0|1>            是否仅打印 payload 不提交（默认 1）
   --github-api <url>         GitHub API 地址（默认 https://api.github.com）
+  --include-stagea-checks <0|1> 是否附加 stageA #17/#18 和 #19/#20（默认 0）
   -h, --help                 Show help
 
 Env:
   GITHUB_TOKEN               需要 repo admin 权限；dry-run=1 时可不提供
+  OWNER/REPO 未传时，脚本会尝试从 git remote origin 自动解析
 
 Default contexts (if none provided):
-  - crmeb-compat-regression / regression
-  - pay-notify-pipeline-smoke / smoke
-  - pay-notify-replay-acceptance / replay-acceptance
+  - hxy-crmeb-compat-regression / regression
+  - hxy-pay-notify-pipeline-smoke / smoke
+  - hxy-pay-notify-replay-acceptance / replay-acceptance
+  - hxy-naming-guard / naming-guard
+  - hxy-memory-guard / memory-guard
 USAGE
+}
+
+infer_owner_repo_from_origin() {
+  local remote_url
+  remote_url="$(git config --get remote.origin.url 2>/dev/null || true)"
+  if [[ -z "${remote_url}" ]]; then
+    return 1
+  fi
+
+  # git@github.com:owner/repo.git
+  if [[ "${remote_url}" =~ ^git@[^:]+:([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    OWNER="${BASH_REMATCH[1]}"
+    REPO="${BASH_REMATCH[2]}"
+    return 0
+  fi
+
+  # https://github.com/owner/repo.git
+  if [[ "${remote_url}" =~ ^https?://[^/]+/([^/]+)/([^/.]+)(\.git)?$ ]]; then
+    OWNER="${BASH_REMATCH[1]}"
+    REPO="${BASH_REMATCH[2]}"
+    return 0
+  fi
+
+  return 1
 }
 
 while [[ $# -gt 0 ]]; do
@@ -71,6 +100,10 @@ while [[ $# -gt 0 ]]; do
       GITHUB_API="$2"
       shift 2
       ;;
+    --include-stagea-checks)
+      INCLUDE_STAGEA_CHECKS="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -84,8 +117,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${OWNER}" || -z "${REPO}" ]]; then
-  echo "Missing --owner/--repo (or OWNER/REPO env)" >&2
-  exit 1
+  if ! infer_owner_repo_from_origin; then
+    echo "Missing --owner/--repo (or OWNER/REPO env), and failed to infer from git remote origin" >&2
+    exit 1
+  fi
 fi
 if ! [[ "${STRICT}" =~ ^[01]$ ]]; then
   echo "Invalid --strict: ${STRICT}" >&2
@@ -99,12 +134,25 @@ if ! [[ "${DRY_RUN}" =~ ^[01]$ ]]; then
   echo "Invalid --dry-run: ${DRY_RUN}" >&2
   exit 1
 fi
+if ! [[ "${INCLUDE_STAGEA_CHECKS}" =~ ^[01]$ ]]; then
+  echo "Invalid --include-stagea-checks: ${INCLUDE_STAGEA_CHECKS}" >&2
+  exit 1
+fi
 
 if [[ ${#CONTEXTS[@]} -eq 0 ]]; then
   CONTEXTS=(
-    "crmeb-compat-regression / regression"
-    "pay-notify-pipeline-smoke / smoke"
-    "pay-notify-replay-acceptance / replay-acceptance"
+    "hxy-crmeb-compat-regression / regression"
+    "hxy-pay-notify-pipeline-smoke / smoke"
+    "hxy-pay-notify-replay-acceptance / replay-acceptance"
+    "hxy-naming-guard / naming-guard"
+    "hxy-memory-guard / memory-guard"
+  )
+fi
+
+if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
+  CONTEXTS+=(
+    "hxy-payment-stagea-p0-17-18 / stagea-p0-17-18"
+    "hxy-payment-stagea-p0-19-20 / stagea-p0-19-20"
   )
 fi
 
@@ -156,6 +204,7 @@ echo "[github-required-checks] repo=${REPO}"
 echo "[github-required-checks] branch=${BRANCH}"
 echo "[github-required-checks] strict=${STRICT}"
 echo "[github-required-checks] enforce_admins=${ENFORCE_ADMINS}"
+echo "[github-required-checks] include_stagea_checks=${INCLUDE_STAGEA_CHECKS}"
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
   echo "[github-required-checks] context=${ctx}"

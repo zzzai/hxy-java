@@ -8,7 +8,7 @@ DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-3306}"
 DB_USER="${DB_USER:-root}"
 DB_PASSWORD="${DB_PASSWORD:-}"
-DB_NAME="${DB_NAME:-ruoyi-vue-pro}"
+DB_NAME="${DB_NAME:-hxy_dev}"
 
 MERCHANT_ORDER_ID=""
 LOOKBACK_HOURS="${LOOKBACK_HOURS:-48}"
@@ -29,7 +29,7 @@ Options:
   --db-port <port>            MySQL port (default: 3306)
   --db-user <user>            MySQL user (default: root)
   --db-password <password>    MySQL password (default: env DB_PASSWORD)
-  --db-name <name>            Database name (default: ruoyi-vue-pro)
+  --db-name <name>            Database name (default: hxy_dev)
   --lookback-hours <hours>    观察窗口（默认 48）
   --grace-minutes <minutes>   回调任务宽限期（默认 10）
   -h, --help                  Show help

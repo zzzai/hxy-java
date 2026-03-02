@@ -1,4 +1,4 @@
-name: payment-stagea-p0-19-20
+name: hxy-payment-stagea-p0-19-20
 
 on:
   push:
@@ -6,7 +6,14 @@ on:
     paths:
       - "script/dev/run_payment_abnormal_scenario_replay.sh"
       - "script/dev/check_payment_release_blockers.sh"
+      - "script/dev/check_product_template_generate_chain.sh"
+      - "script/dev/check_commission_settlement_gate.sh"
+      - "script/dev/check_store_sku_stock_gate.sh"
       - "script/dev/run_payment_stagea_p0_19_20.sh"
+      - "script/dev/check_hxy_naming_guard.sh"
+      - "script/dev/check_hxy_memory_guard.sh"
+      - "script/dev/config/hxy_naming_forbidden_words.txt"
+      - "script/dev/config/hxy_naming_guard_ignore_prefixes.txt"
       - "script/dev/config/payment_abnormal_scenarios_v1.tsv"
       - "script/dev/check_payment_reconcile_daily.sh"
       - "script/dev/run_payment_stagea_p0_17_18.sh"
@@ -25,6 +32,36 @@ on:
         type: boolean
       require_ops_status:
         description: "是否要求 ops 状态文件"
+        required: true
+        default: false
+        type: boolean
+      run_product_template_gate:
+        description: "是否运行商品模板生成链路门禁"
+        required: true
+        default: false
+        type: boolean
+      require_product_template_gate:
+        description: "是否阻断商品模板门禁异常"
+        required: true
+        default: false
+        type: boolean
+      run_store_sku_stock_gate:
+        description: "是否运行门店 SKU 库存流水门禁"
+        required: true
+        default: false
+        type: boolean
+      require_store_sku_stock_gate:
+        description: "是否阻断门店 SKU 库存门禁异常"
+        required: true
+        default: false
+        type: boolean
+      run_commission_settlement_gate:
+        description: "是否运行佣金结算健康门禁"
+        required: true
+        default: false
+        type: boolean
+      require_commission_settlement_gate:
+        description: "是否阻断佣金结算门禁异常"
         required: true
         default: false
         type: boolean
@@ -61,29 +98,65 @@ jobs:
           run_tests_input="${{ github.event.inputs.run_tests }}"
           run_notify_smoke_input="${{ github.event.inputs.run_notify_smoke }}"
           require_ops_input="${{ github.event.inputs.require_ops_status }}"
+          run_template_gate_input="${{ github.event.inputs.run_product_template_gate }}"
+          require_template_gate_input="${{ github.event.inputs.require_product_template_gate }}"
+          run_store_sku_stock_gate_input="${{ github.event.inputs.run_store_sku_stock_gate }}"
+          require_store_sku_stock_gate_input="${{ github.event.inputs.require_store_sku_stock_gate }}"
+          run_commission_settlement_gate_input="${{ github.event.inputs.run_commission_settlement_gate }}"
+          require_commission_settlement_gate_input="${{ github.event.inputs.require_commission_settlement_gate }}"
           max_age_input="${{ github.event.inputs.max_artifact_age_minutes }}"
 
           [[ -z "${run_tests_input}" ]] && run_tests_input="false"
           [[ -z "${run_notify_smoke_input}" ]] && run_notify_smoke_input="true"
           [[ -z "${require_ops_input}" ]] && require_ops_input="false"
+          [[ -z "${run_template_gate_input}" ]] && run_template_gate_input="false"
+          [[ -z "${require_template_gate_input}" ]] && require_template_gate_input="false"
+          [[ -z "${run_store_sku_stock_gate_input}" ]] && run_store_sku_stock_gate_input="false"
+          [[ -z "${require_store_sku_stock_gate_input}" ]] && require_store_sku_stock_gate_input="false"
+          [[ -z "${run_commission_settlement_gate_input}" ]] && run_commission_settlement_gate_input="false"
+          [[ -z "${require_commission_settlement_gate_input}" ]] && require_commission_settlement_gate_input="false"
           [[ -z "${max_age_input}" ]] && max_age_input="1440"
 
           run_tests=0
           run_notify_smoke=0
           require_ops_status=0
+          run_product_template_gate=0
+          require_product_template_gate=0
+          run_store_sku_stock_gate=0
+          require_store_sku_stock_gate=0
+          run_commission_settlement_gate=0
+          require_commission_settlement_gate=0
           [[ "${run_tests_input}" == "true" ]] && run_tests=1
           [[ "${run_notify_smoke_input}" == "true" ]] && run_notify_smoke=1
           [[ "${require_ops_input}" == "true" ]] && require_ops_status=1
+          [[ "${run_template_gate_input}" == "true" ]] && run_product_template_gate=1
+          [[ "${require_template_gate_input}" == "true" ]] && require_product_template_gate=1
+          [[ "${run_store_sku_stock_gate_input}" == "true" ]] && run_store_sku_stock_gate=1
+          [[ "${require_store_sku_stock_gate_input}" == "true" ]] && require_store_sku_stock_gate=1
+          [[ "${run_commission_settlement_gate_input}" == "true" ]] && run_commission_settlement_gate=1
+          [[ "${require_commission_settlement_gate_input}" == "true" ]] && require_commission_settlement_gate=1
 
           run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
           run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          diff_range="${{ github.event.before }}...${{ github.sha }}"
+          if [[ -z "${{ github.event.before }}" || "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            diff_range="HEAD~1...HEAD"
+          fi
 
           set +e
           RUN_ID="${run_id}" \
           ARTIFACT_BASE_DIR="${artifact_base}" \
+          GIT_DIFF_RANGE="${diff_range}" \
           RUN_TESTS="${run_tests}" \
           RUN_NOTIFY_SMOKE="${run_notify_smoke}" \
           REQUIRE_OPS_STATUS="${require_ops_status}" \
+          RUN_PRODUCT_TEMPLATE_GATE="${run_product_template_gate}" \
+          REQUIRE_PRODUCT_TEMPLATE_GATE="${require_product_template_gate}" \
+          RUN_STORE_SKU_STOCK_GATE="${run_store_sku_stock_gate}" \
+          REQUIRE_STORE_SKU_STOCK_GATE="${require_store_sku_stock_gate}" \
+          RUN_COMMISSION_SETTLEMENT_GATE="${run_commission_settlement_gate}" \
+          REQUIRE_COMMISSION_SETTLEMENT_GATE="${require_commission_settlement_gate}" \
+          TEMPLATE_GATE_ACCESS_TOKEN="${{ secrets.HXY_ADMIN_ACCESS_TOKEN }}" \
           MAX_ARTIFACT_AGE_MINUTES="${max_age_input}" \
           REQUIRE_RECONCILE=0 \
           bash script/dev/run_payment_stagea_p0_19_20.sh
@@ -126,6 +199,10 @@ jobs:
             echo "| release_gate_result | $(kv "${summary_file}" gate_result) |"
             echo "| release_gate_block_count | $(kv "${summary_file}" gate_block_count) |"
             echo "| release_gate_warn_count | $(kv "${summary_file}" gate_warn_count) |"
+            echo "| product_template_gate_rc | $(kv "${summary_file}" product_template_gate_rc) |"
+            echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
+            echo "| commission_settlement_gate_rc | $(kv "${summary_file}" commission_settlement_gate_rc) |"
+            echo "| memory_guard_rc | $(kv "${summary_file}" memory_guard_rc) |"
             echo "| scenario_summary_file | \`$(kv "${summary_file}" scenario_summary_file)\` |"
             echo "| gate_report | \`$(kv "${summary_file}" gate_report)\` |"
           } >> "$GITHUB_STEP_SUMMARY"

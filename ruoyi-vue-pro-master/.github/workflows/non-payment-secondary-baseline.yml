@@ -1,4 +1,4 @@
-name: non-payment-secondary-baseline
+name: hxy-non-payment-secondary-baseline
 
 on:
   push:

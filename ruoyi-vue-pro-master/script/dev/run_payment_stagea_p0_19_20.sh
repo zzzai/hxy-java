@@ -32,6 +32,10 @@ Env:
   RUN_SERVICE_ORDER_GATE=0|1            #20 是否执行服务单待预约门禁检查（默认 0）
   REQUIRE_SERVICE_ORDER_GATE=0|1        #20 服务单门禁结果是否阻断发布（默认 0）
   SERVICE_ORDER_WAIT_TIMEOUT_MINUTES=<n> 服务单待预约超时阈值分钟（默认 30）
+  RUN_COMMISSION_SETTLEMENT_GATE=0|1    #20 是否执行佣金结算健康门禁（默认 0）
+  REQUIRE_COMMISSION_SETTLEMENT_GATE=0|1 #20 佣金结算门禁结果是否阻断发布（默认 0）
+  COMMISSION_REVIEW_OVERDUE_BLOCK_THRESHOLD=<n> 佣金待审核逾期阻断阈值（默认 0）
+  COMMISSION_NOTIFY_FAILED_BLOCK_THRESHOLD=<n> 佣金通知失败阻断阈值（默认 0）
   RUN_STORE_SKU_STOCK_GATE=0|1          #20 是否执行门店 SKU 库存流水门禁（默认 0）
   REQUIRE_STORE_SKU_STOCK_GATE=0|1      #20 门店 SKU 库存门禁是否阻断发布（默认 0）
   RUN_PRODUCT_TEMPLATE_GATE=0|1         #20 是否执行商品模板生成链路门禁（默认 0）
@@ -74,6 +78,10 @@ REQUIRE_REVIEW_TICKET="${REQUIRE_REVIEW_TICKET:-0}"
 RUN_SERVICE_ORDER_GATE="${RUN_SERVICE_ORDER_GATE:-0}"
 REQUIRE_SERVICE_ORDER_GATE="${REQUIRE_SERVICE_ORDER_GATE:-0}"
 SERVICE_ORDER_WAIT_TIMEOUT_MINUTES="${SERVICE_ORDER_WAIT_TIMEOUT_MINUTES:-30}"
+RUN_COMMISSION_SETTLEMENT_GATE="${RUN_COMMISSION_SETTLEMENT_GATE:-0}"
+REQUIRE_COMMISSION_SETTLEMENT_GATE="${REQUIRE_COMMISSION_SETTLEMENT_GATE:-0}"
+COMMISSION_REVIEW_OVERDUE_BLOCK_THRESHOLD="${COMMISSION_REVIEW_OVERDUE_BLOCK_THRESHOLD:-0}"
+COMMISSION_NOTIFY_FAILED_BLOCK_THRESHOLD="${COMMISSION_NOTIFY_FAILED_BLOCK_THRESHOLD:-0}"
 RUN_STORE_SKU_STOCK_GATE="${RUN_STORE_SKU_STOCK_GATE:-0}"
 REQUIRE_STORE_SKU_STOCK_GATE="${REQUIRE_STORE_SKU_STOCK_GATE:-0}"
 RUN_PRODUCT_TEMPLATE_GATE="${RUN_PRODUCT_TEMPLATE_GATE:-0}"
@@ -113,6 +121,10 @@ SERVICE_ORDER_GATE_OUT_DIR="${ARTIFACT_DIR}/service-order-gate"
 SERVICE_ORDER_GATE_SUMMARY_FILE="${SERVICE_ORDER_GATE_OUT_DIR}/summary.txt"
 SERVICE_ORDER_GATE_TSV="${SERVICE_ORDER_GATE_OUT_DIR}/result.tsv"
 SERVICE_ORDER_GATE_SUMMARY_FOR_RELEASE=""
+COMMISSION_SETTLEMENT_GATE_OUT_DIR="${ARTIFACT_DIR}/commission-settlement-gate"
+COMMISSION_SETTLEMENT_GATE_SUMMARY_FILE="${COMMISSION_SETTLEMENT_GATE_OUT_DIR}/summary.txt"
+COMMISSION_SETTLEMENT_GATE_TSV="${COMMISSION_SETTLEMENT_GATE_OUT_DIR}/result.tsv"
+COMMISSION_SETTLEMENT_GATE_SUMMARY_FOR_RELEASE=""
 STORE_SKU_STOCK_GATE_OUT_DIR="${ARTIFACT_DIR}/store-sku-stock-gate"
 STORE_SKU_STOCK_GATE_SUMMARY_FILE="${STORE_SKU_STOCK_GATE_OUT_DIR}/summary.txt"
 STORE_SKU_STOCK_GATE_TSV="${STORE_SKU_STOCK_GATE_OUT_DIR}/result.tsv"
@@ -124,7 +136,8 @@ PRODUCT_TEMPLATE_GATE_SUMMARY_FOR_RELEASE=""
 GATE_TSV="${ARTIFACT_DIR}/release_gate.tsv"
 GATE_REPORT="${ARTIFACT_DIR}/release_gate_report.md"
 
-mkdir -p "${LOG_DIR}" "${SCENARIO_OUT_DIR}" "${REVIEW_TICKET_GATE_OUT_DIR}" "${SERVICE_ORDER_GATE_OUT_DIR}" "${STORE_SKU_STOCK_GATE_OUT_DIR}" "${PRODUCT_TEMPLATE_GATE_OUT_DIR}"
+mkdir -p "${LOG_DIR}" "${SCENARIO_OUT_DIR}" "${REVIEW_TICKET_GATE_OUT_DIR}" "${SERVICE_ORDER_GATE_OUT_DIR}" \
+  "${COMMISSION_SETTLEMENT_GATE_OUT_DIR}" "${STORE_SKU_STOCK_GATE_OUT_DIR}" "${PRODUCT_TEMPLATE_GATE_OUT_DIR}"
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
 pick_first_existing_file() {
@@ -170,6 +183,7 @@ scenario_rc="unknown"
 gate_rc="unknown"
 review_ticket_gate_rc="SKIP"
 service_order_gate_rc="SKIP"
+commission_settlement_gate_rc="SKIP"
 store_sku_stock_gate_rc="SKIP"
 product_template_gate_rc="SKIP"
 naming_guard_rc="SKIP"
@@ -217,6 +231,7 @@ generate_ci_gate_fail_index() {
     append_log_row "${RELEASE_GATE_LOG}"
     append_log_row "${FINAL_GATE_LOG}"
     append_log_row "${SERVICE_ORDER_GATE_OUT_DIR}/run.log"
+    append_log_row "${COMMISSION_SETTLEMENT_GATE_OUT_DIR}/run.log"
     append_log_row "${STORE_SKU_STOCK_GATE_OUT_DIR}/run.log"
     append_log_row "${PRODUCT_TEMPLATE_GATE_OUT_DIR}/run.log"
 
@@ -265,6 +280,7 @@ finalize() {
     echo "scenario_result=${scenario_result}"
     echo "review_ticket_gate_rc=${review_ticket_gate_rc}"
     echo "service_order_gate_rc=${service_order_gate_rc}"
+    echo "commission_settlement_gate_rc=${commission_settlement_gate_rc}"
     echo "store_sku_stock_gate_rc=${store_sku_stock_gate_rc}"
     echo "product_template_gate_rc=${product_template_gate_rc}"
     echo "naming_guard_rc=${naming_guard_rc}"
@@ -289,6 +305,8 @@ finalize() {
     echo "review_ticket_gate_tsv=${REVIEW_TICKET_GATE_TSV}"
     echo "service_order_gate_summary_file=${SERVICE_ORDER_GATE_SUMMARY_FILE}"
     echo "service_order_gate_tsv=${SERVICE_ORDER_GATE_TSV}"
+    echo "commission_settlement_gate_summary_file=${COMMISSION_SETTLEMENT_GATE_SUMMARY_FILE}"
+    echo "commission_settlement_gate_tsv=${COMMISSION_SETTLEMENT_GATE_TSV}"
     echo "store_sku_stock_gate_summary_file=${STORE_SKU_STOCK_GATE_SUMMARY_FILE}"
     echo "store_sku_stock_gate_tsv=${STORE_SKU_STOCK_GATE_TSV}"
     echo "product_template_gate_summary_file=${PRODUCT_TEMPLATE_GATE_SUMMARY_FILE}"
@@ -338,6 +356,8 @@ finalize() {
     echo "- review ticket gate tsv: \`review-ticket-gate/result.tsv\`"
     echo "- service order gate summary: \`service-order-gate/summary.txt\`"
     echo "- service order gate tsv: \`service-order-gate/result.tsv\`"
+    echo "- commission settlement gate summary: \`commission-settlement-gate/summary.txt\`"
+    echo "- commission settlement gate tsv: \`commission-settlement-gate/result.tsv\`"
     echo "- product template gate summary: \`product-template-gate/summary.txt\`"
     echo "- release gate tsv: \`release_gate.tsv\`"
     echo "- release gate report: \`release_gate_report.md\`"
@@ -487,6 +507,33 @@ if [[ -f "${SERVICE_ORDER_GATE_SUMMARY_FILE}" ]]; then
   SERVICE_ORDER_GATE_SUMMARY_FOR_RELEASE="${SERVICE_ORDER_GATE_SUMMARY_FILE}"
 fi
 
+if [[ "${RUN_COMMISSION_SETTLEMENT_GATE}" == "1" ]]; then
+  echo "[stageA-p0-19-20] step=#20 commission settlement gate"
+  set +e
+  bash script/dev/check_commission_settlement_gate.sh \
+    --db-host "${DB_HOST:-localhost}" \
+    --db-port "${DB_PORT:-3306}" \
+    --db-user "${DB_USER:-root}" \
+    --db-password "${DB_PASSWORD:-}" \
+    --db-name "${DB_NAME:-hxy_dev}" \
+    --require-overdue-zero "${REQUIRE_COMMISSION_SETTLEMENT_GATE}" \
+    --require-notify-failed-zero "${REQUIRE_COMMISSION_SETTLEMENT_GATE}" \
+    --overdue-block-threshold "${COMMISSION_REVIEW_OVERDUE_BLOCK_THRESHOLD}" \
+    --notify-failed-block-threshold "${COMMISSION_NOTIFY_FAILED_BLOCK_THRESHOLD}" \
+    --summary-file "${COMMISSION_SETTLEMENT_GATE_SUMMARY_FILE}" \
+    --output-tsv "${COMMISSION_SETTLEMENT_GATE_TSV}" > "${COMMISSION_SETTLEMENT_GATE_OUT_DIR}/run.log" 2>&1
+  commission_settlement_gate_rc=$?
+  set -e
+  if [[ "${commission_settlement_gate_rc}" != "0" && "${commission_settlement_gate_rc}" != "2" ]]; then
+    PIPELINE_EXIT_CODE="${commission_settlement_gate_rc}"
+    exit "${commission_settlement_gate_rc}"
+  fi
+fi
+
+if [[ -f "${COMMISSION_SETTLEMENT_GATE_SUMMARY_FILE}" ]]; then
+  COMMISSION_SETTLEMENT_GATE_SUMMARY_FOR_RELEASE="${COMMISSION_SETTLEMENT_GATE_SUMMARY_FILE}"
+fi
+
 if [[ "${RUN_STORE_SKU_STOCK_GATE}" == "1" ]]; then
   echo "[stageA-p0-19-20] step=#20 store sku stock gate"
   set +e
@@ -550,6 +597,7 @@ bash script/dev/check_payment_release_blockers.sh \
   --reconcile-summary-file "${RECONCILE_SUMMARY_FILE}" \
   --review-ticket-summary-file "${REVIEW_TICKET_GATE_SUMMARY_FILE}" \
   --service-order-summary-file "${SERVICE_ORDER_GATE_SUMMARY_FOR_RELEASE}" \
+  --commission-settlement-summary-file "${COMMISSION_SETTLEMENT_GATE_SUMMARY_FOR_RELEASE}" \
   --store-sku-stock-summary-file "${STORE_SKU_STOCK_GATE_SUMMARY_FOR_RELEASE}" \
   --product-template-summary-file "${PRODUCT_TEMPLATE_GATE_SUMMARY_FOR_RELEASE}" \
   --rollback-plan-file "${ROLLBACK_PLAN_FILE}" \
@@ -559,6 +607,7 @@ bash script/dev/check_payment_release_blockers.sh \
   --require-reconcile "${REQUIRE_RECONCILE}" \
   --require-review-ticket "${REQUIRE_REVIEW_TICKET}" \
   --require-service-order "${REQUIRE_SERVICE_ORDER_GATE}" \
+  --require-commission-settlement "${REQUIRE_COMMISSION_SETTLEMENT_GATE}" \
   --require-store-sku-stock "${REQUIRE_STORE_SKU_STOCK_GATE}" \
   --require-product-template "${REQUIRE_PRODUCT_TEMPLATE_GATE}" \
   --require-ops-status "${REQUIRE_OPS_STATUS}" \

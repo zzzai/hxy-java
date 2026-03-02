@@ -1,0 +1,6 @@
+# Paths under these prefixes are ignored by naming guard.
+.image/
+.gitee/
+ruoyi-vue-pro-master/.image/
+ruoyi-vue-pro-master/.gitee/
+yudao-mall-uniapp/

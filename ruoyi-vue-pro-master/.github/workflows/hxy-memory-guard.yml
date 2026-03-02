@@ -1,0 +1,45 @@
+name: hxy-memory-guard
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  memory-guard:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff range
+        id: diff
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "range=${{ github.event.pull_request.base.sha }}...${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            before="${{ github.event.before }}"
+            if [[ -n "${before}" && "${before}" != "0000000000000000000000000000000000000000" ]]; then
+              echo "range=${before}...${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            else
+              echo "range=HEAD~1...HEAD" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Run memory guard
+        shell: bash
+        run: |
+          GIT_DIFF_RANGE="${{ steps.diff.outputs.range }}" \
+          CHECK_STAGED=0 \
+          CHECK_UNSTAGED=0 \
+          CHECK_UNTRACKED=0 \
+          bash script/dev/check_hxy_memory_guard.sh

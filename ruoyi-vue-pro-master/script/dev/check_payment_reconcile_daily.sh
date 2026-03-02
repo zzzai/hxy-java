@@ -9,7 +9,7 @@ DB_HOST="${DB_HOST:-}"
 DB_PORT="${DB_PORT:-}"
 DB_USER="${DB_USER:-}"
 DB_PASSWORD="${DB_PASSWORD:-}"
-DB_NAME="${DB_NAME:-ruoyi-vue-pro}"
+DB_NAME="${DB_NAME:-hxy_dev}"
 BIZ_DATE="${BIZ_DATE:-$(date -d 'yesterday' +%F)}"
 STALE_MINUTES="${STALE_MINUTES:-10}"
 ISSUES_TSV=""
@@ -25,12 +25,12 @@ Usage:
 Options:
   --biz-date <yyyy-mm-dd>      对账日期（默认昨天）
   --stale-minutes <minutes>    任务卡滞判定阈值（默认 10）
-  --db-host <host>             MySQL host (default: 127.0.0.1)
+  --db-host <host>             MySQL host (default: localhost)
   --db-port <port>             MySQL port (default: 3306)
   --db-user <user>             MySQL user (default: root)
   --db-password <password>     MySQL password (default: env DB_PASSWORD)
   --mysql-defaults-file <path> MySQL defaults file (optional, e.g. /root/.my.cnf)
-  --db-name <name>             Database name (default: ruoyi-vue-pro)
+  --db-name <name>             Database name (default: hxy_dev)
   --issues-tsv <file>          输出问题明细 TSV（可选）
   --summary-file <file>        输出 summary.txt（可选）
   -h, --help                   Show help
@@ -122,7 +122,7 @@ if [[ -n "${MYSQL_DEFAULTS_FILE}" ]]; then
   : "${DB_PORT:=}"
   : "${DB_USER:=}"
 else
-  : "${DB_HOST:=127.0.0.1}"
+  : "${DB_HOST:=localhost}"
   : "${DB_PORT:=3306}"
   : "${DB_USER:=root}"
 fi
@@ -132,7 +132,7 @@ if [[ -n "${MYSQL_DEFAULTS_FILE}" ]]; then
   MYSQL_ARGS=(--defaults-file="${MYSQL_DEFAULTS_FILE}" "${MYSQL_ARGS[@]}")
 fi
 if [[ -n "${DB_HOST}" ]]; then
-  MYSQL_ARGS+=(--protocol=TCP -h"${DB_HOST}")
+  MYSQL_ARGS+=(-h"${DB_HOST}")
 fi
 if [[ -n "${DB_PORT}" ]]; then
   MYSQL_ARGS+=(-P"${DB_PORT}")

@@ -1,4 +1,4 @@
-name: pay-notify-replay-acceptance
+name: hxy-pay-notify-replay-acceptance
 
 on:
   workflow_dispatch:

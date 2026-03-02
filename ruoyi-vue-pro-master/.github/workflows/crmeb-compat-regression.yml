@@ -1,4 +1,4 @@
-name: crmeb-compat-regression
+name: hxy-crmeb-compat-regression
 
 on:
   push:

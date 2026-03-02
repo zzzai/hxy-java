@@ -12,7 +12,7 @@ fi
 
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-3306}"
-DB_NAME="${DB_NAME:-ruoyi-vue-pro}"
+DB_NAME="${DB_NAME:-hxy_dev}"
 DB_USER="${DB_USER:-root}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 

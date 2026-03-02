@@ -1,4 +1,4 @@
-name: pay-notify-pipeline-smoke
+name: hxy-pay-notify-pipeline-smoke
 
 on:
   push:

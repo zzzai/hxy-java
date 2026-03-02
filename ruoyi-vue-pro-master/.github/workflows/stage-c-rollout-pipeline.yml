@@ -1,4 +1,4 @@
-name: stage-c-rollout-pipeline
+name: hxy-stage-c-rollout-pipeline
 
 on:
   workflow_dispatch:

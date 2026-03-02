@@ -230,17 +230,20 @@ if [[ "${DEPLOY_MODE}" == "docker-compose" ]]; then
     jar_file="${ROOT_DIR}/yudao-server/target/yudao-server.jar"
     has_local_jar=0
     has_server_image=0
+    hxy_server_image="${HXY_SERVER_IMAGE:-hxy-server:latest}"
+    legacy_server_image="${LEGACY_SERVER_IMAGE:-yudao-server:latest}"
     if [[ -f "${jar_file}" ]]; then
       has_local_jar=1
     fi
-    if docker image inspect yudao-server:latest >/dev/null 2>&1; then
+    if docker image inspect "${hxy_server_image}" >/dev/null 2>&1 \
+      || docker image inspect "${legacy_server_image}" >/dev/null 2>&1; then
       has_server_image=1
     fi
     if [[ "${has_local_jar}" -eq 0 && "${has_server_image}" -eq 0 ]]; then
       deploy_rc=3
       echo "[stage-switch] missing build prerequisite: ${jar_file}" >&2
       echo "[stage-switch] run: mvn -pl yudao-server -am -DskipTests package" >&2
-      echo "[stage-switch] or prepare image: yudao-server:latest" >&2
+      echo "[stage-switch] or prepare image: ${hxy_server_image} (fallback ${legacy_server_image})" >&2
     else
       set +e
       docker compose --env-file "${DOCKER_ENV_FILE}" -f "${COMPOSE_FILE}" up -d --force-recreate server

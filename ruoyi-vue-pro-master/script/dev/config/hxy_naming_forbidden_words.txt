@@ -1,0 +1,4 @@
+# Lowercase forbidden tokens for newly added asset names.
+yudao
+ruoyi
+crmeb

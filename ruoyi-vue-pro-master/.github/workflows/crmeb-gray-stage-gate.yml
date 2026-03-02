@@ -1,4 +1,4 @@
-name: crmeb-gray-stage-gate
+name: hxy-crmeb-gray-stage-gate
 
 on:
   workflow_dispatch:
