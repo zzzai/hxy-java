@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -279,6 +280,29 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
         assertNotNull(captor.getValue().getReviewEscalateTime());
         verify(settlementLogMapper).insert(any(TechnicianCommissionSettlementLogDO.class));
         verify(notifyOutboxMapper).insert(any(TechnicianCommissionSettlementNotifyOutboxDO.class));
+    }
+
+    @Test
+    void shouldIgnoreDuplicateNotifyOutboxOnWarn() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(611L, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+        settlement.setReviewDeadlineTime(LocalDateTime.now().plusMinutes(10));
+        settlement.setReviewWarned(Boolean.FALSE);
+        when(settlementMapper.selectListByStatusAndReviewDeadlineBetweenAndWarned(
+                eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                any(LocalDateTime.class), any(LocalDateTime.class), eq(Boolean.FALSE), eq(80)))
+                .thenReturn(Collections.singletonList(settlement));
+        when(settlementMapper.updateWarnedByIdAndStatusAndWarned(
+                eq(611L), eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                eq(Boolean.FALSE), any(TechnicianCommissionSettlementDO.class)))
+                .thenReturn(1);
+        when(notifyOutboxMapper.selectByBizKey("611:P1_WARN")).thenReturn(null);
+        when(notifyOutboxMapper.insert(any(TechnicianCommissionSettlementNotifyOutboxDO.class)))
+                .thenThrow(new DuplicateKeyException("uk_notify_outbox_biz_key"));
+
+        int count = service.warnNearDeadlinePending(20, 80);
+
+        assertEquals(1, count);
+        verify(settlementLogMapper).insert(any(TechnicianCommissionSettlementLogDO.class));
     }
 
     @Test

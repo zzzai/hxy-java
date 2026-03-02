@@ -25,6 +25,7 @@ public interface TechnicianCommissionSettlementNotifyOutboxMapper
                 .eqIfPresent(TechnicianCommissionSettlementNotifyOutboxDO::getChannel, reqVO.getChannel())
                 .eqIfPresent(TechnicianCommissionSettlementNotifyOutboxDO::getLastActionCode, reqVO.getLastActionCode())
                 .eqIfPresent(TechnicianCommissionSettlementNotifyOutboxDO::getLastActionBizNo, reqVO.getLastActionBizNo())
+                .betweenIfPresent(TechnicianCommissionSettlementNotifyOutboxDO::getLastActionTime, reqVO.getLastActionTime())
                 .orderByDesc(TechnicianCommissionSettlementNotifyOutboxDO::getId));
     }
 

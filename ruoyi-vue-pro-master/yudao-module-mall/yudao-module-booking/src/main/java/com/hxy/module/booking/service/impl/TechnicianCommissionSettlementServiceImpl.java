@@ -22,6 +22,7 @@ import com.hxy.module.booking.service.TechnicianCommissionSettlementService;
 import com.hxy.module.booking.service.dto.TechnicianCommissionNotifyBatchRetryResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -666,19 +667,23 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
         if (notifyOutboxMapper.selectByBizKey(bizKey) != null) {
             return;
         }
-        notifyOutboxMapper.insert(new TechnicianCommissionSettlementNotifyOutboxDO()
-                .setSettlementId(settlementId)
-                .setNotifyType(notifyType)
-                .setChannel(NOTIFY_CHANNEL_IN_APP)
-                .setSeverity(severity)
-                .setBizKey(bizKey)
-                .setStatus(NOTIFY_STATUS_PENDING)
-                .setRetryCount(0)
-                .setNextRetryTime(LocalDateTime.now())
-                .setLastErrorMsg("")
-                .setLastActionCode(NOTIFY_ACTION_CREATE)
-                .setLastActionBizNo(StrUtil.maxLength("BIZ#" + bizKey, 64))
-                .setLastActionTime(LocalDateTime.now()));
+        try {
+            notifyOutboxMapper.insert(new TechnicianCommissionSettlementNotifyOutboxDO()
+                    .setSettlementId(settlementId)
+                    .setNotifyType(notifyType)
+                    .setChannel(NOTIFY_CHANNEL_IN_APP)
+                    .setSeverity(severity)
+                    .setBizKey(bizKey)
+                    .setStatus(NOTIFY_STATUS_PENDING)
+                    .setRetryCount(0)
+                    .setNextRetryTime(LocalDateTime.now())
+                    .setLastErrorMsg("")
+                    .setLastActionCode(NOTIFY_ACTION_CREATE)
+                    .setLastActionBizNo(StrUtil.maxLength("BIZ#" + bizKey, 64))
+                    .setLastActionTime(LocalDateTime.now()));
+        } catch (DuplicateKeyException ex) {
+            log.info("通知出站幂等键重复，忽略重复入库，bizKey={}", bizKey);
+        }
     }
 
     private LocalDateTime calculateNextRetryTime(LocalDateTime now, int retryCount) {
