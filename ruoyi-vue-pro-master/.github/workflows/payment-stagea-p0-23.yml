@@ -79,8 +79,10 @@ jobs:
           run_id="${run_id//[^a-zA-Z0-9._-]/_}"
 
           diff_range="${{ github.event.before }}...${{ github.sha }}"
+          naming_diff_range="HEAD~1...HEAD"
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             diff_range="${{ github.event.pull_request.base.sha }}...${{ github.sha }}"
+            naming_diff_range="${{ github.event.pull_request.head.sha }}~1...${{ github.event.pull_request.head.sha }}"
           elif [[ -z "${{ github.event.before }}" || "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
             diff_range="HEAD~1...HEAD"
           fi
@@ -89,6 +91,7 @@ jobs:
           RUN_ID="${run_id}" \
           ARTIFACT_BASE_DIR="${artifact_base}" \
           GIT_DIFF_RANGE="${diff_range}" \
+          NAMING_GIT_DIFF_RANGE="${naming_diff_range}" \
           REQUIRE_NAMING_GUARD="${require_naming}" \
           REQUIRE_MEMORY_GUARD="${require_memory}" \
           RUN_SERVER_GATEWAY_TEST="${run_server_gateway}" \
