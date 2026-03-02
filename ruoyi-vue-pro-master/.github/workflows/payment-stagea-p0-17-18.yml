@@ -1,0 +1,264 @@
+name: hxy-payment-stagea-p0-17-18
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "script/dev/run_payment_stagea_p0_17_18.sh"
+      - "script/dev/check_payment_reconcile_daily.sh"
+      - "script/dev/check_store_sku_stock_gate.sh"
+      - "script/dev/check_hxy_naming_guard.sh"
+      - "script/dev/check_hxy_memory_guard.sh"
+      - "script/dev/generate_payment_reconcile_report.sh"
+      - "script/dev/create_payment_reconcile_diff_ticket.sh"
+      - "script/dev/payment_reconcile_artifact_index.sh"
+      - "script/sql/payment_reconcile_daily.sql"
+      - "sql/mysql/ruoyi-modules-member-pay-mall.sql"
+      - "sql/mysql/hxy/2026-02-28-hxy-store-product-mapping.sql"
+      - "sql/mysql/hxy/2026-03-01-hxy-store-sku-stock-flow.sql"
+      - ".github/workflows/payment-stagea-p0-17-18.yml"
+  workflow_dispatch:
+    inputs:
+      biz_date:
+        description: "对账日期（yyyy-mm-dd，留空走脚本默认昨天）"
+        required: false
+        default: ""
+        type: string
+      stale_minutes:
+        description: "卡滞阈值分钟"
+        required: true
+        default: "10"
+        type: string
+      run_store_sku_stock_gate:
+        description: "是否执行门店 SKU 库存流水门禁"
+        required: true
+        default: false
+        type: boolean
+      require_store_sku_stock_gate:
+        description: "门店 SKU 库存门禁是否阻断"
+        required: true
+        default: false
+        type: boolean
+      require_naming_guard:
+        description: "命名门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
+      require_memory_guard:
+        description: "记忆门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
+      emit_on_warn:
+        description: "WARN 是否生成工单"
+        required: true
+        default: false
+        type: boolean
+      enable_notify:
+        description: "是否发送工单通知"
+        required: true
+        default: false
+        type: boolean
+      notify_dry_run:
+        description: "通知是否仅演练"
+        required: true
+        default: true
+        type: boolean
+      notify_strict:
+        description: "通知失败是否阻断"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  stagea-p0-17-18:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: hxy_dev
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: hxy_dev
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Wait MySQL ready
+        run: |
+          for i in {1..60}; do
+            if mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASSWORD}" -e "SELECT 1;" "${DB_NAME}" >/dev/null 2>&1; then
+              echo "MySQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL not ready in time" >&2
+          exit 1
+
+      - name: Bootstrap schema
+        run: |
+          mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < sql/mysql/ruoyi-modules-member-pay-mall.sql
+          mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < sql/mysql/hxy/2026-02-28-hxy-store-product-mapping.sql
+          mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < sql/mysql/hxy/2026-03-01-hxy-store-sku-stock-flow.sql
+
+      - name: Run #17 #18 pipeline
+        run: |
+          artifact_base="${RUNNER_TEMP}/payment_stagea_p0_17_18"
+          mkdir -p "${artifact_base}"
+
+          biz_date_input="${{ github.event.inputs.biz_date }}"
+          stale_minutes_input="${{ github.event.inputs.stale_minutes }}"
+          run_store_gate_input="${{ github.event.inputs.run_store_sku_stock_gate }}"
+          require_store_gate_input="${{ github.event.inputs.require_store_sku_stock_gate }}"
+          require_naming_input="${{ github.event.inputs.require_naming_guard }}"
+          require_memory_input="${{ github.event.inputs.require_memory_guard }}"
+          emit_on_warn_input="${{ github.event.inputs.emit_on_warn }}"
+          enable_notify_input="${{ github.event.inputs.enable_notify }}"
+          notify_dry_run_input="${{ github.event.inputs.notify_dry_run }}"
+          notify_strict_input="${{ github.event.inputs.notify_strict }}"
+
+          [[ -z "${stale_minutes_input}" ]] && stale_minutes_input="10"
+          [[ -z "${run_store_gate_input}" ]] && run_store_gate_input="false"
+          [[ -z "${require_store_gate_input}" ]] && require_store_gate_input="false"
+          [[ -z "${require_naming_input}" ]] && require_naming_input="true"
+          [[ -z "${require_memory_input}" ]] && require_memory_input="true"
+          [[ -z "${emit_on_warn_input}" ]] && emit_on_warn_input="false"
+          [[ -z "${enable_notify_input}" ]] && enable_notify_input="false"
+          [[ -z "${notify_dry_run_input}" ]] && notify_dry_run_input="true"
+          [[ -z "${notify_strict_input}" ]] && notify_strict_input="false"
+
+          run_store_gate=0
+          require_store_gate=0
+          require_naming=0
+          require_memory=0
+          emit_on_warn=0
+          enable_notify=0
+          notify_dry_run=0
+          notify_strict=0
+          [[ "${run_store_gate_input}" == "true" ]] && run_store_gate=1
+          [[ "${require_store_gate_input}" == "true" ]] && require_store_gate=1
+          [[ "${require_naming_input}" == "true" ]] && require_naming=1
+          [[ "${require_memory_input}" == "true" ]] && require_memory=1
+          [[ "${emit_on_warn_input}" == "true" ]] && emit_on_warn=1
+          [[ "${enable_notify_input}" == "true" ]] && enable_notify=1
+          [[ "${notify_dry_run_input}" == "true" ]] && notify_dry_run=1
+          [[ "${notify_strict_input}" == "true" ]] && notify_strict=1
+
+          run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
+          run_id="${run_id//[^a-zA-Z0-9._-]/_}"
+          diff_range="${{ github.event.before }}...${{ github.sha }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            diff_range="${{ github.event.pull_request.base.sha }}...${{ github.sha }}"
+          elif [[ -z "${{ github.event.before }}" || "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            diff_range="HEAD~1...HEAD"
+          fi
+
+          set +e
+          RUN_ID="${run_id}" \
+          ARTIFACT_BASE_DIR="${artifact_base}" \
+          GIT_DIFF_RANGE="${diff_range}" \
+          BIZ_DATE="${biz_date_input}" \
+          STALE_MINUTES="${stale_minutes_input}" \
+          DB_HOST="${DB_HOST}" \
+          DB_PORT="${DB_PORT}" \
+          DB_USER="${DB_USER}" \
+          DB_PASSWORD="${DB_PASSWORD}" \
+          DB_NAME="${DB_NAME}" \
+          RUN_STORE_SKU_STOCK_GATE="${run_store_gate}" \
+          REQUIRE_STORE_SKU_STOCK_GATE="${require_store_gate}" \
+          REQUIRE_NAMING_GUARD="${require_naming}" \
+          REQUIRE_MEMORY_GUARD="${require_memory}" \
+          EMIT_ON_WARN="${emit_on_warn}" \
+          ENABLE_NOTIFY="${enable_notify}" \
+          NOTIFY_DRY_RUN="${notify_dry_run}" \
+          NOTIFY_STRICT="${notify_strict}" \
+          bash script/dev/run_payment_stagea_p0_17_18.sh
+          rc=$?
+          set -e
+
+          out_dir="${artifact_base}/${run_id}"
+          if [[ ! -d "${out_dir}" ]]; then
+            latest_out_dir="$(ls -1dt "${artifact_base}"/* 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${latest_out_dir}" && -d "${latest_out_dir}" ]]; then
+              out_dir="${latest_out_dir}"
+            fi
+          fi
+
+          echo "PIPE_RC=${rc}" >> "$GITHUB_ENV"
+          echo "PIPE_OUT_DIR=${out_dir}" >> "$GITHUB_ENV"
+
+      - name: Publish step summary
+        if: always()
+        run: |
+          summary_file="${PIPE_OUT_DIR}/summary.txt"
+          kv() {
+            local file="$1"
+            local key="$2"
+            local line
+            line="$(grep -E "^${key}=" "${file}" | head -n 1 || true)"
+            if [[ -z "${line}" ]]; then
+              printf ''
+            else
+              printf '%s' "${line#*=}"
+            fi
+          }
+          {
+            echo "## Payment StageA #17 #18"
+            echo
+            echo "| Key | Value |"
+            echo "|---|---|"
+            echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
+            echo "| reconcile_result | $(kv "${summary_file}" reconcile_result) |"
+            echo "| issue_block_count | $(kv "${summary_file}" issue_block_count) |"
+            echo "| issue_warn_count | $(kv "${summary_file}" issue_warn_count) |"
+            echo "| naming_guard_rc | $(kv "${summary_file}" naming_guard_rc) |"
+            echo "| memory_guard_rc | $(kv "${summary_file}" memory_guard_rc) |"
+            echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
+            echo "| reconcile_summary | \`$(kv "${summary_file}" reconcile_summary)\` |"
+            echo "| report_file | \`$(kv "${summary_file}" report_file)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-stagea-p0-17-18-${{ github.run_id }}
+          path: ${{ env.PIPE_OUT_DIR }}
+          if-no-files-found: error
+
+      - name: Final gate
+        if: always()
+        run: |
+          if [[ "${PIPE_RC}" != "0" ]]; then
+            echo "stagea p0 17/18 failed: rc=${PIPE_RC}" >&2
+            exit "${PIPE_RC}"
+          fi

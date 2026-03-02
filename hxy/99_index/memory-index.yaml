@@ -1,0 +1,54 @@
+version: 1
+owner: hxy-core
+last_updated: 2026-03-02
+purpose: >
+  HXY 项目长记忆索引。所有核心领域变更必须回写到对应记忆文档，并通过
+  check_hxy_memory_guard.sh 做强制门禁。
+domains:
+  product:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/00_governance/HXY-架构决策记录-ADR-v1.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/01_product/HXY-新中式疗愈社区O2O-完整PRD-v1-2026-03-01.md
+    notes: 商品、模板、SPU/SKU、总部与门店映射、履约模型。
+  trade:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/00_governance/HXY-架构决策记录-ADR-v1.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/01_product/HXY-新中式疗愈社区O2O-完整PRD-v1-2026-03-01.md
+    notes: 下单、履约、售后、结算、工单、SLA。
+  pay:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/00_governance/HXY-架构决策记录-ADR-v1.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/03_payment/支付系统-产品设计说明-RuoYi版-2026-02-21.md
+    notes: 微信服务商模式、特约商户、支付回调、退款与对账。
+  sql:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/00_governance/HXY-架构决策记录-ADR-v1.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/04_data/HXY-数据与合规规划-v1-2026-02-22.md
+    notes: 结构迁移、索引、幂等键、版本快照、兼容脚本。
+  uniapp:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/01_product/HXY-新中式疗愈社区O2O-完整PRD-v1-2026-03-01.md
+    notes: 小程序登录、门店路由、支付拉起、页面可达性。
+  admin:
+    entry:
+      - hxy/00_governance/HXY-项目事实基线-v1-2026-03-01.md
+      - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
+      - hxy/01_product/HXY-新中式疗愈社区O2O-完整PRD-v1-2026-03-01.md
+    notes: 总部后台、门店后台、权限与功能裁剪。
+handoff:
+  root: hxy/07_memory_archive/handoffs
+  required_sections:
+    - 输入背景
+    - 变更清单
+    - 风险与回滚
+    - 下一窗口接力点
