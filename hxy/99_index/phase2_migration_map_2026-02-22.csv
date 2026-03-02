@@ -1,0 +1,25 @@
+old_path,new_path,migration_type,status,notes
+hxy/baseline/2026-2027产品+技术+AI路线图（季度版）.md,hxy/06_roadmap/HXY-2026-2027路线图-季度版-v1-2026-02-22.md,move,moved,路线图归并到06_roadmap
+hxy/baseline/架构修正方案-可上线版.md,hxy/02_architecture/HXY-架构修正方案-可上线版-v2-2026-02-22.md,move,moved,架构修正归并到02_architecture
+hxy/baseline/paiban.md,hxy/01_product/HXY-技师排班产品设计-小店模型-v2-2026-02-22.md,move,moved,排班产品文档归并到01_product
+hxy/baseline/v21.md,hxy/01_product/HXY-O2O补充优化方案-v2.1-2026-02-22.md,move,moved,O2O补充方案归并到01_product
+hxy/database/database_architecture_fix_v2.sql,hxy/04_data/sql/database_architecture_fix_v2.sql,move,moved,数据库脚本归并到04_data/sql
+hxy/database/database_compliance_guardrails_v1.sql,hxy/04_data/sql/database_compliance_guardrails_v1.sql,move,moved,数据库脚本归并到04_data/sql
+hxy/database/database_migration_v2.0.sql,hxy/04_data/sql/database_migration_v2.0.sql,move,moved,数据库脚本归并到04_data/sql
+hxy/database/payment_booking_verify_member_card_usage.sql,hxy/04_data/sql/payment_booking_verify_member_card_usage.sql,move,moved,数据库脚本归并到04_data/sql
+hxy/external/structured/hxydy/荷小悦_品牌战略汇总-claude.md,hxy/01_product/research_refs/荷小悦_品牌战略汇总-claude.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxydy/荷小悦_潜在收购方分析报告-claude.md,hxy/01_product/research_refs/荷小悦_潜在收购方分析报告-claude.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxydy/荷小悦_万店连锁战略规划-Claude.md,hxy/01_product/research_refs/荷小悦_万店连锁战略规划-Claude.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxydy/荷小悦AI交互小程序_产品规划-claude.md,hxy/01_product/research_refs/荷小悦AI交互小程序_产品规划-claude.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxydy/理疗养生与女性客群：2025中国按摩足疗行业潜力洞察.md,hxy/01_product/research_refs/理疗养生与女性客群：2025中国按摩足疗行业潜力洞察.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxyxd/荷小悦品牌商业方案.md,hxy/01_product/research_refs/荷小悦品牌商业方案.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxyxd/荷小悦品牌宣传设计方案.md,hxy/01_product/research_refs/荷小悦品牌宣传设计方案.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxyxd/荷小悦 小店模型.md,hxy/01_product/research_refs/荷小悦 小店模型.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxyxd/奈晚推拿品牌分析.md,hxy/01_product/research_refs/奈晚推拿品牌分析.md,move,moved,外部结构化资料归并到产品参考
+hxy/external/structured/hxyo2o/荷小悦O2O系统_技术实施手册_V2.0.md,hxy/02_architecture/research_refs/荷小悦O2O系统_技术实施手册_V2.0.md,move,moved,外部结构化资料归并到架构参考
+hxy/external/structured/hxyo2o/荷小悦O2O系统_完整优化方案_V2.0.md,hxy/02_architecture/research_refs/荷小悦O2O系统_完整优化方案_V2.0.md,move,moved,外部结构化资料归并到架构参考
+hxy/external/raw/,hxy/07_memory_archive/external_raw_2026w08/,archive,moved,原始外部资料归档到07_memory_archive
+hxy/baseline/README.md,hxy/99_index/legacy_baseline_README_2026-02-22.md,move,moved,旧目录说明迁入索引层
+hxy/external/README.md,hxy/99_index/legacy_external_README_2026-02-22.md,move,moved,旧目录说明迁入索引层
+hxy/external/structured/README.md,hxy/99_index/legacy_external_structured_README_2026-02-22.md,move,moved,旧目录说明迁入索引层
+hxy/plan/,removed(empty),cleanup,removed,空目录清理

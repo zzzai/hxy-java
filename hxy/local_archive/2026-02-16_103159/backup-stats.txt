@@ -1,4 +1,0 @@
-tracked_paths: 109
-untracked_source_paths: 134
-backup_target_paths: 181
-copied_files: 160

@@ -1,0 +1,8 @@
+total=131
+.md 120
+.sh 6
+.sql 1
+.txt 1
+.php 1
+.py 1
+.example 1

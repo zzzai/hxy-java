@@ -1,0 +1,14 @@
+total_all=470
+total_kept=131
+total_excluded=339
+.java 190
+.sh 87
+.txt 22
+.xml 10
+.yml 9
+.patch 6
+.json 4
+<noext> 4
+.md 3
+.tgz 2
+.backup 2
