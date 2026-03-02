@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Collections;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.*;
@@ -159,6 +160,10 @@ public class TradePriceServiceImpl implements TradePriceService {
         Map<Long, ProductSkuRespDTO> skuMap = convertMap(skus, ProductSkuRespDTO::getId);
         Map<Long, ProductSpuRespDTO> spuMap = convertMap(spuList, ProductSpuRespDTO::getId);
         Set<Long> templateVersionIds = convertSet(reqBO.getItems(), TradePriceCalculateReqBO.Item::getTemplateVersionId);
+        Map<Long, ProductTemplateVersionRespDTO> templateVersionMap =
+                CollUtil.isEmpty(templateVersionIds)
+                        ? Collections.emptyMap()
+                        : productTemplateVersionApi.getTemplateVersionMap(templateVersionIds);
 
         // 第一轮：逐条校验分流与快照必填
         reqBO.getItems().forEach(item -> {
@@ -175,15 +180,18 @@ public class TradePriceServiceImpl implements TradePriceService {
                 throw exception(PRICE_CALCULATE_SERVICE_ITEM_EXPRESS_FORBIDDEN);
             }
             if (item.getTemplateVersionId() != null && StrUtil.isBlank(item.getTemplateSnapshotJson())) {
-                throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
+                ProductTemplateVersionRespDTO version = templateVersionMap.get(item.getTemplateVersionId());
+                if (version != null && StrUtil.isNotBlank(version.getSnapshotJson())) {
+                    item.setTemplateSnapshotJson(version.getSnapshotJson());
+                } else {
+                    throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
+                }
             }
         });
 
         if (CollUtil.isEmpty(templateVersionIds)) {
             return;
         }
-        Map<Long, ProductTemplateVersionRespDTO> templateVersionMap =
-                productTemplateVersionApi.getTemplateVersionMap(templateVersionIds);
 
         // 第二轮：校验模板版本存在、已发布且类目一致
         reqBO.getItems().forEach(item -> {

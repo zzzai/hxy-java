@@ -60,7 +60,33 @@ class TradePriceServiceTemplateVersionValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
-    void calculateOrderPrice_shouldRejectWhenTemplateSnapshotMissing() {
+    void calculateOrderPrice_shouldAutoFillTemplateSnapshotWhenMissing() {
+        ProductTemplateVersionRespDTO publishedVersion = new ProductTemplateVersionRespDTO()
+                .setId(701L)
+                .setCategoryId(8L)
+                .setStatus(ProductTemplateConstants.TEMPLATE_STATUS_PUBLISHED)
+                .setSnapshotJson("{\"templateVersion\":\"auto-v1\"}");
+        when(productTemplateVersionApi.getTemplateVersionMap(asSet(701L)))
+                .thenReturn(Collections.singletonMap(701L, publishedVersion));
+
+        TradePriceCalculateReqBO reqBO = buildBaseReq(701L, null);
+        TradePriceCalculateRespBO respBO = tradePriceService.calculateOrderPrice(reqBO);
+
+        assertEquals("{\"templateVersion\":\"auto-v1\"}", reqBO.getItems().get(0).getTemplateSnapshotJson());
+        assertEquals("{\"templateVersion\":\"auto-v1\"}", respBO.getItems().get(0).getTemplateSnapshotJson());
+        assertEquals(1000, respBO.getPrice().getPayPrice());
+    }
+
+    @Test
+    void calculateOrderPrice_shouldRejectWhenTemplateSnapshotMissingAndVersionSnapshotBlank() {
+        ProductTemplateVersionRespDTO publishedVersion = new ProductTemplateVersionRespDTO()
+                .setId(701L)
+                .setCategoryId(8L)
+                .setStatus(ProductTemplateConstants.TEMPLATE_STATUS_PUBLISHED)
+                .setSnapshotJson("");
+        when(productTemplateVersionApi.getTemplateVersionMap(asSet(701L)))
+                .thenReturn(Collections.singletonMap(701L, publishedVersion));
+
         TradePriceCalculateReqBO reqBO = buildBaseReq(701L, null);
 
         ServiceException ex = assertThrows(ServiceException.class, () -> tradePriceService.calculateOrderPrice(reqBO));
