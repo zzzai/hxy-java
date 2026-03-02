@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS `product_spu` (
     `unit` tinyint NOT NULL COMMENT '单位',
     `sort` int NOT NULL DEFAULT '0' COMMENT '排序字段',
     `status` tinyint NOT NULL COMMENT '商品状态: 0 上架（开启） 1 下架（禁用）-1 回收',
+    `product_type` tinyint NOT NULL DEFAULT '1' COMMENT '商品类型: 1 实物 2 服务 3 卡项 4 虚拟',
     `spec_type` bit(1) NOT NULL COMMENT '规格类型：0 单规格 1 多规格',
     `price` int NOT NULL DEFAULT '-1' COMMENT '商品价格，单位使用：分',
     `market_price` int NOT NULL COMMENT '市场价，单位使用：分',

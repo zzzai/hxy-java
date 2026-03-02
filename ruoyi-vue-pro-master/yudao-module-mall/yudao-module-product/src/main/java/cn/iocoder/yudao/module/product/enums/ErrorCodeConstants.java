@@ -37,6 +37,7 @@ public interface ErrorCodeConstants {
     ErrorCode SPU_SAVE_FAIL_COUPON_TEMPLATE_NOT_EXISTS = new ErrorCode(1_008_005_002, "商品 SPU 保存失败，原因：优惠劵不存在");
     ErrorCode SPU_NOT_ENABLE = new ErrorCode(1_008_005_003, "商品 SPU【{}】不处于上架状态");
     ErrorCode SPU_NOT_RECYCLE = new ErrorCode(1_008_005_004, "商品 SPU 不处于回收站状态");
+    ErrorCode SPU_TYPE_MISMATCH = new ErrorCode(1_008_005_005, "商品 SPU 类型不匹配，当前类型【{}】，期望类型【{}】");
 
     // ========== 商品 SKU 1-008-006-000 ==========
     ErrorCode SKU_NOT_EXISTS = new ErrorCode(1_008_006_000, "商品 SKU 不存在");
@@ -52,5 +53,63 @@ public interface ErrorCodeConstants {
     // ========== 商品 收藏 1-008-008-000 ==========
     ErrorCode FAVORITE_EXISTS = new ErrorCode(1_008_008_000, "该商品已经被收藏");
     ErrorCode FAVORITE_NOT_EXISTS = new ErrorCode(1_008_008_001, "商品收藏不存在");
+
+    // ========== 门店商品映射 1-008-009-000 ==========
+    ErrorCode STORE_SPU_MAPPING_NOT_EXISTS = new ErrorCode(1_008_009_000, "门店 SPU 映射不存在");
+    ErrorCode STORE_SKU_MAPPING_NOT_EXISTS = new ErrorCode(1_008_009_001, "门店 SKU 映射不存在");
+    ErrorCode STORE_BATCH_TARGETS_EMPTY = new ErrorCode(1_008_009_002, "批量操作门店列表不能为空");
+    ErrorCode STORE_SKU_BATCH_ADJUST_FIELDS_EMPTY = new ErrorCode(1_008_009_003, "批量调价/调库存至少需要设置一个字段");
+    ErrorCode STORE_SKU_STOCK_BIZ_KEY_REQUIRED = new ErrorCode(1_008_009_004, "门店 SKU 库存变更业务标识不能为空");
+    ErrorCode STORE_SKU_STOCK_BIZ_FIELD_TOO_LONG = new ErrorCode(1_008_009_005, "门店 SKU 库存变更业务标识过长：{} 最大长度 {}");
+    ErrorCode STORE_SKU_STOCK_BIZ_KEY_CONFLICT = new ErrorCode(1_008_009_006, "门店 SKU 库存变更幂等冲突：业务键对应的库存变化值不一致");
+
+    // ========== 门店主数据 1-008-010-000 ==========
+    ErrorCode STORE_NOT_EXISTS = new ErrorCode(1_008_010_000, "门店不存在");
+    ErrorCode STORE_CODE_EXISTS = new ErrorCode(1_008_010_001, "门店编码已存在");
+    ErrorCode STORE_HAS_PRODUCT_MAPPING = new ErrorCode(1_008_010_002, "门店已存在商品映射，无法删除");
+    ErrorCode STORE_CATEGORY_NOT_EXISTS = new ErrorCode(1_008_010_003, "门店分类不存在");
+    ErrorCode STORE_TAG_NOT_EXISTS = new ErrorCode(1_008_010_004, "门店标签不存在");
+
+    // ========== 门店分类 1-008-011-000 ==========
+    ErrorCode STORE_CATEGORY_CODE_EXISTS = new ErrorCode(1_008_011_000, "门店分类编码已存在");
+    ErrorCode STORE_CATEGORY_NAME_EXISTS = new ErrorCode(1_008_011_001, "门店分类名称已存在");
+    ErrorCode STORE_CATEGORY_HAS_STORE = new ErrorCode(1_008_011_002, "门店分类下存在门店，无法删除");
+
+    // ========== 门店标签 1-008-012-000 ==========
+    ErrorCode STORE_TAG_CODE_EXISTS = new ErrorCode(1_008_012_000, "门店标签编码已存在");
+    ErrorCode STORE_TAG_NAME_EXISTS = new ErrorCode(1_008_012_001, "门店标签名称已存在");
+    ErrorCode STORE_TAG_HAS_STORE = new ErrorCode(1_008_012_002, "门店标签已被门店使用，无法删除");
+
+    // ========== 门店标签组 1-008-013-000 ==========
+    ErrorCode STORE_TAG_GROUP_NOT_EXISTS = new ErrorCode(1_008_013_000, "门店标签组不存在");
+    ErrorCode STORE_TAG_GROUP_CODE_EXISTS = new ErrorCode(1_008_013_001, "门店标签组编码已存在");
+    ErrorCode STORE_TAG_GROUP_NAME_EXISTS = new ErrorCode(1_008_013_002, "门店标签组名称已存在");
+    ErrorCode STORE_TAG_GROUP_HAS_TAG = new ErrorCode(1_008_013_003, "门店标签组下存在标签，无法删除");
+    ErrorCode STORE_TAG_GROUP_REQUIRED_MISSING = new ErrorCode(1_008_013_004, "门店缺少必选标签组：{}");
+    ErrorCode STORE_TAG_GROUP_MUTEX_CONFLICT = new ErrorCode(1_008_013_005, "门店标签组选项互斥冲突：{}");
+
+    // ========== 门店生命周期 1-008-014-000 ==========
+    ErrorCode STORE_LIFECYCLE_STATUS_INVALID = new ErrorCode(1_008_014_000, "门店生命周期状态非法");
+    ErrorCode STORE_LIFECYCLE_TRANSITION_NOT_ALLOWED = new ErrorCode(1_008_014_001, "门店生命周期状态流转不允许：{} -> {}");
+    ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_MAPPING = new ErrorCode(1_008_014_002, "门店存在商品映射，无法停用或闭店");
+    ErrorCode STORE_LIFECYCLE_REASON_REQUIRED = new ErrorCode(1_008_014_003, "门店停业或闭店必须填写原因");
+    ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK = new ErrorCode(1_008_014_004, "门店存在正库存，无法停业或闭店");
+    ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW = new ErrorCode(1_008_014_005, "门店存在库存流水待处理，无法停业或闭店");
+
+    // ========== 类目模板与 SKU 生成 1-008-015-000 ==========
+    ErrorCode CATEGORY_TEMPLATE_NOT_EXISTS = new ErrorCode(1_008_015_000, "类目模板不存在");
+    ErrorCode CATEGORY_TEMPLATE_VALIDATE_FAILED = new ErrorCode(1_008_015_001, "类目模板校验失败");
+    ErrorCode SKU_GENERATE_COMBINATION_EXCEED_LIMIT = new ErrorCode(1_008_015_002, "SKU 规格组合数量超限");
+    ErrorCode SKU_GENERATE_TASK_NOT_EXISTS = new ErrorCode(1_008_015_003, "SKU 生成任务不存在");
+    ErrorCode SKU_GENERATE_TASK_STATUS_INVALID = new ErrorCode(1_008_015_004, "SKU 生成任务状态非法");
+    ErrorCode SKU_GENERATE_COMMIT_IDEMPOTENT_HIT = new ErrorCode(1_008_015_005, "SKU 生成提交命中幂等");
+    ErrorCode SKU_GENERATE_PREVIEW_TASK_REQUIRED = new ErrorCode(1_008_015_006, "提交前请先执行预览");
+    ErrorCode CATEGORY_TEMPLATE_SKU_SPEC_DATA_TYPE_INVALID = new ErrorCode(1_008_015_007, "SKU 规格属性数据类型非法");
+    ErrorCode CATEGORY_TEMPLATE_SERVICE_STOCK_AFFECT_FORBIDDEN = new ErrorCode(1_008_015_008, "服务类目不允许配置影响库存的属性");
+    ErrorCode SKU_GENERATE_SPEC_SELECTION_EMPTY = new ErrorCode(1_008_015_009, "SKU 规格选项不能为空");
+    ErrorCode SKU_GENERATE_COMMIT_PREVIEW_TASK_MISMATCH = new ErrorCode(1_008_015_010, "提交任务和预览任务不匹配");
+    ErrorCode CATEGORY_TEMPLATE_SKU_SPEC_AFFECT_FLAG_INVALID = new ErrorCode(1_008_015_011, "SKU 规格属性必须至少影响价格或库存");
+    ErrorCode CATEGORY_TEMPLATE_NON_SPEC_AFFECT_FORBIDDEN = new ErrorCode(1_008_015_012, "非 SKU 规格属性不允许影响价格或库存");
+    ErrorCode CATEGORY_TEMPLATE_VERSION_SNAPSHOT_REQUIRED = new ErrorCode(1_008_015_013, "类目模板版本快照缺失");
 
 }

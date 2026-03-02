@@ -3,6 +3,7 @@ package cn.iocoder.yudao.server.config.crmeb;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +31,7 @@ public class CrmebCompatWebConfiguration implements WebMvcConfigurer {
     );
 
     private final CrmebCompatProperties properties;
-    private final ObjectMapper objectMapper;
+    private final ObjectProvider<ObjectMapper> objectMapperProvider;
 
     @PostConstruct
     public void logCompatConfig() {
@@ -44,6 +45,7 @@ public class CrmebCompatWebConfiguration implements WebMvcConfigurer {
 
     @Bean
     public FilterRegistrationBean<CrmebCompatFilter> crmebCompatFilterRegistration() {
+        ObjectMapper objectMapper = objectMapperProvider.getObject();
         FilterRegistrationBean<CrmebCompatFilter> bean = new FilterRegistrationBean<>();
         bean.setFilter(new CrmebCompatFilter(properties, objectMapper));
         bean.setName("crmebCompatFilter");
@@ -54,6 +56,7 @@ public class CrmebCompatWebConfiguration implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        ObjectMapper objectMapper = objectMapperProvider.getObject();
         if (properties.getExcludePaths() == null || properties.getExcludePaths().isEmpty()) {
             registry.addInterceptor(new CrmebCompatInterceptor(properties, objectMapper))
                     .addPathPatterns(effectiveIncludePaths());

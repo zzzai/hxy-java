@@ -15,7 +15,12 @@ import org.springframework.context.annotation.Import;
  * @author 芋道源码
  */
 @SuppressWarnings("SpringComponentScan") // 忽略 IDEA 无法识别 ${yudao.info.base-package}
-@SpringBootApplication(scanBasePackages = {"${yudao.info.base-package}.server", "${yudao.info.base-package}.module"})
+@SpringBootApplication(scanBasePackages = {
+        "${yudao.info.base-package}.server",
+        "${yudao.info.base-package}.module",
+        "com.hxy.server",
+        "com.hxy.module"
+})
 @Import(CrmebCompatWebConfiguration.class)
 public class YudaoServerApplication {
 

@@ -42,6 +42,7 @@ public interface ProductSpuMapper extends BaseMapperX<ProductSpuDO> {
         LambdaQueryWrapperX<ProductSpuDO> queryWrapper = new LambdaQueryWrapperX<ProductSpuDO>()
                 .likeIfPresent(ProductSpuDO::getName, reqVO.getName())
                 .eqIfPresent(ProductSpuDO::getCategoryId, reqVO.getCategoryId())
+                .eqIfPresent(ProductSpuDO::getProductType, reqVO.getProductType())
                 .betweenIfPresent(ProductSpuDO::getCreateTime, reqVO.getCreateTime())
                 .orderByDesc(ProductSpuDO::getSort)
                 .orderByDesc(ProductSpuDO::getId);

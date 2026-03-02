@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `member_user`
     `create_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updater`     varchar(64)  NULL     DEFAULT '' COMMENT '更新者',
     `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted`     bit(1)       NOT NULL DEFAULT '0' COMMENT '是否删除',
+    `deleted`     bit(1)       NOT NULL DEFAULT b'0' COMMENT '是否删除',
     `tenant_id`   bigint       not null default '0',
     PRIMARY KEY (`id`)
 ) COMMENT '会员表';
@@ -347,6 +347,7 @@ CREATE TABLE IF NOT EXISTS `product_spu` (
     `unit` tinyint NOT NULL COMMENT '单位',
     `sort` int NOT NULL DEFAULT '0' COMMENT '排序字段',
     `status` tinyint NOT NULL COMMENT '商品状态: 0 上架（开启） 1 下架（禁用）-1 回收',
+    `product_type` tinyint NOT NULL DEFAULT '1' COMMENT '商品类型: 1 实物 2 服务 3 卡项 4 虚拟',
     `spec_type` bit(1) NOT NULL COMMENT '规格类型：0 单规格 1 多规格',
     `price` int NOT NULL DEFAULT '-1' COMMENT '商品价格，单位使用：分',
     `market_price` int NOT NULL COMMENT '市场价，单位使用：分',
@@ -772,9 +773,12 @@ CREATE TABLE IF NOT EXISTS `trade_order_item`
     `cart_id`           int      NULL,
     `spu_id`            bigint   NOT NULL,
     `spu_name`          varchar(255)  NOT NULL,
+    `product_type`      tinyint  NOT NULL DEFAULT '1',
     `sku_id`            bigint   NOT NULL,
     `properties`        varchar(255),
     `pic_url`           varchar(255),
+    `addon_type`        tinyint  NULL COMMENT '服务加项类型 1=加钟 2=升级 3=加项目',
+    `addon_snapshot_json` text COMMENT '服务加项快照（JSON）',
     `count`             int      NOT NULL,
     `comment_status`    tinyint(1)  NULL,
     `price`             int      NOT NULL,
@@ -796,6 +800,87 @@ CREATE TABLE IF NOT EXISTS `trade_order_item`
     `deleted`           bit(1)      NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`id`)
 ) COMMENT '交易订单明细表';
+
+CREATE TABLE IF NOT EXISTS `trade_service_order`
+(
+    `id`            bigint   NOT NULL AUTO_INCREMENT,
+    `order_id`      bigint   NOT NULL,
+    `order_no`      varchar(64)  NOT NULL,
+    `order_item_id` bigint   NOT NULL,
+    `user_id`       bigint   NOT NULL,
+    `pay_order_id`  bigint     NULL,
+    `spu_id`        bigint   NOT NULL,
+    `sku_id`        bigint   NOT NULL,
+    `addon_type`    tinyint  NULL COMMENT '服务加项类型 1=加钟 2=升级 3=加项目',
+    `addon_snapshot_json` text COMMENT '服务加项快照（JSON）',
+    `order_item_snapshot_json` text COMMENT '订单项快照（JSON）',
+    `status`        tinyint  NOT NULL DEFAULT '0' COMMENT '0 待预约 10 已预约 20 服务中 30 已完成 40 已取消',
+    `source`        varchar(32)  NOT NULL DEFAULT 'PAY_CALLBACK',
+    `booking_no`    varchar(64)  NOT NULL DEFAULT '' COMMENT '预约单号',
+    `remark`        varchar(255)  NOT NULL DEFAULT '',
+    `creator`       varchar(255)           DEFAULT '',
+    `create_time`   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater`       varchar(255)           DEFAULT '',
+    `update_time`   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`       bit(1)      NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_order_item_id` (`order_item_id`),
+    KEY `idx_order_id` (`order_id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_status` (`status`)
+) COMMENT '服务履约单表';
+
+CREATE TABLE IF NOT EXISTS `trade_after_sale_refund_rule`
+(
+    `id`                        bigint      NOT NULL AUTO_INCREMENT,
+    `enabled`                   bit(1)      NOT NULL DEFAULT TRUE,
+    `auto_refund_max_price`     int         NOT NULL DEFAULT 5000 COMMENT '自动退款金额上限（分）',
+    `user_daily_apply_limit`    int         NOT NULL DEFAULT 3 COMMENT '用户当日售后申请次数阈值',
+    `blacklist_user_ids`        varchar(2000) NOT NULL DEFAULT '[]',
+    `suspicious_order_keywords` varchar(2000) NOT NULL DEFAULT '[]',
+    `rule_version`              varchar(32)   NOT NULL DEFAULT 'v1',
+    `remark`                    varchar(255)  NOT NULL DEFAULT '',
+    `creator`                   varchar(255)           DEFAULT '',
+    `create_time`               datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater`                   varchar(255)           DEFAULT '',
+    `update_time`               datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`                   bit(1)      NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (`id`),
+    KEY `idx_enabled_id` (`enabled`, `id`)
+) COMMENT '售后退款风控规则表';
+
+CREATE TABLE IF NOT EXISTS `trade_after_sale_review_ticket`
+(
+    `id`                bigint      NOT NULL AUTO_INCREMENT,
+    `after_sale_id`     bigint      NOT NULL COMMENT '售后单 ID',
+    `order_id`          bigint      NOT NULL COMMENT '订单 ID',
+    `order_item_id`     bigint      NOT NULL COMMENT '订单项 ID',
+    `user_id`           bigint      NOT NULL COMMENT '用户 ID',
+    `rule_code`         varchar(64)  NOT NULL DEFAULT '' COMMENT '命中规则编码',
+    `decision_reason`   varchar(500) NOT NULL DEFAULT '' COMMENT '命中原因',
+    `severity`          varchar(16)  NOT NULL DEFAULT 'P1' COMMENT '严重级别',
+    `escalate_to`       varchar(64)  NOT NULL DEFAULT '' COMMENT '升级对象',
+    `sla_deadline_time` datetime              DEFAULT NULL COMMENT 'SLA 截止时间',
+    `status`            tinyint     NOT NULL DEFAULT '0' COMMENT '0 待处理 10 已收口',
+    `first_trigger_time` datetime   NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次触发时间',
+    `last_trigger_time`  datetime   NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最近触发时间',
+    `trigger_count`     int         NOT NULL DEFAULT 1 COMMENT '触发次数',
+    `resolved_time`     datetime              DEFAULT NULL COMMENT '收口时间',
+    `resolver_id`       bigint                DEFAULT NULL COMMENT '收口人 ID',
+    `resolver_type`     int                   DEFAULT NULL COMMENT '收口人类型',
+    `resolve_action_code` varchar(64) NOT NULL DEFAULT '' COMMENT '收口动作编码',
+    `resolve_biz_no`      varchar(64) NOT NULL DEFAULT '' COMMENT '收口来源业务号',
+    `remark`            varchar(255) NOT NULL DEFAULT '' COMMENT '备注',
+    `creator`           varchar(255)          DEFAULT '',
+    `create_time`       datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater`           varchar(255)          DEFAULT '',
+    `update_time`       datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`           bit(1)      NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_after_sale_id` (`after_sale_id`),
+    KEY `idx_status_deadline` (`status`, `sla_deadline_time`),
+    KEY `idx_severity_status` (`severity`, `status`)
+) COMMENT '售后人工复核工单表';
 
 CREATE TABLE IF NOT EXISTS `trade_after_sale`
 (
@@ -934,4 +1019,93 @@ CREATE TABLE IF NOT EXISTS `trade_delivery_express`
     `deleted`     bit(1)      NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`id`)
 ) COMMENT '佣金提现';
+
+-- ------------------------------------------------------------------
+-- HXY patch: wallet tables required by pay statistics (/admin-api/statistics/pay/summary)
+-- ------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `pay_wallet` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `user_id` bigint NOT NULL,
+    `user_type` tinyint NOT NULL,
+    `balance` int NOT NULL DEFAULT '0',
+    `freeze_price` int NOT NULL DEFAULT '0',
+    `total_expense` int NOT NULL DEFAULT '0',
+    `total_recharge` int NOT NULL DEFAULT '0',
+    `creator` varchar(64) DEFAULT '',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater` varchar(64) DEFAULT '',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted` bit(1) NOT NULL DEFAULT b'0',
+    `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_pay_wallet_user_type_tenant` (`user_id`, `user_type`, `tenant_id`)
+) COMMENT '会员钱包';
+
+CREATE TABLE IF NOT EXISTS `pay_wallet_recharge_package` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `name` varchar(64) NOT NULL,
+    `pay_price` int NOT NULL,
+    `bonus_price` int NOT NULL DEFAULT '0',
+    `status` tinyint NOT NULL DEFAULT '0',
+    `creator` varchar(64) DEFAULT '',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater` varchar(64) DEFAULT '',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted` bit(1) NOT NULL DEFAULT b'0',
+    `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    KEY `idx_pay_wallet_recharge_package_status` (`status`)
+) COMMENT '钱包充值套餐';
+
+CREATE TABLE IF NOT EXISTS `pay_wallet_recharge` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `wallet_id` bigint NOT NULL,
+    `total_price` int NOT NULL,
+    `pay_price` int NOT NULL,
+    `bonus_price` int NOT NULL DEFAULT '0',
+    `package_id` bigint DEFAULT NULL,
+    `pay_status` bit(1) NOT NULL DEFAULT b'0',
+    `pay_order_id` bigint DEFAULT NULL,
+    `pay_channel_code` varchar(32) DEFAULT NULL,
+    `pay_time` datetime DEFAULT NULL,
+    `pay_refund_id` bigint DEFAULT NULL,
+    `refund_total_price` int DEFAULT NULL,
+    `refund_pay_price` int DEFAULT NULL,
+    `refund_bonus_price` int DEFAULT NULL,
+    `refund_time` datetime DEFAULT NULL,
+    `refund_status` tinyint DEFAULT NULL,
+    `creator` varchar(64) DEFAULT '',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater` varchar(64) DEFAULT '',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted` bit(1) NOT NULL DEFAULT b'0',
+    `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    KEY `idx_pay_wallet_recharge_wallet_pay_time` (`wallet_id`, `pay_status`, `pay_time`),
+    KEY `idx_pay_wallet_recharge_refund_time` (`refund_status`, `refund_time`),
+    KEY `idx_pay_wallet_recharge_pay_order_id` (`pay_order_id`),
+    KEY `idx_pay_wallet_recharge_pay_refund_id` (`pay_refund_id`)
+) COMMENT '钱包充值记录';
+
+CREATE TABLE IF NOT EXISTS `pay_wallet_transaction` (
+    `id` bigint NOT NULL AUTO_INCREMENT,
+    `no` varchar(64) NOT NULL,
+    `wallet_id` bigint NOT NULL,
+    `biz_type` tinyint NOT NULL,
+    `biz_id` varchar(64) NOT NULL,
+    `title` varchar(255) NOT NULL DEFAULT '',
+    `price` int NOT NULL,
+    `balance` int NOT NULL,
+    `creator` varchar(64) DEFAULT '',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updater` varchar(64) DEFAULT '',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted` bit(1) NOT NULL DEFAULT b'0',
+    `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_pay_wallet_transaction_no` (`no`),
+    KEY `idx_pay_wallet_transaction_wallet_create_time` (`wallet_id`, `create_time`),
+    KEY `idx_pay_wallet_transaction_biz` (`biz_type`, `biz_id`)
+) COMMENT '钱包流水';
+
 SET FOREIGN_KEY_CHECKS = 1;

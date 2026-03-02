@@ -30,6 +30,7 @@
             从而不存在相互（循环）依赖，即 yudao-module-trade => yudao-module-promotion => yudao-module-trade-api
          -->
         <module>yudao-module-trade-api</module>
+        <module>yudao-module-booking</module>
     </modules>
 
 </project>

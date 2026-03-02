@@ -12,7 +12,7 @@
 ├── docker.env                      <-- 提供docker-compose环境变量配置
 ├── yudao-server
 │   └── Dockerfile
-└── yudao-ui-admin
+└── hxy-ui-admin
     ├── .dockerignore
     ├── Dockerfile
     └── nginx.conf                  <-- 提供基础配置，gzip压缩、api转发
@@ -68,3 +68,17 @@ bash ../dev/switch_crmeb_stage.sh \
   --apply \
   --restart-server
 ```
+
+## 数据卷命名迁移（yudao-system_* -> hxy-platform_*）
+
+首次切换新卷名时，先迁移旧卷数据，避免 MySQL/Redis 丢数据：
+
+```bash
+# 先看计划，不执行
+bash migrate_volume_names_to_hxy.sh --dry-run
+
+# 正式迁移（会先备份，再拷贝）
+bash migrate_volume_names_to_hxy.sh
+```
+
+如旧卷仍被运行中容器占用，脚本会直接退出。先停服务后再执行，或明确使用 `--allow-live`。

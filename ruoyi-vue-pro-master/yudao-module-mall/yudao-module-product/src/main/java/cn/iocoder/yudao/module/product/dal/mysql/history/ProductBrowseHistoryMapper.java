@@ -48,4 +48,15 @@ public interface ProductBrowseHistoryMapper extends BaseMapperX<ProductBrowseHis
                 .orderByAsc(ProductBrowseHistoryDO::getCreateTime));
     }
 
+    default Long selectCountByUserId(Long userId) {
+        return selectCount(ProductBrowseHistoryDO::getUserId, userId);
+    }
+
+    default ProductBrowseHistoryDO selectOldestByUserId(Long userId) {
+        return selectOne(new LambdaQueryWrapperX<ProductBrowseHistoryDO>()
+                .eq(ProductBrowseHistoryDO::getUserId, userId)
+                .orderByAsc(ProductBrowseHistoryDO::getCreateTime)
+                .last("LIMIT 1"));
+    }
+
 }

@@ -19,8 +19,8 @@ spring:
         enabled: true
         allow: # 设置白名单，不填则允许所有访问
         url-pattern: /druid/*
-        login-username: # 控制台管理用户名和密码
-        login-password:
+        login-username: admin # 控制台管理用户名和密码
+        login-password: admin123
       filter:
         stat:
           enabled: true
@@ -48,7 +48,7 @@ spring:
       primary: master
       datasource:
         master:
-          url: jdbc:mysql://127.0.0.1:3306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true # MySQL Connector/J 8.X 连接的示例
+          url: jdbc:mysql://127.0.0.1:13306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true # MySQL Connector/J 8.X 连接的示例
           #          url: jdbc:mysql://127.0.0.1:3306/ruoyi-vue-pro?useSSL=true&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true # MySQL Connector/J 5.X 连接的示例
           #          url: jdbc:postgresql://127.0.0.1:5432/ruoyi-vue-pro # PostgreSQL 连接的示例
           #          url: jdbc:oracle:thin:@127.0.0.1:1521:xe # Oracle 连接的示例
@@ -66,7 +66,7 @@ spring:
           #          password: Yudao@2024 # OpenGauss 连接的示例
         slave: # 模拟从库，可根据自己需要修改
           lazy: true # 开启懒加载，保证启动速度
-          url: jdbc:mysql://127.0.0.1:3306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&nullCatalogMeansCurrent=true
+          url: jdbc:mysql://127.0.0.1:13306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true&nullCatalogMeansCurrent=true
           username: root
           password: 123456
 #        tdengine: # IoT 数据库（需要 IoT 物联网再开启噢！）
@@ -201,8 +201,8 @@ wx:
 #    secret: 5abee519483bc9f8cb37ce280e814bd0
 #    app-id: wx5b23ba7a5589ecbb # 测试号（自己的）
 #    secret: 2a7b3b20c537e52e74afd395eb85f61f
-    app-id: wxf56b1542b9e85f8a # 测试号（Kongdy 提供的）
-    secret: 496379dcef1ba869e9234de8d598cfd3
+    app-id: ${WX_MP_APP_ID:wxf56b1542b9e85f8a} # 微信公众号 AppID
+    secret: ${WX_MP_SECRET:496379dcef1ba869e9234de8d598cfd3}
     # 存储配置，解决 AccessToken 的跨节点的共享
     config-storage:
       type: RedisTemplate # 采用 RedisTemplate 操作 Redis，会自动从 Spring 中获取
@@ -213,8 +213,8 @@ wx:
     #    secret: 333ae72f41552af1e998fe1f54e1584a
 #    appid: wx63c280fe3248a3e7 # wenhualian的接口测试号
 #    secret: 6f270509224a7ae1296bbf1c8cb97aed
-    appid: wxc4598c446f8a9cb3 # 测试号（Kongdy 提供的）
-    secret: 4a1a04e07f6a4a0751b39c3064a92c8b
+    appid: ${WX_MINIAPP_APP_ID:wxc4598c446f8a9cb3} # 微信小程序 AppID
+    secret: ${WX_MINIAPP_SECRET:4a1a04e07f6a4a0751b39c3064a92c8b}
 #    appid: wx66186af0759f47c9 # 测试号（puhui 提供的）
 #    secret: 3218bcbd112cbc614c7264ceb20144ac
     config-storage:
@@ -228,6 +228,9 @@ wx:
 yudao:
   captcha:
     enable: false # 本地环境，暂时关闭图片验证码，方便登录等接口的测试；
+  sms-code: # 本地环境固定验证码，方便测试
+    begin-code: 9999
+    end-code: 9999
   security:
     mock-enable: true
   pay:
@@ -253,19 +256,25 @@ yudao:
     env-version: develop # 小程序版本: 正式版为 "release"；体验版为 "trial"；开发版为 "develop"
   wxa-subscribe-message:
     miniprogram-state: developer # 跳转小程序类型：开发版为 “developer”；体验版为 “trial”为；正式版为 “formal”
-  tencent-lbs-key: TVDBZ-TDILD-4ON4B-PFDZA-RNLKH-VVF6E # QQ 地图的密钥 https://lbs.qq.com/service/staticV2/staticGuide/staticDoc
+  tencent-lbs-key: ${TENCENT_LBS_KEY:} # QQ 地图的密钥，生产环境通过环境变量配置
+
+# HXY 业务配置
+hxy:
+  booking:
+    commission:
+      notify-target-role-ids: "" # 佣金结算通知目标角色ID，多个逗号分隔；为空时走 reviewer/creator/默认兜底
 
 justauth:
   enabled: true
   type:
     DINGTALK: # 钉钉
-      client-id: dingvrnreaje3yqvzhxg
-      client-secret: i8E6iZyDvZj51JIb0tYsYfVQYOks9Cq1lgryEjFRqC79P3iJcrxEwT6Qk2QvLrLI
+      client-id: ${DINGTALK_CLIENT_ID:dingvrnreaje3yqvzhxg}
+      client-secret: ${DINGTALK_CLIENT_SECRET:i8E6iZyDvZj51JIb0tYsYfVQYOks9Cq1lgryEjFRqC79P3iJcrxEwT6Qk2QvLrLI}
       ignore-check-redirect-uri: true
     WECHAT_ENTERPRISE: # 企业微信
-      client-id: wwd411c69a39ad2e54
-      client-secret: 1wTb7hYxnpT2TUbIeHGXGo7T0odav1ic10mLdyyATOw
-      agent-id: 1000004
+      client-id: ${WECHAT_ENTERPRISE_CLIENT_ID:wwd411c69a39ad2e54}
+      client-secret: ${WECHAT_ENTERPRISE_CLIENT_SECRET:1wTb7hYxnpT2TUbIeHGXGo7T0odav1ic10mLdyyATOw}
+      agent-id: ${WECHAT_ENTERPRISE_AGENT_ID:1000004}
       ignore-check-redirect-uri: true
     # noinspection SpringBootApplicationYaml
     WECHAT_MINI_PROGRAM: # 微信小程序

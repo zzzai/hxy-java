@@ -61,6 +61,10 @@ public class ProductSpuRespVO {
     @DictFormat(DictTypeConstants.PRODUCT_SPU_STATUS)
     private Integer status;
 
+    @Schema(description = "商品类型，1=实物 2=服务 3=卡项 4=虚拟", example = "1")
+    @ExcelProperty("商品类型")
+    private Integer productType;
+
     @Schema(description = "商品创建时间", requiredMode = Schema.RequiredMode.REQUIRED, example = "2023-05-24 00:00:00")
     @ExcelProperty("创建时间")
     private LocalDateTime createTime;

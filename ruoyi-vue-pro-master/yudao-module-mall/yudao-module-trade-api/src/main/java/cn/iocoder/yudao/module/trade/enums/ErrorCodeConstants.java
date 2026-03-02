@@ -42,6 +42,10 @@ public interface ErrorCodeConstants {
     ErrorCode ORDER_PICK_UP_FAIL_COMBINATION_NOT_SUCCESS = new ErrorCode(1_011_000_037, "交易订单自提失败，原因：商品拼团记录不是【成功】状态");
     ErrorCode ORDER_CREATE_FAIL_INSUFFICIENT_USER_POINTS = new ErrorCode(1_011_000_038, "交易订单创建失败，原因：用户积分不足");
     ErrorCode ORDER_PICK_UP_FAIL_STATUS_NOT_UNDELIVERED = new ErrorCode(1_011_000_039, "交易订单自提失败，订单不是【待核销】状态");
+    ErrorCode SERVICE_ORDER_NOT_FOUND = new ErrorCode(1_011_000_040, "服务履约单不存在");
+    ErrorCode SERVICE_ORDER_STATUS_ILLEGAL = new ErrorCode(1_011_000_041, "服务履约单状态非法，当前状态为【{}】，期望状态为【{}】");
+    ErrorCode SERVICE_ORDER_UPDATE_STATUS_FAIL = new ErrorCode(1_011_000_042, "服务履约单状态更新失败，请重试");
+    ErrorCode ORDER_DELIVERY_FAIL_CONTAINS_SERVICE_ITEM = new ErrorCode(1_011_000_043, "交易订单发货失败，订单包含服务商品，请走服务履约链路");
 
     // ========== After Sale 模块 1-011-000-100 ==========
     ErrorCode AFTER_SALE_NOT_FOUND = new ErrorCode(1_011_000_100, "售后单不存在");
@@ -63,6 +67,9 @@ public interface ErrorCodeConstants {
             new ErrorCode(1_011_000_115, "取消售后单失败，售后单状态不是【待审核】或【卖家同意】或【商家待收货】");
     ErrorCode AFTER_SALE_CREATE_FAIL_ORDER_STATUS_COMBINATION_IN_PROGRESS = new ErrorCode(1_011_000_116, "订单拼团中，无法申请售后");
     ErrorCode AFTER_SALE_REFUND_NEED_MANUAL_REVIEW = new ErrorCode(1_011_000_117, "退款需人工复核：{}");
+    ErrorCode AFTER_SALE_CREATE_FAIL_ORDER_EXPIRED = new ErrorCode(1_011_000_118, "订单已超过售后申请期限，无法申请售后");
+    ErrorCode AFTER_SALE_REVIEW_TICKET_NOT_FOUND = new ErrorCode(1_011_000_119, "人工复核工单不存在");
+    ErrorCode AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING = new ErrorCode(1_011_000_120, "人工复核工单状态不是待处理");
 
     // ========== Cart 模块 1-011-002-000 ==========
     ErrorCode CARD_ITEM_NOT_FOUND = new ErrorCode(1_011_002_000, "购物车项不存在");
@@ -75,6 +82,11 @@ public interface ErrorCodeConstants {
     ErrorCode PRICE_CALCULATE_POINT_TOTAL_LIMIT_COUNT = new ErrorCode(1_011_003_004, "参与积分活动的商品，超过了积分活动商品总限购数量");
     ErrorCode PRICE_CALCULATE_DELIVERY_PRICE_TYPE_ILLEGAL = new ErrorCode(1_011_003_005, "计算快递运费异常，配送方式不匹配");
     ErrorCode PRICE_CALCULATE_COUPON_CAN_NOT_USE = new ErrorCode(1_011_003_006, "该优惠劵无法使用，原因：{}」");
+    ErrorCode PRICE_CALCULATE_SERVICE_ITEM_EXPRESS_FORBIDDEN = new ErrorCode(1_011_003_007, "服务商品不支持快递配送，请选择到店履约");
+    ErrorCode PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED = new ErrorCode(1_011_003_008, "模板版本快照缺失，请刷新后重试");
+    ErrorCode PRICE_CALCULATE_TEMPLATE_VERSION_NOT_FOUND = new ErrorCode(1_011_003_009, "模板版本不存在");
+    ErrorCode PRICE_CALCULATE_TEMPLATE_VERSION_NOT_PUBLISHED = new ErrorCode(1_011_003_010, "模板版本未发布，无法下单");
+    ErrorCode PRICE_CALCULATE_TEMPLATE_VERSION_CATEGORY_MISMATCH = new ErrorCode(1_011_003_011, "模板版本与商品类目不匹配");
 
     // ========== 物流 Express 模块 1-011-004-000 ==========
     ErrorCode EXPRESS_NOT_EXISTS = new ErrorCode(1_011_004_000, "快递公司不存在");

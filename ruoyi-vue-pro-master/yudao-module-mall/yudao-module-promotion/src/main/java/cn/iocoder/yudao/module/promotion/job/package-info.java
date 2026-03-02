@@ -1,4 +1,4 @@
 /**
- * TODO 占位，无具体含义
+ * 促销模块定时任务
  */
 package cn.iocoder.yudao.module.promotion.job;

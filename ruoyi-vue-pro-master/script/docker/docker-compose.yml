@@ -1,23 +1,23 @@
-name: yudao-system
+name: ${COMPOSE_PROJECT_NAME:-hxy-platform}
 
 services:
   mysql:
-    container_name: yudao-mysql
+    container_name: ${MYSQL_CONTAINER_NAME:-hxy-mysql}
     image: mysql:8
     restart: unless-stopped
     tty: true
     ports:
       - "${MYSQL_HOST_PORT:-13306}:3306"
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ruoyi-vue-pro}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hxy_dev}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
     volumes:
       - mysql:/var/lib/mysql/
       - ../../sql/mysql/ruoyi-vue-pro.sql:/docker-entrypoint-initdb.d/ruoyi-vue-pro.sql:ro
 
   redis:
-    container_name: yudao-redis
-    image: redis:6-alpine
+    container_name: ${REDIS_CONTAINER_NAME:-hxy-redis}
+    image: ${REDIS_IMAGE:-redis:7-alpine}
     restart: unless-stopped
     ports:
       - "${REDIS_HOST_PORT:-16379}:6379"
@@ -25,10 +25,10 @@ services:
       - redis:/data
 
   server:
-    container_name: yudao-server
+    container_name: ${SERVER_CONTAINER_NAME:-hxy-server}
     build:
       context: ../../yudao-server
-    image: yudao-server
+    image: ${SERVER_IMAGE_NAME:-hxy-server}
     restart: unless-stopped
     ports:
       - "${SERVER_HOST_PORT:-14880}:48080"
@@ -43,33 +43,42 @@ services:
           -Djava.security.egd=file:/dev/./urandom
         }
       ARGS:
-        --spring.datasource.dynamic.datasource.master.url=${MASTER_DATASOURCE_URL:-jdbc:mysql://yudao-mysql:3306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true}
+        --spring.datasource.dynamic.datasource.master.url=${MASTER_DATASOURCE_URL:-jdbc:mysql://hxy-mysql:3306/hxy_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true}
         --spring.datasource.dynamic.datasource.master.username=${MASTER_DATASOURCE_USERNAME:-root}
         --spring.datasource.dynamic.datasource.master.password=${MASTER_DATASOURCE_PASSWORD:-123456}
-        --spring.datasource.dynamic.datasource.slave.url=${SLAVE_DATASOURCE_URL:-jdbc:mysql://yudao-mysql:3306/ruoyi-vue-pro?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true}
+        --spring.datasource.dynamic.datasource.slave.url=${SLAVE_DATASOURCE_URL:-jdbc:mysql://hxy-mysql:3306/hxy_dev?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true}
         --spring.datasource.dynamic.datasource.slave.username=${SLAVE_DATASOURCE_USERNAME:-root}
         --spring.datasource.dynamic.datasource.slave.password=${SLAVE_DATASOURCE_PASSWORD:-123456}
-        --spring.redis.host=${REDIS_HOST:-yudao-redis}
+        --spring.redis.host=${REDIS_HOST:-hxy-redis}
+        --yudao.trade.express.kd100.key=${TRADE_EXPRESS_KD100_KEY:-dummy}
+        --yudao.trade.express.kd100.customer=${TRADE_EXPRESS_KD100_CUSTOMER:-dummy}
+        --yudao.trade.express.kd-niao.apiKey=${TRADE_EXPRESS_KDNIAO_API_KEY:-dummy}
+        --yudao.trade.express.kd-niao.businessId=${TRADE_EXPRESS_KDNIAO_BUSINESS_ID:-dummy}
     depends_on:
       - mysql
       - redis
 
   admin:
-    container_name: yudao-admin
+    container_name: ${ADMIN_CONTAINER_NAME:-hxy-admin}
     build:
-      context: ./yudao-ui-admin
+      context: ./hxy-ui-admin
       args:
-        NODE_ENV:
-          ENV=${NODE_ENV:-production}
-          PUBLIC_PATH=${PUBLIC_PATH:-/}
-          VUE_APP_TITLE=${VUE_APP_TITLE:-芋道管理系统}
-          VUE_APP_BASE_API=${VUE_APP_BASE_API:-/prod-api}
-          VUE_APP_APP_NAME=${VUE_APP_APP_NAME:-/}
-          VUE_APP_TENANT_ENABLE=${VUE_APP_TENANT_ENABLE:-true}
-          VUE_APP_CAPTCHA_ENABLE=${VUE_APP_CAPTCHA_ENABLE:-true}
-          VUE_APP_DOC_ENABLE=${VUE_APP_DOC_ENABLE:-true}
-          VUE_APP_BAIDU_CODE=${VUE_APP_BAIDU_CODE:-fadc1bd5db1a1d6f581df60a1807f8ab}
-    image: yudao-admin
+        UI_REPO_URL: ${UI_REPO_URL:-https://gitee.com/yudaocode/yudao-ui-admin-vue3.git}
+        UI_REPO_REF: ${UI_REPO_REF:-master}
+        NODE_ENV: ${NODE_ENV:-production}
+        PUBLIC_PATH: ${PUBLIC_PATH:-/}
+        VUE_APP_TITLE: ${VUE_APP_TITLE:-荷小悦}
+        VUE_APP_BASE_API: ${VUE_APP_BASE_API:-/prod-api}
+        VUE_APP_APP_NAME: ${VUE_APP_APP_NAME:-/}
+        VUE_APP_TENANT_ENABLE: ${VUE_APP_TENANT_ENABLE:-true}
+        VUE_APP_CAPTCHA_ENABLE: ${VUE_APP_CAPTCHA_ENABLE:-true}
+        VUE_APP_DOC_ENABLE: ${VUE_APP_DOC_ENABLE:-true}
+        VUE_APP_BAIDU_CODE: ${VUE_APP_BAIDU_CODE:-fadc1bd5db1a1d6f581df60a1807f8ab}
+        VITE_APP_TITLE: ${VITE_APP_TITLE:-荷小悦}
+        VITE_BASE_URL: ${VITE_BASE_URL:-}
+        VITE_API_URL: ${VITE_API_URL:-/prod-api/admin-api}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+    image: ${ADMIN_IMAGE_NAME:-hxy-admin}
     restart: unless-stopped
     ports:
       - "${ADMIN_HOST_PORT:-18080}:80"
@@ -78,6 +87,8 @@ services:
 
 volumes:
   mysql:
+    name: ${MYSQL_VOLUME_NAME:-hxy-platform_mysql}
     driver: local
   redis:
+    name: ${REDIS_VOLUME_NAME:-hxy-platform_redis}
     driver: local

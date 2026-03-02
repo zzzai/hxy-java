@@ -1,11 +1,9 @@
 package cn.iocoder.yudao.module.product.service.history;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.controller.admin.history.vo.ProductBrowseHistoryPageReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.history.ProductBrowseHistoryDO;
 import cn.iocoder.yudao.module.product.dal.mysql.history.ProductBrowseHistoryMapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -38,11 +36,14 @@ public class ProductBrowseHistoryServiceImpl implements ProductBrowseHistoryServ
         if (history != null) {
             browseHistoryMapper.deleteById(history);
         } else {
-            // 情况二：限制每个用户的浏览记录的条数（只查一条最早地记录、记录总数）
-            // TODO @疯狂：这里最好先查询一次数量。如果发现超过了，再删除；主要考虑，可能有部分不超过，提前就多了一次 sql 查询了
-            Page<ProductBrowseHistoryDO> pageResult = browseHistoryMapper.selectPageByUserIdOrderByCreateTimeAsc(userId, 1, 1);
-            if (pageResult.getTotal() >= USER_STORE_MAXIMUM) {
-                browseHistoryMapper.deleteById(CollUtil.getFirst(pageResult.getRecords()));
+            // 情况二：限制每个用户的浏览记录的条数
+            // 先查询数量，只有超过限制时才查询并删除最早的记录
+            Long count = browseHistoryMapper.selectCountByUserId(userId);
+            if (count >= USER_STORE_MAXIMUM) {
+                ProductBrowseHistoryDO oldest = browseHistoryMapper.selectOldestByUserId(userId);
+                if (oldest != null) {
+                    browseHistoryMapper.deleteById(oldest);
+                }
             }
         }
 

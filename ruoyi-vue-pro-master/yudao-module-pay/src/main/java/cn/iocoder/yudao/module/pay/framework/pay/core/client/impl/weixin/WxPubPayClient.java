@@ -14,6 +14,8 @@ import com.github.binarywang.wxpay.bean.result.WxPayUnifiedOrderV3Result;
 import com.github.binarywang.wxpay.bean.result.enums.TradeTypeEnum;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.exception.WxPayException;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.invalidParamException;
@@ -28,6 +30,10 @@ import static cn.iocoder.yudao.framework.common.util.json.JsonUtils.toJsonString
  */
 @Slf4j
 public class WxPubPayClient extends AbstractWxPayClient {
+
+    private static final String PARTNER_PAYER_MODE_KEY = "partnerPayerMode";
+    private static final String PARTNER_PAYER_MODE_SP = "sp";
+    private static final String PARTNER_PAYER_MODE_SUB = "sub";
 
     @SuppressWarnings("unused") // 反射会调用到，所以不能删除
     public WxPubPayClient(Long channelId, WxPayClientConfig config) {
@@ -60,9 +66,13 @@ public class WxPubPayClient extends AbstractWxPayClient {
     protected PayOrderRespDTO doUnifiedOrderV3(PayOrderUnifiedReqDTO reqDTO) throws WxPayException {
         WxPayUnifiedOrderV3Result.JsapiResult response;
         if (isPartnerModeV3()) {
+            PartnerPayerSelection payerSelection = selectPartnerPayer(reqDTO, config.getSubAppId());
             // 构建 WxPayPartnerUnifiedOrderV3Request 对象
             WxPayPartnerUnifiedOrderV3Request request = buildPayPartnerUnifiedOrderRequestV3(reqDTO)
-                    .setPayer(buildPartnerPayer(reqDTO));
+                    .setPayer(payerSelection.getPayer());
+            if (!payerSelection.isUseSubAppId()) {
+                request.setSubAppid(null);
+            }
             // 执行请求
             response = client.createPartnerOrderV3(TradeTypeEnum.JSAPI, request);
         } else {
@@ -88,19 +98,58 @@ public class WxPubPayClient extends AbstractWxPayClient {
         return openid;
     }
 
-    private WxPayPartnerUnifiedOrderV3Request.Payer buildPartnerPayer(PayOrderUnifiedReqDTO reqDTO) {
+    static PartnerPayerSelection selectPartnerPayer(PayOrderUnifiedReqDTO reqDTO, String subAppId) {
         String openid = getOpenid(reqDTO);
         String spOpenid = MapUtil.getStr(reqDTO.getChannelExtras(), "spOpenid");
         String subOpenid = MapUtil.getStr(reqDTO.getChannelExtras(), "subOpenid");
+        String payerMode = StrUtil.trimToEmpty(MapUtil.getStr(reqDTO.getChannelExtras(), PARTNER_PAYER_MODE_KEY));
+        boolean hasSubAppId = StrUtil.isNotBlank(subAppId);
+
+        if (StrUtil.equalsIgnoreCase(payerMode, PARTNER_PAYER_MODE_SP)) {
+            if (hasSubAppId) {
+                throw invalidParamException("支付请求的 partnerPayerMode=sp 时，支付渠道 subAppId 必须置空！");
+            }
+            return new PartnerPayerSelection(new WxPayPartnerUnifiedOrderV3Request.Payer()
+                    .setSpOpenid(StrUtil.blankToDefault(spOpenid, openid)), false);
+        }
+        if (StrUtil.equalsIgnoreCase(payerMode, PARTNER_PAYER_MODE_SUB)) {
+            if (!hasSubAppId) {
+                throw invalidParamException("支付请求的 partnerPayerMode=sub 时，subAppId 不能为空！");
+            }
+            return new PartnerPayerSelection(new WxPayPartnerUnifiedOrderV3Request.Payer()
+                    .setSubOpenid(StrUtil.blankToDefault(subOpenid, openid)), true);
+        }
+
+        if (StrUtil.isNotBlank(subOpenid)) {
+            if (!hasSubAppId) {
+                throw invalidParamException("支付请求包含 subOpenid 时，subAppId 不能为空！");
+            }
+            return new PartnerPayerSelection(new WxPayPartnerUnifiedOrderV3Request.Payer()
+                    .setSubOpenid(subOpenid), true);
+        }
+        if (StrUtil.isNotBlank(spOpenid)) {
+            return new PartnerPayerSelection(new WxPayPartnerUnifiedOrderV3Request.Payer()
+                    .setSpOpenid(spOpenid), false);
+        }
+
         WxPayPartnerUnifiedOrderV3Request.Payer payer = new WxPayPartnerUnifiedOrderV3Request.Payer();
-        if (StrUtil.isNotBlank(config.getSubAppId())) {
+        if (hasSubAppId) {
             // 子商户小程序调起支付，优先使用 subOpenid
             payer.setSubOpenid(StrUtil.blankToDefault(subOpenid, openid));
+            return new PartnerPayerSelection(payer, true);
         } else {
             // 服务商小程序调起支付，优先使用 spOpenid
             payer.setSpOpenid(StrUtil.blankToDefault(spOpenid, openid));
+            return new PartnerPayerSelection(payer, false);
         }
-        return payer;
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class PartnerPayerSelection {
+
+        private final WxPayPartnerUnifiedOrderV3Request.Payer payer;
+        private final boolean useSubAppId;
     }
 
 }

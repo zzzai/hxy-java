@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.product.api.spu.dto;
 
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
+import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import lombok.Data;
 
 import java.util.List;
@@ -41,6 +42,12 @@ public class ProductSpuRespDTO {
      * 枚举 {@link ProductSpuStatusEnum}
      */
     private Integer status;
+    /**
+     * 商品类型
+     * <p>
+     * 枚举 {@link ProductTypeEnum}
+     */
+    private Integer productType;
 
     // ========== SKU 相关字段 =========
 

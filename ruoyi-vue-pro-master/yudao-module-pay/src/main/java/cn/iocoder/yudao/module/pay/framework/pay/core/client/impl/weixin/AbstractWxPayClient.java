@@ -20,6 +20,7 @@ import cn.iocoder.yudao.module.pay.framework.pay.core.client.impl.AbstractPayCli
 import com.github.binarywang.wxpay.bean.notify.*;
 import com.github.binarywang.wxpay.bean.request.*;
 import com.github.binarywang.wxpay.bean.result.*;
+import com.github.binarywang.wxpay.bean.WxPayApiData;
 import com.github.binarywang.wxpay.bean.transfer.TransferBillsGetResult;
 import com.github.binarywang.wxpay.bean.transfer.TransferBillsNotifyResult;
 import com.github.binarywang.wxpay.bean.transfer.TransferBillsRequest;
@@ -46,6 +47,8 @@ import static cn.iocoder.yudao.module.pay.framework.pay.core.client.impl.weixin.
  */
 @Slf4j
 public abstract class AbstractWxPayClient extends AbstractPayClient<WxPayClientConfig> {
+
+    private static final int CHANNEL_RAW_DATA_MAX_LENGTH = 1000;
 
     protected WxPayService client;
 
@@ -74,11 +77,14 @@ public abstract class AbstractWxPayClient extends AbstractPayClient<WxPayClientC
         } else if (Objects.equals(config.getApiVersion(), API_VERSION_V3)) {
             payConfig.setPrivateKeyPath(FileUtils.createTempFile(config.getPrivateKeyContent()).getPath());
             // 参考 https://gitee.com/yudaocode/yudao-ui-admin-vue3/issues/ICUE53 和 https://t.zsxq.com/ODR5V
+            boolean fullPublicKeyModel = StrUtil.isNotBlank(config.getPublicKeyId())
+                    && StrUtil.isNotBlank(config.getPublicKeyContent());
             if (StrUtil.isNotBlank(config.getPublicKeyContent())) {
                 payConfig.setPublicKeyPath(FileUtils.createTempFile(config.getPublicKeyContent()).getPath());
             }
-            // 特殊：强制使用微信公钥模式，避免灰度期间的问题！！！
-            payConfig.setStrictlyNeedWechatPaySerial(true);
+            payConfig.setFullPublicKeyModel(fullPublicKeyModel);
+            // 公钥模式下不依赖平台证书序列号，避免触发自动拉取平台证书
+            payConfig.setStrictlyNeedWechatPaySerial(!fullPublicKeyModel);
         }
 
         // 创建 client 客户端
@@ -103,10 +109,15 @@ public abstract class AbstractWxPayClient extends AbstractPayClient<WxPayClientC
             }
         } catch (WxPayException e) {
             log.error("[doUnifiedOrder][支付({}) 发起微信支付异常", reqDTO, e);
+            log.error("[doUnifiedOrder][支付({}) 微信异常详情={}]", reqDTO, summarizeWxPayException(e));
             String errorCode = getErrorCode(e);
             String errorMessage = getErrorMessage(e);
+            String rawData = buildChannelRawData(e, client != null ? client.getWxApiData() : null);
+            if (StrUtil.isNotBlank(rawData)) {
+                log.error("[doUnifiedOrder][支付({}) 微信渠道细节={}]", reqDTO, rawData);
+            }
             return PayOrderRespDTO.closedOf(errorCode, errorMessage,
-                    reqDTO.getOutTradeNo(), e.getXmlString());
+                    reqDTO.getOutTradeNo(), rawData);
         }
     }
 
@@ -739,6 +750,37 @@ public abstract class AbstractWxPayClient extends AbstractPayClient<WxPayClientC
         return e.getReturnMsg();
     }
 
+    static String buildChannelRawData(WxPayException e, WxPayApiData apiData) {
+        String rawData = firstNonBlank(e.getXmlString(),
+                apiData != null ? apiData.getResponseData() : null,
+                apiData != null ? apiData.getExceptionMsg() : null,
+                e.getMessage());
+        if (StrUtil.isBlank(rawData)) {
+            return null;
+        }
+        if (apiData != null && StrUtil.isNotBlank(apiData.getUrl())) {
+            rawData = "url=" + apiData.getUrl() + " | body=" + rawData;
+        }
+        return truncate(rawData, CHANNEL_RAW_DATA_MAX_LENGTH);
+    }
+
+    static String summarizeWxPayException(WxPayException e) {
+        if (e == null) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder(256);
+        appendPair(builder, "returnCode", e.getReturnCode());
+        appendPair(builder, "returnMsg", e.getReturnMsg());
+        appendPair(builder, "resultCode", e.getResultCode());
+        appendPair(builder, "errCode", e.getErrCode());
+        appendPair(builder, "errCodeDes", e.getErrCodeDes());
+        appendPair(builder, "customErrorMsg", e.getCustomErrorMsg());
+        appendPair(builder, "message", e.getMessage());
+        appendPair(builder, "xmlPresent", String.valueOf(StrUtil.isNotBlank(e.getXmlString())));
+        appendPair(builder, "causeChain", buildCauseChain(e));
+        return builder.toString();
+    }
+
     protected boolean isPartnerModeV3() {
         return Objects.equals(config.getApiVersion(), API_VERSION_V3) && config.isPartnerMode();
     }
@@ -757,6 +799,40 @@ public abstract class AbstractWxPayClient extends AbstractPayClient<WxPayClientC
             }
         }
         return null;
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || maxLength <= 0 || value.length() <= maxLength) {
+            return value;
+        }
+        if (maxLength <= 3) {
+            return value.substring(0, maxLength);
+        }
+        return value.substring(0, maxLength - 3) + "...";
+    }
+
+    private static void appendPair(StringBuilder builder, String key, String value) {
+        if (builder.length() > 0) {
+            builder.append(" | ");
+        }
+        builder.append(key).append('=').append(value);
+    }
+
+    private static String buildCauseChain(Throwable throwable) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = throwable == null ? null : throwable.getCause();
+        int depth = 0;
+        while (current != null && depth < 8) {
+            if (depth > 0) {
+                builder.append(" <- ");
+            }
+            builder.append(current.getClass().getSimpleName())
+                    .append(":")
+                    .append(StrUtil.blankToDefault(current.getMessage(), "<null>"));
+            current = current.getCause();
+            depth++;
+        }
+        return builder.length() == 0 ? "<none>" : builder.toString();
     }
 
 }

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hxy-prod-core-quota
+  namespace: hxy-prod-core
+spec:
+  hard:
+    requests.cpu: "40"
+    requests.memory: 80Gi
+    limits.cpu: "80"
+    limits.memory: 160Gi
+    pods: "400"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hxy-prod-edge-quota
+  namespace: hxy-prod-edge
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "300"

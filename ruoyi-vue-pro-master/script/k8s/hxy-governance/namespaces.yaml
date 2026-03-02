@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hxy-prod-core
+  labels:
+    hxy.layer: core
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hxy-prod-edge
+  labels:
+    hxy.layer: edge
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hxy-stg
+  labels:
+    hxy.layer: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hxy-dev
+  labels:
+    hxy.layer: development

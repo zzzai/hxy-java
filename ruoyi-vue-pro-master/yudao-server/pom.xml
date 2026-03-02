@@ -45,12 +45,12 @@
 <!--            <artifactId>yudao-module-report</artifactId>-->
 <!--            <version>${revision}</version>-->
 <!--        </dependency>-->
-        <!-- 工作流。默认注释，保证编译速度 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-bpm</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- 工作流 -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-bpm</artifactId>
+            <version>${revision}</version>
+        </dependency>
         <!-- 支付服务。默认注释，保证编译速度 -->
         <dependency>
             <groupId>cn.iocoder.boot</groupId>
@@ -86,13 +86,19 @@
             <artifactId>yudao-module-statistics</artifactId>
             <version>${revision}</version>
         </dependency>
+        <!-- 预约模块 -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-booking</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
-        <!-- CRM 相关模块。默认注释，保证编译速度 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-crm</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- CRM 相关模块 -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-crm</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
         <!-- ERP 相关模块。默认注释，保证编译速度 -->
 <!--        <dependency>-->

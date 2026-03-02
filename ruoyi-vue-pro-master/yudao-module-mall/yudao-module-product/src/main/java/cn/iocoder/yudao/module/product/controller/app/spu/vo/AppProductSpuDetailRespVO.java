@@ -27,6 +27,9 @@ public class AppProductSpuDetailRespVO {
     @Schema(description = "商品分类编号", requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
     private Long categoryId;
 
+    @Schema(description = "商品类型，1=实物 2=服务 3=卡项 4=虚拟", example = "1")
+    private Integer productType;
+
     @Schema(description = "商品封面图", requiredMode = Schema.RequiredMode.REQUIRED)
     private String picUrl;
 

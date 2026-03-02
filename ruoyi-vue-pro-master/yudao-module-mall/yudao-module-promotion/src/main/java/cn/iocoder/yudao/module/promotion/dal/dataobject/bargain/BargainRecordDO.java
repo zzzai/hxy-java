@@ -10,7 +10,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * 砍价记录 DO TODO
+ * 砍价记录 DO
  *
  * @author HUIHUI
  */

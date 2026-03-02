@@ -6,6 +6,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.brand.ProductBrandDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.category.ProductCategoryDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
+import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import com.baomidou.mybatisplus.annotation.KeySequence;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -87,6 +88,12 @@ public class ProductSpuDO extends BaseDO {
      * 枚举 {@link ProductSpuStatusEnum}
      */
     private Integer status;
+    /**
+     * 商品类型
+     *
+     * 枚举 {@link ProductTypeEnum}
+     */
+    private Integer productType;
 
     // ========== SKU 相关字段 =========
 

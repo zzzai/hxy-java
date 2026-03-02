@@ -16,6 +16,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.category.ProductCategoryDO
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
 import cn.iocoder.yudao.module.product.dal.mysql.spu.ProductSpuMapper;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
+import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.product.service.brand.ProductBrandService;
 import cn.iocoder.yudao.module.product.service.category.ProductCategoryService;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
@@ -110,6 +111,10 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         spu.setCostPrice(getMinValue(skus, ProductSkuSaveReqVO::getCostPrice));
         // skus 库存总数
         spu.setStock(getSumValue(skus, ProductSkuSaveReqVO::getStock, Math::addExact));
+        // 默认商品类型为实物商品，兼容历史数据与旧请求
+        if (spu.getProductType() == null) {
+            spu.setProductType(ProductTypeEnum.PHYSICAL.getType());
+        }
         // 若是 spu 已有状态则不处理
         if (spu.getStatus() == null) {
             spu.setStatus(ProductSpuStatusEnum.ENABLE.getStatus()); // 默认状态为上架
