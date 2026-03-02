@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission_settlement` (
     `review_warn_time` timestamp DEFAULT NULL,
     `review_escalated` bit NOT NULL DEFAULT FALSE,
     `review_escalate_time` timestamp DEFAULT NULL,
+    `review_escalate_reason` varchar(255) NOT NULL DEFAULT '',
     `reviewed_time` timestamp DEFAULT NULL,
     `reviewer_id` bigint DEFAULT NULL,
     `review_remark` varchar(255) NOT NULL DEFAULT '',

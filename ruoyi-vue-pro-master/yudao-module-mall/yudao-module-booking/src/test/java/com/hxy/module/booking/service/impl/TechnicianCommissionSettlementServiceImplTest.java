@@ -45,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -268,8 +269,37 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
         int count = service.escalateOverduePendingToP0(30, 50);
 
         assertEquals(1, count);
+        ArgumentCaptor<TechnicianCommissionSettlementDO> captor =
+                ArgumentCaptor.forClass(TechnicianCommissionSettlementDO.class);
+        verify(settlementMapper).updateEscalatedByIdAndStatusAndEscalated(
+                eq(62L), eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                eq(Boolean.FALSE), captor.capture());
+        assertEquals(CommissionSettlementStatusEnum.ESCALATED.getStatus(), captor.getValue().getStatus());
+        assertEquals("SLA_OVERDUE_ESCALATE_P0", captor.getValue().getReviewEscalateReason());
+        assertNotNull(captor.getValue().getReviewEscalateTime());
         verify(settlementLogMapper).insert(any(TechnicianCommissionSettlementLogDO.class));
         verify(notifyOutboxMapper).insert(any(TechnicianCommissionSettlementNotifyOutboxDO.class));
+    }
+
+    @Test
+    void shouldSkipEscalateWhenConcurrentStatusChanged() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(63L, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+        settlement.setReviewDeadlineTime(LocalDateTime.now().minusMinutes(40));
+        settlement.setReviewEscalated(Boolean.FALSE);
+        when(settlementMapper.selectListByStatusAndReviewDeadlineBeforeAndEscalated(
+                eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                any(LocalDateTime.class), eq(Boolean.FALSE), eq(20)))
+                .thenReturn(Collections.singletonList(settlement));
+        when(settlementMapper.updateEscalatedByIdAndStatusAndEscalated(
+                eq(63L), eq(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus()),
+                eq(Boolean.FALSE), any(TechnicianCommissionSettlementDO.class)))
+                .thenReturn(0);
+
+        int count = service.escalateOverduePendingToP0(30, 20);
+
+        assertEquals(0, count);
+        verify(settlementLogMapper, never()).insert(any(TechnicianCommissionSettlementLogDO.class));
+        verify(notifyOutboxMapper, never()).insert(any(TechnicianCommissionSettlementNotifyOutboxDO.class));
     }
 
     @Test

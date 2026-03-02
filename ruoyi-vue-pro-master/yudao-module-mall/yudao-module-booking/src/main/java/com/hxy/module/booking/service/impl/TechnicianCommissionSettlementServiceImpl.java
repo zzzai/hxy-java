@@ -151,6 +151,7 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
                         .setReviewWarnTime(null)
                         .setReviewEscalated(Boolean.FALSE)
                         .setReviewEscalateTime(null)
+                        .setReviewEscalateReason("")
                         .setReviewRemark(StrUtil.maxLength(StrUtil.blankToDefault(submitRemark, ""), 255)));
         if (updated == 0) {
             throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(), CommissionSettlementStatusEnum.DRAFT.getStatus());
@@ -163,10 +164,11 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
     @Transactional(rollbackFor = Exception.class)
     public void approve(Long settlementId, Long reviewerId, String reviewRemark) {
         TechnicianCommissionSettlementDO settlement = getRequiredSettlement(settlementId);
-        ensureStatus(settlement, CommissionSettlementStatusEnum.PENDING_REVIEW);
+        ensureStatusIn(settlement, CommissionSettlementStatusEnum.PENDING_REVIEW, CommissionSettlementStatusEnum.ESCALATED);
+        Integer fromStatus = settlement.getStatus();
 
         int updated = settlementMapper.updateByIdAndStatus(settlementId,
-                CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
+                fromStatus,
                 new TechnicianCommissionSettlementDO()
                         .setStatus(CommissionSettlementStatusEnum.APPROVED.getStatus())
                         .setReviewedTime(LocalDateTime.now())
@@ -174,10 +176,9 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
                         .setReviewRemark(StrUtil.maxLength(StrUtil.blankToDefault(reviewRemark, ""), 255))
                         .setRejectReason(""));
         if (updated == 0) {
-            throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(),
-                    CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+            throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(), fromStatus);
         }
-        appendLog(settlementId, LOG_ACTION_APPROVE, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
+        appendLog(settlementId, LOG_ACTION_APPROVE, fromStatus,
                 CommissionSettlementStatusEnum.APPROVED.getStatus(), reviewerId, OPERATOR_TYPE_ADMIN, reviewRemark);
     }
 
@@ -185,21 +186,21 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
     @Transactional(rollbackFor = Exception.class)
     public void reject(Long settlementId, Long reviewerId, String rejectReason) {
         TechnicianCommissionSettlementDO settlement = getRequiredSettlement(settlementId);
-        ensureStatus(settlement, CommissionSettlementStatusEnum.PENDING_REVIEW);
+        ensureStatusIn(settlement, CommissionSettlementStatusEnum.PENDING_REVIEW, CommissionSettlementStatusEnum.ESCALATED);
+        Integer fromStatus = settlement.getStatus();
 
         int updated = settlementMapper.updateByIdAndStatus(settlementId,
-                CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
+                fromStatus,
                 new TechnicianCommissionSettlementDO()
                         .setStatus(CommissionSettlementStatusEnum.REJECTED.getStatus())
                         .setReviewedTime(LocalDateTime.now())
                         .setReviewerId(reviewerId)
                         .setRejectReason(StrUtil.maxLength(StrUtil.blankToDefault(rejectReason, ""), 255)));
         if (updated == 0) {
-            throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(),
-                    CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+            throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(), fromStatus);
         }
         commissionMapper.clearSettlementBindingBySettlementId(settlementId, CommissionStatusEnum.PENDING.getStatus());
-        appendLog(settlementId, LOG_ACTION_REJECT, CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
+        appendLog(settlementId, LOG_ACTION_REJECT, fromStatus,
                 CommissionSettlementStatusEnum.REJECTED.getStatus(), reviewerId, OPERATOR_TYPE_ADMIN, rejectReason);
     }
 
@@ -302,12 +303,14 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
             int updated = settlementMapper.updateEscalatedByIdAndStatusAndEscalated(
                     settlement.getId(), CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(), Boolean.FALSE,
                     new TechnicianCommissionSettlementDO()
+                            .setStatus(CommissionSettlementStatusEnum.ESCALATED.getStatus())
                             .setReviewEscalated(Boolean.TRUE)
-                            .setReviewEscalateTime(now));
+                            .setReviewEscalateTime(now)
+                            .setReviewEscalateReason("SLA_OVERDUE_ESCALATE_P0"));
             if (updated > 0) {
                 appendLog(settlement.getId(), LOG_ACTION_SLA_ESCALATE,
                         CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
-                        CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(),
+                        CommissionSettlementStatusEnum.ESCALATED.getStatus(),
                         null, OPERATOR_TYPE_SYSTEM, "SLA_OVERDUE_ESCALATE_P0");
                 createNotifyOutboxIfAbsent(settlement.getId(), NOTIFY_TYPE_P0_ESCALATE, "P0");
                 affected++;
@@ -506,6 +509,20 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
         if (!Objects.equals(settlement.getStatus(), expectedStatus.getStatus())) {
             throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, settlement.getStatus(), expectedStatus.getStatus());
         }
+    }
+
+    private void ensureStatusIn(TechnicianCommissionSettlementDO settlement,
+                                CommissionSettlementStatusEnum... expectedStatuses) {
+        Integer currentStatus = settlement.getStatus();
+        for (CommissionSettlementStatusEnum expectedStatus : expectedStatuses) {
+            if (Objects.equals(currentStatus, expectedStatus.getStatus())) {
+                return;
+            }
+        }
+        String expectedStatusList = Arrays.stream(expectedStatuses)
+                .map(status -> String.valueOf(status.getStatus()))
+                .collect(Collectors.joining(","));
+        throw exception(COMMISSION_SETTLEMENT_STATUS_INVALID, currentStatus, expectedStatusList);
     }
 
     private void validateCommissionScope(List<TechnicianCommissionDO> commissions) {

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission_settlement`
     `settlement_no`        VARCHAR(64) NOT NULL DEFAULT '' COMMENT '结算单号',
     `store_id`             BIGINT               DEFAULT NULL COMMENT '门店ID',
     `technician_id`        BIGINT      NOT NULL COMMENT '技师ID',
-    `status`               TINYINT     NOT NULL DEFAULT 0 COMMENT '状态 0草稿 10待审 20已审 30驳回 40作废 50已打款',
+    `status`               TINYINT     NOT NULL DEFAULT 0 COMMENT '状态 0草稿 10待审 15升级待审 20已审 30驳回 40作废 50已打款',
     `commission_count`     INT         NOT NULL DEFAULT 0 COMMENT '佣金条目数',
     `total_commission_amount` INT      NOT NULL DEFAULT 0 COMMENT '佣金总额（分）',
     `review_submit_time`   DATETIME             DEFAULT NULL COMMENT '提审时间',
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS `technician_commission_settlement`
     `review_warn_time`     DATETIME             DEFAULT NULL COMMENT '预警时间',
     `review_escalated`     BIT(1)      NOT NULL DEFAULT b'0' COMMENT '是否已升级到P0',
     `review_escalate_time` DATETIME             DEFAULT NULL COMMENT '升级时间',
+    `review_escalate_reason` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '升级原因',
     `reviewed_time`        DATETIME             DEFAULT NULL COMMENT '审核时间',
     `reviewer_id`          BIGINT               DEFAULT NULL COMMENT '审核人',
     `review_remark`        VARCHAR(255) NOT NULL DEFAULT '' COMMENT '审核备注',
@@ -66,7 +67,8 @@ ALTER TABLE `technician_commission_settlement`
     ADD COLUMN IF NOT EXISTS `review_warned` BIT(1) NOT NULL DEFAULT b'0' COMMENT '是否已预警' AFTER `review_deadline_time`,
     ADD COLUMN IF NOT EXISTS `review_warn_time` DATETIME DEFAULT NULL COMMENT '预警时间' AFTER `review_warned`,
     ADD COLUMN IF NOT EXISTS `review_escalated` BIT(1) NOT NULL DEFAULT b'0' COMMENT '是否已升级到P0' AFTER `review_warn_time`,
-    ADD COLUMN IF NOT EXISTS `review_escalate_time` DATETIME DEFAULT NULL COMMENT '升级时间' AFTER `review_escalated`;
+    ADD COLUMN IF NOT EXISTS `review_escalate_time` DATETIME DEFAULT NULL COMMENT '升级时间' AFTER `review_escalated`,
+    ADD COLUMN IF NOT EXISTS `review_escalate_reason` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '升级原因' AFTER `review_escalate_time`;
 
 CREATE TABLE IF NOT EXISTS `technician_commission_settlement_log`
 (

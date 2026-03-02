@@ -92,4 +92,12 @@ public interface TechnicianCommissionMapper extends BaseMapperX<TechnicianCommis
                 .set(TechnicianCommissionDO::getSettlementTime, null));
     }
 
+    default TechnicianCommissionDO selectByBizKey(String bizType, String bizNo, Long staffId) {
+        return selectOne(new LambdaQueryWrapperX<TechnicianCommissionDO>()
+                .eq(TechnicianCommissionDO::getBizType, bizType)
+                .eq(TechnicianCommissionDO::getBizNo, bizNo)
+                .eq(TechnicianCommissionDO::getStaffId, staffId)
+                .last("LIMIT 1"));
+    }
+
 }
