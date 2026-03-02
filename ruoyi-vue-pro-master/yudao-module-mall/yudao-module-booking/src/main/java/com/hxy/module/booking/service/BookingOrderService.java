@@ -40,6 +40,18 @@ public interface BookingOrderService {
                      Integer dispatchMode, Long storeId, java.time.LocalDate bookingDate, java.time.LocalTime startTime);
 
     /**
+     * 创建占位预约单（交易支付后兜底）
+     *
+     * @param userId     用户ID
+     * @param spuId      服务商品SPU ID
+     * @param skuId      服务商品SKU ID
+     * @param payOrderId 支付单ID（幂等键）
+     * @param remark     备注
+     * @return 占位预约单
+     */
+    BookingOrderDO createPlaceholderOrder(Long userId, Long spuId, Long skuId, Long payOrderId, String remark);
+
+    /**
      * 支付订单
      */
     void payOrder(Long orderId, Long payOrderId);

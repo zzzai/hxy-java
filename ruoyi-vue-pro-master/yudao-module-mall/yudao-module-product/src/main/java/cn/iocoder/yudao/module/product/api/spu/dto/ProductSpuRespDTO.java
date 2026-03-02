@@ -49,6 +49,11 @@ public class ProductSpuRespDTO {
      */
     private Integer productType;
 
+    /**
+     * 类目模板版本 ID
+     */
+    private Long templateVersionId;
+
     // ========== SKU 相关字段 =========
 
     /**

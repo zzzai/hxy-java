@@ -73,4 +73,7 @@ public class ProductSkuSaveReqVO {
 
     }
 
+    @Schema(description = "类目模板版本ID（为空时继承SPU）", example = "202603020001")
+    private Long templateVersionId;
+
 }

@@ -10,6 +10,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum BookingOrderStatusEnum {
 
+    WAIT_BOOKING(6, "待预约"),
     PENDING_PAYMENT(0, "待支付"),
     PAID(1, "已支付"),
     IN_SERVICE(2, "服务中"),

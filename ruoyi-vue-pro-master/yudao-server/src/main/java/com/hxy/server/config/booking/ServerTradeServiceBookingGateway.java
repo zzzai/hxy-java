@@ -25,6 +25,7 @@ import javax.annotation.Resource;
 public class ServerTradeServiceBookingGateway implements TradeServiceBookingGateway {
 
     private static final String SYNC_REMARK = "SYNC_FROM_BOOKING_MODULE_BY_PAY_ORDER";
+    private static final String PLACEHOLDER_REMARK = "AUTO_CREATE_PLACEHOLDER_BOOKING";
 
     @Resource
     private BookingOrderService bookingOrderService;
@@ -46,8 +47,12 @@ public class ServerTradeServiceBookingGateway implements TradeServiceBookingGate
 
         BookingOrderDO bookingOrder = bookingOrderService.getOrderByPayOrderId(serviceOrder.getPayOrderId());
         if (bookingOrder == null) {
-            log.info("[createPendingBooking][serviceOrderId({}) payOrderId({}) 未找到 booking_order，保持待预约]",
-                    serviceOrder.getId(), serviceOrder.getPayOrderId());
+            bookingOrder = bookingOrderService.createPlaceholderOrder(serviceOrder.getUserId(), serviceOrder.getSpuId(),
+                    serviceOrder.getSkuId(), serviceOrder.getPayOrderId(), PLACEHOLDER_REMARK);
+            log.info("[createPendingBooking][serviceOrderId({}) payOrderId({}) 未找到 booking_order，已创建占位 booking({})]",
+                    serviceOrder.getId(), serviceOrder.getPayOrderId(), bookingOrder == null ? null : bookingOrder.getOrderNo());
+        }
+        if (bookingOrder == null || bookingOrder.getOrderNo() == null) {
             return;
         }
         try {

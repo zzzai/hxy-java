@@ -143,8 +143,13 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     }
 
     @Override
-    public void createSkuList(Long spuId, List<ProductSkuSaveReqVO> skuCreateReqList) {
-        List<ProductSkuDO> skus = BeanUtils.toBean(skuCreateReqList, ProductSkuDO.class, sku -> sku.setSpuId(spuId).setSalesCount(0));
+    public void createSkuList(Long spuId, Long spuTemplateVersionId, List<ProductSkuSaveReqVO> skuCreateReqList) {
+        List<ProductSkuDO> skus = BeanUtils.toBean(skuCreateReqList, ProductSkuDO.class, sku -> {
+            sku.setSpuId(spuId).setSalesCount(0);
+            if (sku.getTemplateVersionId() == null) {
+                sku.setTemplateVersionId(spuTemplateVersionId);
+            }
+        });
         productSkuMapper.insertBatch(skus);
     }
 
@@ -217,7 +222,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateSkuList(Long spuId, List<ProductSkuSaveReqVO> skus) {
+    public void updateSkuList(Long spuId, Long spuTemplateVersionId, List<ProductSkuSaveReqVO> skus) {
         // 构建属性与 SKU 的映射关系;
         Map<String, Long> existsSkuMap = convertMap(productSkuMapper.selectListBySpuId(spuId),
                 ProductSkuConvert.INSTANCE::buildPropertyKey, ProductSkuDO::getId);
@@ -225,7 +230,12 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         // 拆分三个集合，新插入的、需要更新的、需要删除的
         List<ProductSkuDO> insertSkus = new ArrayList<>();
         List<ProductSkuDO> updateSkus = new ArrayList<>();
-        List<ProductSkuDO> allUpdateSkus = BeanUtils.toBean(skus, ProductSkuDO.class, sku -> sku.setSpuId(spuId));
+        List<ProductSkuDO> allUpdateSkus = BeanUtils.toBean(skus, ProductSkuDO.class, sku -> {
+            sku.setSpuId(spuId);
+            if (sku.getTemplateVersionId() == null) {
+                sku.setTemplateVersionId(spuTemplateVersionId);
+            }
+        });
         allUpdateSkus.forEach(sku -> {
             String propertiesKey = ProductSkuConvert.INSTANCE.buildPropertyKey(sku);
             // 1、找得到的，进行更新

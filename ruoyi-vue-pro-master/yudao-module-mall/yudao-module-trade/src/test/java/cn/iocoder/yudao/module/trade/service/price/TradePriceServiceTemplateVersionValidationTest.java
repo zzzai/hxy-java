@@ -88,6 +88,44 @@ class TradePriceServiceTemplateVersionValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
+    void calculateOrderPrice_shouldFallbackTemplateVersionFromServiceSkuBinding() {
+        when(productSkuApi.getSkuList(asSet(34L))).thenReturn(Collections.singletonList(
+                new ProductSkuRespDTO().setId(34L).setSpuId(2002L).setPrice(1000).setStock(99)
+                        .setTemplateVersionId(801L)
+        ));
+        when(productSpuApi.validateSpuList(asSet(2002L))).thenReturn(Collections.singletonList(
+                new ProductSpuRespDTO().setId(2002L).setName("门店服务商品")
+                        .setCategoryId(8L)
+                        .setGiveIntegral(0)
+                        .setProductType(ProductTypeEnum.SERVICE.getType())
+        ));
+        ProductTemplateVersionRespDTO publishedVersion = new ProductTemplateVersionRespDTO()
+                .setId(801L)
+                .setCategoryId(8L)
+                .setStatus(ProductTemplateConstants.TEMPLATE_STATUS_PUBLISHED)
+                .setSnapshotJson("{\"templateVersion\":\"service-master-v1\"}");
+        when(productTemplateVersionApi.getTemplateVersionMap(asSet(801L)))
+                .thenReturn(Collections.singletonMap(801L, publishedVersion));
+
+        TradePriceCalculateReqBO reqBO = new TradePriceCalculateReqBO();
+        reqBO.setUserId(1L);
+        reqBO.setPointStatus(false);
+        reqBO.setDeliveryType(DeliveryTypeEnum.PICK_UP.getType());
+        reqBO.setItems(Collections.singletonList(new TradePriceCalculateReqBO.Item()
+                .setSkuId(34L)
+                .setCount(1)
+                .setSelected(true)
+                .setTemplateVersionId(null)
+                .setTemplateSnapshotJson(null)));
+
+        TradePriceCalculateRespBO respBO = tradePriceService.calculateOrderPrice(reqBO);
+
+        assertEquals(801L, reqBO.getItems().get(0).getTemplateVersionId());
+        assertEquals("{\"templateVersion\":\"service-master-v1\"}", reqBO.getItems().get(0).getTemplateSnapshotJson());
+        assertEquals(1000, respBO.getPrice().getPayPrice());
+    }
+
+    @Test
     void calculateOrderPrice_shouldAutoFillTemplateSnapshotWhenMissing() {
         ProductTemplateVersionRespDTO publishedVersion = new ProductTemplateVersionRespDTO()
                 .setId(701L)

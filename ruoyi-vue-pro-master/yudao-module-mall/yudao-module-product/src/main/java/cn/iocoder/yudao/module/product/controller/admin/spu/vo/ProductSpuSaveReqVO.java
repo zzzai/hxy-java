@@ -54,6 +54,9 @@ public class ProductSpuSaveReqVO {
     @Schema(description = "商品类型，1=实物 2=服务 3=卡项 4=虚拟", example = "1")
     private Integer productType;
 
+    @Schema(description = "类目模板版本ID", example = "202603020001")
+    private Long templateVersionId;
+
     // ========== SKU 相关字段 =========
 
     @Schema(description = "规格类型", requiredMode = Schema.RequiredMode.REQUIRED, example = "true")

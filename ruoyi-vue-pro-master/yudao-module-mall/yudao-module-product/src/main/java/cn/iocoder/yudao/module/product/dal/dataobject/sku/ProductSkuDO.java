@@ -40,6 +40,10 @@ public class ProductSkuDO extends BaseDO {
      */
     private Long spuId;
     /**
+     * 类目模板版本 ID
+     */
+    private Long templateVersionId;
+    /**
      * 属性数组，JSON 格式
      */
     @TableField(typeHandler = JacksonTypeHandler.class)
@@ -131,4 +135,3 @@ public class ProductSkuDO extends BaseDO {
     }
 
 }
-

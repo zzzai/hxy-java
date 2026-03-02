@@ -24,6 +24,11 @@ public class ProductSkuRespDTO {
     private Long spuId;
 
     /**
+     * 类目模板版本 ID
+     */
+    private Long templateVersionId;
+
+    /**
      * 属性数组
      */
     private List<ProductPropertyValueDetailRespDTO> properties;

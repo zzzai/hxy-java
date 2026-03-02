@@ -14,9 +14,12 @@ import cn.iocoder.yudao.module.product.controller.admin.spu.vo.ProductSpuUpdateS
 import cn.iocoder.yudao.module.product.controller.app.spu.vo.AppProductSpuPageReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.category.ProductCategoryDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.template.ProductCategoryAttrTplVersionDO;
+import cn.iocoder.yudao.module.product.dal.mysql.template.ProductCategoryAttrTplVersionMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.spu.ProductSpuMapper;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
+import cn.iocoder.yudao.module.product.enums.template.ProductTemplateConstants;
 import cn.iocoder.yudao.module.product.service.brand.ProductBrandService;
 import cn.iocoder.yudao.module.product.service.category.ProductCategoryService;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
@@ -28,6 +31,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.util.*;
+import java.util.Objects;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.*;
@@ -53,6 +57,8 @@ public class ProductSpuServiceImpl implements ProductSpuService {
     private ProductBrandService brandService;
     @Resource
     private ProductCategoryService categoryService;
+    @Resource
+    private ProductCategoryAttrTplVersionMapper templateVersionMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -62,6 +68,7 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         brandService.validateProductBrand(createReqVO.getBrandId());
         // 校验 SKU
         List<ProductSkuSaveReqVO> skuSaveReqList = createReqVO.getSkus();
+        validateTemplateVersionBinding(createReqVO, skuSaveReqList);
         productSkuService.validateSkuList(skuSaveReqList, createReqVO.getSpecType());
 
         ProductSpuDO spu = BeanUtils.toBean(createReqVO, ProductSpuDO.class);
@@ -70,7 +77,7 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         // 插入 SPU
         productSpuMapper.insert(spu);
         // 插入 SKU
-        productSkuService.createSkuList(spu.getId(), skuSaveReqList);
+        productSkuService.createSkuList(spu.getId(), spu.getTemplateVersionId(), skuSaveReqList);
         // 返回
         return spu.getId();
     }
@@ -85,6 +92,7 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         brandService.validateProductBrand(updateReqVO.getBrandId());
         // 校验SKU
         List<ProductSkuSaveReqVO> skuSaveReqList = updateReqVO.getSkus();
+        validateTemplateVersionBinding(updateReqVO, skuSaveReqList);
         productSkuService.validateSkuList(skuSaveReqList, updateReqVO.getSpecType());
 
         // 更新 SPU
@@ -92,7 +100,7 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         initSpuFromSkus(updateObj, skuSaveReqList);
         productSpuMapper.updateById(updateObj);
         // 批量更新 SKU
-        productSkuService.updateSkuList(updateObj.getId(), updateReqVO.getSkus());
+        productSkuService.updateSkuList(updateObj.getId(), updateObj.getTemplateVersionId(), updateReqVO.getSkus());
     }
 
     /**
@@ -133,6 +141,43 @@ public class ProductSpuServiceImpl implements ProductSpuService {
         // 校验层级
         if (categoryService.getCategoryLevel(id) < CATEGORY_LEVEL) {
             throw exception(SPU_SAVE_FAIL_CATEGORY_LEVEL_ERROR);
+        }
+    }
+
+    private void validateTemplateVersionBinding(ProductSpuSaveReqVO reqVO, List<ProductSkuSaveReqVO> skuSaveReqList) {
+        Long templateVersionId = reqVO.getTemplateVersionId();
+        if (!ProductTypeEnum.isService(reqVO.getProductType())) {
+            syncSkuTemplateVersion(templateVersionId, skuSaveReqList);
+            return;
+        }
+        if (templateVersionId == null) {
+            throw exception(SPU_TEMPLATE_VERSION_REQUIRED);
+        }
+        ProductCategoryAttrTplVersionDO templateVersion = templateVersionMapper.selectById(templateVersionId);
+        if (templateVersion == null) {
+            throw exception(SPU_TEMPLATE_VERSION_NOT_FOUND);
+        }
+        if (!Objects.equals(templateVersion.getStatus(), ProductTemplateConstants.TEMPLATE_STATUS_PUBLISHED)) {
+            throw exception(SPU_TEMPLATE_VERSION_NOT_PUBLISHED);
+        }
+        if (!Objects.equals(templateVersion.getCategoryId(), reqVO.getCategoryId())) {
+            throw exception(SPU_TEMPLATE_VERSION_CATEGORY_MISMATCH);
+        }
+        syncSkuTemplateVersion(templateVersionId, skuSaveReqList);
+    }
+
+    private void syncSkuTemplateVersion(Long spuTemplateVersionId, List<ProductSkuSaveReqVO> skuSaveReqList) {
+        if (CollUtil.isEmpty(skuSaveReqList)) {
+            return;
+        }
+        for (ProductSkuSaveReqVO sku : skuSaveReqList) {
+            if (sku.getTemplateVersionId() == null) {
+                sku.setTemplateVersionId(spuTemplateVersionId);
+                continue;
+            }
+            if (spuTemplateVersionId != null && !Objects.equals(spuTemplateVersionId, sku.getTemplateVersionId())) {
+                throw exception(SKU_TEMPLATE_VERSION_MISMATCH);
+            }
         }
     }
 

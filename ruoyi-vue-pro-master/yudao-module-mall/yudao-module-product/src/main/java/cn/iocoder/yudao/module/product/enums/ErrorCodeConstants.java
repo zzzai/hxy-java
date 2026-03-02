@@ -38,6 +38,10 @@ public interface ErrorCodeConstants {
     ErrorCode SPU_NOT_ENABLE = new ErrorCode(1_008_005_003, "商品 SPU【{}】不处于上架状态");
     ErrorCode SPU_NOT_RECYCLE = new ErrorCode(1_008_005_004, "商品 SPU 不处于回收站状态");
     ErrorCode SPU_TYPE_MISMATCH = new ErrorCode(1_008_005_005, "商品 SPU 类型不匹配，当前类型【{}】，期望类型【{}】");
+    ErrorCode SPU_TEMPLATE_VERSION_REQUIRED = new ErrorCode(1_008_005_006, "服务商品必须绑定模板版本");
+    ErrorCode SPU_TEMPLATE_VERSION_NOT_FOUND = new ErrorCode(1_008_005_007, "商品模板版本不存在");
+    ErrorCode SPU_TEMPLATE_VERSION_NOT_PUBLISHED = new ErrorCode(1_008_005_008, "商品模板版本未发布");
+    ErrorCode SPU_TEMPLATE_VERSION_CATEGORY_MISMATCH = new ErrorCode(1_008_005_009, "商品模板版本与商品类目不匹配");
 
     // ========== 商品 SKU 1-008-006-000 ==========
     ErrorCode SKU_NOT_EXISTS = new ErrorCode(1_008_006_000, "商品 SKU 不存在");
@@ -45,6 +49,7 @@ public interface ErrorCodeConstants {
     ErrorCode SPU_ATTR_NUMBERS_MUST_BE_EQUALS = new ErrorCode(1_008_006_002, "一个 SPU 下的每个 SKU，其属性项必须一致");
     ErrorCode SPU_SKU_NOT_DUPLICATE = new ErrorCode(1_008_006_003, "一个 SPU 下的每个 SKU，必须不重复");
     ErrorCode SKU_STOCK_NOT_ENOUGH = new ErrorCode(1_008_006_004, "商品 SKU 库存不足");
+    ErrorCode SKU_TEMPLATE_VERSION_MISMATCH = new ErrorCode(1_008_006_005, "SKU 模板版本必须与 SPU 保持一致");
 
     // ========== 商品 评价 1-008-007-000 ==========
     ErrorCode COMMENT_NOT_EXISTS = new ErrorCode(1_008_007_000, "商品评价不存在");

@@ -94,6 +94,10 @@ public class ProductSpuDO extends BaseDO {
      * 枚举 {@link ProductTypeEnum}
      */
     private Integer productType;
+    /**
+     * 类目模板版本 ID
+     */
+    private Long templateVersionId;
 
     // ========== SKU 相关字段 =========
 

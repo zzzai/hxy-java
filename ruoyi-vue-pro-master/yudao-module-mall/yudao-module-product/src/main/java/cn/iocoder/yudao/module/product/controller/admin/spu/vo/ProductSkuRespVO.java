@@ -45,6 +45,9 @@ public class ProductSkuRespVO {
     @Schema(description = "二级分销的佣金，单位：分", example = "19")
     private Integer secondBrokeragePrice;
 
+    @Schema(description = "类目模板版本ID", example = "202603020001")
+    private Long templateVersionId;
+
     @Schema(description = "属性数组")
     private List<ProductSkuSaveReqVO.Property> properties;
 

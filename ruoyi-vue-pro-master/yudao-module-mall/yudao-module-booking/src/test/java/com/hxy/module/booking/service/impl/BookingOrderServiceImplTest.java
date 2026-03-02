@@ -17,6 +17,7 @@ import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
 import cn.iocoder.yudao.module.product.api.sku.ProductSkuApi;
 import cn.iocoder.yudao.module.product.api.sku.dto.ProductSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.spu.ProductSpuApi;
+import cn.iocoder.yudao.module.product.api.spu.dto.ProductSpuRespDTO;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -461,6 +462,44 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
 
         // 断言
         assertEquals(2, result.size());
+    }
+
+    @Test
+    public void testCreatePlaceholderOrder_success() {
+        ProductSkuRespDTO sku = new ProductSkuRespDTO();
+        sku.setId(201L);
+        sku.setPicUrl("https://hxy/img/sku.png");
+        when(productSkuApi.getSku(201L)).thenReturn(sku);
+        ProductSpuRespDTO spu = new ProductSpuRespDTO();
+        spu.setId(200L);
+        spu.setName("颈肩舒缓60分钟");
+        when(productSpuApi.getSpu(200L)).thenReturn(spu);
+
+        BookingOrderDO placeholder = bookingOrderService.createPlaceholderOrder(1L, 200L, 201L,
+                999001L, "AUTO_CREATE_PLACEHOLDER_BOOKING");
+
+        assertNotNull(placeholder.getId());
+        BookingOrderDO stored = bookingOrderMapper.selectById(placeholder.getId());
+        assertNotNull(stored);
+        assertEquals(BookingOrderStatusEnum.WAIT_BOOKING.getStatus(), stored.getStatus());
+        assertEquals(999001L, stored.getPayOrderId());
+        assertEquals(0L, stored.getTimeSlotId());
+        assertEquals("颈肩舒缓60分钟", stored.getServiceName());
+        assertEquals("https://hxy/img/sku.png", stored.getServicePic());
+    }
+
+    @Test
+    public void testCreatePlaceholderOrder_idempotentByPayOrderId() {
+        BookingOrderDO existed = createOrder(BookingOrderStatusEnum.WAIT_BOOKING.getStatus());
+        existed.setOrderNo("BK_PLACEHOLDER_EXISTS");
+        existed.setPayOrderId(777001L);
+        existed.setTimeSlotId(0L);
+        bookingOrderMapper.insert(existed);
+
+        BookingOrderDO result = bookingOrderService.createPlaceholderOrder(1L, 200L, 201L,
+                777001L, "AUTO_CREATE_PLACEHOLDER_BOOKING");
+
+        assertEquals(existed.getId(), result.getId());
     }
 
     /**

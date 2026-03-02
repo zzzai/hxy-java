@@ -203,6 +203,63 @@ public class BookingOrderServiceImpl implements BookingOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public BookingOrderDO createPlaceholderOrder(Long userId, Long spuId, Long skuId, Long payOrderId, String remark) {
+        if (payOrderId != null) {
+            BookingOrderDO existed = bookingOrderMapper.selectByPayOrderId(payOrderId);
+            if (existed != null) {
+                return existed;
+            }
+        }
+
+        String serviceName = "服务预约占位";
+        String servicePic = null;
+        if (skuId != null) {
+            ProductSkuRespDTO sku = productSkuApi.getSku(skuId);
+            if (sku != null) {
+                servicePic = sku.getPicUrl();
+            }
+        }
+        if (spuId != null) {
+            ProductSpuRespDTO spu = productSpuApi.getSpu(spuId);
+            if (spu != null) {
+                serviceName = spu.getName() != null ? spu.getName() : serviceName;
+                if (servicePic == null) {
+                    servicePic = spu.getPicUrl();
+                }
+            }
+        }
+
+        BookingOrderDO placeholder = BookingOrderDO.builder()
+                .orderNo(generateOrderNo())
+                .userId(userId != null ? userId : 0L)
+                .storeId(0L)
+                .technicianId(0L)
+                .timeSlotId(0L)
+                .spuId(spuId)
+                .skuId(skuId)
+                .serviceName(serviceName)
+                .servicePic(servicePic)
+                .bookingDate(LocalDate.now())
+                .bookingStartTime(LocalTime.MIDNIGHT)
+                .bookingEndTime(LocalTime.MIDNIGHT)
+                .duration(0)
+                .originalPrice(0)
+                .discountPrice(0)
+                .payPrice(0)
+                .isOffpeak(false)
+                .status(BookingOrderStatusEnum.WAIT_BOOKING.getStatus())
+                .payOrderId(payOrderId)
+                .payTime(payOrderId != null ? LocalDateTime.now() : null)
+                .merchantRemark(remark)
+                .dispatchMode(DispatchModeEnum.AUTO_ASSIGN.getMode())
+                .isAddon(0)
+                .build();
+        bookingOrderMapper.insert(placeholder);
+        return placeholder;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void payOrder(Long orderId, Long payOrderId) {
         BookingOrderDO order = validateOrderExists(orderId);
         if (!BookingOrderStatusEnum.PENDING_PAYMENT.getStatus().equals(order.getStatus())) {

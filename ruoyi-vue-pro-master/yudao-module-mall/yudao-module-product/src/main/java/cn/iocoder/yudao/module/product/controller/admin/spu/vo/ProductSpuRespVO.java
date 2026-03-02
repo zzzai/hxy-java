@@ -65,6 +65,10 @@ public class ProductSpuRespVO {
     @ExcelProperty("商品类型")
     private Integer productType;
 
+    @Schema(description = "类目模板版本ID", example = "202603020001")
+    @ExcelProperty("模板版本ID")
+    private Long templateVersionId;
+
     @Schema(description = "商品创建时间", requiredMode = Schema.RequiredMode.REQUIRED, example = "2023-05-24 00:00:00")
     @ExcelProperty("创建时间")
     private LocalDateTime createTime;

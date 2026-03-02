@@ -59,21 +59,26 @@ class ServerTradeServiceBookingGatewayTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    void createPendingBooking_skipWhenBookingMissing() {
+    void createPendingBooking_createPlaceholderWhenBookingMissing() {
         TradeServiceOrderDO serviceOrder = TradeServiceOrderDO.builder()
                 .id(3L)
                 .status(TradeServiceOrderStatusEnum.WAIT_BOOKING.getStatus())
+                .userId(9003L)
+                .spuId(3003L)
+                .skuId(4003L)
                 .payOrderId(300L)
                 .build();
         when(bookingOrderService.getOrderByPayOrderId(300L)).thenReturn(null);
+        BookingOrderDO placeholder = BookingOrderDO.builder().id(31L).orderNo("BK_PLACEHOLDER_300").build();
+        when(bookingOrderService.createPlaceholderOrder(9003L, 3003L, 4003L, 300L,
+                "AUTO_CREATE_PLACEHOLDER_BOOKING")).thenReturn(placeholder);
 
         gateway.createPendingBooking(serviceOrder);
 
         verify(bookingOrderService).getOrderByPayOrderId(300L);
-        verify(tradeServiceOrderService, never()).markBooked(
-                org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString());
+        verify(bookingOrderService).createPlaceholderOrder(9003L, 3003L, 4003L, 300L,
+                "AUTO_CREATE_PLACEHOLDER_BOOKING");
+        verify(tradeServiceOrderService).markBooked(3L, "BK_PLACEHOLDER_300", "SYNC_FROM_BOOKING_MODULE_BY_PAY_ORDER");
     }
 
     @Test

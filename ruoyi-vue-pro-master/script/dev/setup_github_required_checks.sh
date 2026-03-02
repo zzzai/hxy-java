@@ -26,7 +26,7 @@ Options:
   --enforce-admins <0|1>     是否对管理员也生效（默认 0）
   --dry-run <0|1>            是否仅打印 payload 不提交（默认 1）
   --github-api <url>         GitHub API 地址（默认 https://api.github.com）
-  --include-stagea-checks <0|1> 是否附加 stageA #17/#18 和 #19/#20（默认 0）
+  --include-stagea-checks <0|1> 是否附加 stageA #17/#18、#19/#20、P0-23（默认 0）
   -h, --help                 Show help
 
 Env:
@@ -153,6 +153,7 @@ if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
   CONTEXTS+=(
     "hxy-payment-stagea-p0-17-18 / stagea-p0-17-18"
     "hxy-payment-stagea-p0-19-20 / stagea-p0-19-20"
+    "hxy-payment-stagea-p0-23 / stagea-p0-23"
   )
 fi
 

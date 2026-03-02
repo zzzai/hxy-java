@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.Collections;
+import java.util.HashSet;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.*;
@@ -159,13 +159,9 @@ public class TradePriceServiceImpl implements TradePriceService {
                                              List<ProductSpuRespDTO> spuList) {
         Map<Long, ProductSkuRespDTO> skuMap = convertMap(skus, ProductSkuRespDTO::getId);
         Map<Long, ProductSpuRespDTO> spuMap = convertMap(spuList, ProductSpuRespDTO::getId);
-        Set<Long> templateVersionIds = convertSet(reqBO.getItems(), TradePriceCalculateReqBO.Item::getTemplateVersionId);
-        Map<Long, ProductTemplateVersionRespDTO> templateVersionMap =
-                CollUtil.isEmpty(templateVersionIds)
-                        ? Collections.emptyMap()
-                        : productTemplateVersionApi.getTemplateVersionMap(templateVersionIds);
+        Set<Long> templateVersionIds = new HashSet<>();
 
-        // 第一轮：逐条校验分流与快照必填
+        // 第一轮：逐条校验分流与模板版本回填（SKU -> SPU）
         reqBO.getItems().forEach(item -> {
             ProductSkuRespDTO sku = skuMap.get(item.getSkuId());
             if (sku == null) {
@@ -179,24 +175,29 @@ public class TradePriceServiceImpl implements TradePriceService {
                     && ProductTypeEnum.isService(spu.getProductType())) {
                 throw exception(PRICE_CALCULATE_SERVICE_ITEM_EXPRESS_FORBIDDEN);
             }
+            if (item.getTemplateVersionId() == null) {
+                Long boundTemplateVersionId = sku.getTemplateVersionId() != null
+                        ? sku.getTemplateVersionId()
+                        : spu.getTemplateVersionId();
+                if (boundTemplateVersionId != null) {
+                    item.setTemplateVersionId(boundTemplateVersionId);
+                }
+            }
             if (ProductTypeEnum.isService(spu.getProductType()) && item.getTemplateVersionId() == null) {
                 throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
             }
-            if (item.getTemplateVersionId() != null && StrUtil.isBlank(item.getTemplateSnapshotJson())) {
-                ProductTemplateVersionRespDTO version = templateVersionMap.get(item.getTemplateVersionId());
-                if (version != null && StrUtil.isNotBlank(version.getSnapshotJson())) {
-                    item.setTemplateSnapshotJson(version.getSnapshotJson());
-                } else {
-                    throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
-                }
+            if (item.getTemplateVersionId() != null) {
+                templateVersionIds.add(item.getTemplateVersionId());
             }
         });
 
         if (CollUtil.isEmpty(templateVersionIds)) {
             return;
         }
+        Map<Long, ProductTemplateVersionRespDTO> templateVersionMap = productTemplateVersionApi
+                .getTemplateVersionMap(templateVersionIds);
 
-        // 第二轮：校验模板版本存在、已发布且类目一致
+        // 第二轮：校验模板版本存在、已发布、类目一致，并兜底快照
         reqBO.getItems().forEach(item -> {
             Long templateVersionId = item.getTemplateVersionId();
             if (templateVersionId == null) {
@@ -219,6 +220,13 @@ public class TradePriceServiceImpl implements TradePriceService {
             }
             if (!Objects.equals(templateVersion.getCategoryId(), spu.getCategoryId())) {
                 throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_CATEGORY_MISMATCH);
+            }
+            if (StrUtil.isBlank(item.getTemplateSnapshotJson())) {
+                if (StrUtil.isNotBlank(templateVersion.getSnapshotJson())) {
+                    item.setTemplateSnapshotJson(templateVersion.getSnapshotJson());
+                } else {
+                    throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
+                }
             }
         });
     }
