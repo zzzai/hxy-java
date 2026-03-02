@@ -7,6 +7,7 @@ import com.hxy.module.booking.dal.dataobject.TechnicianCommissionDO;
 import com.hxy.module.booking.enums.CommissionStatusEnum;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -70,6 +71,25 @@ public interface TechnicianCommissionMapper extends BaseMapperX<TechnicianCommis
                 new LambdaUpdateWrapper<TechnicianCommissionDO>()
                         .eq(TechnicianCommissionDO::getSettlementId, settlementId)
                         .eq(TechnicianCommissionDO::getStatus, fromStatus));
+    }
+
+    default int reactivateCancelledReversalById(Long id, Integer baseAmount, BigDecimal commissionRate,
+                                                Integer commissionAmount, String bizType, String bizNo, Long staffId) {
+        if (id == null) {
+            return 0;
+        }
+        return update(null, new LambdaUpdateWrapper<TechnicianCommissionDO>()
+                .eq(TechnicianCommissionDO::getId, id)
+                .eq(TechnicianCommissionDO::getStatus, CommissionStatusEnum.CANCELLED.getStatus())
+                .set(TechnicianCommissionDO::getStatus, CommissionStatusEnum.PENDING.getStatus())
+                .set(TechnicianCommissionDO::getBaseAmount, baseAmount)
+                .set(TechnicianCommissionDO::getCommissionRate, commissionRate)
+                .set(TechnicianCommissionDO::getCommissionAmount, commissionAmount)
+                .set(TechnicianCommissionDO::getBizType, bizType)
+                .set(TechnicianCommissionDO::getBizNo, bizNo)
+                .set(TechnicianCommissionDO::getStaffId, staffId)
+                .set(TechnicianCommissionDO::getSettlementId, null)
+                .set(TechnicianCommissionDO::getSettlementTime, null));
     }
 
 }

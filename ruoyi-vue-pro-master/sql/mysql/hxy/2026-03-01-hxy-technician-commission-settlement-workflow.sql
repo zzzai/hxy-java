@@ -14,8 +14,16 @@ ALTER TABLE `technician_commission`
     ADD COLUMN IF NOT EXISTS `settlement_id` BIGINT DEFAULT NULL COMMENT '结算单ID' AFTER `status`;
 
 ALTER TABLE `technician_commission`
+    ADD COLUMN IF NOT EXISTS `biz_type` VARCHAR(32) NOT NULL DEFAULT '' COMMENT '业务类型（冲正幂等键）' AFTER `commission_amount`,
+    ADD COLUMN IF NOT EXISTS `biz_no` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '业务单号（冲正幂等键）' AFTER `biz_type`,
+    ADD COLUMN IF NOT EXISTS `staff_id` BIGINT DEFAULT NULL COMMENT '归属员工ID（冲正幂等键）' AFTER `biz_no`;
+
+ALTER TABLE `technician_commission`
     ADD INDEX `idx_technician_commission_store_id` (`store_id`),
     ADD INDEX `idx_technician_commission_settlement_id` (`settlement_id`);
+
+ALTER TABLE `technician_commission`
+    ADD UNIQUE INDEX `uk_reversal_idempotent` (`biz_type`, `biz_no`, `staff_id`);
 
 CREATE TABLE IF NOT EXISTS `technician_commission_settlement`
 (

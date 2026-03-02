@@ -11,6 +11,7 @@ import com.hxy.module.booking.enums.CommissionStatusEnum;
 import com.hxy.module.booking.enums.CommissionTypeEnum;
 import com.hxy.module.booking.enums.DispatchModeEnum;
 import com.hxy.module.booking.service.BookingOrderService;
+import org.mybatis.spring.annotation.MapperScan;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @Import(TechnicianCommissionServiceImpl.class)
+@MapperScan("com.hxy.module.booking.dal.mysql")
 public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
 
     @Resource
@@ -202,9 +204,12 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         assertEquals(-12000, reversal.getBaseAmount());
         assertEquals(-1800, reversal.getCommissionAmount());
         assertEquals(settled.getCommissionType(), reversal.getCommissionType());
-        assertEquals(settled.getCommissionRate(), reversal.getCommissionRate());
+        assertEquals(0, settled.getCommissionRate().compareTo(reversal.getCommissionRate()));
         assertEquals(settled.getTechnicianId(), reversal.getTechnicianId());
         assertEquals(settled.getStoreId(), reversal.getStoreId());
+        assertEquals("ORDER_CANCEL_REVERSAL", reversal.getBizType());
+        assertEquals(String.valueOf(settled.getId()), reversal.getBizNo());
+        assertEquals(settled.getTechnicianId(), reversal.getStaffId());
         assertNull(reversal.getSettlementId());
         assertNull(reversal.getSettlementTime());
     }
@@ -228,6 +233,43 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         long reversalCount = rows.stream().filter(row -> row.getCommissionAmount() != null
                 && row.getCommissionAmount() < 0).count();
         assertEquals(1, reversalCount);
+    }
+
+    @Test
+    public void testCancelCommission_shouldReactivateCancelledReversalWithSameBizKey() {
+        Long orderId = 703L;
+        TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
+                .technicianId(13L).orderId(orderId).userId(1003L).storeId(90L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(11000).commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(1100)
+                .status(CommissionStatusEnum.SETTLED.getStatus())
+                .build();
+        commissionMapper.insert(settled);
+        TechnicianCommissionDO cancelledReversal = TechnicianCommissionDO.builder()
+                .technicianId(13L).orderId(orderId).userId(1003L).storeId(90L)
+                .commissionType(CommissionTypeEnum.BASE.getType())
+                .baseAmount(-11000).commissionRate(new BigDecimal("0.10"))
+                .commissionAmount(-1100)
+                .status(CommissionStatusEnum.CANCELLED.getStatus())
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo(String.valueOf(settled.getId()))
+                .staffId(13L)
+                .settlementId(999L)
+                .build();
+        commissionMapper.insert(cancelledReversal);
+
+        commissionService.cancelCommission(orderId);
+
+        List<TechnicianCommissionDO> rows = commissionMapper.selectListByOrderId(orderId);
+        assertEquals(2, rows.size());
+        TechnicianCommissionDO updatedReversal = commissionMapper.selectById(cancelledReversal.getId());
+        assertEquals(CommissionStatusEnum.PENDING.getStatus(), updatedReversal.getStatus());
+        assertEquals("ORDER_CANCEL_REVERSAL", updatedReversal.getBizType());
+        assertEquals(String.valueOf(settled.getId()), updatedReversal.getBizNo());
+        assertEquals(13L, updatedReversal.getStaffId());
+        assertNull(updatedReversal.getSettlementId());
+        assertNull(updatedReversal.getSettlementTime());
     }
 
     @Test

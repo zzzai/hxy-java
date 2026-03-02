@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS technician_commission (
     base_amount INT NOT NULL DEFAULT 0 COMMENT '订单金额（分）',
     commission_rate DECIMAL(5,4) NOT NULL DEFAULT 0 COMMENT '佣金比例',
     commission_amount INT NOT NULL DEFAULT 0 COMMENT '佣金金额（分）',
+    biz_type VARCHAR(32) NOT NULL DEFAULT '' COMMENT '业务类型（冲正幂等键）',
+    biz_no VARCHAR(64) NOT NULL DEFAULT '' COMMENT '业务单号（冲正幂等键）',
+    staff_id BIGINT DEFAULT NULL COMMENT '归属员工ID（冲正幂等键）',
     status TINYINT NOT NULL DEFAULT 0 COMMENT '状态 0=待结算 1=已结算 2=已取消',
     settlement_id BIGINT DEFAULT NULL COMMENT '结算单ID',
     settlement_time DATETIME DEFAULT NULL COMMENT '结算时间',
@@ -23,7 +26,8 @@ CREATE TABLE IF NOT EXISTS technician_commission (
     INDEX idx_order_id (order_id),
     INDEX idx_status (status),
     INDEX idx_store_id (store_id),
-    INDEX idx_settlement_id (settlement_id)
+    INDEX idx_settlement_id (settlement_id),
+    UNIQUE INDEX uk_reversal_idempotent (biz_type, biz_no, staff_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='技师佣金记录';
 
 -- 技师佣金配置表（门店级）

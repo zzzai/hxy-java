@@ -14,6 +14,7 @@ import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -22,11 +23,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Validated
 @Slf4j
 public class TechnicianCommissionServiceImpl implements TechnicianCommissionService {
+
+    private static final String REVERSAL_BIZ_TYPE = "ORDER_CANCEL_REVERSAL";
 
     private final TechnicianCommissionMapper commissionMapper;
     private final TechnicianCommissionConfigMapper commissionConfigMapper;
@@ -102,7 +106,21 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 continue;
             }
             if (CommissionStatusEnum.SETTLED.getStatus().equals(commission.getStatus())
-                    && !hasReversalCommission(commission, commissions)) {
+                    && commission.getId() != null) {
+                String reversalBizNo = buildReversalBizNo(commission);
+                TechnicianCommissionDO existingReversal = findReversalByBizKey(
+                        commissions, REVERSAL_BIZ_TYPE, reversalBizNo, commission.getTechnicianId());
+                if (existingReversal != null) {
+                    if (CommissionStatusEnum.CANCELLED.getStatus().equals(existingReversal.getStatus())) {
+                        reactivateCancelledReversal(existingReversal, commission);
+                        log.info("重置已取消的佣金冲正记录，reversalId={}, originCommissionId={}, orderId={}",
+                                existingReversal.getId(), commission.getId(), orderId);
+                    } else {
+                        log.info("命中佣金冲正幂等键，跳过重复请求，originCommissionId={}, reversalId={}, orderId={}, bizNo={}",
+                                commission.getId(), existingReversal.getId(), orderId, reversalBizNo);
+                    }
+                    continue;
+                }
                 TechnicianCommissionDO reversal = TechnicianCommissionDO.builder()
                         .technicianId(commission.getTechnicianId())
                         .orderId(commission.getOrderId())
@@ -112,11 +130,20 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                         .baseAmount(negateAmount(commission.getBaseAmount()))
                         .commissionRate(commission.getCommissionRate())
                         .commissionAmount(negateAmount(commission.getCommissionAmount()))
+                        .bizType(REVERSAL_BIZ_TYPE)
+                        .bizNo(reversalBizNo)
+                        .staffId(commission.getTechnicianId())
                         .status(CommissionStatusEnum.PENDING.getStatus())
                         .build();
-                commissionMapper.insert(reversal);
-                log.info("创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}",
-                        commission.getId(), reversal.getId(), orderId);
+                try {
+                    commissionMapper.insert(reversal);
+                    log.info("创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}, bizNo={}",
+                            commission.getId(), reversal.getId(), orderId, reversalBizNo);
+                } catch (DuplicateKeyException ex) {
+                    // 并发重复冲正请求由唯一键兜底，按幂等命中处理
+                    log.info("命中佣金冲正幂等唯一键，跳过重复插入，originCommissionId={}, orderId={}, bizNo={}",
+                            commission.getId(), orderId, reversalBizNo);
+                }
             }
         }
     }
@@ -209,38 +236,35 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
         return BigDecimal.valueOf(commissionType.getDefaultRate());
     }
 
-    private boolean hasReversalCommission(TechnicianCommissionDO settledCommission,
-                                          List<TechnicianCommissionDO> commissions) {
-        Integer expectedBaseAmount = negateAmount(settledCommission.getBaseAmount());
-        Integer expectedCommissionAmount = negateAmount(settledCommission.getCommissionAmount());
+    private TechnicianCommissionDO findReversalByBizKey(List<TechnicianCommissionDO> commissions,
+                                                        String bizType, String bizNo, Long staffId) {
         for (TechnicianCommissionDO item : commissions) {
-            if (item == null || item.getId() == null || item.getId().equals(settledCommission.getId())) {
+            if (item == null) {
                 continue;
             }
-            if (!settledCommission.getOrderId().equals(item.getOrderId())
-                    || !settledCommission.getTechnicianId().equals(item.getTechnicianId())
-                    || !settledCommission.getCommissionType().equals(item.getCommissionType())) {
+            if (!Objects.equals(bizType, item.getBizType())
+                    || !Objects.equals(bizNo, item.getBizNo())
+                    || !Objects.equals(staffId, item.getStaffId())) {
                 continue;
             }
-            if (!expectedBaseAmount.equals(item.getBaseAmount())
-                    || !expectedCommissionAmount.equals(item.getCommissionAmount())) {
-                continue;
-            }
-            // 已取消的冲正记录不具备扣减效力，需要允许重新生成冲正
-            if (CommissionStatusEnum.CANCELLED.getStatus().equals(item.getStatus())) {
-                continue;
-            }
-            if (settledCommission.getCommissionRate() == null) {
-                if (item.getCommissionRate() != null) {
-                    continue;
-                }
-            } else if (item.getCommissionRate() == null
-                    || settledCommission.getCommissionRate().compareTo(item.getCommissionRate()) != 0) {
-                continue;
-            }
-            return true;
+            return item;
         }
-        return false;
+        return null;
+    }
+
+    private String buildReversalBizNo(TechnicianCommissionDO settledCommission) {
+        return String.valueOf(settledCommission.getId());
+    }
+
+    private void reactivateCancelledReversal(TechnicianCommissionDO existingReversal,
+                                             TechnicianCommissionDO settledCommission) {
+        commissionMapper.reactivateCancelledReversalById(existingReversal.getId(),
+                negateAmount(settledCommission.getBaseAmount()),
+                settledCommission.getCommissionRate(),
+                negateAmount(settledCommission.getCommissionAmount()),
+                REVERSAL_BIZ_TYPE,
+                buildReversalBizNo(settledCommission),
+                settledCommission.getTechnicianId());
     }
 
     private boolean isReversalCommission(TechnicianCommissionDO commission) {

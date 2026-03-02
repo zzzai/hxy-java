@@ -93,6 +93,9 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
         assertEquals(CommissionStatusEnum.PENDING.getStatus(), reversal.getStatus());
         assertNull(reversal.getSettlementId());
         assertNull(reversal.getSettlementTime());
+        assertEquals("ORDER_CANCEL_REVERSAL", reversal.getBizType());
+        assertEquals("21", reversal.getBizNo());
+        assertEquals(settled.getTechnicianId(), reversal.getStaffId());
     }
 
     @Test
@@ -120,6 +123,9 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
                 .baseAmount(-8000)
                 .commissionRate(new BigDecimal("0.15"))
                 .commissionAmount(-1200)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("31")
+                .staffId(30L)
                 .status(CommissionStatusEnum.PENDING.getStatus())
                 .build();
         when(commissionMapper.selectListByOrderId(orderId))
@@ -176,6 +182,9 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
                 .baseAmount(-10000)
                 .commissionRate(new BigDecimal("0.10"))
                 .commissionAmount(-1000)
+                .bizType("ORDER_CANCEL_REVERSAL")
+                .bizNo("51")
+                .staffId(50L)
                 .status(CommissionStatusEnum.CANCELLED.getStatus())
                 .build();
         when(commissionMapper.selectListByOrderId(orderId))
@@ -183,6 +192,9 @@ class TechnicianCommissionServiceImplCancelCommissionTest extends BaseMockitoUni
 
         service.cancelCommission(orderId);
 
-        verify(commissionMapper, times(1)).insert(any(TechnicianCommissionDO.class));
+        verify(commissionMapper, times(1)).reactivateCancelledReversalById(
+                eq(52L), eq(-10000), eq(new BigDecimal("0.10")), eq(-1000),
+                eq("ORDER_CANCEL_REVERSAL"), eq("51"), eq(50L));
+        verify(commissionMapper, never()).insert(any(TechnicianCommissionDO.class));
     }
 }
