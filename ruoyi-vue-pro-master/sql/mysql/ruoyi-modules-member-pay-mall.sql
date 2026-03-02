@@ -872,6 +872,9 @@ CREATE TABLE IF NOT EXISTS `trade_after_sale_review_ticket`
     `resolver_type`     int                   DEFAULT NULL COMMENT '收口人类型',
     `resolve_action_code` varchar(64) NOT NULL DEFAULT '' COMMENT '收口动作编码',
     `resolve_biz_no`      varchar(64) NOT NULL DEFAULT '' COMMENT '收口来源业务号',
+    `last_action_code`    varchar(64) NOT NULL DEFAULT '' COMMENT '最近审计动作编码',
+    `last_action_biz_no`  varchar(64) NOT NULL DEFAULT '' COMMENT '最近审计业务号',
+    `last_action_time`    datetime              DEFAULT NULL COMMENT '最近审计动作时间',
     `remark`            varchar(255) NOT NULL DEFAULT '' COMMENT '备注',
     `creator`           varchar(255)          DEFAULT '',
     `create_time`       datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -881,7 +884,9 @@ CREATE TABLE IF NOT EXISTS `trade_after_sale_review_ticket`
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_after_sale_id` (`after_sale_id`),
     KEY `idx_status_deadline` (`status`, `sla_deadline_time`),
-    KEY `idx_severity_status` (`severity`, `status`)
+    KEY `idx_severity_status` (`severity`, `status`),
+    KEY `idx_last_action_code` (`last_action_code`),
+    KEY `idx_last_action_biz_no` (`last_action_biz_no`)
 ) COMMENT '售后人工复核工单表';
 
 CREATE TABLE IF NOT EXISTS `trade_after_sale`

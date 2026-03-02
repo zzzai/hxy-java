@@ -38,6 +38,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private static final DateTimeFormatter ESCALATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String DEFAULT_RESOLVE_ACTION_MANUAL = "MANUAL_RESOLVE";
     private static final String DEFAULT_RESOLVE_ACTION_AUTO = "AUTO_RESOLVE";
+    private static final String ACTION_TICKET_CREATE = "TICKET_CREATE";
+    private static final String ACTION_RULE_RETRIGGER = "RULE_RETRIGGER";
+    private static final String ACTION_SLA_AUTO_ESCALATE = "SLA_AUTO_ESCALATE";
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
@@ -85,6 +88,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 .setFirstTriggerTime(now)
                 .setLastTriggerTime(now)
                 .setTriggerCount(1)
+                .setLastActionCode(ACTION_TICKET_CREATE)
+                .setLastActionBizNo(normalizeActionBizNo(sourceBizNo, reqBO.getAfterSaleId()))
+                .setLastActionTime(now)
                 .setRemark(abbreviate(reqBO.getRemark(), 255));
         afterSaleReviewTicketMapper.insert(ticket);
         return ticket.getId();
@@ -116,6 +122,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                     .setFirstTriggerTime(now)
                     .setLastTriggerTime(now)
                     .setTriggerCount(1)
+                    .setLastActionCode(ACTION_TICKET_CREATE)
+                    .setLastActionBizNo(normalizeActionBizNo(afterSale.getNo(), afterSale.getId()))
+                    .setLastActionTime(now)
                     .setRemark(abbreviate(decision.getReason(), 255)));
             return;
         }
@@ -132,6 +141,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 .setFirstTriggerTime(ObjUtil.defaultIfNull(existed.getFirstTriggerTime(), now))
                 .setLastTriggerTime(now)
                 .setTriggerCount(ObjUtil.defaultIfNull(existed.getTriggerCount(), 0) + 1)
+                .setLastActionCode(ACTION_RULE_RETRIGGER)
+                .setLastActionBizNo(normalizeActionBizNo(afterSale.getNo(), afterSale.getId()))
+                .setLastActionTime(now)
                 .setRemark(abbreviate(decision.getReason(), 255)));
     }
 
@@ -141,16 +153,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (afterSaleId == null) {
             return;
         }
+        String normalizedActionCode = normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_AUTO);
+        String normalizedBizNo = normalizeResolveBizNo(resolveBizNo, afterSaleId);
         afterSaleReviewTicketMapper.updateByAfterSaleIdAndStatus(afterSaleId,
                 AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
-                new AfterSaleReviewTicketDO()
-                        .setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus())
-                        .setResolverId(resolverId)
-                        .setResolverType(resolverType)
-                        .setResolveActionCode(normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_AUTO))
-                        .setResolveBizNo(normalizeResolveBizNo(resolveBizNo, afterSaleId))
-                        .setResolvedTime(LocalDateTime.now())
-                        .setRemark(abbreviate(resolveRemark, 255)));
+                buildResolvedTicketUpdate(resolverId, resolverType, normalizedActionCode, normalizedBizNo, resolveRemark));
     }
 
     @Override
@@ -163,19 +170,31 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (!AfterSaleReviewTicketStatusEnum.isPending(ticket.getStatus())) {
             throw exception(AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING);
         }
+        String normalizedActionCode = normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_MANUAL);
+        String normalizedBizNo = normalizeResolveBizNo(resolveBizNo, id);
         int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(id,
                 AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
-                new AfterSaleReviewTicketDO()
-                        .setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus())
-                        .setResolverId(resolverId)
-                        .setResolverType(resolverType)
-                        .setResolveActionCode(normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_MANUAL))
-                        .setResolveBizNo(normalizeResolveBizNo(resolveBizNo, id))
-                        .setResolvedTime(LocalDateTime.now())
-                        .setRemark(abbreviate(resolveRemark, 255)));
+                buildResolvedTicketUpdate(resolverId, resolverType, normalizedActionCode, normalizedBizNo, resolveRemark));
         if (updateCount == 0) {
             throw exception(AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING);
         }
+    }
+
+    private AfterSaleReviewTicketDO buildResolvedTicketUpdate(Long resolverId, Integer resolverType,
+                                                              String resolveActionCode, String resolveBizNo,
+                                                              String resolveRemark) {
+        LocalDateTime now = LocalDateTime.now();
+        return new AfterSaleReviewTicketDO()
+                .setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus())
+                .setResolverId(resolverId)
+                .setResolverType(resolverType)
+                .setResolveActionCode(resolveActionCode)
+                .setResolveBizNo(resolveBizNo)
+                .setLastActionCode(resolveActionCode)
+                .setLastActionBizNo(resolveBizNo)
+                .setLastActionTime(now)
+                .setResolvedTime(now)
+                .setRemark(abbreviate(resolveRemark, 255));
     }
 
     @Override
@@ -201,6 +220,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                             .setSlaDeadlineTime(now.plusMinutes(resolveEscalatedSlaMinutes(newSeverity)))
                             .setLastTriggerTime(now)
                             .setTriggerCount(ObjUtil.defaultIfNull(ticket.getTriggerCount(), 0) + 1)
+                            .setLastActionCode(ACTION_SLA_AUTO_ESCALATE)
+                            .setLastActionBizNo(normalizeActionBizNo("TICKET#" + ticket.getId(), ticket.getId()))
+                            .setLastActionTime(now)
                             .setRemark(abbreviate(newRemark, 255)));
             affectedRows += updateCount;
         }
@@ -283,6 +305,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     private String normalizeResolveBizNo(String resolveBizNo, Long fallbackId) {
         return StrUtil.maxLength(StrUtil.blankToDefault(resolveBizNo,
+                fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
+    }
+
+    private String normalizeActionBizNo(String actionBizNo, Long fallbackId) {
+        return StrUtil.maxLength(StrUtil.blankToDefault(actionBizNo,
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
     }
 

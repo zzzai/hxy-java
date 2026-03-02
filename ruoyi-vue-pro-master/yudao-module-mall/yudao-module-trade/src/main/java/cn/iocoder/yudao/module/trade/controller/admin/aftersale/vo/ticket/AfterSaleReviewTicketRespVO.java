@@ -75,6 +75,15 @@ public class AfterSaleReviewTicketRespVO {
     @Schema(description = "收口来源业务号", example = "OPS-202603020001")
     private String resolveBizNo;
 
+    @Schema(description = "最近审计动作编码", example = "MANUAL_RESOLVE")
+    private String lastActionCode;
+
+    @Schema(description = "最近审计业务号", example = "OPS-202603020001")
+    private String lastActionBizNo;
+
+    @Schema(description = "最近审计动作时间")
+    private LocalDateTime lastActionTime;
+
     @Schema(description = "备注")
     private String remark;
 

@@ -58,6 +58,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType(), captor.getValue().getTicketType());
         assertEquals(AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), captor.getValue().getStatus());
         assertEquals("BK202603010001", captor.getValue().getSourceBizNo());
+        assertEquals("TICKET_CREATE", captor.getValue().getLastActionCode());
+        assertEquals("BK202603010001", captor.getValue().getLastActionBizNo());
+        assertNotNull(captor.getValue().getLastActionTime());
     }
 
     @Test
@@ -92,6 +95,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(88L, captor.getValue().getId());
         assertEquals(3, captor.getValue().getTriggerCount());
         assertEquals("P1", captor.getValue().getSeverity());
+        assertEquals("RULE_RETRIGGER", captor.getValue().getLastActionCode());
+        assertEquals("2", captor.getValue().getLastActionBizNo());
+        assertNotNull(captor.getValue().getLastActionTime());
     }
 
     @Test
@@ -108,6 +114,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(99L, captor.getValue().getResolverId());
         assertEquals("FORCE_PASS_MANUAL", captor.getValue().getResolveActionCode());
         assertEquals("AFTER_SALE#3", captor.getValue().getResolveBizNo());
+        assertEquals("FORCE_PASS_MANUAL", captor.getValue().getLastActionCode());
+        assertEquals("AFTER_SALE#3", captor.getValue().getLastActionBizNo());
+        assertNotNull(captor.getValue().getLastActionTime());
         assertNotNull(captor.getValue().getResolvedTime());
     }
 
@@ -131,6 +140,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(100L, captor.getValue().getResolverId());
         assertEquals("MANUAL_RESOLVE", captor.getValue().getResolveActionCode());
         assertEquals("OPS#4", captor.getValue().getResolveBizNo());
+        assertEquals("MANUAL_RESOLVE", captor.getValue().getLastActionCode());
+        assertEquals("OPS#4", captor.getValue().getLastActionBizNo());
+        assertNotNull(captor.getValue().getLastActionTime());
     }
 
     @Test
@@ -173,6 +185,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("P0", captor.getValue().getSeverity());
         assertEquals("HQ_RISK_FINANCE", captor.getValue().getEscalateTo());
         assertEquals(3, captor.getValue().getTriggerCount());
+        assertEquals("SLA_AUTO_ESCALATE", captor.getValue().getLastActionCode());
+        assertEquals("TICKET#6", captor.getValue().getLastActionBizNo());
+        assertNotNull(captor.getValue().getLastActionTime());
     }
 
     private static AfterSaleDO buildAfterSale(Long id) {

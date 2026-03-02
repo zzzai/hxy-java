@@ -106,6 +106,18 @@ public class AfterSaleReviewTicketDO extends BaseDO {
      */
     private String resolveBizNo;
     /**
+     * 最近审计动作编码
+     */
+    private String lastActionCode;
+    /**
+     * 最近审计业务号
+     */
+    private String lastActionBizNo;
+    /**
+     * 最近审计动作时间
+     */
+    private LocalDateTime lastActionTime;
+    /**
      * 备注
      */
     private String remark;

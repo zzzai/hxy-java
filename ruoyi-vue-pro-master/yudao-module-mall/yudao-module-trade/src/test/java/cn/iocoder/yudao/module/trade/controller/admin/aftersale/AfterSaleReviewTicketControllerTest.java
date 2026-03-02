@@ -52,6 +52,9 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         ticket.setAfterSaleId(101L);
         ticket.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
         ticket.setSlaDeadlineTime(LocalDateTime.now().minusMinutes(5));
+        ticket.setLastActionCode("SLA_AUTO_ESCALATE");
+        ticket.setLastActionBizNo("TICKET#1");
+        ticket.setLastActionTime(LocalDateTime.now().minusMinutes(1));
 
         when(afterSaleReviewTicketService.getReviewTicketPage(reqVO))
                 .thenReturn(new PageResult<>(Collections.singletonList(ticket), 1L));
@@ -64,6 +67,9 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         assertEquals(1, result.getData().getList().size());
         assertEquals(1L, result.getData().getList().get(0).getId());
         assertTrue(result.getData().getList().get(0).getOverdue());
+        assertEquals("SLA_AUTO_ESCALATE", result.getData().getList().get(0).getLastActionCode());
+        assertEquals("TICKET#1", result.getData().getList().get(0).getLastActionBizNo());
+        assertNotNull(result.getData().getList().get(0).getLastActionTime());
         verify(afterSaleReviewTicketService).getReviewTicketPage(reqVO);
     }
 
@@ -74,6 +80,9 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         ticket.setAfterSaleId(9001L);
         ticket.setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus());
         ticket.setSlaDeadlineTime(LocalDateTime.now().minusMinutes(10));
+        ticket.setLastActionCode("MANUAL_RESOLVE");
+        ticket.setLastActionBizNo("OPS-202603020001");
+        ticket.setLastActionTime(LocalDateTime.now().minusMinutes(3));
 
         when(afterSaleReviewTicketService.getReviewTicket(9L)).thenReturn(ticket);
 
@@ -84,6 +93,9 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         assertEquals(9L, result.getData().getId());
         assertEquals(9001L, result.getData().getAfterSaleId());
         assertFalse(result.getData().getOverdue());
+        assertEquals("MANUAL_RESOLVE", result.getData().getLastActionCode());
+        assertEquals("OPS-202603020001", result.getData().getLastActionBizNo());
+        assertNotNull(result.getData().getLastActionTime());
         verify(afterSaleReviewTicketService).getReviewTicket(9L);
     }
 

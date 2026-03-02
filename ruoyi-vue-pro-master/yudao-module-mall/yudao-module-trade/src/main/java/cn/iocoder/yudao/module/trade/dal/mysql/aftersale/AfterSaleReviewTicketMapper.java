@@ -6,6 +6,7 @@ import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -21,7 +22,7 @@ import java.util.List;
 public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReviewTicketDO> {
 
     default PageResult<AfterSaleReviewTicketDO> selectPage(AfterSaleReviewTicketPageReqVO reqVO) {
-        return selectPage(reqVO, new LambdaQueryWrapperX<AfterSaleReviewTicketDO>()
+        LambdaQueryWrapperX<AfterSaleReviewTicketDO> queryWrapper = new LambdaQueryWrapperX<AfterSaleReviewTicketDO>()
                 .eqIfPresent(AfterSaleReviewTicketDO::getTicketType, reqVO.getTicketType())
                 .eqIfPresent(AfterSaleReviewTicketDO::getAfterSaleId, reqVO.getAfterSaleId())
                 .eqIfPresent(AfterSaleReviewTicketDO::getOrderId, reqVO.getOrderId())
@@ -31,10 +32,32 @@ public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReview
                 .eqIfPresent(AfterSaleReviewTicketDO::getRuleCode, reqVO.getRuleCode())
                 .eqIfPresent(AfterSaleReviewTicketDO::getSourceBizNo, reqVO.getSourceBizNo())
                 .eqIfPresent(AfterSaleReviewTicketDO::getEscalateTo, reqVO.getEscalateTo())
+                .eqIfPresent(AfterSaleReviewTicketDO::getLastActionCode, reqVO.getLastActionCode())
+                .eqIfPresent(AfterSaleReviewTicketDO::getLastActionBizNo, reqVO.getLastActionBizNo())
                 .betweenIfPresent(AfterSaleReviewTicketDO::getSlaDeadlineTime, reqVO.getSlaDeadlineTime())
+                .betweenIfPresent(AfterSaleReviewTicketDO::getLastActionTime, reqVO.getLastActionTime())
                 .betweenIfPresent(AfterSaleReviewTicketDO::getResolvedTime, reqVO.getResolvedTime())
                 .betweenIfPresent(AfterSaleReviewTicketDO::getCreateTime, reqVO.getCreateTime())
-                .orderByDesc(AfterSaleReviewTicketDO::getId));
+                .orderByDesc(AfterSaleReviewTicketDO::getId);
+        if (reqVO.getOverdue() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            if (Boolean.TRUE.equals(reqVO.getOverdue())) {
+                queryWrapper.and(wrapper -> wrapper
+                        .eq(AfterSaleReviewTicketDO::getStatus,
+                                AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                        .isNotNull(AfterSaleReviewTicketDO::getSlaDeadlineTime)
+                        .le(AfterSaleReviewTicketDO::getSlaDeadlineTime, now));
+            } else {
+                queryWrapper.and(wrapper -> wrapper
+                        .ne(AfterSaleReviewTicketDO::getStatus,
+                                AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                        .or()
+                        .isNull(AfterSaleReviewTicketDO::getSlaDeadlineTime)
+                        .or()
+                        .gt(AfterSaleReviewTicketDO::getSlaDeadlineTime, now));
+            }
+        }
+        return selectPage(reqVO, queryWrapper);
     }
 
     default AfterSaleReviewTicketDO selectByAfterSaleId(Long afterSaleId) {

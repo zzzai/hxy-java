@@ -53,6 +53,19 @@ public class AfterSaleReviewTicketPageReqVO extends PageParam {
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     private LocalDateTime[] slaDeadlineTime;
 
+    @Schema(description = "是否逾期（仅待处理状态按截止时间判定）")
+    private Boolean overdue;
+
+    @Schema(description = "最近审计动作编码", example = "MANUAL_RESOLVE")
+    private String lastActionCode;
+
+    @Schema(description = "最近审计业务号", example = "OPS-202603020001")
+    private String lastActionBizNo;
+
+    @Schema(description = "最近审计动作时间")
+    @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
+    private LocalDateTime[] lastActionTime;
+
     @Schema(description = "收口时间")
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     private LocalDateTime[] resolvedTime;
