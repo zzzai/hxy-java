@@ -144,6 +144,44 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
+    void shouldRejectRefundWhenServiceOrderFinishedWithoutSnapshot() {
+        Long userId = 1031L;
+        TradeOrderItemDO orderItem = buildOrderItem(1131L, 5000, null);
+        when(tradeOrderQueryService.getOrderItem(userId, 1131L)).thenReturn(orderItem);
+        when(tradeServiceOrderMapper.selectByOrderItemId(orderItem.getId())).thenReturn(TradeServiceOrderDO.builder()
+                .id(70011L)
+                .orderItemId(orderItem.getId())
+                .status(TradeServiceOrderStatusEnum.FINISHED.getStatus())
+                .orderItemSnapshotJson(null)
+                .build());
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
+                service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 1)));
+
+        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
+    void shouldAllowRefundWhenServiceOrderBookedAndSnapshotMissing() {
+        Long userId = 1032L;
+        TradeOrderItemDO orderItem = buildOrderItem(1132L, 5000, null);
+        TradeOrderDO order = buildOrder(userId, orderItem.getOrderId());
+        when(tradeOrderQueryService.getOrderItem(userId, 1132L)).thenReturn(orderItem);
+        when(tradeOrderQueryService.getOrder(userId, orderItem.getOrderId())).thenReturn(order);
+        when(tradeServiceOrderMapper.selectByOrderItemId(orderItem.getId())).thenReturn(TradeServiceOrderDO.builder()
+                .id(70012L)
+                .orderItemId(orderItem.getId())
+                .status(TradeServiceOrderStatusEnum.BOOKED.getStatus())
+                .orderItemSnapshotJson(null)
+                .build());
+
+        TradeOrderItemDO result = ReflectionTestUtils.invokeMethod(
+                service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 3000));
+
+        assertSame(orderItem, result);
+    }
+
+    @Test
     void shouldPersistRefundLimitAuditWhenCreateAfterSale() {
         Long userId = 104L;
         TradeOrderItemDO orderItem = buildOrderItem(114L, 5000,

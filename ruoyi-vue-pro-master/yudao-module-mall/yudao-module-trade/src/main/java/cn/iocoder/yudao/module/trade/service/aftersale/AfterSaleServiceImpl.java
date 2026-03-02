@@ -226,25 +226,26 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     }
 
     private Integer resolveServiceOrderSnapshotCap(TradeServiceOrderDO serviceOrder, Map<String, Object> detail) {
-        if (serviceOrder == null || StrUtil.isBlank(serviceOrder.getOrderItemSnapshotJson())) {
-            return null;
-        }
-        BundleRefundSnapshotPayload snapshotPayload = extractBundleRefundSnapshot(serviceOrder.getOrderItemSnapshotJson());
-        if (snapshotPayload == null) {
-            return null;
-        }
-        BundleRefundComputation computation = resolveBundleRefundableDetail(snapshotPayload.getSnapshotJson());
-        Integer cap = computation == null ? null : computation.getRefundablePrice();
-        if (cap == null) {
+        if (serviceOrder == null) {
             return null;
         }
         detail.put("serviceOrderId", serviceOrder.getId());
         detail.put("serviceOrderStatus", serviceOrder.getStatus());
-        detail.put("serviceSnapshotField", snapshotPayload.getSnapshotField());
-        if (computation.getHasChildComputation()) {
+        BundleRefundComputation computation = null;
+        if (StrUtil.isNotBlank(serviceOrder.getOrderItemSnapshotJson())) {
+            BundleRefundSnapshotPayload snapshotPayload = extractBundleRefundSnapshot(serviceOrder.getOrderItemSnapshotJson());
+            if (snapshotPayload != null) {
+                detail.put("serviceSnapshotField", snapshotPayload.getSnapshotField());
+                computation = resolveBundleRefundableDetail(snapshotPayload.getSnapshotJson());
+            }
+        }
+        if (computation != null && computation.getHasChildComputation()) {
             detail.put("bundleChildren", computation.getBundleChildren());
         }
-        detail.put("bundleRefundablePrice", cap);
+        Integer cap = computation == null ? null : computation.getRefundablePrice();
+        if (cap != null) {
+            detail.put("bundleRefundablePrice", cap);
+        }
         if (ObjUtil.equal(serviceOrder.getStatus(), TradeServiceOrderStatusEnum.FINISHED.getStatus())) {
             detail.put("blockedByFinished", true);
             return 0;
