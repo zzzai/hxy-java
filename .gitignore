@@ -43,3 +43,13 @@ hxy/tools/scripts/.repo_sync.env
 **/application-beta.yml
 **/application-trip.yml
 **/application-prod.yml
+
+# HXY local memory archives (keep local, do not commit)
+hxy/07_memory_archive/recovered_full_*/
+hxy/07_memory_archive/recovered_useful_*/
+hxy/07_memory_archive/hxybase_raw_*/
+hxy/07_memory_archive/external_raw_*/
+hxy/07_memory_archive/session_context/
+hxy/local_archive/
+hxybase/
+*.tgz
