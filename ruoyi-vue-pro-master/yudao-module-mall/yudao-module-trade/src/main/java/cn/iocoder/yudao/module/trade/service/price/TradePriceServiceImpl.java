@@ -179,6 +179,9 @@ public class TradePriceServiceImpl implements TradePriceService {
                     && ProductTypeEnum.isService(spu.getProductType())) {
                 throw exception(PRICE_CALCULATE_SERVICE_ITEM_EXPRESS_FORBIDDEN);
             }
+            if (ProductTypeEnum.isService(spu.getProductType()) && item.getTemplateVersionId() == null) {
+                throw exception(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED);
+            }
             if (item.getTemplateVersionId() != null && StrUtil.isBlank(item.getTemplateSnapshotJson())) {
                 ProductTemplateVersionRespDTO version = templateVersionMap.get(item.getTemplateVersionId());
                 if (version != null && StrUtil.isNotBlank(version.getSnapshotJson())) {

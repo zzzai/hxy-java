@@ -9,7 +9,9 @@ import cn.iocoder.yudao.module.product.api.spu.dto.ProductSpuRespDTO;
 import cn.iocoder.yudao.module.product.api.store.ProductStoreSkuApi;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.template.ProductTemplateVersionApi;
+import cn.iocoder.yudao.module.product.api.template.dto.ProductTemplateVersionRespDTO;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
+import cn.iocoder.yudao.module.product.enums.template.ProductTemplateConstants;
 import cn.iocoder.yudao.module.trade.enums.delivery.DeliveryTypeEnum;
 import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateReqBO;
 import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateRespBO;
@@ -121,8 +123,14 @@ class TradePriceServiceStoreSkuOverrideTest extends BaseMockitoUnitTest {
         ));
         when(productSpuApi.validateSpuList(asSet(1001L))).thenReturn(Collections.singletonList(
                 new ProductSpuRespDTO().setId(1001L).setName("服务商品").setGiveIntegral(0)
+                        .setCategoryId(8L)
                         .setProductType(ProductTypeEnum.SERVICE.getType())
         ));
+        when(productTemplateVersionApi.getTemplateVersionMap(asSet(701L))).thenReturn(Collections.singletonMap(701L,
+                new ProductTemplateVersionRespDTO()
+                        .setId(701L)
+                        .setCategoryId(8L)
+                        .setStatus(ProductTemplateConstants.TEMPLATE_STATUS_PUBLISHED)));
         ProductStoreSkuRespDTO storeSku = new ProductStoreSkuRespDTO();
         storeSku.setSkuId(22L);
         storeSku.setSaleStatus(0);
@@ -138,6 +146,8 @@ class TradePriceServiceStoreSkuOverrideTest extends BaseMockitoUnitTest {
         reqBO.setPickUpStoreId(11L);
         reqBO.setItems(Collections.singletonList(
                 new TradePriceCalculateReqBO.Item().setSkuId(22L).setCount(6).setSelected(true)
+                        .setTemplateVersionId(701L)
+                        .setTemplateSnapshotJson("{\"version\":\"v1\"}")
         ));
 
         TradePriceCalculateRespBO respBO = tradePriceService.calculateOrderPrice(reqBO);

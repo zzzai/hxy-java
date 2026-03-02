@@ -29,6 +29,7 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.PRICE_CALCU
 import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 class TradePriceServiceTemplateVersionValidationTest extends BaseMockitoUnitTest {
@@ -48,15 +49,42 @@ class TradePriceServiceTemplateVersionValidationTest extends BaseMockitoUnitTest
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(tradePriceService, "priceCalculators", Collections.emptyList());
-        when(productSkuApi.getSkuList(asSet(22L))).thenReturn(Collections.singletonList(
+        lenient().when(productSkuApi.getSkuList(asSet(22L))).thenReturn(Collections.singletonList(
                 new ProductSkuRespDTO().setId(22L).setSpuId(1001L).setPrice(1000).setStock(99)
         ));
-        when(productSpuApi.validateSpuList(asSet(1001L))).thenReturn(Collections.singletonList(
+        lenient().when(productSpuApi.validateSpuList(asSet(1001L))).thenReturn(Collections.singletonList(
                 new ProductSpuRespDTO().setId(1001L).setName("门店零售商品")
                         .setCategoryId(8L)
                         .setGiveIntegral(0)
                         .setProductType(ProductTypeEnum.PHYSICAL.getType())
         ));
+    }
+
+    @Test
+    void calculateOrderPrice_shouldRejectServiceItemWithoutTemplateVersion() {
+        when(productSkuApi.getSkuList(asSet(33L))).thenReturn(Collections.singletonList(
+                new ProductSkuRespDTO().setId(33L).setSpuId(2001L).setPrice(1000).setStock(99)
+        ));
+        when(productSpuApi.validateSpuList(asSet(2001L))).thenReturn(Collections.singletonList(
+                new ProductSpuRespDTO().setId(2001L).setName("门店服务商品")
+                        .setCategoryId(8L)
+                        .setGiveIntegral(0)
+                        .setProductType(ProductTypeEnum.SERVICE.getType())
+        ));
+
+        TradePriceCalculateReqBO reqBO = new TradePriceCalculateReqBO();
+        reqBO.setUserId(1L);
+        reqBO.setPointStatus(false);
+        reqBO.setDeliveryType(DeliveryTypeEnum.PICK_UP.getType());
+        reqBO.setItems(Collections.singletonList(new TradePriceCalculateReqBO.Item()
+                .setSkuId(33L)
+                .setCount(1)
+                .setSelected(true)
+                .setTemplateVersionId(null)
+                .setTemplateSnapshotJson(null)));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> tradePriceService.calculateOrderPrice(reqBO));
+        assertEquals(PRICE_CALCULATE_TEMPLATE_VERSION_SNAPSHOT_REQUIRED.getCode(), ex.getCode());
     }
 
     @Test
