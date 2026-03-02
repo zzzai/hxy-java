@@ -20,7 +20,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -160,12 +163,27 @@ class ScheduleServiceImplTest {
 
         // No existing schedules
         when(scheduleMapper.selectByTechnicianIdAndDate(eq(technicianId), any(LocalDate.class))).thenReturn(null);
-        // Mock schedule insert to set ID for generateTimeSlots
+        // Mock insert/selectById round trip so generateTimeSlots can load persisted schedule
+        AtomicLong idGenerator = new AtomicLong(1000L);
+        Map<Long, TechnicianScheduleDO> persistedSchedules = new HashMap<>();
         doAnswer(invocation -> {
             TechnicianScheduleDO s = invocation.getArgument(0);
-            s.setId(System.nanoTime());
+            long generatedId = idGenerator.incrementAndGet();
+            s.setId(generatedId);
+            persistedSchedules.put(generatedId, TechnicianScheduleDO.builder()
+                    .id(generatedId)
+                    .technicianId(s.getTechnicianId())
+                    .storeId(s.getStoreId())
+                    .scheduleDate(s.getScheduleDate())
+                    .weekDay(s.getWeekDay())
+                    .isRestDay(s.getIsRestDay())
+                    .workStartTime(s.getWorkStartTime())
+                    .workEndTime(s.getWorkEndTime())
+                    .build());
             return 1;
         }).when(scheduleMapper).insert(any(TechnicianScheduleDO.class));
+        when(scheduleMapper.selectById(anyLong()))
+                .thenAnswer(invocation -> persistedSchedules.get(invocation.getArgument(0)));
         when(timeSlotMapper.selectListByScheduleId(any())).thenReturn(Collections.emptyList());
 
         scheduleService.batchCreateSchedule(technicianId, start, end);
