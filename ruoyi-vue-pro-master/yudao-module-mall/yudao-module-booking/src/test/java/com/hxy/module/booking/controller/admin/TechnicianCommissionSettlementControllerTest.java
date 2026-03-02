@@ -173,4 +173,35 @@ class TechnicianCommissionSettlementControllerTest extends BaseMockitoUnitTest {
         assertEquals(1, result.getData().getSkippedStatusInvalidCount());
         verify(settlementService).retryNotifyOutboxBatch(reqVO.getIds(), null, reqVO.getReason());
     }
+
+    @Test
+    void shouldGetSettlementPageAndExposeLastActionDimensions() {
+        TechnicianCommissionSettlementDO settlement = new TechnicianCommissionSettlementDO();
+        settlement.setId(1003L);
+        settlement.setStatus(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus());
+        settlement.setReviewDeadlineTime(LocalDateTime.now().plusMinutes(15));
+        settlement.setLastActionCode("SUBMIT_REVIEW");
+        settlement.setLastActionBizNo("BIZ#SET1003");
+        settlement.setLastActionTime(LocalDateTime.now().minusMinutes(2));
+
+        com.hxy.module.booking.controller.admin.vo.TechnicianCommissionSettlementPageReqVO reqVO =
+                new com.hxy.module.booking.controller.admin.vo.TechnicianCommissionSettlementPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        when(settlementService.getSettlementPage(reqVO))
+                .thenReturn(new PageResult<>(Collections.singletonList(settlement), 1L));
+
+        CommonResult<PageResult<TechnicianCommissionSettlementRespVO>> result = controller.page(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals(1, result.getData().getList().size());
+        TechnicianCommissionSettlementRespVO vo = result.getData().getList().get(0);
+        assertEquals("SUBMIT_REVIEW", vo.getLastActionCode());
+        assertEquals("BIZ#SET1003", vo.getLastActionBizNo());
+        assertNotNull(vo.getLastActionTime());
+        assertFalse(Boolean.TRUE.equals(vo.getOverdue()));
+        verify(settlementService).getSettlementPage(reqVO);
+    }
 }
