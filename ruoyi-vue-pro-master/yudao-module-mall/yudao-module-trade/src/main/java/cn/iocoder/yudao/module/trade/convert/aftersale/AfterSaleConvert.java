@@ -69,6 +69,8 @@ public interface AfterSaleConvert {
                                           MemberUserRespDTO user, List<AfterSaleLogDO> logs) {
         AfterSaleDetailRespVO respVO = convert02(afterSale);
         respVO.setRefundLimitDetail(parseRefundLimitDetail(afterSale));
+        respVO.setRefundLimitSourceLabel(parseRefundLimitSourceLabel(afterSale));
+        respVO.setRefundLimitRuleHint(parseRefundLimitRuleHint(afterSale));
         // 处理用户信息
         respVO.setUser(convert(user));
         // 处理订单信息
@@ -90,6 +92,38 @@ public interface AfterSaleConvert {
         }
         return JsonUtils.parseObjectQuietly(afterSale.getRefundLimitDetailJson(),
                 new TypeReference<Map<String, Object>>() {});
+    }
+
+    default String parseRefundLimitSourceLabel(AfterSaleDO afterSale) {
+        if (afterSale == null || StrUtil.isBlank(afterSale.getRefundLimitSource())) {
+            return null;
+        }
+        switch (afterSale.getRefundLimitSource()) {
+            case "SERVICE_ORDER_SNAPSHOT":
+                return "服务履约快照口径";
+            case "ORDER_ITEM_PRICE_SOURCE":
+                return "订单项快照口径";
+            case "ORDER_ITEM_PAY_PRICE":
+                return "订单项实付兜底口径";
+            default:
+                return afterSale.getRefundLimitSource();
+        }
+    }
+
+    default String parseRefundLimitRuleHint(AfterSaleDO afterSale) {
+        if (afterSale == null || StrUtil.isBlank(afterSale.getRefundLimitSource())) {
+            return null;
+        }
+        switch (afterSale.getRefundLimitSource()) {
+            case "SERVICE_ORDER_SNAPSHOT":
+                return "按服务履约快照中的可退上限执行退款校验";
+            case "ORDER_ITEM_PRICE_SOURCE":
+                return "按订单项价格来源快照中的可退上限执行退款校验";
+            case "ORDER_ITEM_PAY_PRICE":
+                return "按订单项实付金额执行兜底退款校验";
+            default:
+                return "按退款上限来源字段校验";
+        }
     }
 
 }

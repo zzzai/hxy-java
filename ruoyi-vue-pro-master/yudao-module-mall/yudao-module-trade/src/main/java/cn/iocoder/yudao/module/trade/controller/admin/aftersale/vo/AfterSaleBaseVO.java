@@ -96,6 +96,12 @@ public class AfterSaleBaseVO {
     @Schema(description = "退款上限来源", example = "SERVICE_ORDER_SNAPSHOT")
     private String refundLimitSource;
 
+    @Schema(description = "退款上限来源标签", example = "服务履约快照口径")
+    private String refundLimitSourceLabel;
+
+    @Schema(description = "退款上限命中规则说明", example = "按服务履约快照中的可退上限执行退款校验")
+    private String refundLimitRuleHint;
+
     @Schema(description = "退款上限审计明细快照（JSON）", example = "{\"upperBound\":2600}")
     private String refundLimitDetailJson;
 
