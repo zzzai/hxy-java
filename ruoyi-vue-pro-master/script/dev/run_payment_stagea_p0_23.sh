@@ -15,6 +15,7 @@ Env:
   REQUIRE_NAMING_GUARD=0|1          命名门禁失败是否阻断（默认 1）
   REQUIRE_MEMORY_GUARD=0|1          记忆门禁失败是否阻断（默认 1）
   RUN_SERVER_GATEWAY_TEST=0|1       是否执行网关集成单测（默认 1）
+  NAMING_GIT_DIFF_RANGE=<range>     命名门禁差异范围（默认 HEAD~1...HEAD）
   GIT_DIFF_RANGE=<base...head>      记忆门禁差异范围（可选）
 
 Exit Code:
@@ -115,7 +116,17 @@ run_step() {
 }
 
 echo "[stageA-p0-23] step=naming-guard"
-if run_step "${NAMING_GUARD_LOG}" bash script/dev/check_hxy_naming_guard.sh; then
+naming_guard_range="${NAMING_GIT_DIFF_RANGE:-HEAD~1...HEAD}"
+if ! git -C "${ROOT_DIR}" rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+  naming_guard_range=""
+fi
+if [[ -n "${naming_guard_range}" ]]; then
+  naming_guard_cmd=(env CHECK_STAGED=0 CHECK_UNSTAGED=0 CHECK_UNTRACKED=0 GIT_DIFF_RANGE="${naming_guard_range}" \
+    bash script/dev/check_hxy_naming_guard.sh)
+else
+  naming_guard_cmd=(bash script/dev/check_hxy_naming_guard.sh)
+fi
+if run_step "${NAMING_GUARD_LOG}" "${naming_guard_cmd[@]}"; then
   naming_guard_rc=0
 else
   naming_guard_rc=$?
