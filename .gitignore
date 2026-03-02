@@ -28,6 +28,9 @@ crmeb_java/crmeb/runtime/
 .git_backup/
 _local_preservation/
 ruoyi-vue-pro-master/.tmp/
+ruoyi-vue-pro-master/.gitee/
+ruoyi-vue-pro-master/.image/
+yudao-mall-uniapp/
 **/unpackage
 **/target/
 
