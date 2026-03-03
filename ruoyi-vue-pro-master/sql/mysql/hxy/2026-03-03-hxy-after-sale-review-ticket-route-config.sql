@@ -52,4 +52,11 @@ ON DUPLICATE KEY UPDATE
     `remark` = VALUES(`remark`),
     `updater` = 'system';
 
+-- 规范历史数据：TYPE_DEFAULT / GLOBAL_DEFAULT 固定使用 P1，避免和运行时匹配键不一致
+UPDATE `trade_after_sale_review_ticket_route`
+SET `severity` = 'P1',
+    `updater` = 'system'
+WHERE `scope` IN ('TYPE_DEFAULT', 'GLOBAL_DEFAULT')
+  AND (`severity` IS NULL OR `severity` <> 'P1');
+
 SET FOREIGN_KEY_CHECKS = 1;

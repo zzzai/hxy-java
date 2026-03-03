@@ -23,7 +23,10 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -238,10 +241,10 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         if (!ObjUtil.equal(target.getStatus(), TradeServiceOrderStatusEnum.FINISHED.getStatus())) {
             return null;
         }
-        return freezeBundleRefundSnapshot(serviceOrder == null ? null : serviceOrder.getOrderItemSnapshotJson());
+        return freezeBundleRefundSnapshot(serviceOrder, serviceOrder == null ? null : serviceOrder.getOrderItemSnapshotJson());
     }
 
-    private String freezeBundleRefundSnapshot(String orderItemSnapshotJson) {
+    private String freezeBundleRefundSnapshot(TradeServiceOrderDO serviceOrder, String orderItemSnapshotJson) {
         if (StrUtil.isBlank(orderItemSnapshotJson)) {
             return orderItemSnapshotJson;
         }
@@ -251,9 +254,9 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
                 return orderItemSnapshotJson;
             }
             ObjectNode snapshotRoot = (ObjectNode) rootNode;
-            boolean changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_REFUND_SNAPSHOT_KEY);
+            boolean changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_REFUND_SNAPSHOT_KEY, serviceOrder);
             // 新字段：显式固化套餐子项快照，避免后续只依赖 priceSource 原始 JSON
-            changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_ITEM_SNAPSHOT_KEY) || changed;
+            changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_ITEM_SNAPSHOT_KEY, serviceOrder) || changed;
             if (!changed) {
                 return orderItemSnapshotJson;
             }
@@ -264,15 +267,19 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         }
     }
 
-    private boolean freezeBundleSnapshotField(ObjectNode snapshotRoot, String fieldKey) {
+    private boolean freezeBundleSnapshotField(ObjectNode snapshotRoot, String fieldKey, TradeServiceOrderDO serviceOrder) {
         ObjectNode bundleSnapshot = parseBundleRefundSnapshot(snapshotRoot.get(fieldKey));
         if (bundleSnapshot == null) {
             return false;
         }
-        bundleSnapshot.put("bundleRefundablePrice", 0);
-        freezeChildren(bundleSnapshot.get("bundleChildren"));
-        freezeChildren(bundleSnapshot.get("children"));
-        freezeChildren(bundleSnapshot.get("items"));
+        ArrayNode children = resolveChildrenArray(bundleSnapshot);
+        if (children == null) {
+            bundleSnapshot.put("bundleRefundablePrice", 0);
+            snapshotRoot.put(fieldKey, JsonUtils.toJsonString(bundleSnapshot));
+            return true;
+        }
+        freezeChildren(children, serviceOrder);
+        bundleSnapshot.put("bundleRefundablePrice", calculateRefundablePrice(children));
         snapshotRoot.put(fieldKey, JsonUtils.toJsonString(bundleSnapshot));
         return true;
     }
@@ -295,20 +302,163 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         return (ObjectNode) parsedNode.deepCopy();
     }
 
-    private void freezeChildren(JsonNode childrenNode) {
-        if (!(childrenNode instanceof ArrayNode)) {
-            return;
+    private ArrayNode resolveChildrenArray(ObjectNode bundleSnapshot) {
+        JsonNode bundleChildren = bundleSnapshot.get("bundleChildren");
+        if (bundleChildren instanceof ArrayNode) {
+            return (ArrayNode) bundleChildren;
         }
-        ArrayNode children = (ArrayNode) childrenNode;
+        JsonNode children = bundleSnapshot.get("children");
+        if (children instanceof ArrayNode) {
+            return (ArrayNode) children;
+        }
+        JsonNode items = bundleSnapshot.get("items");
+        if (items instanceof ArrayNode) {
+            return (ArrayNode) items;
+        }
+        return null;
+    }
+
+    private void freezeChildren(ArrayNode children, TradeServiceOrderDO serviceOrder) {
+        Set<String> matchCandidates = buildMatchCandidates(serviceOrder);
+        List<Integer> frozenIndexes = new ArrayList<>();
+        for (int i = 0; i < children.size(); i++) {
+            JsonNode child = children.get(i);
+            if (child instanceof ObjectNode && matchChild((ObjectNode) child, matchCandidates)) {
+                frozenIndexes.add(i);
+            }
+        }
+        if (frozenIndexes.isEmpty()) {
+            if (children.size() == 1) {
+                frozenIndexes.add(0);
+            } else {
+                for (int i = 0; i < children.size(); i++) {
+                    frozenIndexes.add(i);
+                }
+            }
+        }
+        for (Integer index : frozenIndexes) {
+            JsonNode node = children.get(index);
+            if (!(node instanceof ObjectNode)) {
+                continue;
+            }
+            ObjectNode childNode = (ObjectNode) node;
+            childNode.put("fulfilled", true);
+            childNode.put("refundable", false);
+            childNode.put("refundCapPrice", 0);
+        }
+    }
+
+    private Set<String> buildMatchCandidates(TradeServiceOrderDO serviceOrder) {
+        Set<String> candidates = new HashSet<>();
+        if (serviceOrder == null) {
+            return candidates;
+        }
+        if (serviceOrder.getOrderItemId() != null) {
+            candidates.add(String.valueOf(serviceOrder.getOrderItemId()));
+        }
+        if (serviceOrder.getSkuId() != null) {
+            candidates.add(String.valueOf(serviceOrder.getSkuId()));
+        }
+        if (serviceOrder.getSpuId() != null) {
+            candidates.add(String.valueOf(serviceOrder.getSpuId()));
+        }
+        return candidates;
+    }
+
+    private boolean matchChild(ObjectNode childNode, Set<String> matchCandidates) {
+        if (CollUtil.isEmpty(matchCandidates)) {
+            return false;
+        }
+        String[] keys = new String[] {"childCode", "code", "itemCode", "skuCode", "skuId", "spuId", "orderItemId"};
+        for (String key : keys) {
+            String value = toComparableValue(childNode.get(key));
+            if (StrUtil.isNotBlank(value) && matchCandidates.contains(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String toComparableValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return String.valueOf(node.longValue());
+        }
+        String text = StrUtil.trim(node.asText());
+        return StrUtil.isBlank(text) ? null : text;
+    }
+
+    private int calculateRefundablePrice(ArrayNode children) {
+        int sum = 0;
         for (JsonNode child : children) {
             if (!(child instanceof ObjectNode)) {
                 continue;
             }
             ObjectNode childNode = (ObjectNode) child;
-            childNode.put("fulfilled", true);
-            childNode.put("refundable", false);
-            childNode.put("refundCapPrice", 0);
+            Integer childRefundCap = normalizeNonNegative(readIntByAlias(childNode,
+                    "refundCapPrice", "refundablePrice", "maxRefundPrice"));
+            if (childRefundCap == null) {
+                continue;
+            }
+            Boolean fulfilled = readBooleanByAlias(childNode, "fulfilled", "served", "completed", "serviceFulfilled");
+            Boolean refundable = readBooleanByAlias(childNode, "refundable", "allowRefund");
+            boolean included = Boolean.TRUE.equals(refundable) || !Boolean.TRUE.equals(fulfilled);
+            if (included) {
+                sum += childRefundCap;
+            }
         }
+        return Math.max(sum, 0);
+    }
+
+    private Integer normalizeNonNegative(Integer price) {
+        if (price == null) {
+            return null;
+        }
+        return Math.max(price, 0);
+    }
+
+    private Integer readIntByAlias(ObjectNode node, String... keys) {
+        for (String key : keys) {
+            JsonNode valueNode = node.get(key);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            if (valueNode.isNumber()) {
+                return valueNode.intValue();
+            }
+            if (valueNode.isTextual() && StrUtil.isNotBlank(valueNode.asText())) {
+                try {
+                    return Integer.parseInt(valueNode.asText().trim());
+                } catch (NumberFormatException ignore) {
+                    // ignore invalid alias value
+                }
+            }
+        }
+        return null;
+    }
+
+    private Boolean readBooleanByAlias(ObjectNode node, String... keys) {
+        for (String key : keys) {
+            JsonNode valueNode = node.get(key);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            if (valueNode.isBoolean()) {
+                return valueNode.booleanValue();
+            }
+            if (valueNode.isTextual() && StrUtil.isNotBlank(valueNode.asText())) {
+                String text = valueNode.asText().trim();
+                if ("true".equalsIgnoreCase(text) || "1".equals(text)) {
+                    return true;
+                }
+                if ("false".equalsIgnoreCase(text) || "0".equals(text)) {
+                    return false;
+                }
+            }
+        }
+        return null;
     }
 
     private TradeServiceOrderDO getRequiredServiceOrder(Long serviceOrderId) {

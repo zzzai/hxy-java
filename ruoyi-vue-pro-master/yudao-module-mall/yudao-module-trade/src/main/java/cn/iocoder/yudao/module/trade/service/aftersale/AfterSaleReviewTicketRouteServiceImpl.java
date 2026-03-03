@@ -28,6 +28,8 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_
 @Validated
 public class AfterSaleReviewTicketRouteServiceImpl implements AfterSaleReviewTicketRouteService {
 
+    private static final String DEFAULT_SEVERITY = "P1";
+
     @Resource
     private AfterSaleReviewTicketRouteMapper routeMapper;
     @Resource
@@ -137,18 +139,17 @@ public class AfterSaleReviewTicketRouteServiceImpl implements AfterSaleReviewTic
             return;
         }
         if (StrUtil.equals(scope, AfterSaleReviewTicketRouteScopeEnum.TYPE_DEFAULT.getScope())) {
-            if (route.getTicketType() == null || route.getTicketType() <= 0 || StrUtil.isBlank(route.getSeverity())) {
+            if (route.getTicketType() == null || route.getTicketType() <= 0) {
                 throw exception(AFTER_SALE_REVIEW_TICKET_ROUTE_SCOPE_INVALID);
             }
             route.setRuleCode("");
+            route.setSeverity(DEFAULT_SEVERITY);
             return;
         }
         if (StrUtil.equals(scope, AfterSaleReviewTicketRouteScopeEnum.GLOBAL_DEFAULT.getScope())) {
-            if (StrUtil.isBlank(route.getSeverity())) {
-                throw exception(AFTER_SALE_REVIEW_TICKET_ROUTE_SCOPE_INVALID);
-            }
             route.setRuleCode("");
             route.setTicketType(0);
+            route.setSeverity(DEFAULT_SEVERITY);
             return;
         }
         throw exception(AFTER_SALE_REVIEW_TICKET_ROUTE_SCOPE_INVALID);

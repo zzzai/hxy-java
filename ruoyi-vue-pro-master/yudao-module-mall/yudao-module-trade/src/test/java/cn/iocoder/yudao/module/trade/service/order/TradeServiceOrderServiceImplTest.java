@@ -237,6 +237,36 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void shouldFreezeMatchedBundleChildAndKeepRemainingRefundCapWhenFinishServing() {
+        TradeServiceOrderDO existed = new TradeServiceOrderDO();
+        existed.setId(42L);
+        existed.setStatus(TradeServiceOrderStatusEnum.SERVING.getStatus());
+        existed.setSkuId(2001L);
+        existed.setOrderItemSnapshotJson("{\"snapshotVersion\":\"v1\",\"bundleRefundSnapshotJson\":\"{\\\"bundleRefundablePrice\\\":3000,\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"2001\\\",\\\"refundCapPrice\\\":2000,\\\"fulfilled\\\":false,\\\"refundable\\\":true},{\\\"childCode\\\":\\\"2002\\\",\\\"refundCapPrice\\\":1000,\\\"fulfilled\\\":false,\\\"refundable\\\":true}]}\",\"bundleItemSnapshotJson\":\"{\\\"bundleRefundablePrice\\\":3000,\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"2001\\\",\\\"refundCapPrice\\\":2000,\\\"fulfilled\\\":false,\\\"refundable\\\":true},{\\\"childCode\\\":\\\"2002\\\",\\\"refundCapPrice\\\":1000,\\\"fulfilled\\\":false,\\\"refundable\\\":true}]}\"}");
+        when(tradeServiceOrderMapper.selectById(42L)).thenReturn(existed);
+        when(tradeServiceOrderMapper.updateByIdAndStatus(eq(42L),
+                eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), any()))
+                .thenReturn(1);
+
+        service.finishServing(42L, "done");
+
+        ArgumentCaptor<TradeServiceOrderDO> captor = ArgumentCaptor.forClass(TradeServiceOrderDO.class);
+        verify(tradeServiceOrderMapper).updateByIdAndStatus(eq(42L),
+                eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), captor.capture());
+        JsonNode frozenSnapshotRoot = JsonUtils.parseTree(captor.getValue().getOrderItemSnapshotJson());
+        JsonNode bundleSnapshot = JsonUtils.parseTree(frozenSnapshotRoot.path("bundleRefundSnapshotJson").asText());
+        JsonNode firstChild = bundleSnapshot.path("bundleChildren").path(0);
+        JsonNode secondChild = bundleSnapshot.path("bundleChildren").path(1);
+        assertEquals(1000, bundleSnapshot.path("bundleRefundablePrice").asInt());
+        assertTrue(firstChild.path("fulfilled").asBoolean());
+        assertTrue(!firstChild.path("refundable").asBoolean());
+        assertEquals(0, firstChild.path("refundCapPrice").asInt());
+        assertTrue(!secondChild.path("fulfilled").asBoolean());
+        assertTrue(secondChild.path("refundable").asBoolean());
+        assertEquals(1000, secondChild.path("refundCapPrice").asInt());
+    }
+
+    @Test
     void shouldCancelServiceOrderIdempotentWhenAlreadyCancelled() {
         TradeServiceOrderDO existed = new TradeServiceOrderDO();
         existed.setId(5L);

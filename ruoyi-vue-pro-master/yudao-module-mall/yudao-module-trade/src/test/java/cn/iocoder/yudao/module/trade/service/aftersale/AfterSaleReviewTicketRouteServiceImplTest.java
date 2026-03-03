@@ -98,4 +98,64 @@ class AfterSaleReviewTicketRouteServiceImplTest extends BaseMockitoUnitTest {
         verify(routeMapper, never()).insert(any(AfterSaleReviewTicketRouteDO.class));
     }
 
+    @Test
+    void shouldNormalizeTypeDefaultSeverityToP1() {
+        AfterSaleReviewTicketRouteCreateReqVO reqVO = new AfterSaleReviewTicketRouteCreateReqVO();
+        reqVO.setScope(AfterSaleReviewTicketRouteScopeEnum.TYPE_DEFAULT.getScope());
+        reqVO.setRuleCode("ANY");
+        reqVO.setTicketType(20);
+        reqVO.setSeverity("P0");
+        reqVO.setEscalateTo("HQ_SERVICE_OPS");
+        reqVO.setSlaMinutes(90);
+        reqVO.setEnabled(true);
+        reqVO.setSort(2);
+
+        when(routeMapper.selectByUniqueKey("TYPE_DEFAULT", "", 20, "P1")).thenReturn(null);
+        when(routeMapper.insert(any(AfterSaleReviewTicketRouteDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketRouteDO row = invocation.getArgument(0);
+            row.setId(102L);
+            return 1;
+        });
+
+        Long id = service.createRoute(reqVO);
+
+        assertEquals(102L, id);
+        ArgumentCaptor<AfterSaleReviewTicketRouteDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketRouteDO.class);
+        verify(routeMapper).insert(captor.capture());
+        assertEquals("TYPE_DEFAULT", captor.getValue().getScope());
+        assertEquals("", captor.getValue().getRuleCode());
+        assertEquals(20, captor.getValue().getTicketType());
+        assertEquals("P1", captor.getValue().getSeverity());
+    }
+
+    @Test
+    void shouldNormalizeGlobalDefaultSeverityToP1() {
+        AfterSaleReviewTicketRouteCreateReqVO reqVO = new AfterSaleReviewTicketRouteCreateReqVO();
+        reqVO.setScope(AfterSaleReviewTicketRouteScopeEnum.GLOBAL_DEFAULT.getScope());
+        reqVO.setRuleCode("ANY");
+        reqVO.setTicketType(999);
+        reqVO.setSeverity("");
+        reqVO.setEscalateTo("HQ_AFTER_SALE");
+        reqVO.setSlaMinutes(120);
+        reqVO.setEnabled(true);
+        reqVO.setSort(0);
+
+        when(routeMapper.selectByUniqueKey("GLOBAL_DEFAULT", "", 0, "P1")).thenReturn(null);
+        when(routeMapper.insert(any(AfterSaleReviewTicketRouteDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketRouteDO row = invocation.getArgument(0);
+            row.setId(103L);
+            return 1;
+        });
+
+        Long id = service.createRoute(reqVO);
+
+        assertEquals(103L, id);
+        ArgumentCaptor<AfterSaleReviewTicketRouteDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketRouteDO.class);
+        verify(routeMapper).insert(captor.capture());
+        assertEquals("GLOBAL_DEFAULT", captor.getValue().getScope());
+        assertEquals("", captor.getValue().getRuleCode());
+        assertEquals(0, captor.getValue().getTicketType());
+        assertEquals("P1", captor.getValue().getSeverity());
+    }
+
 }
