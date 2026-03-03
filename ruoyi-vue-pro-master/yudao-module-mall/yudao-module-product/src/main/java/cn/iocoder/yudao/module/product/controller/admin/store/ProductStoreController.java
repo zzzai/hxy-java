@@ -113,6 +113,14 @@ public class ProductStoreController {
         return success(storeService.getLifecycleGuard(id, lifecycleStatus));
     }
 
+    @PostMapping("/lifecycle-guard/batch")
+    @Operation(summary = "批量获取门店生命周期守卫详情")
+    @PreAuthorize("@ss.hasPermission('product:store:query')")
+    public CommonResult<List<ProductStoreLifecycleGuardRespVO>> getLifecycleGuardBatch(
+            @Valid @RequestBody ProductStoreBatchLifecycleReqVO reqVO) {
+        return success(storeService.getLifecycleGuardBatch(reqVO.getStoreIds(), reqVO.getLifecycleStatus()));
+    }
+
     @GetMapping("/check-launch-readiness")
     @Operation(summary = "检查门店上线门禁")
     @Parameter(name = "id", description = "门店编号", required = true, example = "1001")

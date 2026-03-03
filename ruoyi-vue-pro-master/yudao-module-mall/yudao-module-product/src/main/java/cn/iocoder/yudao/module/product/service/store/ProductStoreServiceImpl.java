@@ -379,6 +379,20 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     }
 
     @Override
+    public List<ProductStoreLifecycleGuardRespVO> getLifecycleGuardBatch(List<Long> storeIds, Integer lifecycleStatus) {
+        validateLifecycleStatus(lifecycleStatus);
+        List<Long> normalizedIds = normalizeIds(storeIds);
+        if (CollUtil.isEmpty(normalizedIds)) {
+            return Collections.emptyList();
+        }
+        List<ProductStoreLifecycleGuardRespVO> result = new ArrayList<>(normalizedIds.size());
+        for (Long storeId : normalizedIds) {
+            result.add(getLifecycleGuard(storeId, lifecycleStatus));
+        }
+        return result;
+    }
+
+    @Override
     public ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         List<String> reasons = new ArrayList<>();

@@ -383,6 +383,54 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
+    void getLifecycleGuardBatch_shouldReturnDeduplicatedResults() {
+        ProductStoreDO blockedStore = ProductStoreDO.builder().id(1015L).status(1).lifecycleStatus(35).build();
+        ProductStoreDO warnStore = ProductStoreDO.builder().id(1016L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(1015L)).thenReturn(blockedStore);
+        when(storeMapper.selectById(1016L)).thenReturn(warnStore);
+        when(storeSpuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(any(Long.class))).thenReturn(0L);
+        doAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            return storeId != null && storeId.equals(1015L) ? 1L : 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(any(Long.class), any());
+        doAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            if (storeId != null && storeId.equals(1016L)) {
+                return new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(2L).setInflightTicketCount(0L);
+            }
+            return new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L);
+        }).when(tradeStoreLifecycleGuardApi).getStoreLifecycleGuardStat(any(Long.class));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
+
+        List<ProductStoreLifecycleGuardRespVO> results = productStoreService.getLifecycleGuardBatch(
+                Arrays.asList(1015L, 1015L, 1016L), 35);
+
+        assertEquals(2, results.size());
+        ProductStoreLifecycleGuardRespVO blocked = results.stream()
+                .filter(item -> item.getStoreId().equals(1015L))
+                .findFirst().orElseThrow();
+        ProductStoreLifecycleGuardRespVO warned = results.stream()
+                .filter(item -> item.getStoreId().equals(1016L))
+                .findFirst().orElseThrow();
+        assertTrue(blocked.getBlocked());
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), blocked.getBlockedCode());
+        assertFalse(warned.getBlocked());
+        assertTrue(warned.getWarnings().contains("LIFECYCLE_GUARD_WARN:pending-order:count=2"));
+    }
+
+    @Test
+    void getLifecycleGuardBatch_shouldThrowWhenStoreMissing() {
+        when(storeMapper.selectById(1099L)).thenReturn(null);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.getLifecycleGuardBatch(Collections.singletonList(1099L), 35));
+        assertEquals(cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_NOT_EXISTS.getCode(), ex.getCode());
+    }
+
+    @Test
     void getLaunchReadiness_shouldReturnNotReadyWhenMissingRequiredFields() {
         ProductStoreDO store = ProductStoreDO.builder()
                 .id(1001L)
