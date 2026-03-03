@@ -14,6 +14,7 @@ import com.hxy.module.booking.service.OffpeakRuleService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
 import com.hxy.module.booking.service.TechnicianDispatchService;
 import com.hxy.module.booking.service.TimeSlotService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.PayOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderCreateReqDTO;
 import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderRespDTO;
@@ -52,11 +53,16 @@ public class BookingOrderServiceImpl implements BookingOrderService {
     private final TechnicianCommissionService technicianCommissionService;
     private final PayOrderApi payOrderApi;
     private final PayRefundApi payRefundApi;
+    private final TradeServiceOrderApi tradeServiceOrderApi;
 
     /**
      * 预约支付应用标识（需在支付管理中配置）
      */
     private static final String PAY_APP_KEY = "booking";
+    private static final String SYNC_REMARK_START_SERVING = "SYNC_FROM_BOOKING_START_SERVICE";
+    private static final String SYNC_REMARK_FINISH_SERVING = "SYNC_FROM_BOOKING_FINISH_SERVICE";
+    private static final String SYNC_REMARK_CANCELLED = "SYNC_FROM_BOOKING_CANCELLED";
+    private static final String SYNC_REMARK_REFUNDED = "SYNC_FROM_BOOKING_REFUNDED";
 
     public BookingOrderServiceImpl(
             BookingOrderMapper bookingOrderMapper,
@@ -67,7 +73,8 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             OffpeakRuleService offpeakRuleService,
             @Lazy TechnicianCommissionService technicianCommissionService,
             PayOrderApi payOrderApi,
-            PayRefundApi payRefundApi) {
+            PayRefundApi payRefundApi,
+            TradeServiceOrderApi tradeServiceOrderApi) {
         this.bookingOrderMapper = bookingOrderMapper;
         this.timeSlotService = timeSlotService;
         this.technicianDispatchService = technicianDispatchService;
@@ -77,6 +84,7 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         this.technicianCommissionService = technicianCommissionService;
         this.payOrderApi = payOrderApi;
         this.payRefundApi = payRefundApi;
+        this.tradeServiceOrderApi = tradeServiceOrderApi;
     }
 
     /**
@@ -297,6 +305,10 @@ public class BookingOrderServiceImpl implements BookingOrderService {
 
         // 取消时间槽预约
         timeSlotService.cancelBooking(order.getTimeSlotId());
+        if (BookingOrderStatusEnum.PAID.getStatus().equals(order.getStatus())) {
+            syncTradeServiceOrderSafely("cancel", order.getPayOrderId(), () ->
+                    tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_CANCELLED));
+        }
         log.info("取消预约订单，orderId={}, userId={}, cancelReason={}", orderId, userId, cancelReason);
     }
 
@@ -311,6 +323,8 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         BookingOrderDO update = buildStatusUpdate(orderId, BookingOrderStatusEnum.IN_SERVICE);
         update.setServiceStartTime(LocalDateTime.now());
         bookingOrderMapper.updateById(update);
+        syncTradeServiceOrderSafely("startServing", order.getPayOrderId(), () ->
+                tradeServiceOrderApi.startServingByPayOrderId(order.getPayOrderId(), SYNC_REMARK_START_SERVING));
         log.info("开始服务，orderId={}", orderId);
     }
 
@@ -331,6 +345,8 @@ public class BookingOrderServiceImpl implements BookingOrderService {
 
         // 计算技师佣金
         technicianCommissionService.calculateCommission(orderId);
+        syncTradeServiceOrderSafely("finishServing", order.getPayOrderId(), () ->
+                tradeServiceOrderApi.finishServingByPayOrderId(order.getPayOrderId(), SYNC_REMARK_FINISH_SERVING));
 
         log.info("完成服务，orderId={}", orderId);
     }
@@ -351,6 +367,8 @@ public class BookingOrderServiceImpl implements BookingOrderService {
 
         // 取消佣金记录
         technicianCommissionService.cancelCommission(orderId);
+        syncTradeServiceOrderSafely("refund", order.getPayOrderId(), () ->
+                tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_REFUNDED));
 
         // 创建退款单
         if (order.getPayOrderId() != null && order.getPayPrice() != null && order.getPayPrice() > 0) {
@@ -504,6 +522,19 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         update.setId(orderId);
         update.setStatus(status.getStatus());
         return update;
+    }
+
+    private void syncTradeServiceOrderSafely(String action, Long payOrderId, Runnable runnable) {
+        if (payOrderId == null || payOrderId <= 0) {
+            return;
+        }
+        try {
+            runnable.run();
+        } catch (Exception ex) {
+            // 同步失败不阻断预约主流程，后续由重试/人工台账收口
+            log.error("[syncTradeServiceOrderSafely][action({}) payOrderId({}) sync failed]",
+                    action, payOrderId, ex);
+        }
     }
 
     private Integer resolvePayPrice(TimeSlotDO timeSlot, Integer originalPrice) {

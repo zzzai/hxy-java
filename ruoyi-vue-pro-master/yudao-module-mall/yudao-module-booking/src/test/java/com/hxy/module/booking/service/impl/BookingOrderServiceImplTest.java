@@ -12,6 +12,7 @@ import com.hxy.module.booking.service.OffpeakRuleService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
 import com.hxy.module.booking.service.TechnicianDispatchService;
 import com.hxy.module.booking.service.TimeSlotService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.PayOrderApi;
 import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
 import cn.iocoder.yudao.module.product.api.sku.ProductSkuApi;
@@ -62,6 +63,8 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     private PayOrderApi payOrderApi;
     @MockBean
     private PayRefundApi payRefundApi;
+    @MockBean
+    private TradeServiceOrderApi tradeServiceOrderApi;
 
     @Test
     public void testCreateOrder_success() {
@@ -227,6 +230,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         // 断言
         BookingOrderDO updatedOrder = bookingOrderMapper.selectById(order.getId());
         assertEquals(BookingOrderStatusEnum.CANCELLED.getStatus(), updatedOrder.getStatus());
+        verify(tradeServiceOrderApi).cancelByPayOrderId(eq(888L), eq("SYNC_FROM_BOOKING_CANCELLED"));
     }
 
     @Test
@@ -258,6 +262,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO updatedOrder = bookingOrderMapper.selectById(order.getId());
         assertEquals(BookingOrderStatusEnum.IN_SERVICE.getStatus(), updatedOrder.getStatus());
         assertNotNull(updatedOrder.getServiceStartTime());
+        verify(tradeServiceOrderApi).startServingByPayOrderId(eq(888L), eq("SYNC_FROM_BOOKING_START_SERVICE"));
     }
 
     @Test
@@ -277,6 +282,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     public void testCompleteService_success() {
         // 准备数据：创建服务中订单
         BookingOrderDO order = createOrder(BookingOrderStatusEnum.IN_SERVICE.getStatus());
+        order.setPayOrderId(888L);
         order.setServiceStartTime(LocalDateTime.now().minusMinutes(60));
         bookingOrderMapper.insert(order);
 
@@ -292,6 +298,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         verify(timeSlotService).completeService(eq(order.getTimeSlotId()));
         // 验证佣金计算被触发
         verify(technicianCommissionService).calculateCommission(eq(order.getId()));
+        verify(tradeServiceOrderApi).finishServingByPayOrderId(eq(888L), eq("SYNC_FROM_BOOKING_FINISH_SERVICE"));
     }
 
     @Test
@@ -326,6 +333,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         verify(timeSlotService).cancelBooking(eq(order.getTimeSlotId()));
         // 验证佣金取消
         verify(technicianCommissionService).cancelCommission(eq(order.getId()));
+        verify(tradeServiceOrderApi).cancelByPayOrderId(eq(888L), eq("SYNC_FROM_BOOKING_REFUNDED"));
         // 验证退款单创建
         verify(payRefundApi).createRefund(any());
     }

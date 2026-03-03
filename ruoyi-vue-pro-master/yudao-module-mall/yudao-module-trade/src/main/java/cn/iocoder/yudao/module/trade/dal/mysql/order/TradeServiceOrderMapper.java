@@ -39,6 +39,12 @@ public interface TradeServiceOrderMapper extends BaseMapperX<TradeServiceOrderDO
                 .orderByAsc(TradeServiceOrderDO::getId));
     }
 
+    default List<TradeServiceOrderDO> selectListByPayOrderId(Long payOrderId) {
+        return selectList(new LambdaQueryWrapperX<TradeServiceOrderDO>()
+                .eq(TradeServiceOrderDO::getPayOrderId, payOrderId)
+                .orderByAsc(TradeServiceOrderDO::getId));
+    }
+
     default int updateByIdAndStatus(Long id, Integer status, TradeServiceOrderDO updateObj) {
         return update(updateObj, new LambdaUpdateWrapper<TradeServiceOrderDO>()
                 .eq(TradeServiceOrderDO::getId, id)
