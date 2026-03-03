@@ -339,6 +339,34 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     }
 
     @Test
+    public void testUpdateOrderRefunded_success() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(999L);
+        bookingOrderMapper.insert(order);
+
+        bookingOrderService.updateOrderRefunded(order.getId(), 12345L);
+
+        BookingOrderDO updated = bookingOrderMapper.selectById(order.getId());
+        assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updated.getStatus());
+        verify(timeSlotService).cancelBooking(eq(order.getTimeSlotId()));
+        verify(technicianCommissionService).cancelCommission(eq(order.getId()));
+        verify(tradeServiceOrderApi).cancelByPayOrderId(eq(999L), eq("SYNC_FROM_BOOKING_REFUNDED"));
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_idempotentWhenAlreadyRefunded() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.REFUNDED.getStatus());
+        order.setPayOrderId(777L);
+        bookingOrderMapper.insert(order);
+
+        bookingOrderService.updateOrderRefunded(order.getId(), 8888L);
+
+        verify(timeSlotService, never()).cancelBooking(any());
+        verify(technicianCommissionService, never()).cancelCommission(any());
+        verify(tradeServiceOrderApi, never()).cancelByPayOrderId(any(), any());
+    }
+
+    @Test
     public void testGetOrder_notExists() {
         // 调用
         BookingOrderDO order = bookingOrderService.getOrder(999L);

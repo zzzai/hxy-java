@@ -385,7 +385,7 @@
 ## ADR-044：预约域驱动交易履约状态同步，按 `payOrderId` 批量收口
 
 - 背景：服务履约单由交易域支付回调创建，但预约域状态迁移（开始服务、完成服务、退款/取消）此前未稳定回写交易履约单，导致售后侧“服务完成即限退收敛”口径可能滞后。
-- 决策：新增 `TradeServiceOrderApi`，由预约域在 `startService/completeService/cancelOrder(PAID)/refundOrder` 后按 `payOrderId` 批量同步交易履约单状态；状态映射固定为 `BOOKED->SERVING->FINISHED`，退款/取消映射为 `CANCELLED`；同步异常仅记录告警，不阻断预约主流程。
+- 决策：新增 `TradeServiceOrderApi`，由预约域在 `startService/completeService/cancelOrder(PAID)/refundOrder/updateOrderRefunded` 后按 `payOrderId` 批量同步交易履约单状态；状态映射固定为 `BOOKED->SERVING->FINISHED`，退款/取消映射为 `CANCELLED`；同步异常仅记录告警，不阻断预约主流程。
 - 影响范围：预约履约状态一致性、售后限退判断时效、技师提成与履约状态追溯。
 - 备选方案：由交易域定时任务反查预约状态并异步修正。
 - 否决原因：定时修正存在窗口期，无法满足“完成服务后立即收紧退款上限”的实时性要求。

@@ -417,6 +417,16 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             log.warn("[updateOrderRefunded][order({}) 已退款，直接返回]", id);
             return;
         }
+        if (!BookingOrderStatusEnum.PAID.getStatus().equals(order.getStatus())) {
+            log.warn("[updateOrderRefunded][order({}) 当前状态({}) 非已支付，忽略回调]",
+                    id, order.getStatus());
+            return;
+        }
+        bookingOrderMapper.updateById(buildStatusUpdate(id, BookingOrderStatusEnum.REFUNDED));
+        timeSlotService.cancelBooking(order.getTimeSlotId());
+        technicianCommissionService.cancelCommission(order.getId());
+        syncTradeServiceOrderSafely("refundCallback", order.getPayOrderId(), () ->
+                tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_REFUNDED));
         log.info("退款回调完成，orderId={}, payRefundId={}", id, payRefundId);
     }
 
