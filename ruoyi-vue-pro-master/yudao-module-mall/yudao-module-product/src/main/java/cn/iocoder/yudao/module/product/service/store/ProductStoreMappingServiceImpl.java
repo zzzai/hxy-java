@@ -13,6 +13,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuBatchSaveReqVO;
@@ -339,6 +340,11 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     @Override
     public PageResult<ProductStoreSkuDO> getStoreSkuPage(ProductStoreSkuPageReqVO reqVO) {
         return storeSkuMapper.selectPage(reqVO);
+    }
+
+    @Override
+    public PageResult<ProductStoreSkuStockFlowDO> getStoreSkuStockFlowPage(ProductStoreSkuStockFlowPageReqVO reqVO) {
+        return storeSkuStockFlowMapper.selectPage(reqVO);
     }
 
     @Override

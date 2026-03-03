@@ -1,12 +1,14 @@
 package cn.iocoder.yudao.module.product.service.store;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuUpdateStockReqDTO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuSaveReqVO;
@@ -368,6 +370,28 @@ class ProductStoreMappingServiceImplTest {
     void getStoreSkuMap_shouldReturnEmptyWhenNoSkuIds() {
         Map<Long, ProductStoreSkuRespDTO> result = productStoreMappingService.getStoreSkuMap(11L, Collections.emptyList());
         assertEquals(0, result.size());
+    }
+
+    @Test
+    void getStoreSkuStockFlowPage_shouldDelegateMapperQuery() {
+        ProductStoreSkuStockFlowPageReqVO reqVO = new ProductStoreSkuStockFlowPageReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("MANUAL_REPLENISH_IN");
+        ProductStoreSkuStockFlowDO flow = ProductStoreSkuStockFlowDO.builder()
+                .id(9801L)
+                .storeId(11L)
+                .skuId(22L)
+                .bizType("MANUAL_REPLENISH_IN")
+                .bizNo("SUPPLY-001")
+                .incrCount(10)
+                .status(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus())
+                .build();
+        when(storeSkuStockFlowMapper.selectPage(reqVO)).thenReturn(new PageResult<>(Collections.singletonList(flow), 1L));
+
+        PageResult<ProductStoreSkuStockFlowDO> result = productStoreMappingService.getStoreSkuStockFlowPage(reqVO);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals("SUPPLY-001", result.getList().get(0).getBizNo());
     }
 
     @Test

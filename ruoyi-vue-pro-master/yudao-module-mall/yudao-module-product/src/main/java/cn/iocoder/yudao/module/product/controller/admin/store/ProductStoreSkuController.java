@@ -14,8 +14,11 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreMappingService;
@@ -130,6 +133,30 @@ public class ProductStoreSkuController {
         List<ProductStoreSkuRespVO> records = pageResult.getList().stream()
                 .map(item -> toSkuRespVO(item, storeMap, spuMap, skuMap))
                 .collect(Collectors.toList());
+        return success(new PageResult<>(records, pageResult.getTotal()));
+    }
+
+    @GetMapping("/stock-flow/page")
+    @Operation(summary = "分页查询门店 SKU 库存流水")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:query')")
+    public CommonResult<PageResult<ProductStoreSkuStockFlowRespVO>> stockFlowPage(
+            @Valid ProductStoreSkuStockFlowPageReqVO reqVO) {
+        PageResult<ProductStoreSkuStockFlowDO> pageResult = storeMappingService.getStoreSkuStockFlowPage(reqVO);
+        if (CollectionUtils.isEmpty(pageResult.getList())) {
+            return success(BeanUtils.toBean(pageResult, ProductStoreSkuStockFlowRespVO.class));
+        }
+        Set<Long> storeIds = pageResult.getList().stream().map(ProductStoreSkuStockFlowDO::getStoreId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, ProductStoreDO> storeMap = productStoreService.getStoreMap(storeIds);
+        List<ProductStoreSkuStockFlowRespVO> records = pageResult.getList().stream()
+                .map(item -> {
+                    ProductStoreSkuStockFlowRespVO respVO = BeanUtils.toBean(item, ProductStoreSkuStockFlowRespVO.class);
+                    ProductStoreDO store = storeMap.get(item.getStoreId());
+                    if (store != null) {
+                        respVO.setStoreName(store.getName());
+                    }
+                    return respVO;
+                }).collect(Collectors.toList());
         return success(new PageResult<>(records, pageResult.getTotal()));
     }
 

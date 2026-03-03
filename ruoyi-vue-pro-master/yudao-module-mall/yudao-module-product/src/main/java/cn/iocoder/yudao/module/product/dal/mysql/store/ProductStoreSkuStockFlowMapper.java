@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.product.dal.mysql.store;
 
 import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -13,6 +15,17 @@ import java.util.List;
 
 @Mapper
 public interface ProductStoreSkuStockFlowMapper extends BaseMapperX<ProductStoreSkuStockFlowDO> {
+
+    default PageResult<ProductStoreSkuStockFlowDO> selectPage(ProductStoreSkuStockFlowPageReqVO reqVO) {
+        return selectPage(reqVO, new LambdaQueryWrapperX<ProductStoreSkuStockFlowDO>()
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getStoreId, reqVO.getStoreId())
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getSkuId, reqVO.getSkuId())
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getBizType, reqVO.getBizType())
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getBizNo, reqVO.getBizNo())
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getStatus, reqVO.getStatus())
+                .betweenIfPresent(ProductStoreSkuStockFlowDO::getExecuteTime, reqVO.getExecuteTime())
+                .orderByDesc(ProductStoreSkuStockFlowDO::getId));
+    }
 
     default ProductStoreSkuStockFlowDO selectByBizKey(String bizType, String bizNo, Long storeId, Long skuId) {
         return selectOne(new LambdaQueryWrapperX<ProductStoreSkuStockFlowDO>()
