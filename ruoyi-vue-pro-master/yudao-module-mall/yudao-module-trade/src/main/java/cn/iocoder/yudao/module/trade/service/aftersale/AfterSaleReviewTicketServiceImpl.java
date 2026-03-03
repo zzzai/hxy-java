@@ -92,6 +92,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 .setLastActionBizNo(normalizeActionBizNo(sourceBizNo, reqBO.getAfterSaleId()))
                 .setLastActionTime(now)
                 .setRemark(abbreviate(reqBO.getRemark(), 255));
+        applyRouteSnapshot(ticket, route);
         afterSaleReviewTicketMapper.insert(ticket);
         return ticket.getId();
     }
@@ -128,7 +129,10 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                     .setLastActionCode(ACTION_TICKET_CREATE)
                     .setLastActionBizNo(normalizeActionBizNo(afterSale.getNo(), afterSale.getId()))
                     .setLastActionTime(now)
-                    .setRemark(abbreviate(decision.getReason(), 255)));
+                    .setRemark(abbreviate(decision.getReason(), 255))
+                    .setRouteId(route.getRouteId())
+                    .setRouteScope(resolveRouteScope(route))
+                    .setRouteDecisionOrder(resolveRouteDecisionOrder(route)));
             return;
         }
         afterSaleReviewTicketMapper.updateById(new AfterSaleReviewTicketDO()
@@ -147,7 +151,10 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 .setLastActionCode(ACTION_RULE_RETRIGGER)
                 .setLastActionBizNo(normalizeActionBizNo(afterSale.getNo(), afterSale.getId()))
                 .setLastActionTime(now)
-                .setRemark(abbreviate(decision.getReason(), 255)));
+                .setRemark(abbreviate(decision.getReason(), 255))
+                .setRouteId(route.getRouteId())
+                .setRouteScope(resolveRouteScope(route))
+                .setRouteDecisionOrder(resolveRouteDecisionOrder(route)));
     }
 
     @Override
@@ -222,6 +229,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                     new AfterSaleReviewTicketDO()
                             .setSeverity(newSeverity)
                             .setEscalateTo(newEscalateTo)
+                            .setRouteId(route.getRouteId())
+                            .setRouteScope(resolveRouteScope(route))
+                            .setRouteDecisionOrder(resolveRouteDecisionOrder(route))
                             .setSlaDeadlineTime(now.plusMinutes(resolveEscalatedSlaMinutes(newSeverity, route.getSlaMinutes())))
                             .setLastTriggerTime(now)
                             .setTriggerCount(ObjUtil.defaultIfNull(ticket.getTriggerCount(), 0) + 1)
@@ -311,6 +321,30 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private String normalizeActionBizNo(String actionBizNo, Long fallbackId) {
         return StrUtil.maxLength(StrUtil.blankToDefault(actionBizNo,
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
+    }
+
+    private void applyRouteSnapshot(AfterSaleReviewTicketDO ticket, ReviewTicketRoute route) {
+        if (ticket == null || route == null) {
+            return;
+        }
+        ticket.setRouteId(route.getRouteId());
+        ticket.setRouteScope(resolveRouteScope(route));
+        ticket.setRouteDecisionOrder(resolveRouteDecisionOrder(route));
+    }
+
+    private String resolveRouteScope(ReviewTicketRoute route) {
+        if (route == null) {
+            return "GLOBAL_DEFAULT_FALLBACK";
+        }
+        return StrUtil.maxLength(StrUtil.blankToDefault(route.getMatchedScope(), "GLOBAL_DEFAULT_FALLBACK"), 32);
+    }
+
+    private String resolveRouteDecisionOrder(ReviewTicketRoute route) {
+        if (route == null) {
+            return ReviewTicketRoute.DECISION_ORDER;
+        }
+        return StrUtil.maxLength(StrUtil.blankToDefault(route.getDecisionOrder(),
+                ReviewTicketRoute.DECISION_ORDER), 128);
     }
 
 }

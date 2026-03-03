@@ -62,6 +62,18 @@ public class AfterSaleReviewTicketDO extends BaseDO {
      */
     private String escalateTo;
     /**
+     * 命中路由 ID
+     */
+    private Long routeId;
+    /**
+     * 命中路由作用域
+     */
+    private String routeScope;
+    /**
+     * 路由决策顺序快照
+     */
+    private String routeDecisionOrder;
+    /**
      * SLA 截止时间
      */
     private LocalDateTime slaDeadlineTime;

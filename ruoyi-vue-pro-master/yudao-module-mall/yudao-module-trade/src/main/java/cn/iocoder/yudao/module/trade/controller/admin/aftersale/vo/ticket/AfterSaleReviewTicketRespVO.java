@@ -42,6 +42,15 @@ public class AfterSaleReviewTicketRespVO {
     @Schema(description = "升级对象", example = "HQ_RISK_FINANCE")
     private String escalateTo;
 
+    @Schema(description = "命中路由 ID", example = "88")
+    private Long routeId;
+
+    @Schema(description = "命中路由作用域", example = "RULE")
+    private String routeScope;
+
+    @Schema(description = "路由决策顺序", example = "RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT")
+    private String routeDecisionOrder;
+
     @Schema(description = "SLA 截止时间")
     private LocalDateTime slaDeadlineTime;
 

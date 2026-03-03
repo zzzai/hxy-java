@@ -45,9 +45,11 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUpRouteProvider() {
         lenient().when(reviewTicketRouteProvider.resolve(anyInt(), any(), any()))
-                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120));
+                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120,
+                        11L, "TYPE_DEFAULT", ReviewTicketRoute.DECISION_ORDER));
         lenient().when(reviewTicketRouteProvider.resolve(isNull(), any(), any()))
-                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120));
+                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120,
+                        11L, "TYPE_DEFAULT", ReviewTicketRoute.DECISION_ORDER));
     }
 
     @Test
@@ -77,6 +79,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("TICKET_CREATE", captor.getValue().getLastActionCode());
         assertEquals("BK202603010001", captor.getValue().getLastActionBizNo());
         assertNotNull(captor.getValue().getLastActionTime());
+        assertEquals(11L, captor.getValue().getRouteId());
+        assertEquals("TYPE_DEFAULT", captor.getValue().getRouteScope());
+        assertEquals(ReviewTicketRoute.DECISION_ORDER, captor.getValue().getRouteDecisionOrder());
         verify(reviewTicketRouteProvider).resolve(
                 eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
                 isNull(),
@@ -91,7 +96,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(reviewTicketRouteProvider.resolve(
                 eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
                 isNull(),
-                eq("BLACKLIST_USER"))).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30));
+                eq("BLACKLIST_USER"))).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30,
+                21L, "RULE", ReviewTicketRoute.DECISION_ORDER));
 
         service.upsertManualReviewTicket(afterSale, decision);
 
@@ -99,6 +105,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         verify(afterSaleReviewTicketMapper).insert(captor.capture());
         assertEquals(1L, captor.getValue().getAfterSaleId());
         assertEquals("P0", captor.getValue().getSeverity());
+        assertEquals(21L, captor.getValue().getRouteId());
+        assertEquals("RULE", captor.getValue().getRouteScope());
         assertEquals(AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), captor.getValue().getStatus());
         verify(reviewTicketRouteProvider).resolve(
                 eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
@@ -119,7 +127,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(reviewTicketRouteProvider.resolve(
                 eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
                 eq("P2"),
-                eq("AMOUNT_OVER_LIMIT"))).thenReturn(new ReviewTicketRoute("P1", "HQ_FINANCE", 120));
+                eq("AMOUNT_OVER_LIMIT"))).thenReturn(new ReviewTicketRoute("P1", "HQ_FINANCE", 120,
+                22L, "TYPE_SEVERITY", ReviewTicketRoute.DECISION_ORDER));
 
         service.upsertManualReviewTicket(afterSale, decision);
 
@@ -128,6 +137,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(88L, captor.getValue().getId());
         assertEquals(3, captor.getValue().getTriggerCount());
         assertEquals("P1", captor.getValue().getSeverity());
+        assertEquals(22L, captor.getValue().getRouteId());
+        assertEquals("TYPE_SEVERITY", captor.getValue().getRouteScope());
         assertEquals("RULE_RETRIGGER", captor.getValue().getLastActionCode());
         assertEquals("2", captor.getValue().getLastActionBizNo());
         assertNotNull(captor.getValue().getLastActionTime());
@@ -216,7 +227,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(reviewTicketRouteProvider.resolve(
                 eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
                 eq("P0"),
-                isNull())).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30));
+                isNull())).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30,
+                33L, "TYPE_SEVERITY", ReviewTicketRoute.DECISION_ORDER));
 
         int count = service.escalateOverduePendingTickets(null);
 
@@ -226,6 +238,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), captor.capture());
         assertEquals("P0", captor.getValue().getSeverity());
         assertEquals("HQ_RISK_FINANCE", captor.getValue().getEscalateTo());
+        assertEquals(33L, captor.getValue().getRouteId());
+        assertEquals("TYPE_SEVERITY", captor.getValue().getRouteScope());
         assertEquals(3, captor.getValue().getTriggerCount());
         assertEquals("SLA_AUTO_ESCALATE", captor.getValue().getLastActionCode());
         assertEquals("TICKET#6", captor.getValue().getLastActionBizNo());
@@ -277,7 +291,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(reviewTicketRouteProvider.resolve(
                 eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
                 eq("P1"),
-                eq("UNKNOWN_RULE"))).thenReturn(new ReviewTicketRoute("P1", "HQ_SERVICE_OPS", 90));
+                eq("UNKNOWN_RULE"))).thenReturn(new ReviewTicketRoute("P1", "HQ_SERVICE_OPS", 90,
+                44L, "RULE", ReviewTicketRoute.DECISION_ORDER));
         when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(18L),
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any()))
                 .thenReturn(1);
@@ -290,6 +305,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), captor.capture());
         assertEquals("P1", captor.getValue().getSeverity());
         assertEquals("HQ_SERVICE_OPS", captor.getValue().getEscalateTo());
+        assertEquals(44L, captor.getValue().getRouteId());
+        assertEquals("RULE", captor.getValue().getRouteScope());
     }
 
     private static AfterSaleDO buildAfterSale(Long id) {

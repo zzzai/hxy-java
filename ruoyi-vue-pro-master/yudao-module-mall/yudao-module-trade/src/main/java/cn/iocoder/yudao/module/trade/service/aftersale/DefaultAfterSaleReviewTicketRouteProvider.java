@@ -21,7 +21,8 @@ import java.util.Map;
 public class DefaultAfterSaleReviewTicketRouteProvider implements AfterSaleReviewTicketRouteProvider {
 
     private static final long CACHE_REFRESH_MILLIS = 30_000L;
-    private static final ReviewTicketRoute GLOBAL_DEFAULT_ROUTE = new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120);
+    private static final ReviewTicketRoute GLOBAL_DEFAULT_ROUTE = new ReviewTicketRoute(
+            "P1", "HQ_AFTER_SALE", 120, null, "GLOBAL_DEFAULT_FALLBACK", ReviewTicketRoute.DECISION_ORDER);
 
     @Resource
     private AfterSaleReviewTicketRouteMapper routeMapper;
@@ -158,7 +159,8 @@ public class DefaultAfterSaleReviewTicketRouteProvider implements AfterSaleRevie
                     || row.getSlaMinutes() == null || row.getSlaMinutes() <= 0) {
                 return null;
             }
-            return new ReviewTicketRoute(normalize(row.getSeverity()), StrUtil.trim(row.getEscalateTo()), row.getSlaMinutes());
+            return new ReviewTicketRoute(normalize(row.getSeverity()), StrUtil.trim(row.getEscalateTo()),
+                    row.getSlaMinutes(), row.getId(), normalize(row.getScope()), ReviewTicketRoute.DECISION_ORDER);
         }
 
     }
