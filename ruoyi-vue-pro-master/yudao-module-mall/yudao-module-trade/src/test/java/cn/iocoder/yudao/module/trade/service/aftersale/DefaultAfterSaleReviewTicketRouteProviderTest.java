@@ -83,6 +83,20 @@ class DefaultAfterSaleReviewTicketRouteProviderTest extends BaseMockitoUnitTest 
         assertEquals(120, route.getSlaMinutes());
     }
 
+    @Test
+    void shouldNotFallbackToHardcodedRuleWhenDbEmpty() {
+        when(routeMapper.selectListByEnabled(Boolean.TRUE)).thenReturn(Collections.emptyList());
+
+        ReviewTicketRoute route = provider.resolve(
+                AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType(),
+                "P0",
+                "BLACKLIST_USER");
+
+        assertEquals("P1", route.getSeverity());
+        assertEquals("HQ_AFTER_SALE", route.getEscalateTo());
+        assertEquals(120, route.getSlaMinutes());
+    }
+
     private static AfterSaleReviewTicketRouteDO buildRoute(Long id, String scope, String ruleCode, Integer ticketType,
                                                            String severity, String escalateTo, Integer slaMinutes) {
         AfterSaleReviewTicketRouteDO route = new AfterSaleReviewTicketRouteDO();
