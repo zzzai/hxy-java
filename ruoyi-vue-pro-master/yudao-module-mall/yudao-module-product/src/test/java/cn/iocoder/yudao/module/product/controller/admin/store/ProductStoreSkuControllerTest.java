@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.product.controller.admin.store;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
@@ -76,5 +77,16 @@ class ProductStoreSkuControllerTest {
         assertEquals("荷小悦-上海徐汇店", respVO.getStoreName());
         assertEquals("足疗60分钟", respVO.getSpuName());
         assertEquals("时长:60分钟", respVO.getSkuSpecText());
+    }
+
+    @Test
+    void batchRetryStockFlow_shouldDelegateService() {
+        ProductStoreSkuStockFlowBatchRetryReqVO reqVO = new ProductStoreSkuStockFlowBatchRetryReqVO();
+        reqVO.setIds(Arrays.asList(901L, 902L, 901L));
+        when(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds())).thenReturn(2);
+
+        CommonResult<Integer> result = controller.batchRetryStockFlow(reqVO);
+
+        assertEquals(2, result.getData());
     }
 }

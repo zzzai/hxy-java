@@ -38,6 +38,7 @@ import java.util.Map;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_NOT_EXISTS;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_STOCK_NOT_ENOUGH;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_BATCH_ADJUST_FIELDS_EMPTY;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_FLOW_TARGETS_EMPTY;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -537,6 +538,53 @@ class ProductStoreMappingServiceImplTest {
 
         assertEquals(1, successCount);
         verify(storeSkuMapper).updateStockDecrByStoreIdAndSkuId(11L, 22L, 1);
+    }
+
+    @Test
+    void retryStoreSkuStockFlowByIds_shouldRetryRetryableFlowOnly() {
+        ProductStoreSkuStockFlowDO failedFlow = ProductStoreSkuStockFlowDO.builder()
+                .id(9701L)
+                .storeId(11L)
+                .skuId(22L)
+                .incrCount(-1)
+                .status(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus())
+                .retryCount(1)
+                .build();
+        ProductStoreSkuStockFlowDO successFlow = ProductStoreSkuStockFlowDO.builder()
+                .id(9702L)
+                .storeId(11L)
+                .skuId(23L)
+                .incrCount(-1)
+                .status(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus())
+                .retryCount(0)
+                .build();
+        when(storeSkuStockFlowMapper.selectBatchIds(Arrays.asList(9701L, 9702L)))
+                .thenReturn(Arrays.asList(failedFlow, successFlow));
+        ProductStoreSkuDO sku22 = ProductStoreSkuDO.builder().id(301L).storeId(11L).skuId(22L).stock(10).build();
+        when(storeSkuMapper.selectByStoreIdAndSkuId(11L, 22L)).thenReturn(sku22);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9701L),
+                eq(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()),
+                eq(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()),
+                eq(1), any(), eq(""))).thenReturn(1);
+        when(storeSkuMapper.updateStockDecrByStoreIdAndSkuId(11L, 22L, 1)).thenReturn(1);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9701L),
+                eq(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()),
+                eq(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus()),
+                eq(1), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(1);
+
+        int successCount = productStoreMappingService.retryStoreSkuStockFlowByIds(Arrays.asList(9701L, 9702L, 9701L));
+
+        assertEquals(1, successCount);
+        verify(storeSkuMapper).updateStockDecrByStoreIdAndSkuId(11L, 22L, 1);
+        verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(eq(11L), eq(23L), any(Integer.class));
+    }
+
+    @Test
+    void retryStoreSkuStockFlowByIds_shouldThrowWhenFlowIdsEmpty() {
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreMappingService.retryStoreSkuStockFlowByIds(Collections.emptyList()));
+        assertEquals(STORE_SKU_STOCK_FLOW_TARGETS_EMPTY.getCode(), ex.getCode());
     }
 
     @Test

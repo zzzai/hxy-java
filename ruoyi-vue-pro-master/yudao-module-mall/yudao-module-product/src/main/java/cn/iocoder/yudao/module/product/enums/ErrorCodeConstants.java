@@ -70,6 +70,7 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_SKU_STOCK_MANUAL_BIZ_TYPE_INVALID = new ErrorCode(1_008_009_007, "门店库存人工调整业务类型非法：{}");
     ErrorCode STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID = new ErrorCode(1_008_009_008, "门店库存人工调整数量非法：{}");
     ErrorCode STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED = new ErrorCode(1_008_009_009, "门店库存人工调整存在重复 SKU：{}");
+    ErrorCode STORE_SKU_STOCK_FLOW_TARGETS_EMPTY = new ErrorCode(1_008_009_010, "库存流水重试目标不能为空");
 
     // ========== 门店主数据 1-008-010-000 ==========
     ErrorCode STORE_NOT_EXISTS = new ErrorCode(1_008_010_000, "门店不存在");

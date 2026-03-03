@@ -545,10 +545,20 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+        <el-button :loading="stockFlowRetryLoading" type="warning" @click="submitStockFlowBatchRetry">
+          <Icon class="mr-5px" icon="ep:refresh-right" />
+          批量重试失败流水
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="stockFlowLoading" :data="stockFlowList" class="mt-12px">
+    <el-table
+      v-loading="stockFlowLoading"
+      :data="stockFlowList"
+      class="mt-12px"
+      @selection-change="handleStockFlowSelectionChange"
+    >
+      <el-table-column type="selection" width="45" />
       <el-table-column label="ID" prop="id" width="90" />
       <el-table-column label="门店" min-width="190">
         <template #default="{ row }">
@@ -613,10 +623,12 @@ const batchSaveLoading = ref(false)
 const batchAdjustLoading = ref(false)
 const manualAdjustLoading = ref(false)
 const stockFlowLoading = ref(false)
+const stockFlowRetryLoading = ref(false)
 const total = ref(0)
 const stockFlowTotal = ref(0)
 const list = ref<StoreSkuApi.ProductStoreSku[]>([])
 const stockFlowList = ref<StoreSkuApi.ProductStoreSkuStockFlow[]>([])
+const stockFlowSelectedIds = ref<number[]>([])
 const formRef = ref()
 const batchSaveFormRef = ref()
 const batchAdjustFormRef = ref()
@@ -1212,6 +1224,7 @@ const getStockFlowList = async () => {
     const data = await StoreSkuApi.getStoreSkuStockFlowPage(params)
     stockFlowList.value = data.list || []
     stockFlowTotal.value = data.total || 0
+    stockFlowSelectedIds.value = []
   } finally {
     stockFlowLoading.value = false
   }
@@ -1234,6 +1247,32 @@ const resetStockFlowQuery = () => {
     executeTime: undefined
   }
   getStockFlowList()
+}
+
+const handleStockFlowSelectionChange = (rows: StoreSkuApi.ProductStoreSkuStockFlow[]) => {
+  stockFlowSelectedIds.value = rows
+    .map((item) => Number(item.id))
+    .filter((id) => Number.isInteger(id) && id > 0)
+}
+
+const submitStockFlowBatchRetry = async () => {
+  if (!stockFlowSelectedIds.value.length) {
+    message.warning('请先勾选至少一条库存流水')
+    return
+  }
+  try {
+    await message.confirm(`确认重试 ${stockFlowSelectedIds.value.length} 条库存流水吗？`)
+  } catch {
+    return
+  }
+  stockFlowRetryLoading.value = true
+  try {
+    const successCount = await StoreSkuApi.batchRetryStoreSkuStockFlow({ ids: stockFlowSelectedIds.value })
+    message.success(`重试提交完成，成功触发 ${successCount} 条库存流水`)
+    await getStockFlowList()
+  } finally {
+    stockFlowRetryLoading.value = false
+  }
 }
 
 const formatStockFlowBizType = (bizType?: string) => {

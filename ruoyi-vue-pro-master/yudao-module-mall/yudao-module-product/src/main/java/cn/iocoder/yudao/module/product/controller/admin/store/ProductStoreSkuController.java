@@ -15,6 +15,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
@@ -158,6 +159,14 @@ public class ProductStoreSkuController {
                     return respVO;
                 }).collect(Collectors.toList());
         return success(new PageResult<>(records, pageResult.getTotal()));
+    }
+
+    @PostMapping("/stock-flow/batch-retry")
+    @Operation(summary = "批量重试门店 SKU 库存流水")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Integer> batchRetryStockFlow(
+            @Valid @RequestBody ProductStoreSkuStockFlowBatchRetryReqVO reqVO) {
+        return success(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds()));
     }
 
     @GetMapping("/store-options")

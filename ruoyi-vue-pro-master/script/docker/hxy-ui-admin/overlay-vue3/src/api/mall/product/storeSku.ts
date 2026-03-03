@@ -100,6 +100,10 @@ export interface ProductStoreSkuStockFlowPageReq extends PageParam {
   executeTime?: string[]
 }
 
+export interface ProductStoreSkuStockFlowBatchRetryReq {
+  ids: number[]
+}
+
 export const getStoreSkuPage = (params: PageParam) => {
   return request.get({ url: '/product/store-sku/page', params })
 }
@@ -126,6 +130,10 @@ export const manualAdjustStoreSkuStock = (data: ProductStoreSkuManualStockAdjust
 
 export const getStoreSkuStockFlowPage = (params: ProductStoreSkuStockFlowPageReq) => {
   return request.get({ url: '/product/store-sku/stock-flow/page', params })
+}
+
+export const batchRetryStoreSkuStockFlow = (data: ProductStoreSkuStockFlowBatchRetryReq) => {
+  return request.post({ url: '/product/store-sku/stock-flow/batch-retry', data })
 }
 
 export const deleteStoreSku = (id: number) => {

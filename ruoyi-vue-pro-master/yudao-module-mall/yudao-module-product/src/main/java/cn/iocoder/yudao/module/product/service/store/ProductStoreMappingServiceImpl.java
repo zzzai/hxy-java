@@ -440,38 +440,61 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         List<ProductStoreSkuStockFlowDO> retryableList = storeSkuStockFlowMapper.selectRetryableList(now, safeLimit);
         int successCount = 0;
         for (ProductStoreSkuStockFlowDO flow : retryableList) {
-            if (flow == null || !ProductStoreSkuStockFlowStatusEnum.isRetryable(flow.getStatus())) {
-                continue;
-            }
-            Integer oldStatus = flow.getStatus() == null
-                    ? ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus() : flow.getStatus();
-            int claimed = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(), oldStatus,
-                    ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
-                    normalizeRetryCount(flow.getRetryCount()), calculateProcessingLeaseTime(), "");
-            if (claimed == 0) {
-                continue;
-            }
-            try {
-                ProductStoreSkuUpdateStockReqDTO.Item item = new ProductStoreSkuUpdateStockReqDTO.Item();
-                item.setSkuId(flow.getSkuId());
-                item.setIncrCount(flow.getIncrCount());
-                applyStoreSkuStock(flow.getStoreId(), item);
-                int updated = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
-                        ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
-                        ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus(),
-                        normalizeRetryCount(flow.getRetryCount()), null, null);
-                if (updated > 0) {
-                    successCount++;
-                }
-            } catch (RuntimeException ex) {
-                int nextRetryCount = normalizeRetryCount(flow.getRetryCount()) + 1;
-                storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
-                        ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
-                        ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
-                        nextRetryCount, calculateNextRetryTime(nextRetryCount), trimErrorMsg(ex.getMessage()));
+            if (executeRetryFlow(flow)) {
+                successCount++;
             }
         }
         return successCount;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int retryStoreSkuStockFlowByIds(List<Long> flowIds) {
+        List<Long> normalizedFlowIds = normalizeFlowIds(flowIds);
+        List<ProductStoreSkuStockFlowDO> flowList = storeSkuStockFlowMapper.selectBatchIds(normalizedFlowIds);
+        if (flowList == null || flowList.isEmpty()) {
+            return 0;
+        }
+        int successCount = 0;
+        for (ProductStoreSkuStockFlowDO flow : flowList) {
+            if (executeRetryFlow(flow)) {
+                successCount++;
+            }
+        }
+        return successCount;
+    }
+
+    private boolean executeRetryFlow(ProductStoreSkuStockFlowDO flow) {
+        if (flow == null || !ProductStoreSkuStockFlowStatusEnum.isRetryable(flow.getStatus())) {
+            return false;
+        }
+        Integer oldStatus = flow.getStatus() == null
+                ? ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus() : flow.getStatus();
+        int retryCount = normalizeRetryCount(flow.getRetryCount());
+        int claimed = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(), oldStatus,
+                ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
+                retryCount, calculateProcessingLeaseTime(), "");
+        if (claimed == 0) {
+            return false;
+        }
+        try {
+            ProductStoreSkuUpdateStockReqDTO.Item item = new ProductStoreSkuUpdateStockReqDTO.Item();
+            item.setSkuId(flow.getSkuId());
+            item.setIncrCount(flow.getIncrCount());
+            applyStoreSkuStock(flow.getStoreId(), item);
+            int updated = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
+                    ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
+                    ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus(),
+                    retryCount, null, null);
+            return updated > 0;
+        } catch (RuntimeException ex) {
+            int nextRetryCount = retryCount + 1;
+            storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
+                    ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
+                    ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
+                    nextRetryCount, calculateNextRetryTime(nextRetryCount), trimErrorMsg(ex.getMessage()));
+            return false;
+        }
     }
 
     private ProductStoreSkuStockFlowDO getOrCreateStockFlow(String bizType, String bizNo, Long storeId,
@@ -665,6 +688,17 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         }
         if (normalized.isEmpty()) {
             throw exception(STORE_BATCH_TARGETS_EMPTY);
+        }
+        return normalized.stream().collect(Collectors.toList());
+    }
+
+    private List<Long> normalizeFlowIds(List<Long> flowIds) {
+        Set<Long> normalized = new LinkedHashSet<>();
+        if (flowIds != null) {
+            flowIds.stream().filter(Objects::nonNull).forEach(normalized::add);
+        }
+        if (normalized.isEmpty()) {
+            throw exception(STORE_SKU_STOCK_FLOW_TARGETS_EMPTY);
         }
         return normalized.stream().collect(Collectors.toList());
     }

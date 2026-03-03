@@ -66,4 +66,6 @@ public interface ProductStoreMappingService {
     Integer manualAdjustStoreSkuStock(@Valid ProductStoreSkuManualStockAdjustReqVO reqVO);
 
     int retryStoreSkuStockFlow(Integer limit);
+
+    int retryStoreSkuStockFlowByIds(List<Long> flowIds);
 }
