@@ -280,6 +280,12 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(Collections.singletonList(21L), result.getSuccessIds());
         assertEquals(Collections.singletonList(22L), result.getSkippedNotFoundIds());
         assertEquals(Arrays.asList(23L, 24L), result.getSkippedNotPendingIds());
+
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).updateByIdAndStatus(eq(21L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), captor.capture());
+        assertEquals("OPS-BATCH-20260303#21", captor.getValue().getResolveBizNo());
+        assertEquals("OPS-BATCH-20260303#21", captor.getValue().getLastActionBizNo());
     }
 
     @Test

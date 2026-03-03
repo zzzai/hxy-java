@@ -231,7 +231,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(id,
                     AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
                     buildResolvedTicketUpdate(resolverId, resolverType, normalizedActionCode,
-                            StrUtil.blankToDefault(normalizedBizNo, String.valueOf(id)),
+                            buildBatchResolveBizNo(normalizedBizNo, id),
                             resolveRemark));
             if (updateCount > 0) {
                 successIds.add(id);
@@ -248,6 +248,17 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 .skippedNotFoundIds(skippedNotFoundIds)
                 .skippedNotPendingIds(skippedNotPendingIds)
                 .build();
+    }
+
+    private String buildBatchResolveBizNo(String baseBizNo, Long ticketId) {
+        String fallback = String.valueOf(ticketId);
+        if (StrUtil.isBlank(baseBizNo)) {
+            return fallback;
+        }
+        String suffix = "#" + fallback;
+        int maxBaseLength = Math.max(0, 64 - suffix.length());
+        String normalizedBase = StrUtil.maxLength(baseBizNo, maxBaseLength);
+        return normalizedBase + suffix;
     }
 
     private AfterSaleReviewTicketDO buildResolvedTicketUpdate(Long resolverId, Integer resolverType,
@@ -370,16 +381,16 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     }
 
     private String normalizeResolveActionCode(String resolveActionCode, String defaultCode) {
-        return StrUtil.maxLength(StrUtil.blankToDefault(resolveActionCode, defaultCode), 64);
+        return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(resolveActionCode), defaultCode), 64);
     }
 
     private String normalizeResolveBizNo(String resolveBizNo, Long fallbackId) {
-        return StrUtil.maxLength(StrUtil.blankToDefault(resolveBizNo,
+        return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(resolveBizNo),
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
     }
 
     private String normalizeActionBizNo(String actionBizNo, Long fallbackId) {
-        return StrUtil.maxLength(StrUtil.blankToDefault(actionBizNo,
+        return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(actionBizNo),
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
     }
 
