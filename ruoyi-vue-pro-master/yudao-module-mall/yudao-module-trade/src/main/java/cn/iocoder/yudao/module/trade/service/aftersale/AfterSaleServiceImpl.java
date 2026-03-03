@@ -575,6 +575,8 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     }
 
     private void processRefundAfterSale(String userIp, AfterSaleDO afterSale) {
+        validateRefundLimitBeforeRefund(afterSale);
+
         Integer newStatus;
         if (ObjUtil.equals(afterSale.getRefundPrice(), 0)) {
             // 特殊：退款为 0 的订单，直接标记为完成（积分商城）。关联案例：https://t.zsxq.com/AQEvL
@@ -589,6 +591,21 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
         // 记录售后日志
         AfterSaleLogUtils.setAfterSaleInfo(afterSale.getId(), afterSale.getStatus(), newStatus);
+    }
+
+    private void validateRefundLimitBeforeRefund(AfterSaleDO afterSale) {
+        TradeOrderItemDO orderItem = tradeOrderQueryService.getOrderItem(afterSale.getUserId(), afterSale.getOrderItemId());
+        if (orderItem == null) {
+            throw exception(ORDER_ITEM_NOT_FOUND);
+        }
+        RefundLimitDecision latestDecision = resolveRefundLimitDecision(orderItem);
+        tradeAfterSaleMapper.updateById(new AfterSaleDO()
+                .setId(afterSale.getId())
+                .setRefundLimitSource(latestDecision.getSource())
+                .setRefundLimitDetailJson(latestDecision.getDetailJson()));
+        if (afterSale.getRefundPrice() > latestDecision.getUpperBound()) {
+            throw exception(AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED);
+        }
     }
 
     private void createPayRefund(String userIp, AfterSaleDO afterSale) {
