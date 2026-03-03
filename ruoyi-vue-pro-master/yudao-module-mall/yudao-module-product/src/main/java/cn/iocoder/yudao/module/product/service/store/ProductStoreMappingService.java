@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOpt
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
@@ -57,6 +58,8 @@ public interface ProductStoreMappingService {
     Map<Long, ProductStoreSkuRespDTO> getStoreSkuMap(Long storeId, Collection<Long> skuIds);
 
     void updateStoreSkuStock(@Valid ProductStoreSkuUpdateStockReqDTO updateStockReqDTO);
+
+    Integer manualAdjustStoreSkuStock(@Valid ProductStoreSkuManualStockAdjustReqVO reqVO);
 
     int retryStoreSkuStockFlow(Integer limit);
 }

@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.product.service.store;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuUpdateStockReqDTO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
@@ -35,6 +36,8 @@ import java.util.Map;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_NOT_EXISTS;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_STOCK_NOT_ENOUGH;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_BATCH_ADJUST_FIELDS_EMPTY;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -580,6 +583,77 @@ class ProductStoreMappingServiceImplTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreMappingService.updateStoreSkuStock(reqDTO));
         assertEquals(1_008_009_006, ex.getCode());
+        verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+    }
+
+    @Test
+    void manualAdjustStoreSkuStock_shouldMapManualBizTypeAndApplyIncr() {
+        ProductStoreSkuManualStockAdjustReqVO reqVO = new ProductStoreSkuManualStockAdjustReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("replenish_in");
+        reqVO.setBizNo("SUPPLY-20260303-001");
+        ProductStoreSkuManualStockAdjustReqVO.Item item = new ProductStoreSkuManualStockAdjustReqVO.Item();
+        item.setSkuId(22L);
+        item.setIncrCount(6);
+        reqVO.setItems(Collections.singletonList(item));
+
+        ProductStoreSkuDO sku = ProductStoreSkuDO.builder().id(301L).storeId(11L).skuId(22L).stock(10).build();
+        when(storeSkuMapper.selectByStoreIdAndSkuId(11L, 22L)).thenReturn(sku);
+        ProductStoreSkuStockFlowDO flow = ProductStoreSkuStockFlowDO.builder()
+                .id(9601L).incrCount(6).status(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()).retryCount(0).build();
+        when(storeSkuStockFlowMapper.selectByBizKey("MANUAL_REPLENISH_IN", "SUPPLY-20260303-001", 11L, 22L))
+                .thenReturn(null, flow);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9601L),
+                eq(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()), eq(3),
+                eq(0), any(), eq(""))).thenReturn(1);
+        when(storeSkuMapper.updateStockIncrByStoreIdAndSkuId(11L, 22L, 6)).thenReturn(1);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9601L), eq(3),
+                eq(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus()),
+                eq(0), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(1);
+
+        Integer affected = productStoreMappingService.manualAdjustStoreSkuStock(reqVO);
+
+        assertEquals(1, affected);
+        verify(storeSkuMapper).updateStockIncrByStoreIdAndSkuId(11L, 22L, 6);
+    }
+
+    @Test
+    void manualAdjustStoreSkuStock_shouldThrowWhenDirectionMismatch() {
+        ProductStoreSkuManualStockAdjustReqVO reqVO = new ProductStoreSkuManualStockAdjustReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("TRANSFER_OUT");
+        reqVO.setBizNo("TRANSFER-20260303-001");
+        ProductStoreSkuManualStockAdjustReqVO.Item item = new ProductStoreSkuManualStockAdjustReqVO.Item();
+        item.setSkuId(22L);
+        item.setIncrCount(2);
+        reqVO.setItems(Collections.singletonList(item));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreMappingService.manualAdjustStoreSkuStock(reqVO));
+        assertEquals(STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID.getCode(), ex.getCode());
+        verify(storeSkuMapper, never()).updateStockIncrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+        verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+    }
+
+    @Test
+    void manualAdjustStoreSkuStock_shouldThrowWhenDuplicateSku() {
+        ProductStoreSkuManualStockAdjustReqVO reqVO = new ProductStoreSkuManualStockAdjustReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("STOCKTAKE");
+        reqVO.setBizNo("STOCKTAKE-20260303-001");
+        ProductStoreSkuManualStockAdjustReqVO.Item item1 = new ProductStoreSkuManualStockAdjustReqVO.Item();
+        item1.setSkuId(22L);
+        item1.setIncrCount(1);
+        ProductStoreSkuManualStockAdjustReqVO.Item item2 = new ProductStoreSkuManualStockAdjustReqVO.Item();
+        item2.setSkuId(22L);
+        item2.setIncrCount(-1);
+        reqVO.setItems(Arrays.asList(item1, item2));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreMappingService.manualAdjustStoreSkuStock(reqVO));
+        assertEquals(STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED.getCode(), ex.getCode());
+        verify(storeSkuMapper, never()).updateStockIncrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
         verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
     }
 }

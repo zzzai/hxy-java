@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.product.controller.admin.spu.vo.ProductSpuPageReq
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
@@ -24,6 +25,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuManualStockBizTypeEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
@@ -39,6 +41,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -405,6 +408,25 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Integer manualAdjustStoreSkuStock(ProductStoreSkuManualStockAdjustReqVO reqVO) {
+        productStoreService.validateStoreExists(reqVO.getStoreId());
+        ProductStoreSkuManualStockBizTypeEnum bizTypeEnum = ProductStoreSkuManualStockBizTypeEnum
+                .valueOfCode(reqVO.getBizType());
+        if (bizTypeEnum == null) {
+            throw exception(STORE_SKU_STOCK_MANUAL_BIZ_TYPE_INVALID, reqVO.getBizType());
+        }
+        List<ProductStoreSkuUpdateStockReqDTO.Item> stockItems = normalizeManualStockItems(reqVO.getItems(), bizTypeEnum);
+        ProductStoreSkuUpdateStockReqDTO stockReq = new ProductStoreSkuUpdateStockReqDTO();
+        stockReq.setStoreId(reqVO.getStoreId());
+        stockReq.setBizType(bizTypeEnum.getStockFlowBizType());
+        stockReq.setBizNo(reqVO.getBizNo());
+        stockReq.setItems(stockItems);
+        updateStoreSkuStock(stockReq);
+        return stockItems.size();
+    }
+
+    @Override
     public int retryStoreSkuStockFlow(Integer limit) {
         int safeLimit = limit == null || limit <= 0 ? STOCK_RETRY_DEFAULT_LIMIT : Math.min(limit, STOCK_RETRY_MAX_LIMIT);
         LocalDateTime now = LocalDateTime.now();
@@ -480,6 +502,36 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         }
         validateStockFlowIncrCount(latest, incrCount);
         return latest;
+    }
+
+    private List<ProductStoreSkuUpdateStockReqDTO.Item> normalizeManualStockItems(
+            List<ProductStoreSkuManualStockAdjustReqVO.Item> items,
+            ProductStoreSkuManualStockBizTypeEnum bizTypeEnum) {
+        if (items == null || items.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        Set<Long> skuIdSet = new HashSet<>();
+        List<ProductStoreSkuUpdateStockReqDTO.Item> normalizedItems = new ArrayList<>(items.size());
+        for (ProductStoreSkuManualStockAdjustReqVO.Item item : items) {
+            if (item == null || item.getSkuId() == null) {
+                throw exception(STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID, "skuId 不能为空");
+            }
+            if (!skuIdSet.add(item.getSkuId())) {
+                throw exception(STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED, item.getSkuId());
+            }
+            if (item.getIncrCount() == null || !bizTypeEnum.supportsIncrCount(item.getIncrCount())) {
+                String directionTip = bizTypeEnum == ProductStoreSkuManualStockBizTypeEnum.STOCKTAKE
+                        ? "非 0"
+                        : (bizTypeEnum.supportsIncrCount(1) ? "正数" : "负数");
+                throw exception(STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID,
+                        StrUtil.format("bizType={} 要求 {}", bizTypeEnum.getCode(), directionTip));
+            }
+            ProductStoreSkuUpdateStockReqDTO.Item stockItem = new ProductStoreSkuUpdateStockReqDTO.Item();
+            stockItem.setSkuId(item.getSkuId());
+            stockItem.setIncrCount(item.getIncrCount());
+            normalizedItems.add(stockItem);
+        }
+        return normalizedItems;
     }
 
     private void applyStoreSkuStock(Long storeId, ProductStoreSkuUpdateStockReqDTO.Item item) {

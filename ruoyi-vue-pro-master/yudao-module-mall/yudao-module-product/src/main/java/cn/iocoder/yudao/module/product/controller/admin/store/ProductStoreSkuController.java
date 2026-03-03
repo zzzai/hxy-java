@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
@@ -74,6 +75,13 @@ public class ProductStoreSkuController {
     @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
     public CommonResult<Integer> batchAdjust(@Valid @RequestBody ProductStoreSkuBatchAdjustReqVO reqVO) {
         return success(storeMappingService.batchAdjustStoreSku(reqVO));
+    }
+
+    @PostMapping("/manual-stock-adjust")
+    @Operation(summary = "门店 SKU 人工库存调整（补货/调拨/盘点/损耗）")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Integer> manualAdjustStock(@Valid @RequestBody ProductStoreSkuManualStockAdjustReqVO reqVO) {
+        return success(storeMappingService.manualAdjustStoreSkuStock(reqVO));
     }
 
     @DeleteMapping("/delete")

@@ -67,6 +67,9 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_SKU_STOCK_BIZ_KEY_REQUIRED = new ErrorCode(1_008_009_004, "门店 SKU 库存变更业务标识不能为空");
     ErrorCode STORE_SKU_STOCK_BIZ_FIELD_TOO_LONG = new ErrorCode(1_008_009_005, "门店 SKU 库存变更业务标识过长：{} 最大长度 {}");
     ErrorCode STORE_SKU_STOCK_BIZ_KEY_CONFLICT = new ErrorCode(1_008_009_006, "门店 SKU 库存变更幂等冲突：业务键对应的库存变化值不一致");
+    ErrorCode STORE_SKU_STOCK_MANUAL_BIZ_TYPE_INVALID = new ErrorCode(1_008_009_007, "门店库存人工调整业务类型非法：{}");
+    ErrorCode STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID = new ErrorCode(1_008_009_008, "门店库存人工调整数量非法：{}");
+    ErrorCode STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED = new ErrorCode(1_008_009_009, "门店库存人工调整存在重复 SKU：{}");
 
     // ========== 门店主数据 1-008-010-000 ==========
     ErrorCode STORE_NOT_EXISTS = new ErrorCode(1_008_010_000, "门店不存在");
