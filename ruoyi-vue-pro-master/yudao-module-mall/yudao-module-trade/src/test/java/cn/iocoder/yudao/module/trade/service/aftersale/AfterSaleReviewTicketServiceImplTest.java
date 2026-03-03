@@ -1,7 +1,9 @@
 package cn.iocoder.yudao.module.trade.service.aftersale;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
@@ -86,6 +88,19 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
                 eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
                 isNull(),
                 eq("SERVICE_DELAY"));
+    }
+
+    @Test
+    void shouldNormalizeRouteScopeWhenQueryPage() {
+        AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
+        reqVO.setRouteScope(" rule ");
+        when(afterSaleReviewTicketMapper.selectPage(any(AfterSaleReviewTicketPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
+
+        service.getReviewTicketPage(reqVO);
+
+        assertEquals("RULE", reqVO.getRouteScope());
+        verify(afterSaleReviewTicketMapper).selectPage(reqVO);
     }
 
     @Test

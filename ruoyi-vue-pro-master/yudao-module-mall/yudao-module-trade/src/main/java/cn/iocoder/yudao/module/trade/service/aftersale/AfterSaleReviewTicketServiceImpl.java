@@ -47,6 +47,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
+        normalizePageReq(pageReqVO);
         return afterSaleReviewTicketMapper.selectPage(pageReqVO);
     }
 
@@ -345,6 +346,17 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         }
         return StrUtil.maxLength(StrUtil.blankToDefault(route.getDecisionOrder(),
                 ReviewTicketRoute.DECISION_ORDER), 128);
+    }
+
+    private void normalizePageReq(AfterSaleReviewTicketPageReqVO pageReqVO) {
+        if (pageReqVO == null) {
+            return;
+        }
+        pageReqVO.setRouteScope(normalizeUpper(pageReqVO.getRouteScope()));
+    }
+
+    private String normalizeUpper(String value) {
+        return StrUtil.trimToEmpty(value).toUpperCase();
     }
 
 }
