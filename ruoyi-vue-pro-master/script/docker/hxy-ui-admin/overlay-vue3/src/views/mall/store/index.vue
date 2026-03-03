@@ -23,6 +23,7 @@
           <el-option :value="10" label="筹备中" />
           <el-option :value="20" label="试营业" />
           <el-option :value="30" label="营业中" />
+          <el-option :value="35" label="停业" />
           <el-option :value="40" label="闭店" />
         </el-select>
       </el-form-item>
@@ -39,12 +40,16 @@
           <Icon class="mr-5px" icon="ep:plus" />
           新增门店
         </el-button>
+        <el-button v-hasPermi="['product:store:batch-lifecycle']" type="warning" plain @click="openBatchLifecycleDialog">
+          <Icon class="mr-5px" icon="ep:operation" />
+          批量生命周期变更
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
 
   <ContentWrap>
-      <el-table v-loading="loading" :data="list">
+      <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" />
       <el-table-column label="ID" prop="id" width="90" />
       <el-table-column label="门店编码" prop="code" min-width="120" />
@@ -64,9 +69,10 @@
       </el-table-column>
       <el-table-column label="排序" prop="sort" width="90" />
       <el-table-column :formatter="dateFormatter" label="更新时间" prop="updateTime" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="220">
+      <el-table-column align="center" fixed="right" label="操作" width="300">
         <template #default="{ row }">
           <el-button v-hasPermi="['product:store:check-launch-readiness']" link type="success" @click="handleReadiness(row)">门禁</el-button>
+          <el-button v-hasPermi="['product:store:update']" link type="warning" @click="openSingleLifecycleDialog(row)">生命周期变更</el-button>
           <el-button v-hasPermi="['product:store:update']" link type="primary" @click="openForm(row)">编辑</el-button>
           <el-button v-hasPermi="['product:store:delete']" link type="danger" @click="handleDelete(row.id)">删除</el-button>
         </template>
@@ -132,6 +138,7 @@
               <el-option :value="10" label="筹备中" />
               <el-option :value="20" label="试营业" />
               <el-option :value="30" label="营业中" />
+              <el-option :value="35" label="停业" />
               <el-option :value="40" label="闭店" />
             </el-select>
           </el-form-item>
@@ -213,6 +220,101 @@
       <el-button type="primary" :loading="formLoading" @click="submitForm">保存</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="lifecycleDialogVisible" :title="lifecycleDialogTitle" width="860px">
+    <el-form :model="lifecycleForm" label-width="108px">
+      <el-form-item label="目标生命周期" required>
+        <el-select v-model="lifecycleForm.lifecycleStatus" class="!w-300px" placeholder="请选择目标生命周期">
+          <el-option :value="10" label="筹备中" />
+          <el-option :value="20" label="试营业" />
+          <el-option :value="30" label="营业中" />
+          <el-option :value="35" label="停业" />
+          <el-option :value="40" label="闭店" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="门店范围">
+        <div v-if="lifecycleForm.storeIds.length === 1" class="text-[var(--el-text-color-primary)]">
+          {{ formatLifecycleStoreLabel(lifecycleForm.storeIds[0]) }}
+        </div>
+        <div v-else class="flex flex-wrap gap-6px">
+          <el-tag v-for="storeId in lifecycleForm.storeIds" :key="storeId" size="small">
+            {{ formatLifecycleStoreLabel(storeId) }}
+          </el-tag>
+        </div>
+      </el-form-item>
+      <el-form-item label="操作原因">
+        <el-input
+          v-model="lifecycleForm.reason"
+          :rows="2"
+          maxlength="255"
+          placeholder="可选，填写本次生命周期变更原因"
+          show-word-limit
+          type="textarea"
+        />
+      </el-form-item>
+    </el-form>
+
+    <el-alert class="mb-12px" :closable="false" show-icon title="执行顺序：先预检，再执行生命周期变更；存在阻塞项时禁止提交" type="info" />
+
+    <div v-loading="lifecycleGuardLoading" class="max-h-380px overflow-y-auto pr-2px">
+      <el-empty v-if="!lifecycleGuardRows.length" description="点击“执行预检”后展示 blocked / warnings / guardItems 详情" />
+      <template v-else>
+        <div class="mb-12px flex items-center gap-8px">
+          <el-tag type="danger">阻塞门店 {{ blockedStoreCount }}</el-tag>
+          <el-tag type="warning">告警门店 {{ warningStoreCount }}</el-tag>
+          <el-tag type="info">预检总数 {{ lifecycleGuardRows.length }}</el-tag>
+        </div>
+        <el-collapse v-model="lifecycleGuardActiveNames">
+          <el-collapse-item v-for="item in lifecycleGuardRows" :key="item.storeId" :name="`${item.storeId}`">
+            <template #title>
+              <div class="flex items-center gap-8px">
+                <span>{{ formatLifecycleStoreLabel(item.storeId) }}</span>
+                <el-tag :type="item.blocked ? 'danger' : item.warnings.length ? 'warning' : 'success'" size="small">
+                  {{ item.blocked ? 'BLOCKED' : item.warnings.length ? 'WARN' : 'PASS' }}
+                </el-tag>
+              </div>
+            </template>
+            <div class="mb-8px text-[var(--el-text-color-secondary)]">
+              目标生命周期：{{ lifecycleText(item.targetLifecycleStatus) }}
+            </div>
+            <el-alert
+              v-if="item.blockedMessage"
+              class="mb-10px"
+              :closable="false"
+              :title="item.blockedMessage"
+              type="error"
+              show-icon
+            />
+            <div v-if="item.warnings.length" class="mb-10px">
+              <div class="mb-4px text-[var(--el-text-color-secondary)]">告警项：</div>
+              <div v-for="(warning, idx) in item.warnings" :key="`${item.storeId}-w-${idx}`" class="text-orange-600">
+                - {{ warning }}
+              </div>
+            </div>
+            <el-table v-if="item.guardItems.length" :data="item.guardItems" border size="small">
+              <el-table-column label="guardKey" prop="guardKey" min-width="160" />
+              <el-table-column label="count" prop="count" width="120" />
+              <el-table-column label="mode" prop="mode" width="120" />
+              <el-table-column label="blocked" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="row.blocked ? 'danger' : 'success'" size="small">
+                    {{ row.blocked ? '是' : '否' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-else class="text-[var(--el-text-color-secondary)]">未命中守卫项</div>
+          </el-collapse-item>
+        </el-collapse>
+      </template>
+    </div>
+
+    <template #footer>
+      <el-button @click="lifecycleDialogVisible = false">取消</el-button>
+      <el-button :loading="lifecycleGuardLoading" @click="handleLifecyclePrecheck">执行预检</el-button>
+      <el-button type="primary" :loading="lifecycleSubmitting" @click="submitLifecycleChange">预检并提交</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -226,6 +328,8 @@ defineOptions({ name: 'MallStoreIndex' })
 
 const message = useMessage()
 
+type LifecycleMode = 'single' | 'batch'
+
 const loading = ref(false)
 const formLoading = ref(false)
 const formVisible = ref(false)
@@ -233,6 +337,22 @@ const total = ref(0)
 const list = ref<StoreApi.HxyStore[]>([])
 const formRef = ref()
 const locating = ref(false)
+const selectedRows = ref<StoreApi.HxyStore[]>([])
+const lifecycleDialogVisible = ref(false)
+const lifecycleSubmitting = ref(false)
+const lifecycleGuardLoading = ref(false)
+const lifecycleMode = ref<LifecycleMode>('single')
+const lifecycleGuardRows = ref<StoreApi.HxyStoreLifecycleGuardResp[]>([])
+const lifecycleGuardActiveNames = ref<string[]>([])
+const lifecycleForm = ref<{
+  storeIds: number[]
+  lifecycleStatus: number | undefined
+  reason: string
+}>({
+  storeIds: [],
+  lifecycleStatus: undefined,
+  reason: ''
+})
 
 const categoryOptions = ref<StoreCategoryApi.HxyStoreCategory[]>([])
 const tagOptions = ref<StoreTagApi.HxyStoreTag[]>([])
@@ -283,6 +403,33 @@ const coordinateDisplay = computed(() => {
   return `${Number(formData.value.longitude).toFixed(6)}, ${Number(formData.value.latitude).toFixed(6)}`
 })
 
+const lifecycleDialogTitle = computed(() => {
+  return lifecycleMode.value === 'single' ? '单店生命周期变更' : '批量生命周期变更'
+})
+
+const lifecycleStoreNameMap = computed(() => {
+  const map = new Map<number, string>()
+  list.value.forEach((item) => {
+    if (item.id) {
+      map.set(item.id, item.name || `门店#${item.id}`)
+    }
+  })
+  selectedRows.value.forEach((item) => {
+    if (item.id) {
+      map.set(item.id, item.name || `门店#${item.id}`)
+    }
+  })
+  return map
+})
+
+const blockedStoreCount = computed(() => {
+  return lifecycleGuardRows.value.filter((item) => item.blocked).length
+})
+
+const warningStoreCount = computed(() => {
+  return lifecycleGuardRows.value.filter((item) => (item.warnings || []).length > 0).length
+})
+
 const loadOptions = async () => {
   categoryOptions.value = await StoreCategoryApi.getStoreCategoryList({ status: 1 })
   tagOptions.value = await StoreTagApi.getStoreTagList({ status: 1 })
@@ -292,8 +439,9 @@ const getList = async () => {
   loading.value = true
   try {
     const data = await StoreApi.getStorePage(queryParams.value)
-    list.value = data.list
-    total.value = data.total
+    list.value = data.list || []
+    total.value = data.total || 0
+    selectedRows.value = []
   } finally {
     loading.value = false
   }
@@ -319,6 +467,149 @@ const resetQuery = () => {
 
 const formatTag = (item: StoreTagApi.HxyStoreTag) => {
   return item.groupName ? `${item.name}（${item.groupName}）` : item.name
+}
+
+const resetLifecycleGuardState = () => {
+  lifecycleGuardRows.value = []
+  lifecycleGuardActiveNames.value = []
+}
+
+const formatLifecycleStoreLabel = (storeId: number) => {
+  return `${lifecycleStoreNameMap.value.get(storeId) || `门店#${storeId}`}（#${storeId}）`
+}
+
+const handleSelectionChange = (rows: StoreApi.HxyStore[]) => {
+  selectedRows.value = rows.filter((item) => !!item.id)
+}
+
+const openSingleLifecycleDialog = (row: StoreApi.HxyStore) => {
+  if (!row?.id) {
+    return
+  }
+  lifecycleMode.value = 'single'
+  lifecycleForm.value = {
+    storeIds: [row.id],
+    lifecycleStatus: undefined,
+    reason: ''
+  }
+  resetLifecycleGuardState()
+  lifecycleDialogVisible.value = true
+}
+
+const openBatchLifecycleDialog = () => {
+  const storeIds = selectedRows.value.map((item) => item.id as number).filter((id) => !!id)
+  if (!storeIds.length) {
+    message.warning('请先勾选至少一家门店')
+    return
+  }
+  lifecycleMode.value = 'batch'
+  lifecycleForm.value = {
+    storeIds,
+    lifecycleStatus: undefined,
+    reason: ''
+  }
+  resetLifecycleGuardState()
+  lifecycleDialogVisible.value = true
+}
+
+const runLifecyclePrecheck = async () => {
+  const lifecycleStatus = lifecycleForm.value.lifecycleStatus
+  if (!lifecycleStatus) {
+    message.warning('请选择目标生命周期')
+    return false
+  }
+  if (!lifecycleForm.value.storeIds.length) {
+    message.warning('请先选择门店')
+    return false
+  }
+  lifecycleGuardLoading.value = true
+  try {
+    let rows: StoreApi.HxyStoreLifecycleGuardResp[] = []
+    if (lifecycleMode.value === 'single') {
+      const storeId = lifecycleForm.value.storeIds[0]
+      rows = [await StoreApi.getStoreLifecycleGuard(storeId, lifecycleStatus)]
+    } else {
+      rows = await StoreApi.getStoreLifecycleGuardBatch({
+        storeIds: lifecycleForm.value.storeIds,
+        lifecycleStatus,
+        reason: lifecycleForm.value.reason || undefined
+      })
+    }
+    const order = new Map<number, number>()
+    lifecycleForm.value.storeIds.forEach((id, index) => order.set(id, index))
+    lifecycleGuardRows.value = (rows || [])
+      .map((item) => ({
+        ...item,
+        warnings: item.warnings || [],
+        guardItems: item.guardItems || []
+      }))
+      .sort((a, b) => (order.get(a.storeId) || 0) - (order.get(b.storeId) || 0))
+    lifecycleGuardActiveNames.value = lifecycleGuardRows.value.map((item) => `${item.storeId}`)
+    return true
+  } finally {
+    lifecycleGuardLoading.value = false
+  }
+}
+
+const handleLifecyclePrecheck = async () => {
+  const ok = await runLifecyclePrecheck()
+  if (!ok) {
+    return
+  }
+  if (blockedStoreCount.value > 0) {
+    message.warning(`预检未通过：${blockedStoreCount.value} 家门店存在阻塞项`)
+    return
+  }
+  if (warningStoreCount.value > 0) {
+    message.warning(`预检完成：${warningStoreCount.value} 家门店存在告警，可确认后继续执行`)
+    return
+  }
+  message.success('预检通过，可执行生命周期变更')
+}
+
+const submitLifecycleChange = async () => {
+  const lifecycleStatus = lifecycleForm.value.lifecycleStatus
+  if (!lifecycleStatus) {
+    message.warning('请选择目标生命周期')
+    return
+  }
+  const checked = await runLifecyclePrecheck()
+  if (!checked) {
+    return
+  }
+  if (blockedStoreCount.value > 0) {
+    message.warning(`预检未通过：${blockedStoreCount.value} 家门店存在阻塞项`)
+    return
+  }
+  if (warningStoreCount.value > 0) {
+    try {
+      await message.confirm(`预检存在告警（${warningStoreCount.value} 家门店），确认继续执行生命周期变更吗？`)
+    } catch {
+      return
+    }
+  }
+  lifecycleSubmitting.value = true
+  try {
+    if (lifecycleMode.value === 'single') {
+      await StoreApi.updateStoreLifecycle({
+        id: lifecycleForm.value.storeIds[0],
+        lifecycleStatus,
+        reason: lifecycleForm.value.reason || undefined
+      })
+      message.success('生命周期变更成功')
+    } else {
+      await StoreApi.batchUpdateStoreLifecycle({
+        storeIds: lifecycleForm.value.storeIds,
+        lifecycleStatus,
+        reason: lifecycleForm.value.reason || undefined
+      })
+      message.success(`批量生命周期变更成功，影响 ${lifecycleForm.value.storeIds.length} 家门店`)
+    }
+    lifecycleDialogVisible.value = false
+    await getList()
+  } finally {
+    lifecycleSubmitting.value = false
+  }
 }
 
 const openForm = async (row?: StoreApi.HxyStore) => {
@@ -359,6 +650,7 @@ const lifecycleText = (status?: number) => {
   if (status === 10) return '筹备中'
   if (status === 20) return '试营业'
   if (status === 30) return '营业中'
+  if (status === 35) return '停业'
   if (status === 40) return '闭店'
   return '未设置'
 }
@@ -366,6 +658,7 @@ const lifecycleText = (status?: number) => {
 const lifecycleColor = (status?: number) => {
   if (status === 30) return 'success'
   if (status === 20) return 'warning'
+  if (status === 35) return 'danger'
   if (status === 40) return 'info'
   return ''
 }
@@ -439,6 +732,25 @@ const handleDelete = async (id: number) => {
     await getList()
   } catch {}
 }
+
+watch(
+  () => lifecycleForm.value.lifecycleStatus,
+  () => {
+    resetLifecycleGuardState()
+  }
+)
+
+watch(lifecycleDialogVisible, (visible) => {
+  if (visible) {
+    return
+  }
+  lifecycleForm.value = {
+    storeIds: [],
+    lifecycleStatus: undefined,
+    reason: ''
+  }
+  resetLifecycleGuardState()
+})
 
 onMounted(async () => {
   await loadOptions()

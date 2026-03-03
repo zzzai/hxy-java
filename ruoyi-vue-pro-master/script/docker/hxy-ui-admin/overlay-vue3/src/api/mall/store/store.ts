@@ -38,6 +38,23 @@ export interface HxyStoreLaunchReadiness {
   reasons: string[]
 }
 
+export interface HxyStoreLifecycleGuardItem {
+  guardKey: string
+  count: number
+  mode: string
+  blocked: boolean
+}
+
+export interface HxyStoreLifecycleGuardResp {
+  storeId: number
+  targetLifecycleStatus: number
+  blocked: boolean
+  blockedCode?: number
+  blockedMessage?: string
+  warnings: string[]
+  guardItems: HxyStoreLifecycleGuardItem[]
+}
+
 export const getStorePage = (params: PageParam) => {
   return request.get({ url: '/product/store/page', params })
 }
@@ -60,6 +77,21 @@ export const getStoreSimpleList = (keyword?: string) => {
 
 export const checkStoreLaunchReadiness = (id: number) => {
   return request.get<HxyStoreLaunchReadiness>({ url: `/product/store/check-launch-readiness?id=${id}` })
+}
+
+export const getStoreLifecycleGuard = (id: number, lifecycleStatus: number) => {
+  return request.get<HxyStoreLifecycleGuardResp>({
+    url: '/product/store/lifecycle-guard',
+    params: { id, lifecycleStatus }
+  })
+}
+
+export const getStoreLifecycleGuardBatch = (data: {
+  storeIds: number[]
+  lifecycleStatus: number
+  reason?: string
+}) => {
+  return request.post<HxyStoreLifecycleGuardResp[]>({ url: '/product/store/lifecycle-guard/batch', data })
 }
 
 export const updateStoreLifecycle = (data: { id: number; lifecycleStatus: number; reason?: string }) => {
