@@ -153,6 +153,24 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
+    void shouldUseBundleItemSnapshotJsonWhenEvaluatingRefundLimit() {
+        Long userId = 10301L;
+        TradeOrderItemDO orderItem = buildOrderItem(11301L, 5000, null);
+        when(tradeOrderQueryService.getOrderItem(userId, 11301L)).thenReturn(orderItem);
+        when(tradeServiceOrderMapper.selectByOrderItemId(orderItem.getId())).thenReturn(TradeServiceOrderDO.builder()
+                .id(7000101L)
+                .orderItemId(orderItem.getId())
+                .status(TradeServiceOrderStatusEnum.BOOKED.getStatus())
+                .orderItemSnapshotJson("{\"bundleItemSnapshotJson\":\"{\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"A\\\",\\\"refundCapPrice\\\":2600,\\\"fulfilled\\\":false}]}\"}")
+                .build());
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
+                service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 3000)));
+
+        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
     void shouldRejectRefundWhenServiceOrderFinishedWithoutSnapshot() {
         Long userId = 1031L;
         TradeOrderItemDO orderItem = buildOrderItem(1131L, 5000, null);

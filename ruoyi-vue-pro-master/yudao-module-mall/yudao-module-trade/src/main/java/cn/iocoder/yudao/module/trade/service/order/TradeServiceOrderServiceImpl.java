@@ -12,6 +12,8 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.enums.order.TradeServiceOrderStatusEnum;
+import cn.iocoder.yudao.module.trade.service.order.bo.TradeBundleItemSnapshotBO;
+import com.fasterxml.jackson.core.type.TypeReference;
 import cn.iocoder.yudao.module.trade.service.order.booking.TradeServiceBookingGateway;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -45,6 +47,7 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
     private static final int RETRY_LIMIT_DEFAULT = 200;
     private static final int RETRY_LIMIT_MAX = 1000;
     private static final String BUNDLE_REFUND_SNAPSHOT_KEY = "bundleRefundSnapshotJson";
+    private static final String BUNDLE_ITEM_SNAPSHOT_KEY = "bundleItemSnapshotJson";
 
     @Resource
     private TradeServiceOrderMapper tradeServiceOrderMapper;
@@ -248,20 +251,30 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
                 return orderItemSnapshotJson;
             }
             ObjectNode snapshotRoot = (ObjectNode) rootNode;
-            ObjectNode bundleSnapshot = parseBundleRefundSnapshot(snapshotRoot.get(BUNDLE_REFUND_SNAPSHOT_KEY));
-            if (bundleSnapshot == null) {
+            boolean changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_REFUND_SNAPSHOT_KEY);
+            // 新字段：显式固化套餐子项快照，避免后续只依赖 priceSource 原始 JSON
+            changed = freezeBundleSnapshotField(snapshotRoot, BUNDLE_ITEM_SNAPSHOT_KEY) || changed;
+            if (!changed) {
                 return orderItemSnapshotJson;
             }
-            bundleSnapshot.put("bundleRefundablePrice", 0);
-            freezeChildren(bundleSnapshot.get("bundleChildren"));
-            freezeChildren(bundleSnapshot.get("children"));
-            freezeChildren(bundleSnapshot.get("items"));
-            snapshotRoot.put(BUNDLE_REFUND_SNAPSHOT_KEY, JsonUtils.toJsonString(bundleSnapshot));
             return JsonUtils.toJsonString(snapshotRoot);
         } catch (RuntimeException ex) {
             log.warn("[freezeBundleRefundSnapshot][snapshot parse failed, keep original]", ex);
             return orderItemSnapshotJson;
         }
+    }
+
+    private boolean freezeBundleSnapshotField(ObjectNode snapshotRoot, String fieldKey) {
+        ObjectNode bundleSnapshot = parseBundleRefundSnapshot(snapshotRoot.get(fieldKey));
+        if (bundleSnapshot == null) {
+            return false;
+        }
+        bundleSnapshot.put("bundleRefundablePrice", 0);
+        freezeChildren(bundleSnapshot.get("bundleChildren"));
+        freezeChildren(bundleSnapshot.get("children"));
+        freezeChildren(bundleSnapshot.get("items"));
+        snapshotRoot.put(fieldKey, JsonUtils.toJsonString(bundleSnapshot));
+        return true;
     }
 
     private ObjectNode parseBundleRefundSnapshot(JsonNode bundleNode) {
@@ -318,6 +331,7 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
     }
 
     private String buildOrderItemSnapshot(TradeOrderItemDO item) {
+        String bundleItemSnapshotJson = extractBundleItemSnapshotJson(item.getPriceSourceSnapshotJson());
         ServiceOrderItemSnapshot snapshot = new ServiceOrderItemSnapshot();
         snapshot.setSnapshotVersion("v1");
         snapshot.setOrderItemId(item.getId());
@@ -337,7 +351,8 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         snapshot.setTemplateVersionId(item.getTemplateVersionId());
         snapshot.setTemplateSnapshotJson(item.getTemplateSnapshotJson());
         snapshot.setPriceSourceSnapshotJson(item.getPriceSourceSnapshotJson());
-        snapshot.setBundleRefundSnapshotJson(item.getPriceSourceSnapshotJson());
+        snapshot.setBundleItemSnapshotJson(ObjUtil.defaultIfNull(bundleItemSnapshotJson, item.getPriceSourceSnapshotJson()));
+        snapshot.setBundleRefundSnapshotJson(ObjUtil.defaultIfNull(bundleItemSnapshotJson, item.getPriceSourceSnapshotJson()));
         snapshot.setProperties(item.getProperties() == null ? null : item.getProperties().stream()
                 .map(property -> {
                     ServiceOrderItemSnapshot.PropertySnapshot x = new ServiceOrderItemSnapshot.PropertySnapshot();
@@ -348,6 +363,21 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
                     return x;
                 }).collect(Collectors.toList()));
         return JsonUtils.toJsonString(snapshot);
+    }
+
+    private String extractBundleItemSnapshotJson(String priceSourceSnapshotJson) {
+        if (StrUtil.isBlank(priceSourceSnapshotJson)) {
+            return null;
+        }
+        TradeBundleItemSnapshotBO bundleSnapshot = JsonUtils.parseObjectQuietly(priceSourceSnapshotJson,
+                new TypeReference<TradeBundleItemSnapshotBO>() {});
+        if (bundleSnapshot == null) {
+            return null;
+        }
+        if (bundleSnapshot.getBundleRefundablePrice() == null && CollUtil.isEmpty(bundleSnapshot.getBundleChildren())) {
+            return null;
+        }
+        return JsonUtils.toJsonString(bundleSnapshot);
     }
 
     @lombok.Data
@@ -370,6 +400,7 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         private Long templateVersionId;
         private String templateSnapshotJson;
         private String priceSourceSnapshotJson;
+        private String bundleItemSnapshotJson;
         private String bundleRefundSnapshotJson;
         private List<PropertySnapshot> properties;
 

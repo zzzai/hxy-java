@@ -261,6 +261,10 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         if (snapshotRoot == null || snapshotRoot.isMissingNode()) {
             return null;
         }
+        String bundleItemSnapshotJson = parseJsonNodeAsString(snapshotRoot.get("bundleItemSnapshotJson"));
+        if (StrUtil.isNotBlank(bundleItemSnapshotJson)) {
+            return new BundleRefundSnapshotPayload(bundleItemSnapshotJson, "bundleItemSnapshotJson");
+        }
         String bundleRefundSnapshotJson = parseJsonNodeAsString(snapshotRoot.get("bundleRefundSnapshotJson"));
         if (StrUtil.isNotBlank(bundleRefundSnapshotJson)) {
             return new BundleRefundSnapshotPayload(bundleRefundSnapshotJson, "bundleRefundSnapshotJson");

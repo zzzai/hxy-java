@@ -75,6 +75,7 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("{\"templateVersion\":\"v3\"}", snapshot.path("templateSnapshotJson").asText());
         assertEquals("{\"source\":\"STORE_SKU_OVERRIDE\"}", snapshot.path("priceSourceSnapshotJson").asText());
         assertEquals("{\"source\":\"STORE_SKU_OVERRIDE\"}", snapshot.path("bundleRefundSnapshotJson").asText());
+        assertEquals("{\"source\":\"STORE_SKU_OVERRIDE\"}", snapshot.path("bundleItemSnapshotJson").asText());
     }
 
     @Test
@@ -201,7 +202,7 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
         TradeServiceOrderDO existed = new TradeServiceOrderDO();
         existed.setId(41L);
         existed.setStatus(TradeServiceOrderStatusEnum.SERVING.getStatus());
-        existed.setOrderItemSnapshotJson("{\"snapshotVersion\":\"v1\",\"bundleRefundSnapshotJson\":\"{\\\"bundleRefundablePrice\\\":3000,\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"A\\\",\\\"refundCapPrice\\\":2000,\\\"fulfilled\\\":false,\\\"refundable\\\":true},{\\\"childCode\\\":\\\"B\\\",\\\"refundCapPrice\\\":1000,\\\"fulfilled\\\":false,\\\"refundable\\\":true}]}\"}");
+        existed.setOrderItemSnapshotJson("{\"snapshotVersion\":\"v1\",\"bundleRefundSnapshotJson\":\"{\\\"bundleRefundablePrice\\\":3000,\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"A\\\",\\\"refundCapPrice\\\":2000,\\\"fulfilled\\\":false,\\\"refundable\\\":true},{\\\"childCode\\\":\\\"B\\\",\\\"refundCapPrice\\\":1000,\\\"fulfilled\\\":false,\\\"refundable\\\":true}]}\",\"bundleItemSnapshotJson\":\"{\\\"bundleRefundablePrice\\\":3000,\\\"bundleChildren\\\":[{\\\"childCode\\\":\\\"A\\\",\\\"refundCapPrice\\\":2000,\\\"fulfilled\\\":false,\\\"refundable\\\":true},{\\\"childCode\\\":\\\"B\\\",\\\"refundCapPrice\\\":1000,\\\"fulfilled\\\":false,\\\"refundable\\\":true}]}\"}");
         when(tradeServiceOrderMapper.selectById(41L)).thenReturn(existed);
         when(tradeServiceOrderMapper.updateByIdAndStatus(eq(41L),
                 eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), any()))
@@ -214,15 +215,25 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
                 eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), captor.capture());
         JsonNode frozenSnapshotRoot = JsonUtils.parseTree(captor.getValue().getOrderItemSnapshotJson());
         JsonNode bundleSnapshot = JsonUtils.parseTree(frozenSnapshotRoot.path("bundleRefundSnapshotJson").asText());
+        JsonNode bundleItemSnapshot = JsonUtils.parseTree(frozenSnapshotRoot.path("bundleItemSnapshotJson").asText());
         assertEquals(0, bundleSnapshot.path("bundleRefundablePrice").asInt());
+        assertEquals(0, bundleItemSnapshot.path("bundleRefundablePrice").asInt());
         JsonNode firstChild = bundleSnapshot.path("bundleChildren").path(0);
         JsonNode secondChild = bundleSnapshot.path("bundleChildren").path(1);
+        JsonNode firstBundleItemChild = bundleItemSnapshot.path("bundleChildren").path(0);
+        JsonNode secondBundleItemChild = bundleItemSnapshot.path("bundleChildren").path(1);
         assertTrue(firstChild.path("fulfilled").asBoolean());
         assertTrue(secondChild.path("fulfilled").asBoolean());
+        assertTrue(firstBundleItemChild.path("fulfilled").asBoolean());
+        assertTrue(secondBundleItemChild.path("fulfilled").asBoolean());
         assertTrue(!firstChild.path("refundable").asBoolean());
         assertTrue(!secondChild.path("refundable").asBoolean());
+        assertTrue(!firstBundleItemChild.path("refundable").asBoolean());
+        assertTrue(!secondBundleItemChild.path("refundable").asBoolean());
         assertEquals(0, firstChild.path("refundCapPrice").asInt());
         assertEquals(0, secondChild.path("refundCapPrice").asInt());
+        assertEquals(0, firstBundleItemChild.path("refundCapPrice").asInt());
+        assertEquals(0, secondBundleItemChild.path("refundCapPrice").asInt());
     }
 
     @Test

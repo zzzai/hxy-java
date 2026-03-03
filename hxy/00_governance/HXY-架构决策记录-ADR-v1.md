@@ -327,3 +327,12 @@
 - 备选方案：继续保留代码映射兜底，避免 DB 空配置时行为变化。
 - 否决原因：会形成“代码规则覆盖配置规则”的隐式耦合，排障口径不透明，难以满足运营可控性要求。
 - 回滚条件：若应急阶段需要旧行为，可通过 SQL 补齐路由种子恢复原路径，不建议重新引入代码映射。
+
+## ADR-038：套餐售后快照新增 `bundleItemSnapshotJson`，退款计算优先读取显式子项快照
+
+- 背景：历史实现主要依赖 `priceSourceSnapshotJson` 反序列化推导套餐子项可退信息，字段结构受价格计算实现影响，售后侧解析耦合较高。
+- 决策：服务履约单落单快照新增 `bundleItemSnapshotJson`（仍保留 `bundleRefundSnapshotJson` 兼容）；售后退款上限解析顺序固定为 `bundleItemSnapshotJson -> bundleRefundSnapshotJson -> priceSourceSnapshotJson`；服务完成时同步冻结两个快照字段（`bundleRefundablePrice=0` + 子项 `fulfilled/refundable/refundCapPrice`）。
+- 影响范围：服务履约单快照结构、售后退款上限计算、套餐子项履约/退款审计一致性。
+- 备选方案：继续只使用 `priceSourceSnapshotJson` 作为唯一来源。
+- 否决原因：价格来源 JSON 语义过宽，长期维护中易被非套餐字段污染，影响售后口径稳定性。
+- 回滚条件：若出现兼容性问题，可保持读取顺序不变并只写旧字段，待存量快照回填后再恢复新字段主路径。
