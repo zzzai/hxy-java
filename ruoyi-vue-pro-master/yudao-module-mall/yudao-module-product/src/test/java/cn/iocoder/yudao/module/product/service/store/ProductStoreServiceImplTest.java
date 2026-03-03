@@ -264,6 +264,23 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
+    void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasFailedStockFlow() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1009L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(1009L)).thenReturn(before);
+        when(storeSpuMapper.selectCountByStoreId(1009L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1009L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1009L)).thenReturn(0L);
+        doAnswer(invocation -> {
+            List<Integer> statuses = invocation.getArgument(1);
+            return statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()) ? 1L : 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(eq(1009L), any());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.updateStoreLifecycle(1009L, 35, "临时停业"));
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), ex.getCode());
+    }
+
+    @Test
     void getLaunchReadiness_shouldReturnNotReadyWhenMissingRequiredFields() {
         ProductStoreDO store = ProductStoreDO.builder()
                 .id(1001L)
