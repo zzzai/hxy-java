@@ -70,6 +70,9 @@ public interface ErrorCodeConstants {
     ErrorCode AFTER_SALE_CREATE_FAIL_ORDER_EXPIRED = new ErrorCode(1_011_000_118, "订单已超过售后申请期限，无法申请售后");
     ErrorCode AFTER_SALE_REVIEW_TICKET_NOT_FOUND = new ErrorCode(1_011_000_119, "人工复核工单不存在");
     ErrorCode AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING = new ErrorCode(1_011_000_120, "人工复核工单状态不是待处理");
+    ErrorCode AFTER_SALE_REVIEW_TICKET_ROUTE_NOT_FOUND = new ErrorCode(1_011_000_121, "人工复核工单路由规则不存在");
+    ErrorCode AFTER_SALE_REVIEW_TICKET_ROUTE_SCOPE_INVALID = new ErrorCode(1_011_000_122, "人工复核工单路由规则作用域非法");
+    ErrorCode AFTER_SALE_REVIEW_TICKET_ROUTE_KEY_CONFLICT = new ErrorCode(1_011_000_123, "人工复核工单路由规则唯一键冲突");
 
     // ========== Cart 模块 1-011-002-000 ==========
     ErrorCode CARD_ITEM_NOT_FOUND = new ErrorCode(1_011_002_000, "购物车项不存在");

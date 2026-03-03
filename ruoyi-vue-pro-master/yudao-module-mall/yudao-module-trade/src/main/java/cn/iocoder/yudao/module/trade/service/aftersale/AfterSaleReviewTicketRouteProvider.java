@@ -15,4 +15,9 @@ public interface AfterSaleReviewTicketRouteProvider {
      */
     ReviewTicketRoute resolve(Integer ticketType, String preferredSeverity, String ruleCode);
 
+    /**
+     * 使本地缓存失效，供配置变更后主动刷新
+     */
+    void invalidateCache();
+
 }
