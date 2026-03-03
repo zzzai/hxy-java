@@ -692,6 +692,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         }
         if (storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, Arrays.asList(
                 ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus(),
+                ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
                 ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())) > 0) {
             throw exception(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW);
         }

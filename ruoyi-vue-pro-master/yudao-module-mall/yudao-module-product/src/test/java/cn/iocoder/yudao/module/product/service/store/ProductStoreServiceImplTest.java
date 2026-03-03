@@ -17,6 +17,7 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagGroupMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagRelMapper;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -242,6 +243,23 @@ class ProductStoreServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreService.updateStoreLifecycle(1007L, 40, "闭店"));
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), ex.getCode());
+    }
+
+    @Test
+    void updateStoreLifecycle_shouldThrowWhenClosedAndHasFailedStockFlow() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1008L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1008L)).thenReturn(before);
+        when(storeSpuMapper.selectCountByStoreId(1008L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1008L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1008L)).thenReturn(0L);
+        doAnswer(invocation -> {
+            List<Integer> statuses = invocation.getArgument(1);
+            return statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()) ? 1L : 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(eq(1008L), any());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.updateStoreLifecycle(1008L, 40, "闭店"));
         assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), ex.getCode());
     }
 
