@@ -5,6 +5,7 @@ import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSa
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRoutePageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteUpdateReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketRouteDO;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketRouteResolveRespBO;
 
 import javax.validation.Valid;
 import java.util.List;
@@ -25,5 +26,11 @@ public interface AfterSaleReviewTicketRouteService {
     PageResult<AfterSaleReviewTicketRouteDO> getRoutePage(AfterSaleReviewTicketRoutePageReqVO pageReqVO);
 
     List<AfterSaleReviewTicketRouteDO> getEnabledRouteList();
+
+    int batchUpdateRouteEnabled(List<Long> ids, Boolean enabled);
+
+    int batchDeleteRoute(List<Long> ids);
+
+    AfterSaleReviewTicketRouteResolveRespBO resolveRoute(Integer ticketType, String severity, String ruleCode);
 
 }

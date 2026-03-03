@@ -3,12 +3,17 @@ package cn.iocoder.yudao.module.trade.controller.admin.aftersale;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteBatchDeleteReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteBatchEnabledReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteCreateReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRoutePageReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteResolveReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteResolveRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSaleReviewTicketRouteUpdateReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketRouteDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketRouteService;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketRouteResolveRespBO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,6 +60,20 @@ public class AfterSaleReviewTicketRouteController {
         return success(true);
     }
 
+    @PostMapping("/batch-delete")
+    @Operation(summary = "批量删除工单 SLA 路由规则")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:refund')")
+    public CommonResult<Integer> batchDeleteRoute(@Valid @RequestBody AfterSaleReviewTicketRouteBatchDeleteReqVO reqVO) {
+        return success(routeService.batchDeleteRoute(reqVO.getIds()));
+    }
+
+    @PostMapping("/batch-update-enabled")
+    @Operation(summary = "批量启停工单 SLA 路由规则")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:refund')")
+    public CommonResult<Integer> batchUpdateEnabled(@Valid @RequestBody AfterSaleReviewTicketRouteBatchEnabledReqVO reqVO) {
+        return success(routeService.batchUpdateRouteEnabled(reqVO.getIds(), reqVO.getEnabled()));
+    }
+
     @GetMapping("/get")
     @Operation(summary = "获得工单 SLA 路由规则详情")
     @Parameter(name = "id", description = "规则编号", required = true, example = "1")
@@ -79,6 +98,15 @@ public class AfterSaleReviewTicketRouteController {
     @PreAuthorize("@ss.hasPermission('trade:after-sale:query')")
     public CommonResult<List<AfterSaleReviewTicketRouteRespVO>> getEnabledRouteList() {
         return success(BeanUtils.toBean(routeService.getEnabledRouteList(), AfterSaleReviewTicketRouteRespVO.class));
+    }
+
+    @GetMapping("/resolve")
+    @Operation(summary = "预览工单 SLA 路由命中结果")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:query')")
+    public CommonResult<AfterSaleReviewTicketRouteResolveRespVO> resolveRoute(@Valid AfterSaleReviewTicketRouteResolveReqVO reqVO) {
+        AfterSaleReviewTicketRouteResolveRespBO resolved = routeService.resolveRoute(
+                reqVO.getTicketType(), reqVO.getSeverity(), reqVO.getRuleCode());
+        return success(BeanUtils.toBean(resolved, AfterSaleReviewTicketRouteResolveRespVO.class));
     }
 
 }

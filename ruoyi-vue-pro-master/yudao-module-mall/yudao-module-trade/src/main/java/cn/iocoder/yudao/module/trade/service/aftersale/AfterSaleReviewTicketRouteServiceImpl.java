@@ -9,10 +9,13 @@ import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.route.AfterSa
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketRouteDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketRouteMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketRouteScopeEnum;
+import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketRouteResolveRespBO;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -29,6 +32,10 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_
 public class AfterSaleReviewTicketRouteServiceImpl implements AfterSaleReviewTicketRouteService {
 
     private static final String DEFAULT_SEVERITY = "P1";
+    private static final String DECISION_ORDER = "RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT";
+    private static final String GLOBAL_DEFAULT_ESCALATE_TO = "HQ_AFTER_SALE";
+    private static final Integer GLOBAL_DEFAULT_SLA_MINUTES = 120;
+    private static final String SCOPE_GLOBAL_DEFAULT_FALLBACK = "GLOBAL_DEFAULT_FALLBACK";
 
     @Resource
     private AfterSaleReviewTicketRouteMapper routeMapper;
@@ -74,6 +81,84 @@ public class AfterSaleReviewTicketRouteServiceImpl implements AfterSaleReviewTic
     @Override
     public List<AfterSaleReviewTicketRouteDO> getEnabledRouteList() {
         return routeMapper.selectListByEnabled(Boolean.TRUE);
+    }
+
+    @Override
+    public int batchUpdateRouteEnabled(List<Long> ids, Boolean enabled) {
+        List<Long> normalizedIds = normalizeIds(ids);
+        if (normalizedIds.isEmpty() || enabled == null) {
+            return 0;
+        }
+        int successCount = 0;
+        for (Long id : normalizedIds) {
+            AfterSaleReviewTicketRouteDO exists = routeMapper.selectById(id);
+            if (exists == null) {
+                continue;
+            }
+            AfterSaleReviewTicketRouteDO update = new AfterSaleReviewTicketRouteDO();
+            update.setId(id);
+            update.setEnabled(enabled);
+            successCount += routeMapper.updateById(update);
+        }
+        if (successCount > 0) {
+            routeProvider.invalidateCache();
+        }
+        return successCount;
+    }
+
+    @Override
+    public int batchDeleteRoute(List<Long> ids) {
+        List<Long> normalizedIds = normalizeIds(ids);
+        if (normalizedIds.isEmpty()) {
+            return 0;
+        }
+        int successCount = 0;
+        for (Long id : normalizedIds) {
+            successCount += routeMapper.deleteById(id);
+        }
+        if (successCount > 0) {
+            routeProvider.invalidateCache();
+        }
+        return successCount;
+    }
+
+    @Override
+    public AfterSaleReviewTicketRouteResolveRespBO resolveRoute(Integer ticketType, String severity, String ruleCode) {
+        Integer safeTicketType = ObjUtil.defaultIfNull(ticketType, 0);
+        String safeSeverity = normalizeUpper(severity);
+        String safeRuleCode = normalizeUpper(ruleCode);
+        List<AfterSaleReviewTicketRouteDO> enabledRoutes = routeMapper.selectListByEnabled(Boolean.TRUE);
+
+        // 决策顺序：RULE -> TYPE_SEVERITY -> TYPE_DEFAULT -> GLOBAL_DEFAULT
+        AfterSaleReviewTicketRouteDO matched = findByRule(enabledRoutes, safeRuleCode);
+        if (matched == null) {
+            matched = findByTypeSeverity(enabledRoutes, safeTicketType, safeSeverity);
+        }
+        if (matched == null) {
+            matched = findByTypeDefault(enabledRoutes, safeTicketType);
+        }
+        if (matched == null) {
+            matched = findByGlobalDefault(enabledRoutes);
+        }
+        if (matched == null) {
+            return new AfterSaleReviewTicketRouteResolveRespBO()
+                    .setMatchedScope(SCOPE_GLOBAL_DEFAULT_FALLBACK)
+                    .setSeverity(DEFAULT_SEVERITY)
+                    .setEscalateTo(GLOBAL_DEFAULT_ESCALATE_TO)
+                    .setSlaMinutes(GLOBAL_DEFAULT_SLA_MINUTES)
+                    .setSort(0)
+                    .setDecisionOrder(DECISION_ORDER);
+        }
+        return new AfterSaleReviewTicketRouteResolveRespBO()
+                .setMatchedScope(matched.getScope())
+                .setRouteId(matched.getId())
+                .setRuleCode(matched.getRuleCode())
+                .setTicketType(matched.getTicketType())
+                .setSeverity(matched.getSeverity())
+                .setEscalateTo(matched.getEscalateTo())
+                .setSlaMinutes(matched.getSlaMinutes())
+                .setSort(matched.getSort())
+                .setDecisionOrder(DECISION_ORDER);
     }
 
     private void validateRouteExists(Long id) {
@@ -157,6 +242,79 @@ public class AfterSaleReviewTicketRouteServiceImpl implements AfterSaleReviewTic
 
     private String normalizeUpper(String value) {
         return StrUtil.blankToDefault(StrUtil.trim(value), "").toUpperCase(Locale.ROOT);
+    }
+
+    private List<Long> normalizeIds(List<Long> ids) {
+        LinkedHashSet<Long> unique = new LinkedHashSet<>();
+        if (ids != null) {
+            for (Long id : ids) {
+                if (id != null && id > 0) {
+                    unique.add(id);
+                }
+            }
+        }
+        return new ArrayList<>(unique);
+    }
+
+    private AfterSaleReviewTicketRouteDO findByRule(List<AfterSaleReviewTicketRouteDO> routes, String ruleCode) {
+        if (StrUtil.isBlank(ruleCode)) {
+            return null;
+        }
+        for (AfterSaleReviewTicketRouteDO route : routes) {
+            if (!Boolean.TRUE.equals(route.getEnabled())) {
+                continue;
+            }
+            if (StrUtil.equals(normalizeUpper(route.getScope()), AfterSaleReviewTicketRouteScopeEnum.RULE.getScope())
+                    && StrUtil.equals(normalizeUpper(route.getRuleCode()), ruleCode)) {
+                return route;
+            }
+        }
+        return null;
+    }
+
+    private AfterSaleReviewTicketRouteDO findByTypeSeverity(List<AfterSaleReviewTicketRouteDO> routes, Integer ticketType, String severity) {
+        if (ticketType == null || ticketType <= 0 || StrUtil.isBlank(severity)) {
+            return null;
+        }
+        for (AfterSaleReviewTicketRouteDO route : routes) {
+            if (!Boolean.TRUE.equals(route.getEnabled())) {
+                continue;
+            }
+            if (StrUtil.equals(normalizeUpper(route.getScope()), AfterSaleReviewTicketRouteScopeEnum.TYPE_SEVERITY.getScope())
+                    && ObjUtil.equal(route.getTicketType(), ticketType)
+                    && StrUtil.equals(normalizeUpper(route.getSeverity()), severity)) {
+                return route;
+            }
+        }
+        return null;
+    }
+
+    private AfterSaleReviewTicketRouteDO findByTypeDefault(List<AfterSaleReviewTicketRouteDO> routes, Integer ticketType) {
+        if (ticketType == null || ticketType <= 0) {
+            return null;
+        }
+        for (AfterSaleReviewTicketRouteDO route : routes) {
+            if (!Boolean.TRUE.equals(route.getEnabled())) {
+                continue;
+            }
+            if (StrUtil.equals(normalizeUpper(route.getScope()), AfterSaleReviewTicketRouteScopeEnum.TYPE_DEFAULT.getScope())
+                    && ObjUtil.equal(route.getTicketType(), ticketType)) {
+                return route;
+            }
+        }
+        return null;
+    }
+
+    private AfterSaleReviewTicketRouteDO findByGlobalDefault(List<AfterSaleReviewTicketRouteDO> routes) {
+        for (AfterSaleReviewTicketRouteDO route : routes) {
+            if (!Boolean.TRUE.equals(route.getEnabled())) {
+                continue;
+            }
+            if (StrUtil.equals(normalizeUpper(route.getScope()), AfterSaleReviewTicketRouteScopeEnum.GLOBAL_DEFAULT.getScope())) {
+                return route;
+            }
+        }
+        return null;
     }
 
 }
