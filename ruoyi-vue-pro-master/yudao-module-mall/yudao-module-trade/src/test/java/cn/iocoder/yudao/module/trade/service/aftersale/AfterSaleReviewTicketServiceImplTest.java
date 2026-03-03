@@ -11,6 +11,7 @@ import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatus
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -244,6 +246,40 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("MANUAL_RESOLVE", captor.getValue().getLastActionCode());
         assertEquals("OPS#4", captor.getValue().getLastActionBizNo());
         assertNotNull(captor.getValue().getLastActionTime());
+    }
+
+    @Test
+    void shouldBatchResolveReviewTicketsWithSummary() {
+        AfterSaleReviewTicketDO pending1 = new AfterSaleReviewTicketDO();
+        pending1.setId(21L);
+        pending1.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        AfterSaleReviewTicketDO resolved = new AfterSaleReviewTicketDO();
+        resolved.setId(23L);
+        resolved.setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus());
+        AfterSaleReviewTicketDO pendingRace = new AfterSaleReviewTicketDO();
+        pendingRace.setId(24L);
+        pendingRace.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+
+        when(afterSaleReviewTicketMapper.selectById(21L)).thenReturn(pending1);
+        when(afterSaleReviewTicketMapper.selectById(22L)).thenReturn(null);
+        when(afterSaleReviewTicketMapper.selectById(23L)).thenReturn(resolved);
+        when(afterSaleReviewTicketMapper.selectById(24L)).thenReturn(pendingRace);
+        when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(21L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any())).thenReturn(1);
+        when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(24L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any())).thenReturn(0);
+
+        AfterSaleReviewTicketBatchResolveResult result = service.batchResolveManualReviewTicketByIds(
+                Arrays.asList(21L, 22L, 23L, 24L, 21L, null), 99L, 1,
+                " MANUAL_RESOLVE ", " OPS-BATCH-20260303 ", "batch-close");
+
+        assertEquals(4, result.getTotalCount());
+        assertEquals(1, result.getSuccessCount());
+        assertEquals(1, result.getSkippedNotFoundCount());
+        assertEquals(2, result.getSkippedNotPendingCount());
+        assertEquals(Collections.singletonList(21L), result.getSuccessIds());
+        assertEquals(Collections.singletonList(22L), result.getSkippedNotFoundIds());
+        assertEquals(Arrays.asList(23L, 24L), result.getSkippedNotPendingIds());
     }
 
     @Test

@@ -6,6 +6,8 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.LoginUser;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketCreateReqVO;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketRespVO;
@@ -13,6 +15,7 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTic
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketService;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -22,6 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
@@ -116,6 +120,41 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         verify(afterSaleReviewTicketService).resolveManualReviewTicketById(11L, 88L,
                 UserTypeEnum.ADMIN.getValue(), "MANUAL_RESOLVE",
                 "OPS-202603020001", "manual-reviewed");
+    }
+
+    @Test
+    void shouldBatchResolveReviewTicket() {
+        mockLoginUser(88L);
+        AfterSaleReviewTicketBatchResolveReqVO reqVO = new AfterSaleReviewTicketBatchResolveReqVO();
+        reqVO.setIds(List.of(11L, 12L, 13L));
+        reqVO.setResolveActionCode("MANUAL_RESOLVE");
+        reqVO.setResolveBizNo("OPS-BATCH-20260303");
+        reqVO.setResolveRemark("batch-close");
+
+        when(afterSaleReviewTicketService.batchResolveManualReviewTicketByIds(
+                List.of(11L, 12L, 13L), 88L, UserTypeEnum.ADMIN.getValue(),
+                "MANUAL_RESOLVE", "OPS-BATCH-20260303", "batch-close"))
+                .thenReturn(AfterSaleReviewTicketBatchResolveResult.builder()
+                        .totalCount(3)
+                        .successCount(2)
+                        .skippedNotFoundCount(1)
+                        .skippedNotPendingCount(0)
+                        .successIds(List.of(11L, 12L))
+                        .skippedNotFoundIds(List.of(13L))
+                        .skippedNotPendingIds(List.of())
+                        .build());
+
+        CommonResult<AfterSaleReviewTicketBatchResolveRespVO> result = controller.batchResolveReviewTicket(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(3, result.getData().getTotalCount());
+        assertEquals(2, result.getData().getSuccessCount());
+        assertEquals(1, result.getData().getSkippedNotFoundCount());
+        assertEquals(0, result.getData().getSkippedNotPendingCount());
+        verify(afterSaleReviewTicketService).batchResolveManualReviewTicketByIds(
+                List.of(11L, 12L, 13L), 88L, UserTypeEnum.ADMIN.getValue(),
+                "MANUAL_RESOLVE", "OPS-BATCH-20260303", "batch-close");
     }
 
     @Test

@@ -11,10 +11,13 @@ import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatus
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -190,6 +193,61 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (updateCount == 0) {
             throw exception(AFTER_SALE_REVIEW_TICKET_STATUS_NOT_PENDING);
         }
+    }
+
+    @Override
+    public AfterSaleReviewTicketBatchResolveResult batchResolveManualReviewTicketByIds(List<Long> ids, Long resolverId,
+                                                                                        Integer resolverType,
+                                                                                        String resolveActionCode,
+                                                                                        String resolveBizNo,
+                                                                                        String resolveRemark) {
+        if (ids == null || ids.isEmpty()) {
+            return AfterSaleReviewTicketBatchResolveResult.empty();
+        }
+        LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>();
+        for (Long id : ids) {
+            if (id != null && id > 0) {
+                uniqueIds.add(id);
+            }
+        }
+        if (uniqueIds.isEmpty()) {
+            return AfterSaleReviewTicketBatchResolveResult.empty();
+        }
+        String normalizedActionCode = normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_MANUAL);
+        String normalizedBizNo = normalizeResolveBizNo(resolveBizNo, null);
+        List<Long> successIds = new ArrayList<>();
+        List<Long> skippedNotFoundIds = new ArrayList<>();
+        List<Long> skippedNotPendingIds = new ArrayList<>();
+        for (Long id : uniqueIds) {
+            AfterSaleReviewTicketDO ticket = afterSaleReviewTicketMapper.selectById(id);
+            if (ticket == null) {
+                skippedNotFoundIds.add(id);
+                continue;
+            }
+            if (!AfterSaleReviewTicketStatusEnum.isPending(ticket.getStatus())) {
+                skippedNotPendingIds.add(id);
+                continue;
+            }
+            int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(id,
+                    AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                    buildResolvedTicketUpdate(resolverId, resolverType, normalizedActionCode,
+                            StrUtil.blankToDefault(normalizedBizNo, String.valueOf(id)),
+                            resolveRemark));
+            if (updateCount > 0) {
+                successIds.add(id);
+            } else {
+                skippedNotPendingIds.add(id);
+            }
+        }
+        return AfterSaleReviewTicketBatchResolveResult.builder()
+                .totalCount(uniqueIds.size())
+                .successCount(successIds.size())
+                .skippedNotFoundCount(skippedNotFoundIds.size())
+                .skippedNotPendingCount(skippedNotPendingIds.size())
+                .successIds(successIds)
+                .skippedNotFoundIds(skippedNotFoundIds)
+                .skippedNotPendingIds(skippedNotPendingIds)
+                .build();
     }
 
     private AfterSaleReviewTicketDO buildResolvedTicketUpdate(Long resolverId, Integer resolverType,

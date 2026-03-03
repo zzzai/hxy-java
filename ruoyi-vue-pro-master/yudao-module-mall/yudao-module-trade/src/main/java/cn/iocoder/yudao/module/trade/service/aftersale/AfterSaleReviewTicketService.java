@@ -6,6 +6,9 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+
+import java.util.List;
 
 /**
  * 售后人工复核工单服务
@@ -71,6 +74,23 @@ public interface AfterSaleReviewTicketService {
      */
     void resolveManualReviewTicketById(Long id, Long resolverId, Integer resolverType,
                                        String resolveActionCode, String resolveBizNo, String resolveRemark);
+
+    /**
+     * 批量按工单 ID 收口
+     *
+     * @param ids               工单 ID 列表（允许重复，服务端去重）
+     * @param resolverId        收口人
+     * @param resolverType      收口人类型
+     * @param resolveActionCode 收口动作编码
+     * @param resolveBizNo      收口来源业务号（为空则回退工单 ID）
+     * @param resolveRemark     收口说明
+     * @return 批量收口汇总
+     */
+    AfterSaleReviewTicketBatchResolveResult batchResolveManualReviewTicketByIds(List<Long> ids, Long resolverId,
+                                                                                 Integer resolverType,
+                                                                                 String resolveActionCode,
+                                                                                 String resolveBizNo,
+                                                                                 String resolveRemark);
 
     /**
      * 升级逾期未处理工单

@@ -5,6 +5,8 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketCreateReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketRespVO;
@@ -12,6 +14,7 @@ import cn.iocoder.yudao.module.trade.convert.aftersale.AfterSaleReviewTicketConv
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketService;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -68,6 +71,17 @@ public class AfterSaleReviewTicketController {
                 UserTypeEnum.ADMIN.getValue(), reqVO.getResolveActionCode(),
                 reqVO.getResolveBizNo(), reqVO.getResolveRemark());
         return success(true);
+    }
+
+    @PostMapping("/batch-resolve")
+    @Operation(summary = "人工复核工单批量收口")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:refund')")
+    public CommonResult<AfterSaleReviewTicketBatchResolveRespVO> batchResolveReviewTicket(
+            @Valid @RequestBody AfterSaleReviewTicketBatchResolveReqVO reqVO) {
+        AfterSaleReviewTicketBatchResolveResult result = afterSaleReviewTicketService.batchResolveManualReviewTicketByIds(
+                reqVO.getIds(), getLoginUserId(), UserTypeEnum.ADMIN.getValue(),
+                reqVO.getResolveActionCode(), reqVO.getResolveBizNo(), reqVO.getResolveRemark());
+        return success(BeanUtils.toBean(result, AfterSaleReviewTicketBatchResolveRespVO.class));
     }
 
 }
