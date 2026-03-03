@@ -58,11 +58,13 @@ import cn.iocoder.yudao.module.trade.service.delivery.DeliveryExpressService;
 import cn.iocoder.yudao.module.trade.service.delivery.DeliveryPickUpStoreService;
 import cn.iocoder.yudao.module.trade.service.message.TradeMessageService;
 import cn.iocoder.yudao.module.trade.service.message.bo.TradeOrderMessageWhenDeliveryOrderReqBO;
+import cn.iocoder.yudao.module.trade.service.order.bo.TradeBundleItemSnapshotBO;
 import cn.iocoder.yudao.module.trade.service.order.handler.TradeOrderHandler;
 import cn.iocoder.yudao.module.trade.service.price.TradePriceService;
 import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateReqBO;
 import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateRespBO;
 import cn.iocoder.yudao.module.trade.service.price.calculator.TradePriceCalculatorHelper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -234,7 +236,25 @@ public class TradeOrderUpdateServiceImpl implements TradeOrderUpdateService {
 
     private List<TradeOrderItemDO> buildTradeOrderItems(TradeOrderDO tradeOrderDO,
                                                         TradePriceCalculateRespBO calculateRespBO) {
-        return TradeOrderConvert.INSTANCE.convertList(tradeOrderDO, calculateRespBO);
+        List<TradeOrderItemDO> orderItems = TradeOrderConvert.INSTANCE.convertList(tradeOrderDO, calculateRespBO);
+        orderItems.forEach(item -> item.setBundleItemSnapshotJson(
+                extractBundleItemSnapshotJson(item.getPriceSourceSnapshotJson())));
+        return orderItems;
+    }
+
+    private String extractBundleItemSnapshotJson(String priceSourceSnapshotJson) {
+        if (StrUtil.isBlank(priceSourceSnapshotJson)) {
+            return null;
+        }
+        TradeBundleItemSnapshotBO bundleSnapshot = JsonUtils.parseObjectQuietly(priceSourceSnapshotJson,
+                new TypeReference<TradeBundleItemSnapshotBO>() {});
+        if (bundleSnapshot == null) {
+            return null;
+        }
+        if (bundleSnapshot.getBundleRefundablePrice() == null && CollUtil.isEmpty(bundleSnapshot.getBundleChildren())) {
+            return null;
+        }
+        return JsonUtils.toJsonString(bundleSnapshot);
     }
 
     /**

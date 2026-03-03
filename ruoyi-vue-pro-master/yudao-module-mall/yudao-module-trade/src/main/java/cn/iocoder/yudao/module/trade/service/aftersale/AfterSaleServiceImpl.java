@@ -208,12 +208,15 @@ public class AfterSaleServiceImpl implements AfterSaleService {
             return new RefundLimitDecision(upperBound, "SERVICE_ORDER_SNAPSHOT", JsonUtils.toJsonString(detail));
         }
 
-        BundleRefundComputation orderItemComputation = resolveBundleRefundableDetail(orderItem.getPriceSourceSnapshotJson());
+        BundleRefundSnapshotPayload orderItemSnapshotPayload = extractOrderItemBundleSnapshot(orderItem);
+        BundleRefundComputation orderItemComputation = orderItemSnapshotPayload == null
+                ? null
+                : resolveBundleRefundableDetail(orderItemSnapshotPayload.getSnapshotJson());
         Integer orderItemCapPrice = orderItemComputation == null ? null : orderItemComputation.getRefundablePrice();
         if (orderItemCapPrice != null) {
             int upperBound = Math.min(payPrice, orderItemCapPrice);
             detail.put("bundleRefundablePrice", orderItemCapPrice);
-            detail.put("snapshotField", "priceSourceSnapshotJson");
+            detail.put("snapshotField", orderItemSnapshotPayload.getSnapshotField());
             if (orderItemComputation.getHasChildComputation()) {
                 detail.put("bundleChildren", orderItemComputation.getBundleChildren());
             }
@@ -223,6 +226,19 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
         detail.put("upperBound", payPrice);
         return new RefundLimitDecision(payPrice, "ORDER_ITEM_PAY_PRICE", JsonUtils.toJsonString(detail));
+    }
+
+    private BundleRefundSnapshotPayload extractOrderItemBundleSnapshot(TradeOrderItemDO orderItem) {
+        if (orderItem == null) {
+            return null;
+        }
+        if (StrUtil.isNotBlank(orderItem.getBundleItemSnapshotJson())) {
+            return new BundleRefundSnapshotPayload(orderItem.getBundleItemSnapshotJson(), "bundleItemSnapshotJson");
+        }
+        if (StrUtil.isNotBlank(orderItem.getPriceSourceSnapshotJson())) {
+            return new BundleRefundSnapshotPayload(orderItem.getPriceSourceSnapshotJson(), "priceSourceSnapshotJson");
+        }
+        return null;
     }
 
     private Integer resolveServiceOrderSnapshotCap(TradeServiceOrderDO serviceOrder, Map<String, Object> detail) {

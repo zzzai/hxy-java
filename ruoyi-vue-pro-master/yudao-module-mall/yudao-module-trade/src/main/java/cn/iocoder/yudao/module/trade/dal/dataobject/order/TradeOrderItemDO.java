@@ -108,6 +108,12 @@ public class TradeOrderItemDO extends BaseDO {
      */
     private String priceSourceSnapshotJson;
     /**
+     * 套餐子项快照（JSON）
+     *
+     * 用于售后计算可退金额时优先读取，避免依赖价格来源原始结构
+     */
+    private String bundleItemSnapshotJson;
+    /**
      * 购买数量
      */
     private Integer count;

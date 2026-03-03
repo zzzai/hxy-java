@@ -481,7 +481,8 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
     }
 
     private String buildOrderItemSnapshot(TradeOrderItemDO item) {
-        String bundleItemSnapshotJson = extractBundleItemSnapshotJson(item.getPriceSourceSnapshotJson());
+        String bundleItemSnapshotJson = ObjUtil.defaultIfNull(item.getBundleItemSnapshotJson(),
+                extractBundleItemSnapshotJson(item.getPriceSourceSnapshotJson()));
         ServiceOrderItemSnapshot snapshot = new ServiceOrderItemSnapshot();
         snapshot.setSnapshotVersion("v1");
         snapshot.setOrderItemId(item.getId());

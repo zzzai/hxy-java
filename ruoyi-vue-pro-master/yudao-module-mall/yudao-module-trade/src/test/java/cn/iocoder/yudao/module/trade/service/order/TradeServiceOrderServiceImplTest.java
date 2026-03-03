@@ -79,6 +79,27 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void shouldPreferOrderItemBundleSnapshotWhenBuildServiceSnapshot() {
+        TradeOrderDO order = buildOrder();
+        TradeOrderItemDO serviceItem = buildItem(13L, ProductTypeEnum.SERVICE.getType());
+        serviceItem.setSpuName("90分钟理疗");
+        serviceItem.setPriceSourceSnapshotJson("{\"source\":\"STORE_SKU_OVERRIDE\"}");
+        serviceItem.setBundleItemSnapshotJson(
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":1800,\"fulfilled\":false}]}");
+        when(tradeServiceOrderMapper.selectByOrderItemId(13L)).thenReturn(null);
+
+        int count = service.createByPaidOrder(order, Collections.singletonList(serviceItem));
+
+        assertEquals(1, count);
+        ArgumentCaptor<TradeServiceOrderDO> captor = ArgumentCaptor.forClass(TradeServiceOrderDO.class);
+        verify(tradeServiceOrderMapper).insert(captor.capture());
+        JsonNode snapshot = JsonUtils.parseTree(captor.getValue().getOrderItemSnapshotJson());
+        assertEquals("{\"source\":\"STORE_SKU_OVERRIDE\"}", snapshot.path("priceSourceSnapshotJson").asText());
+        assertEquals(serviceItem.getBundleItemSnapshotJson(), snapshot.path("bundleItemSnapshotJson").asText());
+        assertEquals(serviceItem.getBundleItemSnapshotJson(), snapshot.path("bundleRefundSnapshotJson").asText());
+    }
+
+    @Test
     void shouldGetServiceOrderPage() {
         TradeServiceOrderPageReqVO reqVO = new TradeServiceOrderPageReqVO();
         reqVO.setPageNo(1);

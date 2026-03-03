@@ -134,6 +134,21 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
     }
 
     @Test
+    void shouldPreferOrderItemBundleSnapshotWhenServiceSnapshotAbsent() {
+        Long userId = 1022L;
+        TradeOrderItemDO orderItem = buildOrderItem(1122L, 5000,
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":4800,\"fulfilled\":false}]}");
+        orderItem.setBundleItemSnapshotJson(
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":1600,\"fulfilled\":false}]}");
+        when(tradeOrderQueryService.getOrderItem(userId, 1122L)).thenReturn(orderItem);
+
+        ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
+                service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 1700)));
+
+        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+    }
+
+    @Test
     void shouldRejectRefundWhenServiceOrderFinishedAndBundleExists() {
         Long userId = 103L;
         TradeOrderItemDO orderItem = buildOrderItem(113L, 5000,
@@ -242,6 +257,35 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         assertTrue(detailJson.contains("bundleChildren"));
         assertTrue(detailJson.contains("childCode"));
         assertTrue(JsonUtils.parseTree(detailJson).path("upperBound").asInt() > 0);
+    }
+
+    @Test
+    void shouldPersistOrderItemBundleSnapshotFieldWhenNoServiceOrder() {
+        Long userId = 1041L;
+        TradeOrderItemDO orderItem = buildOrderItem(1141L, 5000,
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":4800,\"fulfilled\":false}]}");
+        orderItem.setBundleItemSnapshotJson(
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":1600,\"fulfilled\":false}]}");
+        orderItem.setUserId(userId);
+        TradeOrderDO order = buildOrder(userId, orderItem.getOrderId());
+        when(tradeOrderQueryService.getOrderItem(userId, 1141L)).thenReturn(orderItem);
+        when(tradeOrderQueryService.getOrder(userId, orderItem.getOrderId())).thenReturn(order);
+        when(tradeAfterSaleMapper.insert(any(cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO.class))).thenAnswer(invocation -> {
+            cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO target = invocation.getArgument(0);
+            target.setId(88011L);
+            return 1;
+        });
+
+        Long afterSaleId = service.createAfterSale(userId, buildCreateReq(orderItem.getId(), 1500));
+
+        assertEquals(88011L, afterSaleId);
+        ArgumentCaptor<cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO> captor =
+                ArgumentCaptor.forClass(cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO.class);
+        verify(tradeAfterSaleMapper).insert(captor.capture());
+        assertEquals("ORDER_ITEM_PRICE_SOURCE", captor.getValue().getRefundLimitSource());
+        assertEquals("bundleItemSnapshotJson",
+                JsonUtils.parseTree(captor.getValue().getRefundLimitDetailJson()).path("snapshotField").asText());
+        assertEquals(1600, JsonUtils.parseTree(captor.getValue().getRefundLimitDetailJson()).path("upperBound").asInt());
     }
 
     @Test

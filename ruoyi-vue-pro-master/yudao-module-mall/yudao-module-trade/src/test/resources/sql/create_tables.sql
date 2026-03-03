@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS "trade_order_item"
     "template_version_id" bigint,
     "template_snapshot_json" varchar,
     "price_source_snapshot_json" varchar,
+    "bundle_item_snapshot_json" varchar,
     "count"             int      NOT NULL,
     "comment_status"    boolean  NULL,
     "price"             int      NOT NULL,

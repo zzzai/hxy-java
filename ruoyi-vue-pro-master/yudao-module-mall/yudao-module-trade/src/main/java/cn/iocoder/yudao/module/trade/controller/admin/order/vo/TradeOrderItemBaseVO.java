@@ -50,6 +50,9 @@ public class TradeOrderItemBaseVO {
     @Schema(description = "价格来源快照（JSON）", example = "{\"source\":\"STORE_OVERRIDE\"}")
     private String priceSourceSnapshotJson;
 
+    @Schema(description = "套餐子项快照（JSON）", example = "{\"bundleChildren\":[{\"childCode\":\"A\"}]}")
+    private String bundleItemSnapshotJson;
+
     @Schema(description = "购买数量", requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
     private Integer count;
 
