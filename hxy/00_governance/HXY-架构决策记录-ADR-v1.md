@@ -426,3 +426,12 @@
 - 备选方案：在 SQL 中使用 `UPPER(TRIM(route_scope)) = UPPER(TRIM(?))`。
 - 否决原因：会降低索引可用性，增加高并发列表查询成本，不适合万店数据规模。
 - 回滚条件：若后续引入统一查询参数规范中间层，可移除此处标准化逻辑并由网关统一处理。
+
+## ADR-049：售后工单分页采用“服务层入参标准化 + 专用索引补强”组合策略
+
+- 背景：工单分页新增路由与审计筛选后，调用方存在空白/大小写不一致问题，且高频查询维度（路由、状态+时间、最近动作时间）缺少专用索引，存在漏单与慢查风险。
+- 决策：服务层统一标准化分页字符串筛选参数：`severity/ruleCode/escalateTo/lastActionCode` 执行 `trim + uppercase`，`sourceBizNo/lastActionBizNo` 执行 `trim` 且空白归 `null`；数据库新增索引 `idx_route_scope_id(route_scope, route_id)`、`idx_status_create_time(status, create_time)`、`idx_last_action_time(last_action_time)`。
+- 影响范围：售后工单分页检索一致性、路由回查稳定性、管理端列表查询性能。
+- 备选方案：仅在前端做参数清洗，不改服务层与数据库索引。
+- 否决原因：前端无法覆盖脚本/第三方调用场景，且不补索引时在万店规模下仍有性能瓶颈。
+- 回滚条件：若索引维护成本超预期，可先保留入参标准化并下线低收益索引（按慢查询日志评估）。

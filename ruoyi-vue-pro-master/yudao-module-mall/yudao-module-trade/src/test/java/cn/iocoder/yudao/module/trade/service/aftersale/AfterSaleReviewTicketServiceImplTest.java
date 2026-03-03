@@ -22,6 +22,7 @@ import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -91,15 +92,52 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    void shouldNormalizeRouteScopeWhenQueryPage() {
+    void shouldNormalizeQueryFiltersWhenQueryPage() {
         AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
         reqVO.setRouteScope(" rule ");
+        reqVO.setSeverity(" p1 ");
+        reqVO.setRuleCode(" blacklist_user ");
+        reqVO.setEscalateTo(" hq_after_sale ");
+        reqVO.setLastActionCode(" manual_resolve ");
+        reqVO.setSourceBizNo(" BK202603030001 ");
+        reqVO.setLastActionBizNo(" OPS-202603030001 ");
         when(afterSaleReviewTicketMapper.selectPage(any(AfterSaleReviewTicketPageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
 
         service.getReviewTicketPage(reqVO);
 
         assertEquals("RULE", reqVO.getRouteScope());
+        assertEquals("P1", reqVO.getSeverity());
+        assertEquals("BLACKLIST_USER", reqVO.getRuleCode());
+        assertEquals("HQ_AFTER_SALE", reqVO.getEscalateTo());
+        assertEquals("MANUAL_RESOLVE", reqVO.getLastActionCode());
+        assertEquals("BK202603030001", reqVO.getSourceBizNo());
+        assertEquals("OPS-202603030001", reqVO.getLastActionBizNo());
+        verify(afterSaleReviewTicketMapper).selectPage(reqVO);
+    }
+
+    @Test
+    void shouldClearBlankQueryFiltersWhenQueryPage() {
+        AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
+        reqVO.setRouteScope("   ");
+        reqVO.setSeverity("   ");
+        reqVO.setRuleCode("   ");
+        reqVO.setEscalateTo("   ");
+        reqVO.setLastActionCode("   ");
+        reqVO.setSourceBizNo("   ");
+        reqVO.setLastActionBizNo("   ");
+        when(afterSaleReviewTicketMapper.selectPage(any(AfterSaleReviewTicketPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
+
+        service.getReviewTicketPage(reqVO);
+
+        assertNull(reqVO.getRouteScope());
+        assertNull(reqVO.getSeverity());
+        assertNull(reqVO.getRuleCode());
+        assertNull(reqVO.getEscalateTo());
+        assertNull(reqVO.getLastActionCode());
+        assertNull(reqVO.getSourceBizNo());
+        assertNull(reqVO.getLastActionBizNo());
         verify(afterSaleReviewTicketMapper).selectPage(reqVO);
     }
 

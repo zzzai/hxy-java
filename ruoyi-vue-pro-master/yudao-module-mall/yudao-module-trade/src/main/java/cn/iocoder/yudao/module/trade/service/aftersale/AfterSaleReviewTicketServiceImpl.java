@@ -18,6 +18,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REVIEW_TICKET_NOT_FOUND;
@@ -353,10 +354,21 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return;
         }
         pageReqVO.setRouteScope(normalizeUpper(pageReqVO.getRouteScope()));
+        pageReqVO.setSeverity(normalizeUpper(pageReqVO.getSeverity()));
+        pageReqVO.setRuleCode(normalizeUpper(pageReqVO.getRuleCode()));
+        pageReqVO.setEscalateTo(normalizeUpper(pageReqVO.getEscalateTo()));
+        pageReqVO.setLastActionCode(normalizeUpper(pageReqVO.getLastActionCode()));
+        pageReqVO.setSourceBizNo(normalizeTrim(pageReqVO.getSourceBizNo()));
+        pageReqVO.setLastActionBizNo(normalizeTrim(pageReqVO.getLastActionBizNo()));
     }
 
     private String normalizeUpper(String value) {
-        return StrUtil.trimToEmpty(value).toUpperCase();
+        String normalized = StrUtil.trimToNull(value);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeTrim(String value) {
+        return StrUtil.trimToNull(value);
     }
 
 }
