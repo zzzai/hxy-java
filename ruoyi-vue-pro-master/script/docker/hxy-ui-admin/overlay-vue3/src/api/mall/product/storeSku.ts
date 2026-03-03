@@ -62,6 +62,44 @@ export interface ProductStoreSkuBatchAdjust {
   remark?: string
 }
 
+export interface ProductStoreSkuManualStockAdjustItem {
+  skuId: number
+  incrCount: number
+}
+
+export interface ProductStoreSkuManualStockAdjust {
+  storeId: number
+  bizType: string
+  bizNo: string
+  remark?: string
+  items: ProductStoreSkuManualStockAdjustItem[]
+}
+
+export interface ProductStoreSkuStockFlow {
+  id?: number
+  storeId?: number
+  storeName?: string
+  skuId?: number
+  bizType?: string
+  bizNo?: string
+  incrCount?: number
+  status?: number
+  retryCount?: number
+  nextRetryTime?: string
+  lastErrorMsg?: string
+  executeTime?: string
+  createTime?: string
+}
+
+export interface ProductStoreSkuStockFlowPageReq extends PageParam {
+  storeId?: number
+  skuId?: number
+  bizType?: string
+  bizNo?: string
+  status?: number
+  executeTime?: string[]
+}
+
 export const getStoreSkuPage = (params: PageParam) => {
   return request.get({ url: '/product/store-sku/page', params })
 }
@@ -80,6 +118,14 @@ export const batchSaveStoreSku = (data: ProductStoreSkuBatchSave) => {
 
 export const batchAdjustStoreSku = (data: ProductStoreSkuBatchAdjust) => {
   return request.post({ url: '/product/store-sku/batch-adjust', data })
+}
+
+export const manualAdjustStoreSkuStock = (data: ProductStoreSkuManualStockAdjust) => {
+  return request.post({ url: '/product/store-sku/manual-stock-adjust', data })
+}
+
+export const getStoreSkuStockFlowPage = (params: ProductStoreSkuStockFlowPageReq) => {
+  return request.get({ url: '/product/store-sku/stock-flow/page', params })
 }
 
 export const deleteStoreSku = (id: number) => {
