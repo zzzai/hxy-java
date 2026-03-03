@@ -28,6 +28,7 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowM
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuManualStockBizTypeEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
+import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
@@ -567,6 +568,12 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         ProductStoreSkuDO current = storeSkuMapper.selectByStoreIdAndSkuId(storeId, item.getSkuId());
         if (current == null) {
             throw exception(STORE_SKU_MAPPING_NOT_EXISTS);
+        }
+        if (current.getSpuId() != null) {
+            ProductSpuDO spu = productSpuService.getSpu(current.getSpuId());
+            if (spu != null && ProductTypeEnum.isService(spu.getProductType())) {
+                throw exception(STORE_SKU_STOCK_SERVICE_FORBIDDEN, item.getSkuId());
+            }
         }
         if (item.getIncrCount() > 0) {
             int updateCount = storeSkuMapper.updateStockIncrByStoreIdAndSkuId(storeId, item.getSkuId(), item.getIncrCount());

@@ -39,6 +39,7 @@ import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_NOT_E
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_STOCK_NOT_ENOUGH;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_BATCH_ADJUST_FIELDS_EMPTY;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_FLOW_TARGETS_EMPTY;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_SERVICE_FORBIDDEN;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -725,6 +726,39 @@ class ProductStoreMappingServiceImplTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreMappingService.manualAdjustStoreSkuStock(reqVO));
         assertEquals(STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED.getCode(), ex.getCode());
+        verify(storeSkuMapper, never()).updateStockIncrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+        verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+    }
+
+    @Test
+    void manualAdjustStoreSkuStock_shouldThrowWhenSkuBelongsToServiceProduct() {
+        ProductStoreSkuManualStockAdjustReqVO reqVO = new ProductStoreSkuManualStockAdjustReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("REPLENISH_IN");
+        reqVO.setBizNo("SUPPLY-20260304-001");
+        ProductStoreSkuManualStockAdjustReqVO.Item item = new ProductStoreSkuManualStockAdjustReqVO.Item();
+        item.setSkuId(22L);
+        item.setIncrCount(5);
+        reqVO.setItems(Collections.singletonList(item));
+
+        ProductStoreSkuDO sku = ProductStoreSkuDO.builder().id(301L).storeId(11L).spuId(33L).skuId(22L).stock(10).build();
+        when(storeSkuMapper.selectByStoreIdAndSkuId(11L, 22L)).thenReturn(sku);
+        ProductSpuDO spu = new ProductSpuDO();
+        spu.setId(33L);
+        spu.setProductType(ProductTypeEnum.SERVICE.getType());
+        when(productSpuService.getSpu(33L)).thenReturn(spu);
+        ProductStoreSkuStockFlowDO flow = ProductStoreSkuStockFlowDO.builder()
+                .id(9801L).incrCount(5).status(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()).retryCount(0).build();
+        when(storeSkuStockFlowMapper.selectByBizKey("MANUAL_REPLENISH_IN", "SUPPLY-20260304-001", 11L, 22L))
+                .thenReturn(null, flow);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9801L),
+                eq(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()), eq(3),
+                eq(0), any(), eq(""))).thenReturn(1);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreMappingService.manualAdjustStoreSkuStock(reqVO));
+
+        assertEquals(STORE_SKU_STOCK_SERVICE_FORBIDDEN.getCode(), ex.getCode());
         verify(storeSkuMapper, never()).updateStockIncrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
         verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
     }
