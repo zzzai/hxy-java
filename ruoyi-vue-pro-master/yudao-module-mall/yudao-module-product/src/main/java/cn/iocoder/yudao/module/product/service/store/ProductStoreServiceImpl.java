@@ -466,11 +466,52 @@ public class ProductStoreServiceImpl implements ProductStoreService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void batchUpdateLifecycle(ProductStoreBatchLifecycleReqVO reqVO) {
+    public ProductStoreBatchLifecycleResultRespVO batchUpdateLifecycleWithResult(ProductStoreBatchLifecycleReqVO reqVO) {
+        validateLifecycleStatus(reqVO.getLifecycleStatus());
         List<Long> storeIds = normalizeIds(reqVO.getStoreIds());
+        List<ProductStoreBatchLifecycleResultRespVO.StoreResult> storeResults = new ArrayList<>(storeIds.size());
+        int successCount = 0;
+        int blockedCount = 0;
+        int warningCount = 0;
         for (Long storeId : storeIds) {
+            ProductStoreLifecycleGuardRespVO guardResp = getLifecycleGuard(storeId, reqVO.getLifecycleStatus());
+            ProductStoreBatchLifecycleResultRespVO.StoreResult storeResult =
+                    new ProductStoreBatchLifecycleResultRespVO.StoreResult();
+            storeResult.setStoreId(storeId);
+            storeResult.setBlocked(Boolean.TRUE.equals(guardResp.getBlocked()));
+            storeResult.setBlockedCode(guardResp.getBlockedCode());
+            storeResult.setBlockedMessage(guardResp.getBlockedMessage());
+            storeResult.setWarnings(guardResp.getWarnings());
+            if (CollUtil.isNotEmpty(guardResp.getWarnings())) {
+                warningCount++;
+            }
+            if (Boolean.TRUE.equals(guardResp.getBlocked())) {
+                blockedCount++;
+                storeResult.setExecuted(false);
+                storeResults.add(storeResult);
+                continue;
+            }
             updateStoreLifecycle(storeId, reqVO.getLifecycleStatus(), reqVO.getReason());
+            successCount++;
+            storeResult.setExecuted(true);
+            storeResults.add(storeResult);
         }
+        ProductStoreBatchLifecycleResultRespVO respVO = new ProductStoreBatchLifecycleResultRespVO();
+        respVO.setTotalCount(storeIds.size());
+        respVO.setSuccessCount(successCount);
+        respVO.setBlockedCount(blockedCount);
+        respVO.setWarningCount(warningCount);
+        respVO.setAuditSummary(String.format(Locale.ROOT,
+                "LIFECYCLE_BATCH_EXEC:target=%d,total=%d,success=%d,blocked=%d,warn=%d",
+                reqVO.getLifecycleStatus(), storeIds.size(), successCount, blockedCount, warningCount));
+        respVO.setStoreResults(storeResults);
+        return respVO;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchUpdateLifecycle(ProductStoreBatchLifecycleReqVO reqVO) {
+        batchUpdateLifecycleWithResult(reqVO);
     }
 
     private ProductStoreDO buildStoreDO(ProductStoreSaveReqVO reqVO) {

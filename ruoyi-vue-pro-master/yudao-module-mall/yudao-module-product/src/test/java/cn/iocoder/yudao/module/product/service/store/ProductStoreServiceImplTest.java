@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.product.service.store;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleResultRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLaunchReadinessRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSaveReqVO;
@@ -427,6 +429,60 @@ class ProductStoreServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreService.getLifecycleGuardBatch(Collections.singletonList(1099L), 35));
+        assertEquals(cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_NOT_EXISTS.getCode(), ex.getCode());
+    }
+
+    @Test
+    void batchUpdateLifecycleWithResult_shouldExecuteUnblockedAndReturnSummary() {
+        ProductStoreDO blockedStore = ProductStoreDO.builder().id(1021L).status(1).lifecycleStatus(30).build();
+        ProductStoreDO warnStoreBefore = ProductStoreDO.builder().id(1022L).status(1).lifecycleStatus(30).build();
+        ProductStoreDO warnStoreAfter = ProductStoreDO.builder().id(1022L).status(1).lifecycleStatus(35).build();
+        ProductStoreDO cleanStoreBefore = ProductStoreDO.builder().id(1023L).status(1).lifecycleStatus(30).build();
+        ProductStoreDO cleanStoreAfter = ProductStoreDO.builder().id(1023L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1021L)).thenReturn(blockedStore);
+        when(storeMapper.selectById(1022L)).thenReturn(warnStoreBefore, warnStoreBefore, warnStoreAfter);
+        when(storeMapper.selectById(1023L)).thenReturn(cleanStoreBefore, cleanStoreBefore, cleanStoreAfter);
+        when(storeSpuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(any(Long.class))).thenReturn(0L);
+        doAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            return storeId != null && storeId.equals(1021L) ? 1L : 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(any(Long.class), any());
+        doAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            if (storeId != null && storeId.equals(1022L)) {
+                return new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(2L).setInflightTicketCount(0L);
+            }
+            return new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L);
+        }).when(tradeStoreLifecycleGuardApi).getStoreLifecycleGuardStat(any(Long.class));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
+        ProductStoreBatchLifecycleReqVO reqVO = new ProductStoreBatchLifecycleReqVO();
+        reqVO.setStoreIds(Arrays.asList(1021L, 1022L, 1023L));
+        reqVO.setLifecycleStatus(35);
+        reqVO.setReason("批量停业");
+
+        ProductStoreBatchLifecycleResultRespVO result = productStoreService.batchUpdateLifecycleWithResult(reqVO);
+
+        assertEquals(3, result.getTotalCount());
+        assertEquals(2, result.getSuccessCount());
+        assertEquals(1, result.getBlockedCount());
+        assertEquals(1, result.getWarningCount());
+        assertEquals("LIFECYCLE_BATCH_EXEC:target=35,total=3,success=2,blocked=1,warn=1", result.getAuditSummary());
+        verify(storeMapper, times(2)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void batchUpdateLifecycleWithResult_shouldThrowWhenStoreNotExists() {
+        when(storeMapper.selectById(1040L)).thenReturn(null);
+        ProductStoreBatchLifecycleReqVO reqVO = new ProductStoreBatchLifecycleReqVO();
+        reqVO.setStoreIds(Collections.singletonList(1040L));
+        reqVO.setLifecycleStatus(35);
+        reqVO.setReason("批量停业");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.batchUpdateLifecycleWithResult(reqVO));
         assertEquals(cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_NOT_EXISTS.getCode(), ex.getCode());
     }
 
