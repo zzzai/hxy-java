@@ -57,6 +57,23 @@ export interface ReviewTicketResolveReqVO {
   resolveRemark?: string
 }
 
+export interface ReviewTicketBatchResolveReqVO {
+  ids: number[]
+  resolveActionCode?: string
+  resolveBizNo?: string
+  resolveRemark?: string
+}
+
+export interface ReviewTicketBatchResolveRespVO {
+  totalCount: number
+  successCount: number
+  skippedNotFoundCount: number
+  skippedNotPendingCount: number
+  successIds?: number[]
+  skippedNotFoundIds?: number[]
+  skippedNotPendingIds?: number[]
+}
+
 // 分页查询人工复核工单
 export const getReviewTicketPage = async (params: ReviewTicketPageReqVO) => {
   return await request.get({ url: '/trade/after-sale/review-ticket/page', params })
@@ -70,4 +87,9 @@ export const getReviewTicket = async (id: number) => {
 // 收口人工复核工单
 export const resolveReviewTicket = async (data: ReviewTicketResolveReqVO) => {
   return await request.put({ url: '/trade/after-sale/review-ticket/resolve', data })
+}
+
+// 批量收口人工复核工单
+export const batchResolveReviewTicket = async (data: ReviewTicketBatchResolveReqVO) => {
+  return await request.post<ReviewTicketBatchResolveRespVO>({ url: '/trade/after-sale/review-ticket/batch-resolve', data })
 }

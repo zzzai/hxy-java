@@ -80,12 +80,23 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+        <el-button
+          v-hasPermi="['trade:after-sale:refund']"
+          :disabled="selectedIds.length === 0"
+          :loading="batchResolveLoading"
+          plain
+          type="warning"
+          @click="openBatchResolve"
+        >
+          批量收口
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
 
   <ContentWrap>
-    <el-table v-loading="loading" :data="list">
+    <el-table ref="tableRef" v-loading="loading" :data="list" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" />
       <el-table-column label="ID" prop="id" width="90" />
       <el-table-column label="工单类型" min-width="130">
         <template #default="{ row }">
@@ -192,6 +203,37 @@
       <el-button :loading="resolveLoading" type="primary" @click="submitResolve">确认收口</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="batchResolveVisible" title="批量工单收口" width="560px">
+    <el-alert
+      :closable="false"
+      :title="`已勾选 ${selectedIds.length} 条工单，当前待处理 ${selectedPendingIds.length} 条`"
+      class="mb-12px"
+      type="info"
+    />
+    <el-form ref="batchResolveFormRef" :model="batchResolveFormData" :rules="batchResolveRules" label-width="110px">
+      <el-form-item label="收口动作编码" prop="resolveActionCode">
+        <el-input v-model="batchResolveFormData.resolveActionCode" maxlength="64" placeholder="例如 MANUAL_RESOLVE" />
+      </el-form-item>
+      <el-form-item label="收口业务号" prop="resolveBizNo">
+        <el-input v-model="batchResolveFormData.resolveBizNo" maxlength="64" placeholder="例如 OPS-BATCH-202603030001" />
+      </el-form-item>
+      <el-form-item label="收口备注" prop="resolveRemark">
+        <el-input
+          v-model="batchResolveFormData.resolveRemark"
+          :rows="3"
+          maxlength="255"
+          placeholder="请输入批量收口备注（可选）"
+          show-word-limit
+          type="textarea"
+        />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button :disabled="batchResolveLoading" @click="batchResolveVisible = false">取消</el-button>
+      <el-button :loading="batchResolveLoading" type="primary" @click="submitBatchResolve">确认批量收口</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -223,8 +265,12 @@ const routeScopeOptions = [
 ]
 
 const loading = ref(false)
+const batchResolveLoading = ref(false)
 const total = ref(0)
 const list = ref<ReviewTicketApi.ReviewTicketVO[]>([])
+const tableRef = ref()
+const selectedIds = ref<number[]>([])
+const selectedPendingIds = ref<number[]>([])
 
 const queryParams = reactive<ReviewTicketApi.ReviewTicketPageReqVO>({
   pageNo: 1,
@@ -259,6 +305,19 @@ const resolveFormData = reactive<ReviewTicketApi.ReviewTicketResolveReqVO>({
 })
 const resolveRules = {
   id: [{ required: true, message: '工单ID不能为空', trigger: 'change' }],
+  resolveActionCode: [{ max: 64, message: '收口动作编码长度不能超过 64', trigger: 'blur' }],
+  resolveBizNo: [{ max: 64, message: '收口业务号长度不能超过 64', trigger: 'blur' }],
+  resolveRemark: [{ max: 255, message: '收口备注长度不能超过 255', trigger: 'blur' }]
+}
+
+const batchResolveVisible = ref(false)
+const batchResolveFormRef = ref()
+const batchResolveFormData = reactive({
+  resolveActionCode: 'MANUAL_RESOLVE',
+  resolveBizNo: '',
+  resolveRemark: ''
+})
+const batchResolveRules = {
   resolveActionCode: [{ max: 64, message: '收口动作编码长度不能超过 64', trigger: 'blur' }],
   resolveBizNo: [{ max: 64, message: '收口业务号长度不能超过 64', trigger: 'blur' }],
   resolveRemark: [{ max: 255, message: '收口备注长度不能超过 255', trigger: 'blur' }]
@@ -299,6 +358,9 @@ const getList = async () => {
     const data = await ReviewTicketApi.getReviewTicketPage(queryParams)
     list.value = data.list || []
     total.value = data.total || 0
+    selectedIds.value = []
+    selectedPendingIds.value = []
+    tableRef.value?.clearSelection?.()
   } catch (error: any) {
     list.value = []
     total.value = 0
@@ -329,7 +391,19 @@ const resetQuery = () => {
   queryParams.orderId = undefined
   queryParams.userId = undefined
   queryParams.createTime = undefined
+  selectedIds.value = []
+  selectedPendingIds.value = []
+  tableRef.value?.clearSelection?.()
   getList()
+}
+
+const handleSelectionChange = (rows: ReviewTicketApi.ReviewTicketVO[]) => {
+  selectedIds.value = Array.from(
+    new Set(rows.map((row) => row.id).filter((id): id is number => typeof id === 'number'))
+  )
+  selectedPendingIds.value = Array.from(
+    new Set(rows.filter((row) => row.status === 0).map((row) => row.id).filter((id): id is number => typeof id === 'number'))
+  )
 }
 
 const openDetail = async (id?: number) => {
@@ -360,6 +434,22 @@ const openResolve = (row: ReviewTicketApi.ReviewTicketVO) => {
   resolveVisible.value = true
 }
 
+const openBatchResolve = () => {
+  if (!selectedIds.value.length) {
+    message.warning('请先勾选至少一条工单')
+    return
+  }
+  if (!selectedPendingIds.value.length) {
+    message.warning('所选工单均非待处理，无法批量收口')
+    return
+  }
+  batchResolveFormData.resolveActionCode = 'MANUAL_RESOLVE'
+  batchResolveFormData.resolveBizNo = ''
+  batchResolveFormData.resolveRemark = ''
+  batchResolveFormRef.value?.clearValidate()
+  batchResolveVisible.value = true
+}
+
 const submitResolve = async () => {
   if (resolveLoading.value) {
     return
@@ -388,6 +478,57 @@ const submitResolve = async () => {
     message.error(error?.msg || '工单收口失败')
   } finally {
     resolveLoading.value = false
+  }
+}
+
+const submitBatchResolve = async () => {
+  if (batchResolveLoading.value) {
+    return
+  }
+  if (!selectedIds.value.length) {
+    message.warning('请先勾选至少一条工单')
+    return
+  }
+  if (!selectedPendingIds.value.length) {
+    message.warning('所选工单均非待处理，无法批量收口')
+    return
+  }
+  const valid = await batchResolveFormRef.value?.validate()
+  if (!valid) {
+    return
+  }
+  const nonPendingCount = Math.max(0, selectedIds.value.length - selectedPendingIds.value.length)
+  if (nonPendingCount > 0) {
+    try {
+      await message.confirm(`当前勾选中有 ${nonPendingCount} 条非待处理工单会被自动跳过，确认继续吗？`)
+    } catch {
+      return
+    }
+  }
+  batchResolveLoading.value = true
+  try {
+    const payload: ReviewTicketApi.ReviewTicketBatchResolveReqVO = {
+      ids: selectedIds.value,
+      resolveActionCode: (batchResolveFormData.resolveActionCode || '').trim().toUpperCase() || undefined,
+      resolveBizNo: (batchResolveFormData.resolveBizNo || '').trim() || undefined,
+      resolveRemark: (batchResolveFormData.resolveRemark || '').trim() || undefined
+    }
+    const result = await ReviewTicketApi.batchResolveReviewTicket(payload)
+    message.success(
+      `批量收口完成：成功 ${result.successCount || 0}，跳过(不存在) ${result.skippedNotFoundCount || 0}，跳过(非待处理) ${result.skippedNotPendingCount || 0}`
+    )
+    batchResolveVisible.value = false
+    await getList()
+    if (detailVisible.value && detailData.id) {
+      const latest = await ReviewTicketApi.getReviewTicket(detailData.id)
+      Object.assign(detailData, latest)
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      message.error(error?.msg || '批量工单收口失败')
+    }
+  } finally {
+    batchResolveLoading.value = false
   }
 }
 
