@@ -604,6 +604,16 @@ public class AfterSaleServiceImpl implements AfterSaleService {
                 .setRefundLimitSource(latestDecision.getSource())
                 .setRefundLimitDetailJson(latestDecision.getDetailJson()));
         if (afterSale.getRefundPrice() > latestDecision.getUpperBound()) {
+            AfterSaleRefundDecisionBO manualDecision = AfterSaleRefundDecisionBO.manual(
+                    "REFUND_LIMIT_CHANGED",
+                    StrUtil.format("退款上限收紧为{}分，当前申请退款{}分",
+                            latestDecision.getUpperBound(), afterSale.getRefundPrice()));
+            afterSaleRefundDecisionService.auditDecision(
+                    TradeOrderLogDO.USER_ID_SYSTEM,
+                    TradeOrderLogDO.USER_TYPE_SYSTEM,
+                    afterSale,
+                    manualDecision,
+                    false);
             throw exception(AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED);
         }
     }

@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.trade.controller.app.aftersale.vo.AppAfterSaleCre
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderLogDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -250,6 +252,14 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
                 () -> service.refundAfterSale(1L, "127.0.0.1", 99001L));
         assertEquals(AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED.getCode(), exception.getCode());
         verify(payRefundApi, never()).createRefund(any());
+        verify(afterSaleRefundDecisionService).auditDecision(
+                eq(TradeOrderLogDO.USER_ID_SYSTEM),
+                eq(TradeOrderLogDO.USER_TYPE_SYSTEM),
+                eq(afterSale),
+                argThat(decision -> decision != null
+                        && Boolean.FALSE.equals(decision.getAutoPass())
+                        && "REFUND_LIMIT_CHANGED".equals(decision.getRuleCode())),
+                eq(false));
     }
 
     @Test

@@ -304,7 +304,7 @@
 ## ADR-035：套餐售后在退款执行阶段强制“最新履约快照二次校验”
 
 - 背景：退款上限原先在售后创建时校验一次；若创建后服务履约状态变化（如已完成），仍可能沿用旧上限继续退款，存在“先申请后履约”的资金风险窗口。
-- 决策：在 `refundAfterSale/processRefundAfterSale` 前置执行“最新上限重算”：按当前服务履约快照与子项状态重算可退上限，并先回写 `refundLimitSource/refundLimitDetailJson` 审计快照；若 `afterSale.refundPrice` 超过最新上限，则拦截退款并返回 `AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED`。
+- 决策：在 `refundAfterSale/processRefundAfterSale` 前置执行“最新上限重算”：按当前服务履约快照与子项状态重算可退上限，并先回写 `refundLimitSource/refundLimitDetailJson` 审计快照；若 `afterSale.refundPrice` 超过最新上限，则拦截退款并返回 `AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED`，同时记录 `REFUND_LIMIT_CHANGED` 风控审计并创建/更新人工复核工单。
 - 影响范围：售后退款执行链路、自动退款路径（同意后自动执行）、退款审计口径一致性。
 - 备选方案：仅保留创建时校验，退款执行阶段不再重算上限。
 - 否决原因：无法覆盖“履约后上限收紧”的时序变化，导致已履约服务被错误退款。
