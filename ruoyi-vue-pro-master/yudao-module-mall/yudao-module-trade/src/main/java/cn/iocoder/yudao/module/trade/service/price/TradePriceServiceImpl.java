@@ -2,6 +2,7 @@ package cn.iocoder.yudao.module.trade.service.price;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.member.api.level.dto.MemberLevelRespDTO;
 import cn.iocoder.yudao.module.product.api.sku.ProductSkuApi;
@@ -26,6 +27,9 @@ import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateRespBO;
 import cn.iocoder.yudao.module.trade.service.price.calculator.TradeDiscountActivityPriceCalculator;
 import cn.iocoder.yudao.module.trade.service.price.calculator.TradePriceCalculator;
 import cn.iocoder.yudao.module.trade.service.price.calculator.TradePriceCalculatorHelper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -36,6 +40,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.*;
@@ -75,7 +81,8 @@ public class TradePriceServiceImpl implements TradePriceService {
     @Override
     public TradePriceCalculateRespBO calculateOrderPrice(TradePriceCalculateReqBO calculateReqBO) {
         // 1.1 获得商品 SKU 数组
-        List<ProductSkuRespDTO> skuList = getSkuList(calculateReqBO);
+        Map<Long, PriceSourceDecision> priceSourceDecisionMap = new HashMap<>();
+        List<ProductSkuRespDTO> skuList = getSkuList(calculateReqBO, priceSourceDecisionMap);
         // 1.2 获得商品 SPU 数组
         List<ProductSpuRespDTO> spuList = checkSpuList(skuList);
         // 1.3 校验服务/配送分流和模板版本快照约束
@@ -87,6 +94,7 @@ public class TradePriceServiceImpl implements TradePriceService {
         TradePriceCalculateRespBO calculateRespBO = TradePriceCalculatorHelper
                 .buildCalculateResp(calculateReqBO, spuList, skuList);
         priceCalculators.forEach(calculator -> calculator.calculate(calculateReqBO, calculateRespBO));
+        applyUnifiedPriceSourceSnapshot(calculateReqBO, calculateRespBO, priceSourceDecisionMap);
         // 2.2  如果最终支付金额小于等于 0，则抛出业务异常
         if (calculateReqBO.getPointActivityId() == null // 积分订单，允许支付金额为 0
                 && calculateRespBO.getPrice().getPayPrice() <= 0) {
@@ -97,12 +105,19 @@ public class TradePriceServiceImpl implements TradePriceService {
         return calculateRespBO;
     }
 
-    private List<ProductSkuRespDTO> getSkuList(TradePriceCalculateReqBO reqBO) {
+    private List<ProductSkuRespDTO> getSkuList(TradePriceCalculateReqBO reqBO,
+                                               Map<Long, PriceSourceDecision> priceSourceDecisionMap) {
         // 获得商品 SKU 数组
         Map<Long, Integer> skuIdCountMap = convertMap(reqBO.getItems(),
                 TradePriceCalculateReqBO.Item::getSkuId, TradePriceCalculateReqBO.Item::getCount);
         List<ProductSkuRespDTO> skus = productSkuApi.getSkuList(skuIdCountMap.keySet());
-        applyStoreSkuOverrideIfNecessary(reqBO, skus, skuIdCountMap);
+        skus.forEach(sku -> priceSourceDecisionMap.put(sku.getId(),
+                new PriceSourceDecision()
+                        .setSkuId(sku.getId())
+                        .setBaseSource("HEADQUARTER")
+                        .setHeadquarterPrice(sku.getPrice())
+                        .setBasePrice(sku.getPrice())));
+        applyStoreSkuOverrideIfNecessary(reqBO, skus, skuIdCountMap, priceSourceDecisionMap);
         return skus;
     }
 
@@ -131,7 +146,8 @@ public class TradePriceServiceImpl implements TradePriceService {
     }
 
     private void applyStoreSkuOverrideIfNecessary(TradePriceCalculateReqBO reqBO, List<ProductSkuRespDTO> skus,
-                                                   Map<Long, Integer> skuIdCountMap) {
+                                                   Map<Long, Integer> skuIdCountMap,
+                                                   Map<Long, PriceSourceDecision> priceSourceDecisionMap) {
         if (!Objects.equals(reqBO.getDeliveryType(), DeliveryTypeEnum.PICK_UP.getType())
                 || reqBO.getPickUpStoreId() == null) {
             return;
@@ -143,7 +159,14 @@ public class TradePriceServiceImpl implements TradePriceService {
             if (storeSku == null || !Objects.equals(storeSku.getSaleStatus(), 0)) {
                 throw exception(SKU_NOT_EXISTS);
             }
+            PriceSourceDecision decision = priceSourceDecisionMap.computeIfAbsent(sku.getId(), key ->
+                    new PriceSourceDecision().setSkuId(sku.getId()).setBaseSource("HEADQUARTER")
+                            .setHeadquarterPrice(sku.getPrice()).setBasePrice(sku.getPrice()));
+            decision.setPickUpStoreId(reqBO.getPickUpStoreId());
             if (storeSku.getSalePrice() != null) {
+                decision.setStorePrice(storeSku.getSalePrice());
+                decision.setBasePrice(storeSku.getSalePrice());
+                decision.setBaseSource("STORE_SKU_OVERRIDE");
                 sku.setPrice(storeSku.getSalePrice());
             }
             if (storeSku.getMarketPrice() != null) {
@@ -153,6 +176,104 @@ public class TradePriceServiceImpl implements TradePriceService {
                 sku.setStock(storeSku.getStock());
             }
         });
+    }
+
+    private void applyUnifiedPriceSourceSnapshot(TradePriceCalculateReqBO reqBO,
+                                                 TradePriceCalculateRespBO respBO,
+                                                 Map<Long, PriceSourceDecision> priceSourceDecisionMap) {
+        Map<Long, List<PromotionHit>> promotionHitMap = buildPromotionHitMap(respBO);
+        respBO.getItems().forEach(orderItem -> {
+            ObjectNode snapshotRoot = toSnapshotRoot(orderItem.getPriceSourceSnapshotJson());
+            snapshotRoot.put("version", "hxy-price-source-v2");
+            snapshotRoot.put("decisionOrder", "HEADQUARTER>STORE>ACTIVITY>BENEFIT");
+            snapshotRoot.put("deliveryType", reqBO.getDeliveryType() == null ? 0 : reqBO.getDeliveryType());
+            if (reqBO.getPickUpStoreId() != null) {
+                snapshotRoot.put("pickUpStoreId", reqBO.getPickUpStoreId());
+            }
+            PriceSourceDecision decision = priceSourceDecisionMap.get(orderItem.getSkuId());
+            if (decision != null) {
+                snapshotRoot.put("baseSource", StrUtil.blankToDefault(decision.getBaseSource(), "HEADQUARTER"));
+                if (decision.getHeadquarterPrice() != null) {
+                    snapshotRoot.put("headquarterPrice", decision.getHeadquarterPrice());
+                }
+                if (decision.getStorePrice() != null) {
+                    snapshotRoot.put("storePrice", decision.getStorePrice());
+                }
+                if (decision.getPickUpStoreId() != null) {
+                    snapshotRoot.put("priceStoreId", decision.getPickUpStoreId());
+                }
+            } else {
+                snapshotRoot.put("baseSource", "HEADQUARTER");
+            }
+            snapshotRoot.put("basePrice", defaultInt(orderItem.getPrice()));
+            snapshotRoot.put("activityDiscountPrice", defaultInt(orderItem.getDiscountPrice()));
+            snapshotRoot.put("couponPrice", defaultInt(orderItem.getCouponPrice()));
+            snapshotRoot.put("pointPrice", defaultInt(orderItem.getPointPrice()));
+            snapshotRoot.put("vipPrice", defaultInt(orderItem.getVipPrice()));
+            snapshotRoot.put("payPrice", defaultInt(orderItem.getPayPrice()));
+
+            ArrayNode promotionHits = snapshotRoot.putArray("promotionHits");
+            List<PromotionHit> hits = promotionHitMap.get(orderItem.getSkuId());
+            if (CollUtil.isNotEmpty(hits)) {
+                hits.forEach(hit -> {
+                    ObjectNode hitNode = promotionHits.addObject();
+                    if (hit.getPromotionId() != null) {
+                        hitNode.put("promotionId", hit.getPromotionId());
+                    }
+                    hitNode.put("promotionType", defaultInt(hit.getPromotionType()));
+                    if (StrUtil.isNotBlank(hit.getPromotionName())) {
+                        hitNode.put("promotionName", hit.getPromotionName());
+                    }
+                    hitNode.put("discountPrice", defaultInt(hit.getDiscountPrice()));
+                });
+            }
+            orderItem.setPriceSourceSnapshotJson(snapshotRoot.toString());
+        });
+    }
+
+    private Map<Long, List<PromotionHit>> buildPromotionHitMap(TradePriceCalculateRespBO respBO) {
+        Map<Long, List<PromotionHit>> result = new HashMap<>();
+        if (respBO == null || CollUtil.isEmpty(respBO.getPromotions())) {
+            return result;
+        }
+        respBO.getPromotions().forEach(promotion -> {
+            if (promotion == null || CollUtil.isEmpty(promotion.getItems())) {
+                return;
+            }
+            promotion.getItems().forEach(item -> {
+                if (item == null || item.getSkuId() == null) {
+                    return;
+                }
+                result.computeIfAbsent(item.getSkuId(), key -> new ArrayList<>()).add(
+                        new PromotionHit()
+                                .setPromotionId(promotion.getId())
+                                .setPromotionType(promotion.getType())
+                                .setPromotionName(promotion.getName())
+                                .setDiscountPrice(item.getDiscountPrice()));
+            });
+        });
+        return result;
+    }
+
+    private ObjectNode toSnapshotRoot(String snapshotJson) {
+        if (StrUtil.isBlank(snapshotJson)) {
+            return JsonUtils.getObjectMapper().createObjectNode();
+        }
+        try {
+            JsonNode node = JsonUtils.parseTree(snapshotJson);
+            if (node instanceof ObjectNode) {
+                return (ObjectNode) node;
+            }
+        } catch (Exception ignore) {
+            // ignore parse error and fallback to raw wrapper
+        }
+        ObjectNode root = JsonUtils.getObjectMapper().createObjectNode();
+        root.put("upstreamRawSnapshot", snapshotJson);
+        return root;
+    }
+
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private void validateDeliveryAndTemplate(TradePriceCalculateReqBO reqBO, List<ProductSkuRespDTO> skus,
@@ -284,6 +405,26 @@ public class TradePriceServiceImpl implements TradePriceService {
             spuVO.setRewardActivity(BeanUtils.toBean(rewardActivity, AppTradeProductSettlementRespVO.RewardActivity.class));
             return spuVO;
         });
+    }
+
+    @lombok.Data
+    @lombok.experimental.Accessors(chain = true)
+    private static class PriceSourceDecision {
+        private Long skuId;
+        private String baseSource;
+        private Integer headquarterPrice;
+        private Integer storePrice;
+        private Integer basePrice;
+        private Long pickUpStoreId;
+    }
+
+    @lombok.Data
+    @lombok.experimental.Accessors(chain = true)
+    private static class PromotionHit {
+        private Long promotionId;
+        private Integer promotionType;
+        private String promotionName;
+        private Integer discountPrice;
     }
 
 }
