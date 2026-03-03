@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.product.service.store;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.iocoder.yudao.framework.common.exception.ErrorCode;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
@@ -88,13 +89,15 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         ProductStoreDO existing = validateStoreExistsAndGet(reqVO.getId());
         ProductStoreDO updateObj = buildStoreDO(reqVO);
         updateObj.setId(reqVO.getId());
-        List<String> guardWarns = validateDisableOrCloseAllowed(updateObj.getStatus(), updateObj.getLifecycleStatus(), reqVO.getId());
+        LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(
+                updateObj.getStatus(), updateObj.getLifecycleStatus(), reqVO.getId());
+        throwIfLifecycleGuardBlocked(guardEvaluation);
         validateLifecycleTransition(existing, updateObj.getLifecycleStatus());
         validateLifecycleReasonRequired(updateObj.getLifecycleStatus(), reqVO.getRemark());
         storeMapper.updateById(updateObj);
         syncStoreTags(reqVO.getId(), tags.stream().map(ProductStoreTagDO::getId).collect(Collectors.toList()));
         saveAuditLog(DOMAIN_STORE, reqVO.getId(), "UPDATE", existing, updateObj,
-                appendGuardWarnReason(reqVO.getRemark(), guardWarns));
+                appendGuardWarnReason(reqVO.getRemark(), guardEvaluation.getWarnings()));
         return reqVO.getId();
     }
 
@@ -344,7 +347,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     public void updateStoreLifecycle(Long id, Integer lifecycleStatus, String reason) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         validateLifecycleStatus(lifecycleStatus);
-        List<String> guardWarns = validateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
+        LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
+        throwIfLifecycleGuardBlocked(guardEvaluation);
         validateLifecycleTransition(store, lifecycleStatus);
         validateLifecycleReasonRequired(lifecycleStatus, reason);
         ProductStoreDO updateObj = ProductStoreDO.builder()
@@ -353,7 +357,25 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 .build();
         storeMapper.updateById(updateObj);
         ProductStoreDO after = storeMapper.selectById(id);
-        saveAuditLog(DOMAIN_STORE, id, "LIFECYCLE", store, after, appendGuardWarnReason(reason, guardWarns));
+        saveAuditLog(DOMAIN_STORE, id, "LIFECYCLE", store, after, appendGuardWarnReason(reason, guardEvaluation.getWarnings()));
+    }
+
+    @Override
+    public ProductStoreLifecycleGuardRespVO getLifecycleGuard(Long id, Integer lifecycleStatus) {
+        ProductStoreDO store = validateStoreExistsAndGet(id);
+        validateLifecycleStatus(lifecycleStatus);
+        LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
+        ProductStoreLifecycleGuardRespVO respVO = new ProductStoreLifecycleGuardRespVO();
+        respVO.setStoreId(id);
+        respVO.setTargetLifecycleStatus(lifecycleStatus);
+        respVO.setBlocked(guardEvaluation.getBlockedErrorCode() != null);
+        if (guardEvaluation.getBlockedErrorCode() != null) {
+            respVO.setBlockedCode(guardEvaluation.getBlockedErrorCode().getCode());
+            respVO.setBlockedMessage(guardEvaluation.getBlockedErrorCode().getMsg());
+        }
+        respVO.setWarnings(guardEvaluation.getWarnings());
+        respVO.setGuardItems(guardEvaluation.getGuardItems());
+        return respVO;
     }
 
     @Override
@@ -693,24 +715,25 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         }
     }
 
-    private List<String> validateDisableOrCloseAllowed(Integer targetStatus, Integer targetLifecycleStatus, Long storeId) {
+    private LifecycleGuardEvaluation evaluateDisableOrCloseAllowed(Integer targetStatus, Integer targetLifecycleStatus,
+                                                                   Long storeId) {
+        LifecycleGuardEvaluation evaluation = new LifecycleGuardEvaluation();
         boolean disabling = Objects.equals(targetStatus, STATUS_DISABLE);
         boolean suspending = Objects.equals(targetLifecycleStatus, ProductStoreLifecycleStatusEnum.SUSPENDED.getStatus());
         boolean closing = Objects.equals(targetLifecycleStatus, ProductStoreLifecycleStatusEnum.CLOSED.getStatus());
         if (!(disabling || suspending || closing)) {
-            return Collections.emptyList();
+            return evaluation;
         }
-        List<String> warnings = new ArrayList<>();
         applyLifecycleGuard("mapping",
                 storeSpuMapper.selectCountByStoreId(storeId) + storeSkuMapper.selectCountByStoreId(storeId),
                 GUARD_MODE_MAPPING,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_MAPPING,
-                warnings);
+                evaluation);
         applyLifecycleGuard("stock",
                 storeSkuMapper.selectPositiveStockCountByStoreId(storeId),
                 GUARD_MODE_STOCK,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK,
-                warnings);
+                evaluation);
         applyLifecycleGuard("stock-flow",
                 storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, Arrays.asList(
                         ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus(),
@@ -718,34 +741,51 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                         ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())),
                 GUARD_MODE_STOCK_FLOW,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
-                warnings);
+                evaluation);
         TradeStoreLifecycleGuardStatRespDTO tradeStat = Optional.ofNullable(
                 tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(storeId)).orElse(new TradeStoreLifecycleGuardStatRespDTO());
         applyLifecycleGuard("pending-order",
                 Optional.ofNullable(tradeStat.getPendingOrderCount()).orElse(0L),
                 GUARD_MODE_PENDING_ORDER,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER,
-                warnings);
+                evaluation);
         applyLifecycleGuard("inflight-ticket",
                 Optional.ofNullable(tradeStat.getInflightTicketCount()).orElse(0L),
                 GUARD_MODE_INFLIGHT_TICKET,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET,
-                warnings);
-        return warnings;
+                evaluation);
+        return evaluation;
     }
 
     private void applyLifecycleGuard(String guardKey, Long count, String configKey,
-                                     cn.iocoder.yudao.framework.common.exception.ErrorCode errorCode,
-                                     List<String> warnings) {
+                                     ErrorCode errorCode,
+                                     LifecycleGuardEvaluation evaluation) {
+        String mode = resolveGuardMode(configKey);
         long guardCount = Optional.ofNullable(count).orElse(0L);
+        boolean blocked = guardCount > 0 && GUARD_MODE_BLOCK.equals(mode);
+        ProductStoreLifecycleGuardRespVO.GuardItem guardItem = new ProductStoreLifecycleGuardRespVO.GuardItem();
+        guardItem.setGuardKey(guardKey);
+        guardItem.setCount(guardCount);
+        guardItem.setMode(mode);
+        guardItem.setBlocked(blocked);
+        evaluation.getGuardItems().add(guardItem);
         if (guardCount <= 0) {
             return;
         }
-        if (GUARD_MODE_WARN.equals(resolveGuardMode(configKey))) {
-            warnings.add(GUARD_WARN_REASON_PREFIX + guardKey + ":count=" + guardCount);
+        if (GUARD_MODE_WARN.equals(mode)) {
+            evaluation.getWarnings().add(GUARD_WARN_REASON_PREFIX + guardKey + ":count=" + guardCount);
             return;
         }
-        throw exception(errorCode);
+        if (evaluation.getBlockedErrorCode() == null) {
+            evaluation.setBlockedErrorCode(errorCode);
+        }
+    }
+
+    private void throwIfLifecycleGuardBlocked(LifecycleGuardEvaluation guardEvaluation) {
+        if (guardEvaluation.getBlockedErrorCode() == null) {
+            return;
+        }
+        throw exception(guardEvaluation.getBlockedErrorCode());
     }
 
     private String resolveGuardMode(String configKey) {
@@ -797,5 +837,28 @@ public class ProductStoreServiceImpl implements ProductStoreService {
 
     private static String normalizeCode(String code) {
         return code == null ? null : code.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static final class LifecycleGuardEvaluation {
+
+        private final List<String> warnings = new ArrayList<>();
+        private final List<ProductStoreLifecycleGuardRespVO.GuardItem> guardItems = new ArrayList<>();
+        private ErrorCode blockedErrorCode;
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
+
+        public List<ProductStoreLifecycleGuardRespVO.GuardItem> getGuardItems() {
+            return guardItems;
+        }
+
+        public ErrorCode getBlockedErrorCode() {
+            return blockedErrorCode;
+        }
+
+        public void setBlockedErrorCode(ErrorCode blockedErrorCode) {
+            this.blockedErrorCode = blockedErrorCode;
+        }
     }
 }

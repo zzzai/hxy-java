@@ -61,6 +61,8 @@ public interface ProductStoreService {
 
     void updateStoreLifecycle(Long id, Integer lifecycleStatus, String reason);
 
+    ProductStoreLifecycleGuardRespVO getLifecycleGuard(Long id, Integer lifecycleStatus);
+
     ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id);
 
     void batchUpdateCategory(@Valid ProductStoreBatchCategoryReqVO reqVO);

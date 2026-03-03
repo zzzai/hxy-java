@@ -104,6 +104,15 @@ public class ProductStoreController {
         return success(true);
     }
 
+    @GetMapping("/lifecycle-guard")
+    @Operation(summary = "获取门店生命周期守卫详情")
+    @PreAuthorize("@ss.hasPermission('product:store:query')")
+    public CommonResult<ProductStoreLifecycleGuardRespVO> getLifecycleGuard(
+            @RequestParam("id") Long id,
+            @RequestParam("lifecycleStatus") Integer lifecycleStatus) {
+        return success(storeService.getLifecycleGuard(id, lifecycleStatus));
+    }
+
     @GetMapping("/check-launch-readiness")
     @Operation(summary = "检查门店上线门禁")
     @Parameter(name = "id", description = "门店编号", required = true, example = "1001")

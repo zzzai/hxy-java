@@ -2,6 +2,7 @@ package cn.iocoder.yudao.module.product.service.store;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLaunchReadinessRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSaveReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreAuditLogDO;
@@ -46,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -334,6 +336,7 @@ class ProductStoreServiceImplTest {
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1012L), any())).thenReturn(0L);
         when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1012L))
                 .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(3L).setInflightTicketCount(0L));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
         when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
 
         assertDoesNotThrow(() -> productStoreService.updateStoreLifecycle(1012L, 35, "临时停业"));
@@ -342,6 +345,41 @@ class ProductStoreServiceImplTest {
                         && "LIFECYCLE".equals(log.getAction())
                         && log.getReason() != null
                         && log.getReason().contains("LIFECYCLE_GUARD_WARN:pending-order:count=3")));
+    }
+
+    @Test
+    void getLifecycleGuard_shouldReturnBlockedWhenStockFlowExists() {
+        ProductStoreDO store = ProductStoreDO.builder().id(1013L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1013L)).thenReturn(store);
+        when(storeSpuMapper.selectCountByStoreId(1013L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1013L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1013L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1013L), any())).thenReturn(2L);
+
+        ProductStoreLifecycleGuardRespVO respVO = productStoreService.getLifecycleGuard(1013L, 40);
+
+        assertTrue(respVO.getBlocked());
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), respVO.getBlockedCode());
+        assertTrue(respVO.getWarnings().isEmpty());
+    }
+
+    @Test
+    void getLifecycleGuard_shouldReturnWarnWhenPendingOrderWarnMode() {
+        ProductStoreDO store = ProductStoreDO.builder().id(1014L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(1014L)).thenReturn(store);
+        when(storeSpuMapper.selectCountByStoreId(1014L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1014L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1014L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1014L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1014L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(5L).setInflightTicketCount(0L));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
+
+        ProductStoreLifecycleGuardRespVO respVO = productStoreService.getLifecycleGuard(1014L, 35);
+
+        assertFalse(respVO.getBlocked());
+        assertTrue(respVO.getWarnings().contains("LIFECYCLE_GUARD_WARN:pending-order:count=5"));
     }
 
     @Test
