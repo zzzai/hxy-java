@@ -45,6 +45,12 @@ public class AfterSaleReviewTicketPageReqVO extends PageParam {
     @Schema(description = "升级对象", example = "HQ_AFTER_SALE")
     private String escalateTo;
 
+    @Schema(description = "命中路由 ID", example = "88")
+    private Long routeId;
+
+    @Schema(description = "命中路由作用域", example = "RULE")
+    private String routeScope;
+
     @Schema(description = "工单状态", example = "0")
     @InEnum(value = AfterSaleReviewTicketStatusEnum.class, message = "工单状态必须是 {value}")
     private Integer status;

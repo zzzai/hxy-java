@@ -74,9 +74,43 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         assertEquals(target.getId(), page.getList().get(0).getId());
     }
 
+    @Test
+    void shouldSelectByRouteDimensions() {
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        AfterSaleReviewTicketDO target = insertTicket("SRC-ROUTE-TARGET",
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), now.plusMinutes(10),
+                "TICKET_CREATE", "SRC-ROUTE-TARGET", now.minusMinutes(1), 88L, "RULE");
+        insertTicket("SRC-ROUTE-ID-MISS",
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), now.plusMinutes(10),
+                "TICKET_CREATE", "SRC-ROUTE-ID-MISS", now.minusMinutes(1), 89L, "RULE");
+        insertTicket("SRC-ROUTE-SCOPE-MISS",
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), now.plusMinutes(10),
+                "TICKET_CREATE", "SRC-ROUTE-SCOPE-MISS", now.minusMinutes(1), 88L, "TYPE_DEFAULT");
+
+        AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setRouteId(88L);
+        reqVO.setRouteScope("RULE");
+
+        PageResult<AfterSaleReviewTicketDO> page = mapper.selectPage(reqVO);
+
+        assertEquals(1L, page.getTotal());
+        assertEquals(1, page.getList().size());
+        assertEquals(target.getId(), page.getList().get(0).getId());
+    }
+
     private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
                                                  String lastActionCode, String lastActionBizNo,
                                                  LocalDateTime lastActionTime) {
+        return insertTicket(sourceBizNo, status, deadline, lastActionCode, lastActionBizNo, lastActionTime,
+                null, "");
+    }
+
+    private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
+                                                 String lastActionCode, String lastActionBizNo,
+                                                 LocalDateTime lastActionTime, Long routeId,
+                                                 String routeScope) {
         AfterSaleReviewTicketDO row = new AfterSaleReviewTicketDO();
         row.setTicketType(10);
         row.setAfterSaleId(null);
@@ -88,6 +122,9 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         row.setDecisionReason("测试");
         row.setSeverity("P1");
         row.setEscalateTo("HQ_AFTER_SALE");
+        row.setRouteId(routeId);
+        row.setRouteScope(routeScope);
+        row.setRouteDecisionOrder("RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT");
         row.setSlaDeadlineTime(deadline);
         row.setStatus(status);
         row.setFirstTriggerTime(LocalDateTime.now().minusHours(1));

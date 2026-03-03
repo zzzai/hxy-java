@@ -32,6 +32,8 @@ public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReview
                 .eqIfPresent(AfterSaleReviewTicketDO::getRuleCode, reqVO.getRuleCode())
                 .eqIfPresent(AfterSaleReviewTicketDO::getSourceBizNo, reqVO.getSourceBizNo())
                 .eqIfPresent(AfterSaleReviewTicketDO::getEscalateTo, reqVO.getEscalateTo())
+                .eqIfPresent(AfterSaleReviewTicketDO::getRouteId, reqVO.getRouteId())
+                .eqIfPresent(AfterSaleReviewTicketDO::getRouteScope, reqVO.getRouteScope())
                 .eqIfPresent(AfterSaleReviewTicketDO::getLastActionCode, reqVO.getLastActionCode())
                 .eqIfPresent(AfterSaleReviewTicketDO::getLastActionBizNo, reqVO.getLastActionBizNo())
                 .betweenIfPresent(AfterSaleReviewTicketDO::getSlaDeadlineTime, reqVO.getSlaDeadlineTime())
