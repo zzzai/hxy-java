@@ -11,8 +11,6 @@ import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatus
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -44,6 +42,8 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
+    @Resource
+    private AfterSaleReviewTicketRouteProvider reviewTicketRouteProvider;
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
@@ -63,11 +63,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (reqBO == null) {
             return null;
         }
-        TicketRoute route = buildRoute(reqBO.getRuleCode());
+        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        ReviewTicketRoute route = reviewTicketRouteProvider.resolve(ticketType, reqBO.getSeverity(), reqBO.getRuleCode());
         LocalDateTime now = LocalDateTime.now();
         String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
         String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
-        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
         Integer slaMinutes = resolveSlaMinutes(reqBO.getSlaMinutes(), route.getSlaMinutes());
         String sourceBizNo = StrUtil.blankToDefault(reqBO.getSourceBizNo(),
                 reqBO.getAfterSaleId() == null ? "" : String.valueOf(reqBO.getAfterSaleId()));
@@ -101,10 +101,13 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (afterSale == null || decision == null || afterSale.getId() == null) {
             return;
         }
-        TicketRoute route = buildRoute(decision.getRuleCode());
+        AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByAfterSaleId(afterSale.getId());
+        ReviewTicketRoute route = reviewTicketRouteProvider.resolve(
+                AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType(),
+                existed == null ? null : existed.getSeverity(),
+                decision.getRuleCode());
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime slaDeadlineTime = now.plusMinutes(route.getSlaMinutes());
-        AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByAfterSaleId(afterSale.getId());
         if (existed == null) {
             afterSaleReviewTicketMapper.insert(new AfterSaleReviewTicketDO()
                     .setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType())
@@ -210,14 +213,16 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         int affectedRows = 0;
         for (AfterSaleReviewTicketDO ticket : overdueTickets) {
             String newSeverity = nextSeverity(ticket.getSeverity());
-            String newEscalateTo = nextEscalateTo(ticket.getEscalateTo(), newSeverity);
+            ReviewTicketRoute route = reviewTicketRouteProvider.resolve(
+                    ticket.getTicketType(), newSeverity, ticket.getRuleCode());
+            String newEscalateTo = nextEscalateTo(ticket.getEscalateTo(), newSeverity, route.getEscalateTo());
             String newRemark = buildEscalateRemark(ticket, now, newSeverity);
             int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
                     AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
                     new AfterSaleReviewTicketDO()
                             .setSeverity(newSeverity)
                             .setEscalateTo(newEscalateTo)
-                            .setSlaDeadlineTime(now.plusMinutes(resolveEscalatedSlaMinutes(newSeverity)))
+                            .setSlaDeadlineTime(now.plusMinutes(resolveEscalatedSlaMinutes(newSeverity, route.getSlaMinutes())))
                             .setLastTriggerTime(now)
                             .setTriggerCount(ObjUtil.defaultIfNull(ticket.getTriggerCount(), 0) + 1)
                             .setLastActionCode(ACTION_SLA_AUTO_ESCALATE)
@@ -227,22 +232,6 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             affectedRows += updateCount;
         }
         return affectedRows;
-    }
-
-    private TicketRoute buildRoute(String ruleCode) {
-        if (StrUtil.equalsAnyIgnoreCase(ruleCode, "BLACKLIST_USER", "SUSPICIOUS_ORDER")) {
-            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30);
-        }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "AMOUNT_OVER_LIMIT")) {
-            return new TicketRoute("P1", "HQ_FINANCE", 120);
-        }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "HIGH_FREQUENCY")) {
-            return new TicketRoute("P1", "HQ_AFTER_SALE", 120);
-        }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "AUTO_REFUND_EXECUTE_FAIL")) {
-            return new TicketRoute("P0", "PAY_DEVOPS", 15);
-        }
-        return new TicketRoute("P1", "HQ_AFTER_SALE", 120);
     }
 
     private String abbreviate(String text, int maxLength) {
@@ -265,9 +254,12 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return "P1";
     }
 
-    private String nextEscalateTo(String currentEscalateTo, String severity) {
+    private String nextEscalateTo(String currentEscalateTo, String severity, String routeEscalateTo) {
         if (StrUtil.equalsIgnoreCase("P0", severity)) {
-            return "HQ_RISK_FINANCE";
+            return StrUtil.blankToDefault(routeEscalateTo, "HQ_RISK_FINANCE");
+        }
+        if (StrUtil.isNotBlank(routeEscalateTo)) {
+            return routeEscalateTo;
         }
         if (StrUtil.isNotBlank(currentEscalateTo)) {
             return currentEscalateTo;
@@ -275,8 +267,16 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return "HQ_AFTER_SALE";
     }
 
-    private Integer resolveEscalatedSlaMinutes(String severity) {
-        return StrUtil.equalsIgnoreCase("P0", severity) ? 30 : 120;
+    private Integer resolveEscalatedSlaMinutes(String severity, Integer routeSlaMinutes) {
+        int fallback = StrUtil.equalsIgnoreCase("P0", severity) ? 30 : 120;
+        int resolved = ObjUtil.defaultIfNull(routeSlaMinutes, fallback);
+        if (resolved <= 0) {
+            resolved = fallback;
+        }
+        if (StrUtil.equalsIgnoreCase("P0", severity)) {
+            return Math.min(resolved, 30);
+        }
+        return Math.min(resolved, 7 * 24 * 60);
     }
 
     private Integer resolveSlaMinutes(Integer requestSlaMinutes, Integer defaultSlaMinutes) {
@@ -311,14 +311,6 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private String normalizeActionBizNo(String actionBizNo, Long fallbackId) {
         return StrUtil.maxLength(StrUtil.blankToDefault(actionBizNo,
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
-    }
-
-    @Data
-    @AllArgsConstructor
-    private static class TicketRoute {
-        private String severity;
-        private String escalateTo;
-        private Integer slaMinutes;
     }
 
 }
