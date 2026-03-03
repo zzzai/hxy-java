@@ -14,8 +14,16 @@ export interface ReviewTicketRouteVO {
   createTime?: string
 }
 
+export interface ReviewTicketRoutePageReqVO extends PageParam {
+  scope?: string
+  ruleCode?: string
+  ticketType?: number
+  severity?: string
+  enabled?: boolean
+}
+
 // 分页查询工单 SLA 路由规则
-export const getReviewTicketRoutePage = async (params: any) => {
+export const getReviewTicketRoutePage = async (params: ReviewTicketRoutePageReqVO) => {
   return await request.get({ url: '/trade/after-sale/review-ticket-route/page', params })
 }
 
@@ -41,5 +49,5 @@ export const deleteReviewTicketRoute = async (id: number) => {
 
 // 查询启用的工单 SLA 路由规则
 export const getEnabledReviewTicketRouteList = async () => {
-  return await request.get({ url: '/trade/after-sale/review-ticket-route/list-enabled' })
+  return await request.get<ReviewTicketRouteVO[]>({ url: '/trade/after-sale/review-ticket-route/list-enabled' })
 }
