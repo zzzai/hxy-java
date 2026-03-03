@@ -8,6 +8,8 @@ import cn.iocoder.yudao.module.trade.controller.app.aftersale.vo.AppAfterSalePag
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -73,5 +75,17 @@ public interface AfterSaleMapper extends BaseMapperX<AfterSaleDO> {
                 .inIfPresent(AfterSaleDO::getStatus, statuses)
                 .orderByDesc(AfterSaleDO::getId));
     }
+
+    @Select("<script>"
+            + "SELECT COUNT(1) FROM trade_after_sale a "
+            + "INNER JOIN trade_order o ON o.id = a.order_id "
+            + "WHERE o.pick_up_store_id = #{storeId} "
+            + "AND a.status IN "
+            + "<foreach collection='statuses' item='status' open='(' separator=',' close=')'>"
+            + "#{status}"
+            + "</foreach>"
+            + "</script>")
+    Long selectCountByPickUpStoreIdAndStatuses(@Param("storeId") Long storeId,
+                                               @Param("statuses") Collection<Integer> statuses);
 
 }

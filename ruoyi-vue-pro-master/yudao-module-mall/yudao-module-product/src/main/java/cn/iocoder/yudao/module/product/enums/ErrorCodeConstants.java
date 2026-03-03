@@ -100,6 +100,8 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_LIFECYCLE_REASON_REQUIRED = new ErrorCode(1_008_014_003, "门店停业或闭店必须填写原因");
     ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK = new ErrorCode(1_008_014_004, "门店存在正库存，无法停业或闭店");
     ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW = new ErrorCode(1_008_014_005, "门店存在库存流水待处理，无法停业或闭店");
+    ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER = new ErrorCode(1_008_014_006, "门店存在未结订单，无法停业或闭店");
+    ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET = new ErrorCode(1_008_014_007, "门店存在在途售后工单，无法停业或闭店");
 
     // ========== 类目模板与 SKU 生成 1-008-015-000 ==========
     ErrorCode CATEGORY_TEMPLATE_NOT_EXISTS = new ErrorCode(1_008_015_000, "类目模板不存在");

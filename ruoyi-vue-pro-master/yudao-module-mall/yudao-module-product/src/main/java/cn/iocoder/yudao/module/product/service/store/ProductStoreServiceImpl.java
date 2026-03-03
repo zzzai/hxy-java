@@ -5,11 +5,14 @@ import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.*;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.*;
 import cn.iocoder.yudao.module.product.dal.mysql.store.*;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreLifecycleStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
+import cn.iocoder.yudao.module.trade.api.store.TradeStoreLifecycleGuardApi;
+import cn.iocoder.yudao.module.trade.api.store.dto.TradeStoreLifecycleGuardStatRespDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,6 +33,14 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final Integer STATUS_DISABLE = 0;
     private static final Integer FLAG_TRUE = 1;
     private static final Integer DEFAULT_LIFECYCLE = 10;
+    private static final String GUARD_MODE_BLOCK = "BLOCK";
+    private static final String GUARD_MODE_WARN = "WARN";
+    private static final String GUARD_WARN_REASON_PREFIX = "LIFECYCLE_GUARD_WARN:";
+    private static final String GUARD_MODE_MAPPING = "hxy.store.lifecycle.guard.mapping.mode";
+    private static final String GUARD_MODE_STOCK = "hxy.store.lifecycle.guard.stock.mode";
+    private static final String GUARD_MODE_STOCK_FLOW = "hxy.store.lifecycle.guard.stock-flow.mode";
+    private static final String GUARD_MODE_PENDING_ORDER = "hxy.store.lifecycle.guard.pending-order.mode";
+    private static final String GUARD_MODE_INFLIGHT_TICKET = "hxy.store.lifecycle.guard.inflight-ticket.mode";
 
     private static final String DOMAIN_STORE = "STORE";
     private static final String DOMAIN_CATEGORY = "CATEGORY";
@@ -54,6 +65,10 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private ProductStoreTagGroupMapper storeTagGroupMapper;
     @Resource
     private ProductStoreAuditLogMapper storeAuditLogMapper;
+    @Resource
+    private TradeStoreLifecycleGuardApi tradeStoreLifecycleGuardApi;
+    @Resource
+    private ConfigApi configApi;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,12 +88,13 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         ProductStoreDO existing = validateStoreExistsAndGet(reqVO.getId());
         ProductStoreDO updateObj = buildStoreDO(reqVO);
         updateObj.setId(reqVO.getId());
-        validateDisableOrCloseAllowed(updateObj.getStatus(), updateObj.getLifecycleStatus(), reqVO.getId());
+        List<String> guardWarns = validateDisableOrCloseAllowed(updateObj.getStatus(), updateObj.getLifecycleStatus(), reqVO.getId());
         validateLifecycleTransition(existing, updateObj.getLifecycleStatus());
         validateLifecycleReasonRequired(updateObj.getLifecycleStatus(), reqVO.getRemark());
         storeMapper.updateById(updateObj);
         syncStoreTags(reqVO.getId(), tags.stream().map(ProductStoreTagDO::getId).collect(Collectors.toList()));
-        saveAuditLog(DOMAIN_STORE, reqVO.getId(), "UPDATE", existing, updateObj, reqVO.getRemark());
+        saveAuditLog(DOMAIN_STORE, reqVO.getId(), "UPDATE", existing, updateObj,
+                appendGuardWarnReason(reqVO.getRemark(), guardWarns));
         return reqVO.getId();
     }
 
@@ -328,7 +344,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     public void updateStoreLifecycle(Long id, Integer lifecycleStatus, String reason) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         validateLifecycleStatus(lifecycleStatus);
-        validateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
+        List<String> guardWarns = validateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
         validateLifecycleTransition(store, lifecycleStatus);
         validateLifecycleReasonRequired(lifecycleStatus, reason);
         ProductStoreDO updateObj = ProductStoreDO.builder()
@@ -337,7 +353,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 .build();
         storeMapper.updateById(updateObj);
         ProductStoreDO after = storeMapper.selectById(id);
-        saveAuditLog(DOMAIN_STORE, id, "LIFECYCLE", store, after, reason);
+        saveAuditLog(DOMAIN_STORE, id, "LIFECYCLE", store, after, appendGuardWarnReason(reason, guardWarns));
     }
 
     @Override
@@ -677,25 +693,76 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         }
     }
 
-    private void validateDisableOrCloseAllowed(Integer targetStatus, Integer targetLifecycleStatus, Long storeId) {
+    private List<String> validateDisableOrCloseAllowed(Integer targetStatus, Integer targetLifecycleStatus, Long storeId) {
         boolean disabling = Objects.equals(targetStatus, STATUS_DISABLE);
         boolean suspending = Objects.equals(targetLifecycleStatus, ProductStoreLifecycleStatusEnum.SUSPENDED.getStatus());
         boolean closing = Objects.equals(targetLifecycleStatus, ProductStoreLifecycleStatusEnum.CLOSED.getStatus());
         if (!(disabling || suspending || closing)) {
+            return Collections.emptyList();
+        }
+        List<String> warnings = new ArrayList<>();
+        applyLifecycleGuard("mapping",
+                storeSpuMapper.selectCountByStoreId(storeId) + storeSkuMapper.selectCountByStoreId(storeId),
+                GUARD_MODE_MAPPING,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_MAPPING,
+                warnings);
+        applyLifecycleGuard("stock",
+                storeSkuMapper.selectPositiveStockCountByStoreId(storeId),
+                GUARD_MODE_STOCK,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK,
+                warnings);
+        applyLifecycleGuard("stock-flow",
+                storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, Arrays.asList(
+                        ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus(),
+                        ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
+                        ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())),
+                GUARD_MODE_STOCK_FLOW,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
+                warnings);
+        TradeStoreLifecycleGuardStatRespDTO tradeStat = Optional.ofNullable(
+                tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(storeId)).orElse(new TradeStoreLifecycleGuardStatRespDTO());
+        applyLifecycleGuard("pending-order",
+                Optional.ofNullable(tradeStat.getPendingOrderCount()).orElse(0L),
+                GUARD_MODE_PENDING_ORDER,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER,
+                warnings);
+        applyLifecycleGuard("inflight-ticket",
+                Optional.ofNullable(tradeStat.getInflightTicketCount()).orElse(0L),
+                GUARD_MODE_INFLIGHT_TICKET,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET,
+                warnings);
+        return warnings;
+    }
+
+    private void applyLifecycleGuard(String guardKey, Long count, String configKey,
+                                     cn.iocoder.yudao.framework.common.exception.ErrorCode errorCode,
+                                     List<String> warnings) {
+        long guardCount = Optional.ofNullable(count).orElse(0L);
+        if (guardCount <= 0) {
             return;
         }
-        if (storeSpuMapper.selectCountByStoreId(storeId) > 0 || storeSkuMapper.selectCountByStoreId(storeId) > 0) {
-            throw exception(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_MAPPING);
+        if (GUARD_MODE_WARN.equals(resolveGuardMode(configKey))) {
+            warnings.add(GUARD_WARN_REASON_PREFIX + guardKey + ":count=" + guardCount);
+            return;
         }
-        if (storeSkuMapper.selectPositiveStockCountByStoreId(storeId) > 0) {
-            throw exception(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK);
+        throw exception(errorCode);
+    }
+
+    private String resolveGuardMode(String configKey) {
+        String mode = Optional.ofNullable(configApi.getConfigValueByKey(configKey)).orElse(GUARD_MODE_BLOCK);
+        String normalizedMode = mode.trim().toUpperCase(Locale.ROOT);
+        return GUARD_MODE_WARN.equals(normalizedMode) ? GUARD_MODE_WARN : GUARD_MODE_BLOCK;
+    }
+
+    private String appendGuardWarnReason(String reason, List<String> warnings) {
+        if (CollUtil.isEmpty(warnings)) {
+            return reason;
         }
-        if (storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, Arrays.asList(
-                ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus(),
-                ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
-                ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())) > 0) {
-            throw exception(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW);
+        String warnText = String.join(";", warnings);
+        if (!StringUtils.hasText(reason)) {
+            return warnText;
         }
+        return reason + ";" + warnText;
     }
 
     private void validateLifecycleReasonRequired(Integer targetLifecycleStatus, String reason) {

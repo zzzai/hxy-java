@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +83,12 @@ public interface TradeOrderMapper extends BaseMapperX<TradeOrderDO> {
                 .eq(TradeOrderDO::getUserId, userId)
                 .eqIfPresent(TradeOrderDO::getStatus, status)
                 .eqIfPresent(TradeOrderDO::getCommentStatus, commentStatus));
+    }
+
+    default Long selectCountByPickUpStoreIdAndStatuses(Long pickUpStoreId, Collection<Integer> statuses) {
+        return selectCount(new LambdaQueryWrapperX<TradeOrderDO>()
+                .eq(TradeOrderDO::getPickUpStoreId, pickUpStoreId)
+                .inIfPresent(TradeOrderDO::getStatus, statuses));
     }
 
     default Long selectSumPayPriceByUserId(Long userId) {

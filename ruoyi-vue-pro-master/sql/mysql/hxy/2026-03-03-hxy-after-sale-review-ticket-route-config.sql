@@ -33,6 +33,7 @@ VALUES
     ('RULE', 'AMOUNT_OVER_LIMIT', 0, 'P1', 'HQ_FINANCE', 120, b'1', 12, '默认规则：金额超限'),
     ('RULE', 'HIGH_FREQUENCY', 0, 'P1', 'HQ_AFTER_SALE', 120, b'1', 13, '默认规则：高频退款'),
     ('RULE', 'AUTO_REFUND_EXECUTE_FAIL', 0, 'P0', 'PAY_DEVOPS', 15, b'1', 14, '默认规则：自动退款失败'),
+    ('RULE', 'REFUND_LIMIT_CHANGED', 0, 'P1', 'HQ_AFTER_SALE', 120, b'1', 15, '默认规则：退款上限收紧'),
     ('TYPE_DEFAULT', '', 10, 'P1', 'HQ_AFTER_SALE', 120, b'1', 20, '售后工单类型默认'),
     ('TYPE_DEFAULT', '', 20, 'P1', 'HQ_SERVICE_OPS', 90, b'1', 21, '服务履约工单类型默认'),
     ('TYPE_DEFAULT', '', 30, 'P1', 'HQ_FINANCE', 120, b'1', 22, '提成争议工单类型默认'),

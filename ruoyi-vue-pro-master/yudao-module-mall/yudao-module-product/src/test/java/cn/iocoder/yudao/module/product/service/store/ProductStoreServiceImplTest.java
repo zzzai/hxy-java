@@ -1,8 +1,10 @@
 package cn.iocoder.yudao.module.product.service.store;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
+import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLaunchReadinessRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSaveReqVO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreAuditLogDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreCategoryDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagDO;
@@ -18,6 +20,8 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagGroupMappe
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagRelMapper;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
+import cn.iocoder.yudao.module.trade.api.store.TradeStoreLifecycleGuardApi;
+import cn.iocoder.yudao.module.trade.api.store.dto.TradeStoreLifecycleGuardStatRespDTO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +36,8 @@ import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_CAT
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_HAS_PRODUCT_MAPPING;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_REASON_REQUIRED;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_TRANSITION_NOT_ALLOWED;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_TAG_GROUP_MUTEX_CONFLICT;
@@ -41,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
@@ -68,6 +75,10 @@ class ProductStoreServiceImplTest {
     private ProductStoreTagGroupMapper storeTagGroupMapper;
     @Mock
     private ProductStoreAuditLogMapper storeAuditLogMapper;
+    @Mock
+    private TradeStoreLifecycleGuardApi tradeStoreLifecycleGuardApi;
+    @Mock
+    private ConfigApi configApi;
 
     @InjectMocks
     private ProductStoreServiceImpl productStoreService;
@@ -278,6 +289,59 @@ class ProductStoreServiceImplTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreService.updateStoreLifecycle(1009L, 35, "临时停业"));
         assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), ex.getCode());
+    }
+
+    @Test
+    void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasPendingOrder() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1010L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(1010L)).thenReturn(before);
+        when(storeSpuMapper.selectCountByStoreId(1010L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1010L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1010L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1010L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1010L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(1L).setInflightTicketCount(0L));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.updateStoreLifecycle(1010L, 35, "临时停业"));
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER.getCode(), ex.getCode());
+    }
+
+    @Test
+    void updateStoreLifecycle_shouldThrowWhenClosedAndHasInflightTicket() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1011L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1011L)).thenReturn(before);
+        when(storeSpuMapper.selectCountByStoreId(1011L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1011L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1011L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1011L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1011L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(2L));
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.updateStoreLifecycle(1011L, 40, "闭店"));
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET.getCode(), ex.getCode());
+    }
+
+    @Test
+    void updateStoreLifecycle_shouldAllowWarnModeWhenPendingOrderExists() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1012L).status(1).lifecycleStatus(30).build();
+        ProductStoreDO after = ProductStoreDO.builder().id(1012L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1012L)).thenReturn(before, after);
+        when(storeSpuMapper.selectCountByStoreId(1012L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1012L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(1012L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1012L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1012L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(3L).setInflightTicketCount(0L));
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
+
+        assertDoesNotThrow(() -> productStoreService.updateStoreLifecycle(1012L, 35, "临时停业"));
+        verify(storeAuditLogMapper).insert(argThat((ProductStoreAuditLogDO log) ->
+                log != null
+                        && "LIFECYCLE".equals(log.getAction())
+                        && log.getReason() != null
+                        && log.getReason().contains("LIFECYCLE_GUARD_WARN:pending-order:count=3")));
     }
 
     @Test
