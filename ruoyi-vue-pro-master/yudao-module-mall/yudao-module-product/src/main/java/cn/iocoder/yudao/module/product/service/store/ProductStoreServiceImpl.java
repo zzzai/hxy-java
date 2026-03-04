@@ -374,6 +374,10 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         validateLifecycleStatus(lifecycleStatus);
         LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
+        ErrorCode transitionErrorCode = resolveLifecycleTransitionError(store, lifecycleStatus);
+        if (transitionErrorCode != null && guardEvaluation.getBlockedErrorCode() == null) {
+            guardEvaluation.setBlockedErrorCode(transitionErrorCode);
+        }
         ProductStoreLifecycleGuardRespVO respVO = new ProductStoreLifecycleGuardRespVO();
         respVO.setStoreId(id);
         respVO.setTargetLifecycleStatus(lifecycleStatus);
@@ -820,6 +824,15 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         Set<Integer> allowed = ProductStoreLifecycleStatusEnum.nextStatuses(current);
         if (!allowed.contains(targetLifecycleStatus)) {
             throw exception(STORE_LIFECYCLE_TRANSITION_NOT_ALLOWED, current, targetLifecycleStatus);
+        }
+    }
+
+    private ErrorCode resolveLifecycleTransitionError(ProductStoreDO store, Integer targetLifecycleStatus) {
+        try {
+            validateLifecycleTransition(store, targetLifecycleStatus);
+            return null;
+        } catch (ServiceException ex) {
+            return new ErrorCode(ex.getCode(), ex.getMessage());
         }
     }
 

@@ -459,6 +459,20 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
+    void getLifecycleGuard_shouldReturnBlockedWhenTransitionNotAllowed() {
+        ProductStoreDO closedStore = ProductStoreDO.builder().id(1024L).status(1).lifecycleStatus(40).build();
+        when(storeMapper.selectById(1024L)).thenReturn(closedStore);
+
+        ProductStoreLifecycleGuardRespVO respVO = productStoreService.getLifecycleGuard(1024L, 30);
+
+        assertTrue(respVO.getBlocked());
+        assertEquals(STORE_LIFECYCLE_TRANSITION_NOT_ALLOWED.getCode(), respVO.getBlockedCode());
+        assertTrue(respVO.getBlockedMessage().contains("40"));
+        assertTrue(respVO.getBlockedMessage().contains("30"));
+        verifyNoMoreInteractions(storeSpuMapper, storeSkuMapper, storeSkuStockFlowMapper, tradeStoreLifecycleGuardApi);
+    }
+
+    @Test
     void getLifecycleGuardBatch_shouldReturnDeduplicatedResults() {
         ProductStoreDO blockedStore = ProductStoreDO.builder().id(1015L).status(1).lifecycleStatus(35).build();
         ProductStoreDO warnStore = ProductStoreDO.builder().id(1016L).status(1).lifecycleStatus(30).build();
@@ -565,6 +579,29 @@ class ProductStoreServiceImplTest {
         assertEquals(1, result.getDetails().size());
         assertEquals("BLOCKED", result.getDetails().get(0).getResult());
         verify(lifecycleBatchLogService).createLifecycleBatchLog(any(ProductStoreLifecycleBatchLogDO.class));
+    }
+
+    @Test
+    void batchUpdateLifecycleWithResult_shouldBlockWhenTransitionNotAllowedInPrecheck() {
+        ProductStoreDO closedStore = ProductStoreDO.builder().id(1041L).name("北京朝阳店").status(1).lifecycleStatus(40).build();
+        when(storeMapper.selectById(1041L)).thenReturn(closedStore);
+
+        ProductStoreBatchLifecycleReqVO reqVO = new ProductStoreBatchLifecycleReqVO();
+        reqVO.setStoreIds(Collections.singletonList(1041L));
+        reqVO.setLifecycleStatus(30);
+        reqVO.setReason("恢复营业");
+
+        ProductStoreBatchLifecycleExecuteRespVO result = productStoreService.batchUpdateLifecycleWithResult(reqVO);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(1, result.getBlockedCount());
+        assertEquals(0, result.getWarningCount());
+        assertEquals("BLOCKED", result.getDetails().get(0).getResult());
+        assertTrue(result.getDetails().get(0).getMessage().contains("流转不允许"));
+        verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+        verify(lifecycleBatchLogService).createLifecycleBatchLog(any(ProductStoreLifecycleBatchLogDO.class));
+        verifyNoMoreInteractions(storeSpuMapper, storeSkuMapper, storeSkuStockFlowMapper, tradeStoreLifecycleGuardApi);
     }
 
     @Test
