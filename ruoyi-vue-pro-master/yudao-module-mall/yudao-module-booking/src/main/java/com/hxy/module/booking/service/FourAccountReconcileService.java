@@ -1,0 +1,29 @@
+package com.hxy.module.booking.service;
+
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
+
+import java.time.LocalDate;
+
+/**
+ * 四账对账 Service
+ */
+public interface FourAccountReconcileService {
+
+    /**
+     * 执行指定业务日的四账对账
+     *
+     * @param bizDate 业务日，不传默认昨天
+     * @param source 触发来源
+     * @param operator 操作人
+     * @return 对账记录ID
+     */
+    Long runReconcile(LocalDate bizDate, String source, String operator);
+
+    /**
+     * 分页查询对账记录
+     */
+    PageResult<FourAccountReconcileDO> getReconcilePage(FourAccountReconcilePageReqVO reqVO);
+}
+

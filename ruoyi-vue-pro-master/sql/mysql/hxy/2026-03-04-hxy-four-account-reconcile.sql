@@ -1,0 +1,31 @@
+-- 四账对账快照表（交易/履约/提成/分账）
+CREATE TABLE IF NOT EXISTS `hxy_four_account_reconcile` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '编号',
+  `reconcile_no` varchar(32) NOT NULL COMMENT '对账流水号',
+  `biz_date` date NOT NULL COMMENT '业务日期',
+  `trade_amount` int NOT NULL DEFAULT 0 COMMENT '交易账净额（分）',
+  `fulfillment_amount` int NOT NULL DEFAULT 0 COMMENT '履约账金额（分）',
+  `commission_amount` int NOT NULL DEFAULT 0 COMMENT '提成账金额（分）',
+  `split_amount` int NOT NULL DEFAULT 0 COMMENT '分账账金额（分）',
+  `trade_minus_fulfillment` int NOT NULL DEFAULT 0 COMMENT '差额：交易-履约（分）',
+  `trade_minus_commission_split` int NOT NULL DEFAULT 0 COMMENT '差额：交易-(提成+分账)（分）',
+  `status` tinyint NOT NULL DEFAULT 10 COMMENT '状态：10通过 20告警',
+  `issue_count` int NOT NULL DEFAULT 0 COMMENT '问题数量',
+  `issue_codes` varchar(255) NOT NULL DEFAULT '' COMMENT '问题编码（逗号分隔）',
+  `issue_detail_json` text COMMENT '问题明细 JSON',
+  `source` varchar(32) NOT NULL DEFAULT 'JOB_DAILY' COMMENT '触发来源',
+  `operator` varchar(64) NOT NULL DEFAULT 'SYSTEM' COMMENT '操作人',
+  `reconciled_at` datetime NOT NULL COMMENT '对账执行时间',
+  `creator` varchar(64) DEFAULT '' COMMENT '创建者',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updater` varchar(64) DEFAULT '' COMMENT '更新者',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+  `tenant_id` bigint NOT NULL DEFAULT 0 COMMENT '租户编号',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_hxy_four_account_reconcile_biz_date` (`biz_date`),
+  UNIQUE KEY `uk_hxy_four_account_reconcile_no` (`reconcile_no`),
+  KEY `idx_hxy_four_account_reconcile_status_date` (`status`, `biz_date`),
+  KEY `idx_hxy_four_account_reconcile_source_date` (`source`, `biz_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='HXY 四账对账快照';
+
