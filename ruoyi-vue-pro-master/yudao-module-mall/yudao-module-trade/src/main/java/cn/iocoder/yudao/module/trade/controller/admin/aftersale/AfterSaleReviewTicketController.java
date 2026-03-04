@@ -7,14 +7,20 @@ import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketCreateReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveRespVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxBatchRetryReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxBatchRetryRespVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxPageReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketRespVO;
 import cn.iocoder.yudao.module.trade.convert.aftersale.AfterSaleReviewTicketConvert;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketNotifyOutboxDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketService;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketNotifyBatchRetryResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -82,6 +88,26 @@ public class AfterSaleReviewTicketController {
                 reqVO.getIds(), getLoginUserId(), UserTypeEnum.ADMIN.getValue(),
                 reqVO.getResolveActionCode(), reqVO.getResolveBizNo(), reqVO.getResolveRemark());
         return success(BeanUtils.toBean(result, AfterSaleReviewTicketBatchResolveRespVO.class));
+    }
+
+    @GetMapping("/notify-outbox-page")
+    @Operation(summary = "获得人工复核工单通知出站分页")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:query')")
+    public CommonResult<PageResult<AfterSaleReviewTicketNotifyOutboxRespVO>> getNotifyOutboxPage(
+            @Valid AfterSaleReviewTicketNotifyOutboxPageReqVO pageReqVO) {
+        PageResult<AfterSaleReviewTicketNotifyOutboxDO> pageResult =
+                afterSaleReviewTicketService.getNotifyOutboxPage(pageReqVO);
+        return success(BeanUtils.toBean(pageResult, AfterSaleReviewTicketNotifyOutboxRespVO.class));
+    }
+
+    @PostMapping("/notify-outbox-batch-retry")
+    @Operation(summary = "人工复核工单通知出站批量重试")
+    @PreAuthorize("@ss.hasPermission('trade:after-sale:refund')")
+    public CommonResult<AfterSaleReviewTicketNotifyOutboxBatchRetryRespVO> batchRetryNotifyOutbox(
+            @Valid @RequestBody AfterSaleReviewTicketNotifyOutboxBatchRetryReqVO reqVO) {
+        AfterSaleReviewTicketNotifyBatchRetryResult result =
+                afterSaleReviewTicketService.retryNotifyOutboxBatch(reqVO.getIds(), getLoginUserId(), reqVO.getReason());
+        return success(BeanUtils.toBean(result, AfterSaleReviewTicketNotifyOutboxBatchRetryRespVO.class));
     }
 
 }

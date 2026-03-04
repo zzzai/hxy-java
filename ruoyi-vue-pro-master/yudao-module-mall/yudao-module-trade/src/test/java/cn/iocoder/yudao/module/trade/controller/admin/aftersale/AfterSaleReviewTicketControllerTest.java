@@ -8,14 +8,20 @@ import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterS
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketBatchResolveRespVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxBatchRetryReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxBatchRetryRespVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxPageReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxRespVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketResolveReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketRespVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketNotifyOutboxDO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketService;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketNotifyBatchRetryResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -173,6 +179,64 @@ class AfterSaleReviewTicketControllerTest extends BaseMockitoUnitTest {
         assertTrue(result.isSuccess());
         assertEquals(555L, result.getData());
         verify(afterSaleReviewTicketService).createReviewTicket(any());
+    }
+
+    @Test
+    void shouldGetNotifyOutboxPage() {
+        AfterSaleReviewTicketNotifyOutboxPageReqVO reqVO = new AfterSaleReviewTicketNotifyOutboxPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setStatus(2);
+
+        AfterSaleReviewTicketNotifyOutboxDO outbox = new AfterSaleReviewTicketNotifyOutboxDO();
+        outbox.setId(1001L);
+        outbox.setTicketId(2001L);
+        outbox.setNotifyType("SLA_WARN");
+        outbox.setStatus(2);
+        outbox.setLastActionCode("DISPATCH_FAILED");
+
+        when(afterSaleReviewTicketService.getNotifyOutboxPage(reqVO))
+                .thenReturn(new PageResult<>(Collections.singletonList(outbox), 1L));
+
+        CommonResult<PageResult<AfterSaleReviewTicketNotifyOutboxRespVO>> result = controller.getNotifyOutboxPage(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals(1, result.getData().getList().size());
+        assertEquals(1001L, result.getData().getList().get(0).getId());
+        assertEquals(2001L, result.getData().getList().get(0).getTicketId());
+        verify(afterSaleReviewTicketService).getNotifyOutboxPage(reqVO);
+    }
+
+    @Test
+    void shouldBatchRetryNotifyOutbox() {
+        mockLoginUser(88L);
+        AfterSaleReviewTicketNotifyOutboxBatchRetryReqVO reqVO = new AfterSaleReviewTicketNotifyOutboxBatchRetryReqVO();
+        reqVO.setIds(List.of(1001L, 1002L, 1003L));
+        reqVO.setReason("ops-retry");
+
+        when(afterSaleReviewTicketService.retryNotifyOutboxBatch(List.of(1001L, 1002L, 1003L), 88L, "ops-retry"))
+                .thenReturn(AfterSaleReviewTicketNotifyBatchRetryResult.builder()
+                        .totalCount(3)
+                        .successCount(1)
+                        .skippedNotFoundCount(1)
+                        .skippedStatusInvalidCount(1)
+                        .successIds(List.of(1001L))
+                        .skippedNotFoundIds(List.of(1002L))
+                        .skippedStatusInvalidIds(List.of(1003L))
+                        .build());
+
+        CommonResult<AfterSaleReviewTicketNotifyOutboxBatchRetryRespVO> result =
+                controller.batchRetryNotifyOutbox(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(3, result.getData().getTotalCount());
+        assertEquals(1, result.getData().getSuccessCount());
+        assertEquals(1, result.getData().getSkippedNotFoundCount());
+        assertEquals(1, result.getData().getSkippedStatusInvalidCount());
+        verify(afterSaleReviewTicketService).retryNotifyOutboxBatch(List.of(1001L, 1002L, 1003L), 88L, "ops-retry");
     }
 
     private void mockLoginUser(Long userId) {

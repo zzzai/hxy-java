@@ -2,11 +2,14 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketNotifyOutboxDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketNotifyBatchRetryResult;
 
 import java.util.List;
 
@@ -99,5 +102,39 @@ public interface AfterSaleReviewTicketService {
      * @return 升级数量
      */
     int escalateOverduePendingTickets(Integer limit);
+
+    /**
+     * 预警临近 SLA 截止的待处理工单，并生成通知出站记录（幂等）
+     *
+     * @param limit 批次上限
+     * @return 触发预警数量
+     */
+    int warnNearDeadlinePendingTickets(Integer limit);
+
+    /**
+     * 分发待发送/可重试通知出站记录
+     *
+     * @param limit 批次上限
+     * @return 发送成功数量
+     */
+    int dispatchPendingNotifyOutbox(Integer limit);
+
+    /**
+     * 分页查询通知出站记录
+     *
+     * @param pageReqVO 分页参数
+     * @return 出站分页
+     */
+    PageResult<AfterSaleReviewTicketNotifyOutboxDO> getNotifyOutboxPage(AfterSaleReviewTicketNotifyOutboxPageReqVO pageReqVO);
+
+    /**
+     * 批量重试通知出站记录（仅失败态可重试）
+     *
+     * @param ids        出站记录 ID 列表
+     * @param operatorId 操作人 ID
+     * @param reason     重试原因
+     * @return 重试结果
+     */
+    AfterSaleReviewTicketNotifyBatchRetryResult retryNotifyOutboxBatch(List<Long> ids, Long operatorId, String reason);
 
 }

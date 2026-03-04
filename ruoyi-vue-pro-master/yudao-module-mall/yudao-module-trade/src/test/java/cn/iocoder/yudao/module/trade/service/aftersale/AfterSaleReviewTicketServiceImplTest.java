@@ -4,18 +4,23 @@ import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
+import cn.iocoder.yudao.module.system.api.permission.PermissionApi;
+import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketNotifyOutboxDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
+import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketNotifyOutboxMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleMatchLevelEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketNotifyBatchRetryResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,6 +59,12 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
     @Mock
     private ConfigApi configApi;
+    @Mock
+    private AfterSaleReviewTicketNotifyOutboxMapper afterSaleReviewTicketNotifyOutboxMapper;
+    @Mock
+    private NotifySendService notifySendService;
+    @Mock
+    private PermissionApi permissionApi;
 
     @BeforeEach
     void setUpRouteProvider() {
@@ -61,6 +72,7 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
                 .thenReturn(matchedRule(11L, TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode(),
                         "P1", "HQ_AFTER_SALE", 120));
         lenient().when(configApi.getConfigValueByKey(anyString())).thenReturn(null);
+        lenient().when(permissionApi.getUserRoleIdListByRoleIds(any())).thenReturn(Collections.emptySet());
     }
 
     @Test
@@ -517,6 +529,148 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
                         captor.getValue().getFirstTriggerTime(), captor.getValue().getSlaDeadlineTime()));
     }
 
+    @Test
+    void shouldWarnNearDeadlinePendingTicketsAndCreateNotifyOutbox() {
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(31L);
+        ticket.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        ticket.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        ticket.setRuleCode("BLACKLIST_USER");
+        ticket.setSeverity("P1");
+        ticket.setEscalateTo("HQ_AFTER_SALE");
+        ticket.setSlaDeadlineTime(LocalDateTime.now().plusMinutes(10));
+        when(afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any(LocalDateTime.class), eq(200)))
+                .thenReturn(Collections.singletonList(ticket));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(61L, TicketSlaRuleMatchLevelEnum.TYPE_SEVERITY.getCode(),
+                        "P1", "HQ_AFTER_SALE", 120, 30, 0));
+        when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(31L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any()))
+                .thenReturn(1);
+
+        int count = service.warnNearDeadlinePendingTickets(null);
+
+        assertEquals(1, count);
+        ArgumentCaptor<AfterSaleReviewTicketNotifyOutboxDO> outboxCaptor =
+                ArgumentCaptor.forClass(AfterSaleReviewTicketNotifyOutboxDO.class);
+        verify(afterSaleReviewTicketNotifyOutboxMapper).insert(outboxCaptor.capture());
+        assertEquals(31L, outboxCaptor.getValue().getTicketId());
+        assertEquals("SLA_WARN", outboxCaptor.getValue().getNotifyType());
+        assertEquals("IN_APP", outboxCaptor.getValue().getChannel());
+        assertEquals(0, outboxCaptor.getValue().getStatus());
+        assertEquals(0, outboxCaptor.getValue().getRetryCount());
+
+        ArgumentCaptor<AfterSaleReviewTicketDO> ticketUpdateCaptor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).updateByIdAndStatus(eq(31L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), ticketUpdateCaptor.capture());
+        assertEquals("SLA_WARN_NOTIFY", ticketUpdateCaptor.getValue().getLastActionCode());
+        assertNotNull(ticketUpdateCaptor.getValue().getLastActionTime());
+    }
+
+    @Test
+    void shouldDispatchNotifyOutboxAndMarkSentWhenNotifySuccess() {
+        AfterSaleReviewTicketNotifyOutboxDO outbox = new AfterSaleReviewTicketNotifyOutboxDO();
+        outbox.setId(41L);
+        outbox.setTicketId(32L);
+        outbox.setNotifyType("SLA_WARN");
+        outbox.setChannel("IN_APP");
+        outbox.setSeverity("P1");
+        outbox.setStatus(0);
+        outbox.setRetryCount(0);
+        when(afterSaleReviewTicketNotifyOutboxMapper.selectDispatchableList(any(LocalDateTime.class), eq(200), eq(5)))
+                .thenReturn(Collections.singletonList(outbox));
+        when(afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(eq(41L), eq(0), any()))
+                .thenReturn(1);
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(32L);
+        ticket.setEscalateTo("HQ_AFTER_SALE");
+        ticket.setSeverity("P1");
+        ticket.setSlaDeadlineTime(LocalDateTime.now().plusMinutes(20));
+        when(afterSaleReviewTicketMapper.selectById(32L)).thenReturn(ticket);
+        when(notifySendService.sendSingleNotifyToAdmin(eq(1L), eq("hxy_trade_review_ticket_warn"), any()))
+                .thenReturn(10001L);
+
+        int count = service.dispatchPendingNotifyOutbox(null);
+
+        assertEquals(1, count);
+        ArgumentCaptor<AfterSaleReviewTicketNotifyOutboxDO> outboxCaptor =
+                ArgumentCaptor.forClass(AfterSaleReviewTicketNotifyOutboxDO.class);
+        verify(afterSaleReviewTicketNotifyOutboxMapper).updateByIdAndStatus(eq(41L), eq(0), outboxCaptor.capture());
+        assertEquals(1, outboxCaptor.getValue().getStatus());
+        assertEquals(0, outboxCaptor.getValue().getRetryCount());
+        assertEquals("DISPATCH_SUCCESS", outboxCaptor.getValue().getLastActionCode());
+        assertNotNull(outboxCaptor.getValue().getSentTime());
+    }
+
+    @Test
+    void shouldDispatchNotifyOutboxAndMarkFailedWhenNotifyThrows() {
+        AfterSaleReviewTicketNotifyOutboxDO outbox = new AfterSaleReviewTicketNotifyOutboxDO();
+        outbox.setId(42L);
+        outbox.setTicketId(33L);
+        outbox.setNotifyType("SLA_WARN");
+        outbox.setChannel("IN_APP");
+        outbox.setSeverity("P1");
+        outbox.setStatus(0);
+        outbox.setRetryCount(0);
+        when(afterSaleReviewTicketNotifyOutboxMapper.selectDispatchableList(any(LocalDateTime.class), eq(200), eq(5)))
+                .thenReturn(Collections.singletonList(outbox));
+        when(afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(eq(42L), eq(0), any()))
+                .thenReturn(1);
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(33L);
+        ticket.setEscalateTo("HQ_AFTER_SALE");
+        ticket.setSeverity("P1");
+        ticket.setSlaDeadlineTime(LocalDateTime.now().plusMinutes(20));
+        when(afterSaleReviewTicketMapper.selectById(33L)).thenReturn(ticket);
+        when(notifySendService.sendSingleNotifyToAdmin(eq(1L), eq("hxy_trade_review_ticket_warn"), any()))
+                .thenThrow(new IllegalStateException("template disabled"));
+
+        int count = service.dispatchPendingNotifyOutbox(null);
+
+        assertEquals(0, count);
+        ArgumentCaptor<AfterSaleReviewTicketNotifyOutboxDO> outboxCaptor =
+                ArgumentCaptor.forClass(AfterSaleReviewTicketNotifyOutboxDO.class);
+        verify(afterSaleReviewTicketNotifyOutboxMapper).updateByIdAndStatus(eq(42L), eq(0), outboxCaptor.capture());
+        assertEquals(2, outboxCaptor.getValue().getStatus());
+        assertEquals(1, outboxCaptor.getValue().getRetryCount());
+        assertEquals("DISPATCH_FAILED", outboxCaptor.getValue().getLastActionCode());
+        assertNotNull(outboxCaptor.getValue().getNextRetryTime());
+    }
+
+    @Test
+    void shouldBatchRetryNotifyOutboxWithSummary() {
+        AfterSaleReviewTicketNotifyOutboxDO failed = new AfterSaleReviewTicketNotifyOutboxDO();
+        failed.setId(51L);
+        failed.setStatus(2);
+        AfterSaleReviewTicketNotifyOutboxDO sent = new AfterSaleReviewTicketNotifyOutboxDO();
+        sent.setId(53L);
+        sent.setStatus(1);
+        when(afterSaleReviewTicketNotifyOutboxMapper.selectById(51L)).thenReturn(failed);
+        when(afterSaleReviewTicketNotifyOutboxMapper.selectById(52L)).thenReturn(null);
+        when(afterSaleReviewTicketNotifyOutboxMapper.selectById(53L)).thenReturn(sent);
+        when(afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(eq(51L), eq(2), any())).thenReturn(1);
+
+        AfterSaleReviewTicketNotifyBatchRetryResult result = service.retryNotifyOutboxBatch(
+                Arrays.asList(51L, 52L, 53L, 51L, null), 99L, "manual-retry");
+
+        assertEquals(3, result.getTotalCount());
+        assertEquals(1, result.getSuccessCount());
+        assertEquals(1, result.getSkippedNotFoundCount());
+        assertEquals(1, result.getSkippedStatusInvalidCount());
+        assertEquals(Collections.singletonList(51L), result.getSuccessIds());
+        assertEquals(Collections.singletonList(52L), result.getSkippedNotFoundIds());
+        assertEquals(Collections.singletonList(53L), result.getSkippedStatusInvalidIds());
+
+        ArgumentCaptor<AfterSaleReviewTicketNotifyOutboxDO> outboxCaptor =
+                ArgumentCaptor.forClass(AfterSaleReviewTicketNotifyOutboxDO.class);
+        verify(afterSaleReviewTicketNotifyOutboxMapper).updateByIdAndStatus(eq(51L), eq(2), outboxCaptor.capture());
+        assertEquals(0, outboxCaptor.getValue().getStatus());
+        assertEquals(0, outboxCaptor.getValue().getRetryCount());
+        assertEquals("MANUAL_RETRY", outboxCaptor.getValue().getLastActionCode());
+        assertNotNull(outboxCaptor.getValue().getNextRetryTime());
+    }
+
     private static AfterSaleDO buildAfterSale(Long id) {
         AfterSaleDO afterSale = new AfterSaleDO();
         afterSale.setId(id);
@@ -528,11 +682,18 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
 
     private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
                                                               String severity, String escalateTo, Integer slaMinutes) {
-        return matchedRule(ruleId, matchLevel, severity, escalateTo, slaMinutes, null);
+        return matchedRule(ruleId, matchLevel, severity, escalateTo, slaMinutes, null, null);
     }
 
     private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
                                                               String severity, String escalateTo, Integer slaMinutes,
+                                                              Integer escalateDelayMinutes) {
+        return matchedRule(ruleId, matchLevel, severity, escalateTo, slaMinutes, null, escalateDelayMinutes);
+    }
+
+    private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
+                                                              String severity, String escalateTo, Integer slaMinutes,
+                                                              Integer warnLeadMinutes,
                                                               Integer escalateDelayMinutes) {
         TradeTicketSlaRuleMatchRespDTO respDTO = new TradeTicketSlaRuleMatchRespDTO();
         respDTO.setMatched(true);
@@ -541,6 +702,7 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         respDTO.setSeverity(severity);
         respDTO.setEscalateTo(escalateTo);
         respDTO.setSlaMinutes(slaMinutes);
+        respDTO.setWarnLeadMinutes(warnLeadMinutes);
         respDTO.setEscalateDelayMinutes(escalateDelayMinutes);
         return respDTO;
     }

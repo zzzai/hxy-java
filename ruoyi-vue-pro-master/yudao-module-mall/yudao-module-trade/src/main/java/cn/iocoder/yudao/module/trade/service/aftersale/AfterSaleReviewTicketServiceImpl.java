@@ -4,13 +4,18 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
+import cn.iocoder.yudao.module.system.api.permission.PermissionApi;
+import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchReqDTO;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
+import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketNotifyOutboxPageReqVO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketNotifyOutboxDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
+import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketNotifyOutboxMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleMatchLevelEnum;
@@ -18,18 +23,29 @@ import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleTicketTypeEnum
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketNotifyBatchRetryResult;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REVIEW_TICKET_NOT_FOUND;
@@ -42,6 +58,7 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_
  */
 @Service
 @Validated
+@Slf4j
 public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketService {
 
     private static final int DEFAULT_ESCALATE_BATCH_LIMIT = 200;
@@ -52,28 +69,72 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private static final String ACTION_TICKET_CREATE = "TICKET_CREATE";
     private static final String ACTION_RULE_RETRIGGER = "RULE_RETRIGGER";
     private static final String ACTION_SLA_AUTO_ESCALATE = "SLA_AUTO_ESCALATE";
+    private static final String ACTION_SLA_WARN_NOTIFY = "SLA_WARN_NOTIFY";
+    private static final String ACTION_SLA_NOTIFY_DISPATCH = "SLA_NOTIFY_DISPATCH";
     private static final String ROUTE_DECISION_ORDER = "RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT";
     private static final String ROUTE_SCOPE_GLOBAL_FALLBACK = "GLOBAL_DEFAULT_FALLBACK";
     private static final String CONFIG_KEY_FALLBACK_P0_ESCALATE_TO = "hxy.trade.review-ticket.sla.fallback.p0.escalate-to";
     private static final String CONFIG_KEY_FALLBACK_P0_SLA_MINUTES = "hxy.trade.review-ticket.sla.fallback.p0.sla-minutes";
     private static final String CONFIG_KEY_FALLBACK_DEFAULT_ESCALATE_TO = "hxy.trade.review-ticket.sla.fallback.default.escalate-to";
     private static final String CONFIG_KEY_FALLBACK_DEFAULT_SLA_MINUTES = "hxy.trade.review-ticket.sla.fallback.default.sla-minutes";
+    private static final String CONFIG_KEY_WARN_LEAD_DEFAULT = "hxy.trade.review-ticket.sla.warn.lead-minutes.default";
+    private static final String CONFIG_KEY_WARN_LEAD_MAX = "hxy.trade.review-ticket.sla.warn.lead-minutes.max";
+    private static final String CONFIG_KEY_NOTIFY_MAX_RETRY_COUNT = "hxy.trade.review-ticket.sla.notify.max-retry-count";
     private static final String FALLBACK_ESCALATE_TO_P0 = "HQ_RISK_FINANCE";
     private static final String FALLBACK_ESCALATE_TO_DEFAULT = "HQ_AFTER_SALE";
     private static final int FALLBACK_SLA_MINUTES_P0 = 30;
     private static final int FALLBACK_SLA_MINUTES_DEFAULT = 120;
+    private static final int DEFAULT_WARN_BATCH_LIMIT = 200;
+    private static final int MAX_WARN_BATCH_LIMIT = 5000;
+    private static final int DEFAULT_WARN_LEAD_MINUTES = 30;
+    private static final int MAX_WARN_LEAD_MINUTES = 24 * 60;
+    private static final int DEFAULT_NOTIFY_DISPATCH_LIMIT = 200;
+    private static final int MAX_NOTIFY_DISPATCH_LIMIT = 1000;
+    private static final int DEFAULT_NOTIFY_MAX_RETRY_COUNT = 5;
+    private static final int MAX_NOTIFY_MAX_RETRY_COUNT = 20;
+    private static final int NOTIFY_BACKOFF_BASE_MINUTES = 5;
+    private static final long DEFAULT_NOTIFY_ADMIN_USER_ID = 1L;
+
+    private static final String NOTIFY_TYPE_SLA_WARN = "SLA_WARN";
+    private static final String NOTIFY_TYPE_SLA_ESCALATE = "SLA_ESCALATE";
+    private static final String NOTIFY_CHANNEL_IN_APP = "IN_APP";
+    private static final int NOTIFY_STATUS_PENDING = 0;
+    private static final int NOTIFY_STATUS_SENT = 1;
+    private static final int NOTIFY_STATUS_FAILED = 2;
+    private static final String NOTIFY_ACTION_CREATE = "CREATE";
+    private static final String NOTIFY_ACTION_DISPATCH_SUCCESS = "DISPATCH_SUCCESS";
+    private static final String NOTIFY_ACTION_DISPATCH_FAILED = "DISPATCH_FAILED";
+    private static final String NOTIFY_ACTION_MANUAL_RETRY = "MANUAL_RETRY";
+    private static final String NOTIFY_TEMPLATE_CODE_WARN = "hxy_trade_review_ticket_warn";
+    private static final String NOTIFY_TEMPLATE_CODE_ESCALATE = "hxy_trade_review_ticket_escalate";
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
     @Resource
+    private AfterSaleReviewTicketNotifyOutboxMapper afterSaleReviewTicketNotifyOutboxMapper;
+    @Resource
     private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
     @Resource
     private ConfigApi configApi;
+    @Resource
+    private NotifySendService notifySendService;
+    @Resource
+    private PermissionApi permissionApi;
+
+    @Value("${hxy.trade.review-ticket.notify-target-role-ids:}")
+    private String notifyTargetRoleIdsConfig;
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
         normalizePageReq(pageReqVO);
         return afterSaleReviewTicketMapper.selectPage(pageReqVO);
+    }
+
+    @Override
+    public PageResult<AfterSaleReviewTicketNotifyOutboxDO> getNotifyOutboxPage(
+            AfterSaleReviewTicketNotifyOutboxPageReqVO pageReqVO) {
+        normalizeNotifyOutboxPageReq(pageReqVO);
+        return afterSaleReviewTicketNotifyOutboxMapper.selectPage(pageReqVO);
     }
 
     @Override
@@ -334,9 +395,157 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                             .setLastActionBizNo(normalizeActionBizNo("TICKET#" + ticket.getId(), ticket.getId()))
                             .setLastActionTime(now)
                             .setRemark(abbreviate(newRemark, 255)));
-            affectedRows += updateCount;
+            if (updateCount > 0) {
+                createNotifyOutboxIfAbsent(ticket, now, NOTIFY_TYPE_SLA_ESCALATE, newSeverity, newEscalateTo,
+                        buildEscalateNotifyBizKey(ticket));
+                affectedRows += 1;
+            }
         }
         return affectedRows;
+    }
+
+    @Override
+    public int warnNearDeadlinePendingTickets(Integer limit) {
+        int safeLimit = Math.max(1, Math.min(ObjUtil.defaultIfNull(limit, DEFAULT_WARN_BATCH_LIMIT), MAX_WARN_BATCH_LIMIT));
+        LocalDateTime now = LocalDateTime.now();
+        int maxLeadMinutes = resolveConfigPositiveInt(CONFIG_KEY_WARN_LEAD_MAX,
+                MAX_WARN_LEAD_MINUTES, 1, MAX_WARN_LEAD_MINUTES);
+        List<AfterSaleReviewTicketDO> candidateList = afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), now.plusMinutes(maxLeadMinutes), safeLimit);
+        if (candidateList == null || candidateList.isEmpty()) {
+            return 0;
+        }
+        int affectedRows = 0;
+        for (AfterSaleReviewTicketDO ticket : candidateList) {
+            if (ticket == null || ticket.getId() == null || ticket.getSlaDeadlineTime() == null) {
+                continue;
+            }
+            if (ticket.getSlaDeadlineTime().isBefore(now)) {
+                continue;
+            }
+            TicketRoute route = buildRoute(ticket.getTicketType(), ticket.getRuleCode(), ticket.getSeverity(), null);
+            int warnLeadMinutes = resolveWarnLeadMinutes(route == null ? null : route.getWarnLeadMinutes());
+            if (now.isBefore(ticket.getSlaDeadlineTime().minusMinutes(warnLeadMinutes))) {
+                continue;
+            }
+            String bizKey = buildWarnNotifyBizKey(ticket);
+            if (!createNotifyOutboxIfAbsent(ticket, now, NOTIFY_TYPE_SLA_WARN, ticket.getSeverity(),
+                    ticket.getEscalateTo(), bizKey)) {
+                continue;
+            }
+            int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
+                    AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                    new AfterSaleReviewTicketDO()
+                            .setLastActionCode(ACTION_SLA_WARN_NOTIFY)
+                            .setLastActionBizNo(bizKey)
+                            .setLastActionTime(now)
+                            .setRemark(abbreviate(buildWarnRemark(ticket, now), 255)));
+            affectedRows += updateCount > 0 ? 1 : 0;
+        }
+        return affectedRows;
+    }
+
+    @Override
+    public int dispatchPendingNotifyOutbox(Integer limit) {
+        int safeLimit = Math.max(1, Math.min(ObjUtil.defaultIfNull(limit, DEFAULT_NOTIFY_DISPATCH_LIMIT),
+                MAX_NOTIFY_DISPATCH_LIMIT));
+        int maxRetryCount = resolveConfigPositiveInt(CONFIG_KEY_NOTIFY_MAX_RETRY_COUNT,
+                DEFAULT_NOTIFY_MAX_RETRY_COUNT, 1, MAX_NOTIFY_MAX_RETRY_COUNT);
+        LocalDateTime now = LocalDateTime.now();
+        List<AfterSaleReviewTicketNotifyOutboxDO> dispatchableList =
+                afterSaleReviewTicketNotifyOutboxMapper.selectDispatchableList(now, safeLimit, maxRetryCount);
+        if (dispatchableList == null || dispatchableList.isEmpty()) {
+            return 0;
+        }
+        int successCount = 0;
+        for (AfterSaleReviewTicketNotifyOutboxDO outbox : dispatchableList) {
+            if (outbox == null || outbox.getId() == null) {
+                continue;
+            }
+            Integer currentStatus = ObjUtil.defaultIfNull(outbox.getStatus(), NOTIFY_STATUS_PENDING);
+            try {
+                dispatchNotify(outbox);
+                int updated = afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(outbox.getId(), currentStatus,
+                        new AfterSaleReviewTicketNotifyOutboxDO()
+                                .setStatus(NOTIFY_STATUS_SENT)
+                                .setRetryCount(ObjUtil.defaultIfNull(outbox.getRetryCount(), 0))
+                                .setNextRetryTime(null)
+                                .setSentTime(now)
+                                .setLastErrorMsg("")
+                                .setLastActionCode(NOTIFY_ACTION_DISPATCH_SUCCESS)
+                                .setLastActionBizNo(buildDispatchAuditBizNo(outbox.getId(), now))
+                                .setLastActionTime(now));
+                if (updated > 0) {
+                    afterSaleReviewTicketMapper.updateByIdAndStatus(outbox.getTicketId(),
+                            AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                            new AfterSaleReviewTicketDO()
+                                    .setLastActionCode(ACTION_SLA_NOTIFY_DISPATCH)
+                                    .setLastActionBizNo(buildDispatchAuditBizNo(outbox.getId(), now))
+                                    .setLastActionTime(now));
+                    successCount++;
+                }
+            } catch (Exception ex) {
+                int nextRetryCount = ObjUtil.defaultIfNull(outbox.getRetryCount(), 0) + 1;
+                afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(outbox.getId(), currentStatus,
+                        new AfterSaleReviewTicketNotifyOutboxDO()
+                                .setStatus(NOTIFY_STATUS_FAILED)
+                                .setRetryCount(nextRetryCount)
+                                .setNextRetryTime(calculateNextRetryTime(now, nextRetryCount))
+                                .setLastErrorMsg(abbreviate(StrUtil.blankToDefault(ex.getMessage(), ex.getClass().getSimpleName()), 255))
+                                .setLastActionCode(NOTIFY_ACTION_DISPATCH_FAILED)
+                                .setLastActionBizNo(buildDispatchAuditBizNo(outbox.getId(), now))
+                                .setLastActionTime(now));
+                log.warn("[dispatchPendingNotifyOutbox][outboxId({}) dispatch failed]", outbox.getId(), ex);
+            }
+        }
+        return successCount;
+    }
+
+    @Override
+    public AfterSaleReviewTicketNotifyBatchRetryResult retryNotifyOutboxBatch(List<Long> ids, Long operatorId, String reason) {
+        List<Long> normalizedIds = normalizePositiveIds(ids);
+        if (normalizedIds.isEmpty()) {
+            return AfterSaleReviewTicketNotifyBatchRetryResult.empty();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        List<Long> successIds = new ArrayList<>();
+        List<Long> skippedNotFoundIds = new ArrayList<>();
+        List<Long> skippedStatusInvalidIds = new ArrayList<>();
+        for (Long id : normalizedIds) {
+            AfterSaleReviewTicketNotifyOutboxDO outbox = afterSaleReviewTicketNotifyOutboxMapper.selectById(id);
+            if (outbox == null) {
+                skippedNotFoundIds.add(id);
+                continue;
+            }
+            Integer currentStatus = ObjUtil.defaultIfNull(outbox.getStatus(), NOTIFY_STATUS_PENDING);
+            if (!Objects.equals(currentStatus, NOTIFY_STATUS_FAILED)) {
+                skippedStatusInvalidIds.add(id);
+                continue;
+            }
+            int updateCount = afterSaleReviewTicketNotifyOutboxMapper.updateByIdAndStatus(id, currentStatus,
+                    new AfterSaleReviewTicketNotifyOutboxDO()
+                            .setStatus(NOTIFY_STATUS_PENDING)
+                            .setRetryCount(0)
+                            .setNextRetryTime(now)
+                            .setLastErrorMsg("")
+                            .setLastActionCode(NOTIFY_ACTION_MANUAL_RETRY)
+                            .setLastActionBizNo(buildManualRetryAuditBizNo(operatorId, id, reason))
+                            .setLastActionTime(now));
+            if (updateCount > 0) {
+                successIds.add(id);
+            } else {
+                skippedStatusInvalidIds.add(id);
+            }
+        }
+        return AfterSaleReviewTicketNotifyBatchRetryResult.builder()
+                .totalCount(normalizedIds.size())
+                .successCount(successIds.size())
+                .skippedNotFoundCount(skippedNotFoundIds.size())
+                .skippedStatusInvalidCount(skippedStatusInvalidIds.size())
+                .successIds(successIds)
+                .skippedNotFoundIds(skippedNotFoundIds)
+                .skippedStatusInvalidIds(skippedStatusInvalidIds)
+                .build();
     }
 
     private TicketRoute buildRoute(Integer ticketType, String ruleCode, String severity, Long storeId) {
@@ -357,6 +566,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return new TicketRoute(routeSeverity,
                     StrUtil.blankToDefault(matchResp.getEscalateTo(), nextEscalateTo("", routeSeverity, null)),
                     resolveSlaMinutes(matchResp.getSlaMinutes(), 120),
+                    resolveWarnLeadMinutes(matchResp.getWarnLeadMinutes()),
                     resolveEscalateDelayMinutes(matchResp.getEscalateDelayMinutes()),
                     matchResp.getRuleId(),
                     routeScope,
@@ -371,6 +581,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return new TicketRoute("P0",
                     resolveConfigString(CONFIG_KEY_FALLBACK_P0_ESCALATE_TO, FALLBACK_ESCALATE_TO_P0, 64),
                     resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_P0_SLA_MINUTES, FALLBACK_SLA_MINUTES_P0, 1, 30),
+                    resolveWarnLeadMinutes(null),
                     0,
                     null,
                     ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
@@ -378,6 +589,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return new TicketRoute(severity,
                 resolveConfigString(CONFIG_KEY_FALLBACK_DEFAULT_ESCALATE_TO, FALLBACK_ESCALATE_TO_DEFAULT, 64),
                 resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_DEFAULT_SLA_MINUTES, FALLBACK_SLA_MINUTES_DEFAULT, 1, 7 * 24 * 60),
+                resolveWarnLeadMinutes(null),
                 0,
                 null,
                 ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
@@ -425,6 +637,12 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return clamp(delayMinutes, 0, 7 * 24 * 60);
     }
 
+    private Integer resolveWarnLeadMinutes(Integer warnLeadMinutes) {
+        Integer defaultValue = resolveConfigPositiveInt(CONFIG_KEY_WARN_LEAD_DEFAULT,
+                DEFAULT_WARN_LEAD_MINUTES, 1, MAX_WARN_LEAD_MINUTES);
+        return clamp(ObjUtil.defaultIfNull(warnLeadMinutes, defaultValue), 1, MAX_WARN_LEAD_MINUTES);
+    }
+
     private Integer clamp(Integer value, int min, int max) {
         int safe = ObjUtil.defaultIfNull(value, min);
         return Math.max(min, Math.min(safe, max));
@@ -464,6 +682,191 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return true;
         }
         return !now.isBefore(ticket.getSlaDeadlineTime().plusMinutes(delayMinutes));
+    }
+
+    private boolean createNotifyOutboxIfAbsent(AfterSaleReviewTicketDO ticket, LocalDateTime now,
+                                               String notifyType, String severity,
+                                               String escalateTo, String bizKey) {
+        if (ticket == null || ticket.getId() == null || StrUtil.isBlank(bizKey)) {
+            return false;
+        }
+        if (afterSaleReviewTicketNotifyOutboxMapper.selectByBizKey(bizKey) != null) {
+            return false;
+        }
+        try {
+            afterSaleReviewTicketNotifyOutboxMapper.insert(new AfterSaleReviewTicketNotifyOutboxDO()
+                    .setTicketId(ticket.getId())
+                    .setNotifyType(StrUtil.maxLength(StrUtil.blankToDefault(notifyType, NOTIFY_TYPE_SLA_WARN), 32))
+                    .setChannel(NOTIFY_CHANNEL_IN_APP)
+                    .setSeverity(StrUtil.maxLength(StrUtil.blankToDefault(severity, normalizeSeverity(ticket.getSeverity())), 16))
+                    .setEscalateTo(StrUtil.maxLength(StrUtil.blankToDefault(escalateTo, ticket.getEscalateTo()), 64))
+                    .setBizKey(StrUtil.maxLength(bizKey, 64))
+                    .setStatus(NOTIFY_STATUS_PENDING)
+                    .setRetryCount(0)
+                    .setNextRetryTime(now)
+                    .setSentTime(null)
+                    .setLastErrorMsg("")
+                    .setLastActionCode(NOTIFY_ACTION_CREATE)
+                    .setLastActionBizNo(StrUtil.maxLength("BIZ#" + bizKey, 64))
+                    .setLastActionTime(now));
+            return true;
+        } catch (DuplicateKeyException ex) {
+            log.info("[createNotifyOutboxIfAbsent][bizKey({}) duplicated]", bizKey);
+            return false;
+        }
+    }
+
+    private String buildWarnNotifyBizKey(AfterSaleReviewTicketDO ticket) {
+        if (ticket == null || ticket.getId() == null) {
+            return "";
+        }
+        String deadlineSlot = ticket.getSlaDeadlineTime() == null ? "0"
+                : ticket.getSlaDeadlineTime().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+        return StrUtil.maxLength(StrUtil.format("WARN#{}#{}", ticket.getId(), deadlineSlot), 64);
+    }
+
+    private String buildEscalateNotifyBizKey(AfterSaleReviewTicketDO ticket) {
+        if (ticket == null || ticket.getId() == null) {
+            return "";
+        }
+        int triggerCount = ObjUtil.defaultIfNull(ticket.getTriggerCount(), 0) + 1;
+        return StrUtil.maxLength(StrUtil.format("ESCALATE#{}#{}", ticket.getId(), triggerCount), 64);
+    }
+
+    private String buildWarnRemark(AfterSaleReviewTicketDO ticket, LocalDateTime now) {
+        String baseRemark = StrUtil.blankToDefault(ticket.getRemark(), "");
+        String deadline = ticket.getSlaDeadlineTime() == null ? "unknown"
+                : ticket.getSlaDeadlineTime().format(ESCALATE_TIME_FORMATTER);
+        String append = StrUtil.format("SLA_WARN_NEAR_DEADLINE@{} deadline={}",
+                now.format(ESCALATE_TIME_FORMATTER), deadline);
+        if (StrUtil.isBlank(baseRemark)) {
+            return append;
+        }
+        return baseRemark + " | " + append;
+    }
+
+    private LocalDateTime calculateNextRetryTime(LocalDateTime now, int retryCount) {
+        int multiplier = 1 << Math.max(0, Math.min(retryCount - 1, 6));
+        int delayMinutes = Math.min(60, NOTIFY_BACKOFF_BASE_MINUTES * multiplier);
+        return now.plusMinutes(delayMinutes);
+    }
+
+    private void dispatchNotify(AfterSaleReviewTicketNotifyOutboxDO outbox) {
+        if (StrUtil.equalsIgnoreCase(outbox.getChannel(), NOTIFY_CHANNEL_IN_APP)) {
+            sendInAppNotify(outbox);
+            return;
+        }
+        throw new IllegalArgumentException("unsupported notify channel: " + outbox.getChannel());
+    }
+
+    private void sendInAppNotify(AfterSaleReviewTicketNotifyOutboxDO outbox) {
+        AfterSaleReviewTicketDO ticket = afterSaleReviewTicketMapper.selectById(outbox.getTicketId());
+        if (ticket == null) {
+            throw new IllegalStateException("review ticket not exists: " + outbox.getTicketId());
+        }
+        String templateCode = resolveNotifyTemplateCode(outbox.getNotifyType());
+        Map<String, Object> templateParams = buildInAppNotifyParams(outbox, ticket);
+        for (Long adminUserId : resolveNotifyAdminUserIds(ticket)) {
+            Long messageId = notifySendService.sendSingleNotifyToAdmin(adminUserId, templateCode, templateParams);
+            if (messageId == null) {
+                throw new IllegalStateException("notify skipped due template status: " + templateCode);
+            }
+        }
+    }
+
+    private Map<String, Object> buildInAppNotifyParams(AfterSaleReviewTicketNotifyOutboxDO outbox,
+                                                        AfterSaleReviewTicketDO ticket) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("ticketId", ticket.getId());
+        params.put("notifyType", StrUtil.blankToDefault(outbox.getNotifyType(), ""));
+        params.put("severity", StrUtil.blankToDefault(outbox.getSeverity(), ""));
+        params.put("escalateTo", StrUtil.blankToDefault(outbox.getEscalateTo(), ""));
+        params.put("deadlineTime", ticket.getSlaDeadlineTime() == null ? "" : ticket.getSlaDeadlineTime().toString());
+        params.put("ruleCode", StrUtil.blankToDefault(ticket.getRuleCode(), ""));
+        return params;
+    }
+
+    private String resolveNotifyTemplateCode(String notifyType) {
+        if (StrUtil.equalsIgnoreCase(notifyType, NOTIFY_TYPE_SLA_ESCALATE)) {
+            return NOTIFY_TEMPLATE_CODE_ESCALATE;
+        }
+        return NOTIFY_TEMPLATE_CODE_WARN;
+    }
+
+    private List<Long> resolveNotifyAdminUserIds(AfterSaleReviewTicketDO ticket) {
+        List<Long> roleUserIds = resolveRoleNotifyAdminUserIds();
+        if (!roleUserIds.isEmpty()) {
+            return roleUserIds;
+        }
+        if (ticket != null && StrUtil.isNotBlank(ticket.getCreator()) && StrUtil.isNumeric(ticket.getCreator())) {
+            Long creatorId = Long.parseLong(ticket.getCreator());
+            if (creatorId > 0) {
+                return Collections.singletonList(creatorId);
+            }
+        }
+        return Collections.singletonList(DEFAULT_NOTIFY_ADMIN_USER_ID);
+    }
+
+    private List<Long> resolveRoleNotifyAdminUserIds() {
+        List<Long> roleIds = parseNotifyTargetRoleIds(notifyTargetRoleIdsConfig);
+        if (roleIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Set<Long> userIds = permissionApi.getUserRoleIdListByRoleIds(roleIds);
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return userIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .sorted()
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private List<Long> parseNotifyTargetRoleIds(String roleIdsConfig) {
+        if (StrUtil.isBlank(roleIdsConfig)) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(roleIdsConfig.split(","))
+                .map(String::trim)
+                .filter(StrUtil::isNotBlank)
+                .filter(StrUtil::isNumeric)
+                .map(Long::parseLong)
+                .filter(id -> id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    private String buildDispatchAuditBizNo(Long outboxId, LocalDateTime now) {
+        return StrUtil.maxLength(StrUtil.format("OUTBOX#{}@{}",
+                ObjUtil.defaultIfNull(outboxId, 0L),
+                now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))), 64);
+    }
+
+    private String buildManualRetryAuditBizNo(Long operatorId, Long outboxId, String reason) {
+        String operator = operatorId == null ? "SYSTEM" : String.valueOf(operatorId);
+        String suffix = StrUtil.blankToDefault(StrUtil.trim(reason), "");
+        if (StrUtil.isBlank(suffix)) {
+            return StrUtil.maxLength(StrUtil.format("ADMIN#{}/OUTBOX#{}", operator, outboxId), 64);
+        }
+        return StrUtil.maxLength(StrUtil.format("ADMIN#{}/OUTBOX#{}#{}", operator, outboxId, suffix), 64);
+    }
+
+    private List<Long> normalizePositiveIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>();
+        for (Long id : ids) {
+            if (id != null && id > 0) {
+                uniqueIds.add(id);
+            }
+        }
+        if (uniqueIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(uniqueIds);
     }
 
     private Integer resolveSlaMinutes(Integer requestSlaMinutes, Integer defaultSlaMinutes) {
@@ -555,6 +958,16 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         pageReqVO.setResolveBizNo(normalizeTrim(pageReqVO.getResolveBizNo()));
     }
 
+    private void normalizeNotifyOutboxPageReq(AfterSaleReviewTicketNotifyOutboxPageReqVO pageReqVO) {
+        if (pageReqVO == null) {
+            return;
+        }
+        pageReqVO.setNotifyType(normalizeUpper(pageReqVO.getNotifyType()));
+        pageReqVO.setChannel(normalizeUpper(pageReqVO.getChannel()));
+        pageReqVO.setLastActionCode(normalizeUpper(pageReqVO.getLastActionCode()));
+        pageReqVO.setLastActionBizNo(normalizeTrim(pageReqVO.getLastActionBizNo()));
+    }
+
     private String normalizeUpper(String value) {
         String normalized = StrUtil.trimToNull(value);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
@@ -570,6 +983,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         private String severity;
         private String escalateTo;
         private Integer slaMinutes;
+        private Integer warnLeadMinutes;
         private Integer escalateDelayMinutes;
         private Long routeId;
         private String matchedScope;
