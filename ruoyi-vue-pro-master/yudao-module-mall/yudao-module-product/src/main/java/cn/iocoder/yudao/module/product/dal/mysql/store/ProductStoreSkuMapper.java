@@ -56,6 +56,12 @@ public interface ProductStoreSkuMapper extends BaseMapperX<ProductStoreSkuDO> {
                 .gt(ProductStoreSkuDO::getStock, 0));
     }
 
+    default Long selectNonZeroStockCountByStoreId(Long storeId) {
+        return selectCount(new LambdaQueryWrapperX<ProductStoreSkuDO>()
+                .eq(ProductStoreSkuDO::getStoreId, storeId)
+                .ne(ProductStoreSkuDO::getStock, 0));
+    }
+
     default List<ProductStoreSkuDO> selectListByStoreIdAndSkuIds(Long storeId, Collection<Long> skuIds) {
         return selectList(new LambdaQueryWrapperX<ProductStoreSkuDO>()
                 .eq(ProductStoreSkuDO::getStoreId, storeId)

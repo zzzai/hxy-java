@@ -34,6 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_CATEGORY_NOT_EXISTS;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_HAS_PRODUCT_MAPPING;
@@ -235,12 +237,12 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
-    void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasPositiveStock() {
+    void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasNonZeroStock() {
         ProductStoreDO before = ProductStoreDO.builder().id(1006L).status(1).lifecycleStatus(30).build();
         when(storeMapper.selectById(1006L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1006L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1006L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1006L)).thenReturn(2L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1006L)).thenReturn(2L);
 
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> productStoreService.updateStoreLifecycle(1006L, 35, "临时停业"));
@@ -253,7 +255,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1007L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1007L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1007L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1007L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1007L)).thenReturn(0L);
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1007L), any())).thenReturn(1L);
 
         ServiceException ex = assertThrows(ServiceException.class,
@@ -267,7 +269,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1008L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1008L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1008L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1008L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1008L)).thenReturn(0L);
         doAnswer(invocation -> {
             List<Integer> statuses = invocation.getArgument(1);
             return statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()) ? 1L : 0L;
@@ -284,7 +286,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1009L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1009L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1009L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1009L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1009L)).thenReturn(0L);
         doAnswer(invocation -> {
             List<Integer> statuses = invocation.getArgument(1);
             return statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()) ? 1L : 0L;
@@ -296,12 +298,29 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
+    void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasProcessingStockFlow() {
+        ProductStoreDO before = ProductStoreDO.builder().id(1020L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(1020L)).thenReturn(before);
+        when(storeSpuMapper.selectCountByStoreId(1020L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1020L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1020L)).thenReturn(0L);
+        doAnswer(invocation -> {
+            List<Integer> statuses = invocation.getArgument(1);
+            return statuses.contains(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()) ? 1L : 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(eq(1020L), any());
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.updateStoreLifecycle(1020L, 35, "临时停业"));
+        assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), ex.getCode());
+    }
+
+    @Test
     void updateStoreLifecycle_shouldThrowWhenSuspendedAndHasPendingOrder() {
         ProductStoreDO before = ProductStoreDO.builder().id(1010L).status(1).lifecycleStatus(30).build();
         when(storeMapper.selectById(1010L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1010L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1010L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1010L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1010L)).thenReturn(0L);
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1010L), any())).thenReturn(0L);
         when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1010L))
                 .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(1L).setInflightTicketCount(0L));
@@ -317,7 +336,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1011L)).thenReturn(before);
         when(storeSpuMapper.selectCountByStoreId(1011L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1011L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1011L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1011L)).thenReturn(0L);
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1011L), any())).thenReturn(0L);
         when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1011L))
                 .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(2L));
@@ -334,7 +353,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1012L)).thenReturn(before, after);
         when(storeSpuMapper.selectCountByStoreId(1012L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1012L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1012L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1012L)).thenReturn(0L);
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1012L), any())).thenReturn(0L);
         when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1012L))
                 .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(3L).setInflightTicketCount(0L));
@@ -350,19 +369,38 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
-    void getLifecycleGuard_shouldReturnBlockedWhenStockFlowExists() {
+    void getLifecycleGuard_shouldReturnBlockedAndStockFlowBreakdownWhenStockFlowExists() {
         ProductStoreDO store = ProductStoreDO.builder().id(1013L).status(1).lifecycleStatus(35).build();
         when(storeMapper.selectById(1013L)).thenReturn(store);
         when(storeSpuMapper.selectCountByStoreId(1013L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1013L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1013L)).thenReturn(0L);
-        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1013L), any())).thenReturn(2L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1013L)).thenReturn(0L);
+        doAnswer(invocation -> {
+            List<Integer> statuses = invocation.getArgument(1);
+            if (statuses.contains(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus())) {
+                return 1L;
+            }
+            if (statuses.contains(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())) {
+                return 2L;
+            }
+            if (statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus())) {
+                return 3L;
+            }
+            return 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(eq(1013L), any());
 
         ProductStoreLifecycleGuardRespVO respVO = productStoreService.getLifecycleGuard(1013L, 40);
 
         assertTrue(respVO.getBlocked());
         assertEquals(STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW.getCode(), respVO.getBlockedCode());
         assertTrue(respVO.getWarnings().isEmpty());
+        Map<String, Long> guardCountMap = respVO.getGuardItems().stream()
+                .collect(Collectors.toMap(ProductStoreLifecycleGuardRespVO.GuardItem::getGuardKey,
+                        ProductStoreLifecycleGuardRespVO.GuardItem::getCount, (v1, v2) -> v2));
+        assertEquals(6L, guardCountMap.get("stock-flow"));
+        assertEquals(1L, guardCountMap.get("stock-flow-pending"));
+        assertEquals(2L, guardCountMap.get("stock-flow-processing"));
+        assertEquals(3L, guardCountMap.get("stock-flow-failed"));
     }
 
     @Test
@@ -371,7 +409,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1014L)).thenReturn(store);
         when(storeSpuMapper.selectCountByStoreId(1014L)).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(1014L)).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(1014L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1014L)).thenReturn(0L);
         when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(1014L), any())).thenReturn(0L);
         when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(1014L))
                 .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(5L).setInflightTicketCount(0L));
@@ -392,7 +430,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1016L)).thenReturn(warnStore);
         when(storeSpuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(any(Long.class))).thenReturn(0L);
         doAnswer(invocation -> {
             Long storeId = invocation.getArgument(0);
             return storeId != null && storeId.equals(1015L) ? 1L : 0L;
@@ -444,7 +482,7 @@ class ProductStoreServiceImplTest {
         when(storeMapper.selectById(1023L)).thenReturn(cleanStoreBefore, cleanStoreBefore, cleanStoreAfter);
         when(storeSpuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
         when(storeSkuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
-        when(storeSkuMapper.selectPositiveStockCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(any(Long.class))).thenReturn(0L);
         doAnswer(invocation -> {
             Long storeId = invocation.getArgument(0);
             return storeId != null && storeId.equals(1021L) ? 1L : 0L;

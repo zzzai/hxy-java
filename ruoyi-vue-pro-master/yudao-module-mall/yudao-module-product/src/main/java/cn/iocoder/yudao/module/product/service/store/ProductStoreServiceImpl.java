@@ -779,32 +779,40 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         if (!(disabling || suspending || closing)) {
             return evaluation;
         }
-        applyLifecycleGuard("mapping",
+        applyLifecycleGuardWithConfig("mapping",
                 storeSpuMapper.selectCountByStoreId(storeId) + storeSkuMapper.selectCountByStoreId(storeId),
                 GUARD_MODE_MAPPING,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_MAPPING,
                 evaluation);
+        String stockMode = resolveGuardMode(GUARD_MODE_STOCK);
         applyLifecycleGuard("stock",
-                storeSkuMapper.selectPositiveStockCountByStoreId(storeId),
-                GUARD_MODE_STOCK,
+                storeSkuMapper.selectNonZeroStockCountByStoreId(storeId),
+                stockMode,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK,
                 evaluation);
+        String stockFlowMode = resolveGuardMode(GUARD_MODE_STOCK_FLOW);
+        long pendingFlowCount = countStoreStockFlowByStatuses(storeId,
+                Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()));
+        long processingFlowCount = countStoreStockFlowByStatuses(storeId,
+                Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()));
+        long failedFlowCount = countStoreStockFlowByStatuses(storeId,
+                Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()));
         applyLifecycleGuard("stock-flow",
-                storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, Arrays.asList(
-                        ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus(),
-                        ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
-                        ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus())),
-                GUARD_MODE_STOCK_FLOW,
+                pendingFlowCount + processingFlowCount + failedFlowCount,
+                stockFlowMode,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
                 evaluation);
+        appendLifecycleGuardDetail(evaluation, "stock-flow-pending", pendingFlowCount, stockFlowMode);
+        appendLifecycleGuardDetail(evaluation, "stock-flow-processing", processingFlowCount, stockFlowMode);
+        appendLifecycleGuardDetail(evaluation, "stock-flow-failed", failedFlowCount, stockFlowMode);
         TradeStoreLifecycleGuardStatRespDTO tradeStat = Optional.ofNullable(
                 tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(storeId)).orElse(new TradeStoreLifecycleGuardStatRespDTO());
-        applyLifecycleGuard("pending-order",
+        applyLifecycleGuardWithConfig("pending-order",
                 Optional.ofNullable(tradeStat.getPendingOrderCount()).orElse(0L),
                 GUARD_MODE_PENDING_ORDER,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER,
                 evaluation);
-        applyLifecycleGuard("inflight-ticket",
+        applyLifecycleGuardWithConfig("inflight-ticket",
                 Optional.ofNullable(tradeStat.getInflightTicketCount()).orElse(0L),
                 GUARD_MODE_INFLIGHT_TICKET,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET,
@@ -812,10 +820,15 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         return evaluation;
     }
 
-    private void applyLifecycleGuard(String guardKey, Long count, String configKey,
+    private void applyLifecycleGuardWithConfig(String guardKey, Long count, String configKey,
+                                               ErrorCode errorCode,
+                                               LifecycleGuardEvaluation evaluation) {
+        applyLifecycleGuard(guardKey, count, resolveGuardMode(configKey), errorCode, evaluation);
+    }
+
+    private void applyLifecycleGuard(String guardKey, Long count, String mode,
                                      ErrorCode errorCode,
                                      LifecycleGuardEvaluation evaluation) {
-        String mode = resolveGuardMode(configKey);
         long guardCount = Optional.ofNullable(count).orElse(0L);
         boolean blocked = guardCount > 0 && GUARD_MODE_BLOCK.equals(mode);
         ProductStoreLifecycleGuardRespVO.GuardItem guardItem = new ProductStoreLifecycleGuardRespVO.GuardItem();
@@ -834,6 +847,21 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         if (evaluation.getBlockedErrorCode() == null) {
             evaluation.setBlockedErrorCode(errorCode);
         }
+    }
+
+    private void appendLifecycleGuardDetail(LifecycleGuardEvaluation evaluation, String guardKey,
+                                            Long count, String mode) {
+        long guardCount = Optional.ofNullable(count).orElse(0L);
+        ProductStoreLifecycleGuardRespVO.GuardItem guardItem = new ProductStoreLifecycleGuardRespVO.GuardItem();
+        guardItem.setGuardKey(guardKey);
+        guardItem.setCount(guardCount);
+        guardItem.setMode(mode);
+        guardItem.setBlocked(guardCount > 0 && GUARD_MODE_BLOCK.equals(mode));
+        evaluation.getGuardItems().add(guardItem);
+    }
+
+    private long countStoreStockFlowByStatuses(Long storeId, List<Integer> statuses) {
+        return Optional.ofNullable(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(storeId, statuses)).orElse(0L);
     }
 
     private void throwIfLifecycleGuardBlocked(LifecycleGuardEvaluation guardEvaluation) {
