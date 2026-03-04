@@ -40,6 +40,9 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String GUARD_MODE_MAPPING = "hxy.store.lifecycle.guard.mapping.mode";
     private static final String GUARD_MODE_STOCK = "hxy.store.lifecycle.guard.stock.mode";
     private static final String GUARD_MODE_STOCK_FLOW = "hxy.store.lifecycle.guard.stock-flow.mode";
+    private static final String GUARD_MODE_STOCK_FLOW_PENDING = "hxy.store.lifecycle.guard.stock-flow.pending.mode";
+    private static final String GUARD_MODE_STOCK_FLOW_PROCESSING = "hxy.store.lifecycle.guard.stock-flow.processing.mode";
+    private static final String GUARD_MODE_STOCK_FLOW_FAILED = "hxy.store.lifecycle.guard.stock-flow.failed.mode";
     private static final String GUARD_MODE_PENDING_ORDER = "hxy.store.lifecycle.guard.pending-order.mode";
     private static final String GUARD_MODE_INFLIGHT_TICKET = "hxy.store.lifecycle.guard.inflight-ticket.mode";
 
@@ -790,21 +793,35 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 stockMode,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK,
                 evaluation);
-        String stockFlowMode = resolveGuardMode(GUARD_MODE_STOCK_FLOW);
         long pendingFlowCount = countStoreStockFlowByStatuses(storeId,
                 Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()));
         long processingFlowCount = countStoreStockFlowByStatuses(storeId,
                 Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()));
         long failedFlowCount = countStoreStockFlowByStatuses(storeId,
                 Collections.singletonList(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()));
-        applyLifecycleGuard("stock-flow",
-                pendingFlowCount + processingFlowCount + failedFlowCount,
-                stockFlowMode,
+        String pendingFlowMode = resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_PENDING, GUARD_MODE_STOCK_FLOW);
+        String processingFlowMode = resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_PROCESSING, GUARD_MODE_STOCK_FLOW);
+        String failedFlowMode = resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_FAILED, GUARD_MODE_STOCK_FLOW);
+        long totalFlowCount = pendingFlowCount + processingFlowCount + failedFlowCount;
+        appendLifecycleGuardDetail(evaluation, "stock-flow", totalFlowCount,
+                resolveStockFlowAggregateMode(pendingFlowCount, pendingFlowMode,
+                        processingFlowCount, processingFlowMode,
+                        failedFlowCount, failedFlowMode));
+        applyLifecycleGuard("stock-flow-pending",
+                pendingFlowCount,
+                pendingFlowMode,
                 STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
                 evaluation);
-        appendLifecycleGuardDetail(evaluation, "stock-flow-pending", pendingFlowCount, stockFlowMode);
-        appendLifecycleGuardDetail(evaluation, "stock-flow-processing", processingFlowCount, stockFlowMode);
-        appendLifecycleGuardDetail(evaluation, "stock-flow-failed", failedFlowCount, stockFlowMode);
+        applyLifecycleGuard("stock-flow-processing",
+                processingFlowCount,
+                processingFlowMode,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
+                evaluation);
+        applyLifecycleGuard("stock-flow-failed",
+                failedFlowCount,
+                failedFlowMode,
+                STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW,
+                evaluation);
         TradeStoreLifecycleGuardStatRespDTO tradeStat = Optional.ofNullable(
                 tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(storeId)).orElse(new TradeStoreLifecycleGuardStatRespDTO());
         applyLifecycleGuardWithConfig("pending-order",
@@ -872,9 +889,35 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     }
 
     private String resolveGuardMode(String configKey) {
-        String mode = Optional.ofNullable(configApi.getConfigValueByKey(configKey)).orElse(GUARD_MODE_BLOCK);
-        String normalizedMode = mode.trim().toUpperCase(Locale.ROOT);
+        return resolveGuardModeWithFallback(configKey, null);
+    }
+
+    private String resolveGuardModeWithFallback(String configKey, String fallbackConfigKey) {
+        String mode = configApi.getConfigValueByKey(configKey);
+        if (!StringUtils.hasText(mode) && StringUtils.hasText(fallbackConfigKey)) {
+            mode = configApi.getConfigValueByKey(fallbackConfigKey);
+        }
+        return normalizeGuardMode(mode);
+    }
+
+    private String normalizeGuardMode(String mode) {
+        String normalizedMode = Optional.ofNullable(mode).orElse(GUARD_MODE_BLOCK).trim().toUpperCase(Locale.ROOT);
         return GUARD_MODE_WARN.equals(normalizedMode) ? GUARD_MODE_WARN : GUARD_MODE_BLOCK;
+    }
+
+    private String resolveStockFlowAggregateMode(Long pendingCount, String pendingMode,
+                                                 Long processingCount, String processingMode,
+                                                 Long failedCount, String failedMode) {
+        long pending = Optional.ofNullable(pendingCount).orElse(0L);
+        long processing = Optional.ofNullable(processingCount).orElse(0L);
+        long failed = Optional.ofNullable(failedCount).orElse(0L);
+        boolean blocked = (pending > 0 && GUARD_MODE_BLOCK.equals(pendingMode))
+                || (processing > 0 && GUARD_MODE_BLOCK.equals(processingMode))
+                || (failed > 0 && GUARD_MODE_BLOCK.equals(failedMode));
+        if (blocked) {
+            return GUARD_MODE_BLOCK;
+        }
+        return pending + processing + failed > 0 ? GUARD_MODE_WARN : GUARD_MODE_BLOCK;
     }
 
     private String appendGuardWarnReason(String reason, List<String> warnings) {

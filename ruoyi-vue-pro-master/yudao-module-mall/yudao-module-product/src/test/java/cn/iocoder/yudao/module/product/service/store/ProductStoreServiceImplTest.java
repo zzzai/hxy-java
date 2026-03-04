@@ -404,6 +404,36 @@ class ProductStoreServiceImplTest {
     }
 
     @Test
+    void getLifecycleGuard_shouldWarnWhenOnlyFailedStockFlowAndFailedModeWarn() {
+        ProductStoreDO store = ProductStoreDO.builder().id(1017L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(1017L)).thenReturn(store);
+        when(storeSpuMapper.selectCountByStoreId(1017L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(1017L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(1017L)).thenReturn(0L);
+        doAnswer(invocation -> {
+            List<Integer> statuses = invocation.getArgument(1);
+            if (statuses.contains(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus())) {
+                return 2L;
+            }
+            return 0L;
+        }).when(storeSkuStockFlowMapper).selectCountByStoreIdAndStatuses(eq(1017L), any());
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.stock-flow.failed.mode")).thenReturn("WARN");
+
+        ProductStoreLifecycleGuardRespVO respVO = productStoreService.getLifecycleGuard(1017L, 40);
+
+        assertFalse(respVO.getBlocked());
+        assertTrue(respVO.getWarnings().contains("LIFECYCLE_GUARD_WARN:stock-flow-failed:count=2"));
+        Map<String, Long> guardCountMap = respVO.getGuardItems().stream()
+                .collect(Collectors.toMap(ProductStoreLifecycleGuardRespVO.GuardItem::getGuardKey,
+                        ProductStoreLifecycleGuardRespVO.GuardItem::getCount, (v1, v2) -> v2));
+        assertEquals(2L, guardCountMap.get("stock-flow"));
+        assertEquals(2L, guardCountMap.get("stock-flow-failed"));
+        assertEquals(0L, guardCountMap.get("stock-flow-pending"));
+        assertEquals(0L, guardCountMap.get("stock-flow-processing"));
+    }
+
+    @Test
     void getLifecycleGuard_shouldReturnWarnWhenPendingOrderWarnMode() {
         ProductStoreDO store = ProductStoreDO.builder().id(1014L).status(1).lifecycleStatus(30).build();
         when(storeMapper.selectById(1014L)).thenReturn(store);
