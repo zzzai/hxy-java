@@ -82,7 +82,7 @@ public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReview
     default List<AfterSaleReviewTicketDO> selectListByStatusAndSlaDeadlineTimeBefore(Integer status,
                                                                                       LocalDateTime deadlineTime,
                                                                                       Integer limit) {
-        int safeLimit = Math.max(1, Math.min(ObjectUtil.defaultIfNull(limit, 200), 1000));
+        int safeLimit = Math.max(1, Math.min(ObjectUtil.defaultIfNull(limit, 200), 5000));
         return selectList(new LambdaQueryWrapperX<AfterSaleReviewTicketDO>()
                 .eq(AfterSaleReviewTicketDO::getStatus, status)
                 .isNotNull(AfterSaleReviewTicketDO::getSlaDeadlineTime)

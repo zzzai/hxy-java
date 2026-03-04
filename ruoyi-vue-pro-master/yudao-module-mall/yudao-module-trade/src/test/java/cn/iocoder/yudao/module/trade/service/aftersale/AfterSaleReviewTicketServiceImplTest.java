@@ -330,6 +330,23 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void shouldCapEscalateBatchLimitAtFiveThousand() {
+        when(afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()),
+                any(LocalDateTime.class),
+                eq(5000)))
+                .thenReturn(Collections.emptyList());
+
+        int count = service.escalateOverduePendingTickets(99999);
+
+        assertEquals(0, count);
+        verify(afterSaleReviewTicketMapper).selectListByStatusAndSlaDeadlineTimeBefore(
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()),
+                any(LocalDateTime.class),
+                eq(5000));
+    }
+
+    @Test
     void shouldCreateTicketUseRouteFallbackWhenSeverityMissing() {
         AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
         reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType());

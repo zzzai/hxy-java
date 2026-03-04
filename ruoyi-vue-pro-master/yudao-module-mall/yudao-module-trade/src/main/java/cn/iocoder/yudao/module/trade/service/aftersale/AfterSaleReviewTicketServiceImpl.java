@@ -45,6 +45,7 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_
 public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketService {
 
     private static final int DEFAULT_ESCALATE_BATCH_LIMIT = 200;
+    private static final int MAX_ESCALATE_BATCH_LIMIT = 5000;
     private static final DateTimeFormatter ESCALATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String DEFAULT_RESOLVE_ACTION_MANUAL = "MANUAL_RESOLVE";
     private static final String DEFAULT_RESOLVE_ACTION_AUTO = "AUTO_RESOLVE";
@@ -301,7 +302,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     @Override
     public int escalateOverduePendingTickets(Integer limit) {
-        int safeLimit = Math.max(1, Math.min(ObjUtil.defaultIfNull(limit, DEFAULT_ESCALATE_BATCH_LIMIT), 1000));
+        int safeLimit = Math.max(1, Math.min(ObjUtil.defaultIfNull(limit, DEFAULT_ESCALATE_BATCH_LIMIT), MAX_ESCALATE_BATCH_LIMIT));
         LocalDateTime now = LocalDateTime.now();
         List<AfterSaleReviewTicketDO> overdueTickets = afterSaleReviewTicketMapper
                 .selectListByStatusAndSlaDeadlineTimeBefore(

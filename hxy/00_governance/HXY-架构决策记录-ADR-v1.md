@@ -585,3 +585,12 @@
 - 备选方案：继续忽略 `escalateDelayMinutes`，维持“逾期即升”。
 - 否决原因：无法支持分级风控策略，工单易在短时波动下被过度升级，增加人工负担。
 - 回滚条件：若延迟策略导致升级积压，可将规则中心 delay 统一改为 0（无需发版）恢复即时升级。
+
+## ADR-066：SLA 升级任务批量上限采用“job/service/mapper 一致上限”策略
+
+- 背景：升级任务支持通过配置提高批量阈值，但 service 与 mapper 曾固定上限 1000，导致任务层设置 1000 以上无效，形成隐性截断。
+- 决策：统一将批量上限收口到 5000，并在 `AfterSaleReviewTicketEscalationJob`、`AfterSaleReviewTicketServiceImpl`、`AfterSaleReviewTicketMapper` 三层保持一致。
+- 影响范围：SLA 升级任务吞吐、峰值积压清理效率、配置项生效一致性。
+- 备选方案：仅放开 job 层阈值，保留 service/mapper 1000 上限。
+- 否决原因：会造成“配置看似生效、实际被后置截断”的可观测性错觉，运维排障成本高。
+- 回滚条件：若单次批量过大影响数据库稳定，可统一把三层上限降回 1000（仍保持一致）。
