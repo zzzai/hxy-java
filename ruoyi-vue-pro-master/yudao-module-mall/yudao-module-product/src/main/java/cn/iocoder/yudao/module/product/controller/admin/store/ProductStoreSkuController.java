@@ -16,6 +16,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
@@ -24,6 +25,7 @@ import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreMappingService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
+import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +46,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserNickname;
 
 @Tag(name = "管理后台 - 门店 SKU 映射")
 @RestController
@@ -164,9 +168,15 @@ public class ProductStoreSkuController {
     @PostMapping("/stock-flow/batch-retry")
     @Operation(summary = "批量重试门店 SKU 库存流水")
     @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
-    public CommonResult<Integer> batchRetryStockFlow(
+    public CommonResult<ProductStoreSkuStockFlowBatchRetryRespVO> batchRetryStockFlow(
             @Valid @RequestBody ProductStoreSkuStockFlowBatchRetryReqVO reqVO) {
-        return success(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds()));
+        String retryOperator = getLoginUserNickname();
+        if (!StringUtils.hasText(retryOperator)) {
+            retryOperator = String.valueOf(getLoginUserId());
+        }
+        ProductStoreSkuStockFlowBatchRetryResult result = storeMappingService.retryStoreSkuStockFlowByIds(
+                reqVO.getIds(), retryOperator, reqVO.getSource());
+        return success(BeanUtils.toBean(result, ProductStoreSkuStockFlowBatchRetryRespVO.class));
     }
 
     @GetMapping("/store-options")

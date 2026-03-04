@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 @Schema(description = "管理后台 - 门店 SKU 库存流水批量重试 Request VO")
@@ -13,4 +14,8 @@ public class ProductStoreSkuStockFlowBatchRetryReqVO {
     @Schema(description = "库存流水编号列表", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "库存流水编号列表不能为空")
     private List<Long> ids;
+
+    @Schema(description = "操作来源", example = "ADMIN_UI")
+    @Size(max = 32, message = "操作来源长度不能超过 32")
+    private String source;
 }

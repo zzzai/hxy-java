@@ -4,11 +4,13 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreMappingService;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.MockedStatic;
 
 import java.util.Collections;
 import java.util.Arrays;
@@ -25,6 +28,7 @@ import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mockStatic;
 
 @ExtendWith(MockitoExtension.class)
 class ProductStoreSkuControllerTest {
@@ -83,10 +87,27 @@ class ProductStoreSkuControllerTest {
     void batchRetryStockFlow_shouldDelegateService() {
         ProductStoreSkuStockFlowBatchRetryReqVO reqVO = new ProductStoreSkuStockFlowBatchRetryReqVO();
         reqVO.setIds(Arrays.asList(901L, 902L, 901L));
-        when(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds())).thenReturn(2);
+        reqVO.setSource("admin_ui");
+        ProductStoreSkuStockFlowBatchRetryResult serviceResp = ProductStoreSkuStockFlowBatchRetryResult.builder()
+                .totalCount(2)
+                .successCount(1)
+                .skippedCount(1)
+                .failedCount(0)
+                .items(Collections.emptyList())
+                .build();
+        when(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds(), "库存运营A", "admin_ui"))
+                .thenReturn(serviceResp);
 
-        CommonResult<Integer> result = controller.batchRetryStockFlow(reqVO);
+        try (MockedStatic<cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils> mockStatic =
+                     mockStatic(cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.class)) {
+            mockStatic.when(cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils::getLoginUserNickname)
+                    .thenReturn("库存运营A");
 
-        assertEquals(2, result.getData());
+            CommonResult<ProductStoreSkuStockFlowBatchRetryRespVO> result = controller.batchRetryStockFlow(reqVO);
+
+            assertEquals(2, result.getData().getTotalCount());
+            assertEquals(1, result.getData().getSuccessCount());
+            assertEquals(1, result.getData().getSkippedCount());
+        }
     }
 }

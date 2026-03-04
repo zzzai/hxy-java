@@ -45,7 +45,12 @@ public class ProductStoreSkuStockFlowRespVO {
     @Schema(description = "最近执行时间")
     private LocalDateTime executeTime;
 
+    @Schema(description = "最近重试操作人", example = "admin")
+    private String lastRetryOperator;
+
+    @Schema(description = "最近重试来源", example = "ADMIN_UI")
+    private String lastRetrySource;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }
-

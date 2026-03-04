@@ -545,6 +545,10 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+        <el-button @click="selectFailedStockFlowRows">
+          <Icon class="mr-5px" icon="ep:select" />
+          一键勾选失败项
+        </el-button>
         <el-button :loading="stockFlowRetryLoading" type="warning" @click="submitStockFlowBatchRetry">
           <Icon class="mr-5px" icon="ep:refresh-right" />
           批量重试失败流水
@@ -553,6 +557,7 @@
     </el-form>
 
     <el-table
+      ref="stockFlowTableRef"
       v-loading="stockFlowLoading"
       :data="stockFlowList"
       class="mt-12px"
@@ -588,6 +593,8 @@
         </template>
       </el-table-column>
       <el-table-column label="重试次数" prop="retryCount" width="100" />
+      <el-table-column label="最近重试人" prop="lastRetryOperator" min-width="130" show-overflow-tooltip />
+      <el-table-column label="最近来源" prop="lastRetrySource" width="120" />
       <el-table-column label="错误信息" prop="lastErrorMsg" min-width="220" show-overflow-tooltip />
       <el-table-column :formatter="dateFormatter" label="执行时间" prop="executeTime" width="180" />
       <el-table-column :formatter="dateFormatter" label="创建时间" prop="createTime" width="180" />
@@ -600,6 +607,36 @@
     />
     <template #footer>
       <el-button @click="stockFlowVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="stockFlowRetryResultVisible" title="库存流水重试结果" width="980px">
+    <el-descriptions :column="4" border class="mb-12px">
+      <el-descriptions-item label="总处理数">{{ stockFlowRetryResult.totalCount || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="成功">{{ stockFlowRetryResult.successCount || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="跳过">{{ stockFlowRetryResult.skippedCount || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="失败">{{ stockFlowRetryResult.failedCount || 0 }}</el-descriptions-item>
+    </el-descriptions>
+    <el-table :data="stockFlowRetryResult.items || []" max-height="460">
+      <el-table-column label="流水ID" prop="id" width="100" />
+      <el-table-column label="结果" min-width="120">
+        <template #default="{ row }">
+          <el-tag :type="stockFlowRetryResultTag(row.resultType)">
+            {{ stockFlowRetryResultLabel(row.resultType) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="原因" prop="reason" min-width="220" show-overflow-tooltip />
+      <el-table-column label="处理后状态" min-width="130">
+        <template #default="{ row }">
+          {{ stockFlowStatusLabel(row.status) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作人" prop="retryOperator" min-width="120" show-overflow-tooltip />
+      <el-table-column label="来源" prop="retrySource" width="120" />
+    </el-table>
+    <template #footer>
+      <el-button type="primary" @click="stockFlowRetryResultVisible = false">我知道了</el-button>
     </template>
   </el-dialog>
 </template>
@@ -619,6 +656,7 @@ const batchSaveVisible = ref(false)
 const batchAdjustVisible = ref(false)
 const manualAdjustVisible = ref(false)
 const stockFlowVisible = ref(false)
+const stockFlowRetryResultVisible = ref(false)
 const batchSaveLoading = ref(false)
 const batchAdjustLoading = ref(false)
 const manualAdjustLoading = ref(false)
@@ -629,6 +667,14 @@ const stockFlowTotal = ref(0)
 const list = ref<StoreSkuApi.ProductStoreSku[]>([])
 const stockFlowList = ref<StoreSkuApi.ProductStoreSkuStockFlow[]>([])
 const stockFlowSelectedIds = ref<number[]>([])
+const stockFlowTableRef = ref()
+const stockFlowRetryResult = ref<StoreSkuApi.ProductStoreSkuStockFlowBatchRetryResp>({
+  totalCount: 0,
+  successCount: 0,
+  skippedCount: 0,
+  failedCount: 0,
+  items: []
+})
 const formRef = ref()
 const batchSaveFormRef = ref()
 const batchAdjustFormRef = ref()
@@ -1225,6 +1271,9 @@ const getStockFlowList = async () => {
     stockFlowList.value = data.list || []
     stockFlowTotal.value = data.total || 0
     stockFlowSelectedIds.value = []
+    if (stockFlowTableRef.value) {
+      stockFlowTableRef.value.clearSelection()
+    }
   } finally {
     stockFlowLoading.value = false
   }
@@ -1255,6 +1304,20 @@ const handleStockFlowSelectionChange = (rows: StoreSkuApi.ProductStoreSkuStockFl
     .filter((id) => Number.isInteger(id) && id > 0)
 }
 
+const selectFailedStockFlowRows = () => {
+  if (!stockFlowTableRef.value) {
+    return
+  }
+  stockFlowTableRef.value.clearSelection()
+  const failedRows = stockFlowList.value.filter((item) => item.status === 2)
+  failedRows.forEach((row) => stockFlowTableRef.value.toggleRowSelection(row, true))
+  if (!failedRows.length) {
+    message.warning('当前页没有失败状态流水')
+    return
+  }
+  message.success(`已勾选 ${failedRows.length} 条失败流水`)
+}
+
 const submitStockFlowBatchRetry = async () => {
   if (!stockFlowSelectedIds.value.length) {
     message.warning('请先勾选至少一条库存流水')
@@ -1267,12 +1330,51 @@ const submitStockFlowBatchRetry = async () => {
   }
   stockFlowRetryLoading.value = true
   try {
-    const successCount = await StoreSkuApi.batchRetryStoreSkuStockFlow({ ids: stockFlowSelectedIds.value })
-    message.success(`重试提交完成，成功触发 ${successCount} 条库存流水`)
+    const result = await StoreSkuApi.batchRetryStoreSkuStockFlow({
+      ids: stockFlowSelectedIds.value,
+      source: 'ADMIN_UI'
+    })
+    stockFlowRetryResult.value = {
+      totalCount: result.totalCount || 0,
+      successCount: result.successCount || 0,
+      skippedCount: result.skippedCount || 0,
+      failedCount: result.failedCount || 0,
+      items: result.items || []
+    }
+    stockFlowRetryResultVisible.value = true
+    message.success(
+      `批量重试完成：成功${stockFlowRetryResult.value.successCount}，跳过${stockFlowRetryResult.value.skippedCount}，失败${stockFlowRetryResult.value.failedCount}`
+    )
     await getStockFlowList()
   } finally {
     stockFlowRetryLoading.value = false
   }
+}
+
+const stockFlowRetryResultLabel = (resultType?: string) => {
+  if (resultType === 'SUCCESS') {
+    return '成功'
+  }
+  if (resultType === 'SKIPPED') {
+    return '跳过'
+  }
+  if (resultType === 'FAILED') {
+    return '失败'
+  }
+  return resultType || '未知'
+}
+
+const stockFlowRetryResultTag = (resultType?: string) => {
+  if (resultType === 'SUCCESS') {
+    return 'success'
+  }
+  if (resultType === 'SKIPPED') {
+    return 'info'
+  }
+  if (resultType === 'FAILED') {
+    return 'danger'
+  }
+  return 'info'
 }
 
 const formatStockFlowBizType = (bizType?: string) => {

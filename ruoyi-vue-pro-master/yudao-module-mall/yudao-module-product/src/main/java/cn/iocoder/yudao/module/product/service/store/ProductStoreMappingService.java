@@ -18,6 +18,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
+import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 
 import java.util.Collection;
 import javax.validation.Valid;
@@ -67,5 +68,7 @@ public interface ProductStoreMappingService {
 
     int retryStoreSkuStockFlow(Integer limit);
 
-    int retryStoreSkuStockFlowByIds(List<Long> flowIds);
+    ProductStoreSkuStockFlowBatchRetryResult retryStoreSkuStockFlowByIds(List<Long> flowIds,
+                                                                         String retryOperator,
+                                                                         String retrySource);
 }

@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS `hxy_store_product_sku_stock_flow`
     `next_retry_time` datetime     NULL     DEFAULT NULL COMMENT '下次重试时间',
     `last_error_msg`  varchar(255) NOT NULL DEFAULT '' COMMENT '最后错误信息',
     `execute_time`    datetime     NULL     DEFAULT NULL COMMENT '最近执行时间',
+    `last_retry_operator` varchar(64) NOT NULL DEFAULT '' COMMENT '最近重试操作人',
+    `last_retry_source`   varchar(32) NOT NULL DEFAULT '' COMMENT '最近重试来源',
     `creator`         varchar(64)           DEFAULT '' COMMENT '创建者',
     `create_time`     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updater`         varchar(64)           DEFAULT '' COMMENT '更新者',

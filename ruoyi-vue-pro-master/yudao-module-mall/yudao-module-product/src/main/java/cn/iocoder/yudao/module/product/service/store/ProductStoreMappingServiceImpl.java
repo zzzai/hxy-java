@@ -32,6 +32,7 @@ import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductSpuStatusEnum;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
+import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +66,8 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     private static final int STOCK_RETRY_MAX_LIMIT = 1000;
     private static final int STOCK_RETRY_BASE_SECONDS = 30;
     private static final int STOCK_PROCESSING_LEASE_SECONDS = 120;
+    private static final String STOCK_RETRY_SOURCE_DEFAULT = "ADMIN_UI";
+    private static final String STOCK_RETRY_OPERATOR_DEFAULT = "SYSTEM";
 
     @Resource
     private ProductStoreSpuMapper storeSpuMapper;
@@ -441,7 +445,8 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         List<ProductStoreSkuStockFlowDO> retryableList = storeSkuStockFlowMapper.selectRetryableList(now, safeLimit);
         int successCount = 0;
         for (ProductStoreSkuStockFlowDO flow : retryableList) {
-            if (executeRetryFlow(flow)) {
+            RetryExecutionResult executionResult = executeRetryFlow(flow, null, null);
+            if (executionResult.isSuccess()) {
                 successCount++;
             }
         }
@@ -450,33 +455,70 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int retryStoreSkuStockFlowByIds(List<Long> flowIds) {
+    public ProductStoreSkuStockFlowBatchRetryResult retryStoreSkuStockFlowByIds(List<Long> flowIds,
+                                                                                 String retryOperator,
+                                                                                 String retrySource) {
         List<Long> normalizedFlowIds = normalizeFlowIds(flowIds);
+        if (normalizedFlowIds.isEmpty()) {
+            return ProductStoreSkuStockFlowBatchRetryResult.empty();
+        }
+        String normalizedRetryOperator = normalizeRetryOperator(retryOperator);
+        String normalizedRetrySource = normalizeRetrySource(retrySource);
         List<ProductStoreSkuStockFlowDO> flowList = storeSkuStockFlowMapper.selectBatchIds(normalizedFlowIds);
-        if (flowList == null || flowList.isEmpty()) {
-            return 0;
+        if (flowList == null) {
+            flowList = Collections.emptyList();
         }
+        Map<Long, ProductStoreSkuStockFlowDO> flowMap = flowList.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(ProductStoreSkuStockFlowDO::getId, item -> item, (o1, o2) -> o1));
         int successCount = 0;
-        for (ProductStoreSkuStockFlowDO flow : flowList) {
-            if (executeRetryFlow(flow)) {
+        int skippedCount = 0;
+        int failedCount = 0;
+        List<ProductStoreSkuStockFlowBatchRetryResult.Item> items = new ArrayList<>(normalizedFlowIds.size());
+        for (Long flowId : normalizedFlowIds) {
+            ProductStoreSkuStockFlowDO flow = flowMap.get(flowId);
+            RetryExecutionResult executionResult = executeRetryFlow(flow, normalizedRetryOperator, normalizedRetrySource);
+            if (executionResult.isSuccess()) {
                 successCount++;
+            } else if (executionResult.isSkipped()) {
+                skippedCount++;
+            } else {
+                failedCount++;
             }
+            items.add(ProductStoreSkuStockFlowBatchRetryResult.Item.builder()
+                    .id(flowId)
+                    .resultType(executionResult.getResultType())
+                    .reason(executionResult.getReason())
+                    .status(executionResult.getStatus())
+                    .retryOperator(normalizedRetryOperator)
+                    .retrySource(normalizedRetrySource)
+                    .build());
         }
-        return successCount;
+        return ProductStoreSkuStockFlowBatchRetryResult.builder()
+                .totalCount(normalizedFlowIds.size())
+                .successCount(successCount)
+                .skippedCount(skippedCount)
+                .failedCount(failedCount)
+                .items(items)
+                .build();
     }
 
-    private boolean executeRetryFlow(ProductStoreSkuStockFlowDO flow) {
-        if (flow == null || !ProductStoreSkuStockFlowStatusEnum.isRetryable(flow.getStatus())) {
-            return false;
+    private RetryExecutionResult executeRetryFlow(ProductStoreSkuStockFlowDO flow, String retryOperator,
+                                                  String retrySource) {
+        if (flow == null) {
+            return RetryExecutionResult.skipped("NOT_FOUND", null);
+        }
+        if (!ProductStoreSkuStockFlowStatusEnum.isRetryable(flow.getStatus())) {
+            return RetryExecutionResult.skipped("STATUS_NOT_RETRYABLE", flow.getStatus());
         }
         Integer oldStatus = flow.getStatus() == null
                 ? ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus() : flow.getStatus();
         int retryCount = normalizeRetryCount(flow.getRetryCount());
         int claimed = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(), oldStatus,
                 ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
-                retryCount, calculateProcessingLeaseTime(), "");
+                retryCount, calculateProcessingLeaseTime(), "", retryOperator, retrySource);
         if (claimed == 0) {
-            return false;
+            return RetryExecutionResult.skipped("CLAIM_CONFLICT", oldStatus);
         }
         try {
             ProductStoreSkuUpdateStockReqDTO.Item item = new ProductStoreSkuUpdateStockReqDTO.Item();
@@ -486,15 +528,21 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
             int updated = storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
                     ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
                     ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus(),
-                    retryCount, null, null);
-            return updated > 0;
+                    retryCount, null, null, retryOperator, retrySource);
+            if (updated > 0) {
+                return RetryExecutionResult.success(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus());
+            }
+            return RetryExecutionResult.failed("STATUS_UPDATE_CONFLICT",
+                    ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus());
         } catch (RuntimeException ex) {
             int nextRetryCount = retryCount + 1;
             storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(flow.getId(),
                     ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus(),
                     ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus(),
-                    nextRetryCount, calculateNextRetryTime(nextRetryCount), trimErrorMsg(ex.getMessage()));
-            return false;
+                    nextRetryCount, calculateNextRetryTime(nextRetryCount), trimErrorMsg(ex.getMessage()),
+                    retryOperator, retrySource);
+            return RetryExecutionResult.failed(StrUtil.format("APPLY_FAILED:{}", trimErrorMsg(ex.getMessage())),
+                    ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus());
         }
     }
 
@@ -708,5 +756,65 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
             throw exception(STORE_SKU_STOCK_FLOW_TARGETS_EMPTY);
         }
         return normalized.stream().collect(Collectors.toList());
+    }
+
+    private static String normalizeRetryOperator(String retryOperator) {
+        String normalized = StrUtil.trimToEmpty(retryOperator);
+        if (StrUtil.isBlank(normalized)) {
+            return STOCK_RETRY_OPERATOR_DEFAULT;
+        }
+        return StrUtil.maxLength(normalized, 64);
+    }
+
+    private static String normalizeRetrySource(String retrySource) {
+        String normalized = StrUtil.trimToEmpty(retrySource);
+        if (StrUtil.isBlank(normalized)) {
+            return STOCK_RETRY_SOURCE_DEFAULT;
+        }
+        return StrUtil.maxLength(normalized.toUpperCase(), 32);
+    }
+
+    private static class RetryExecutionResult {
+        private final String resultType;
+        private final String reason;
+        private final Integer status;
+
+        private RetryExecutionResult(String resultType, String reason, Integer status) {
+            this.resultType = resultType;
+            this.reason = reason;
+            this.status = status;
+        }
+
+        public static RetryExecutionResult success(Integer status) {
+            return new RetryExecutionResult("SUCCESS", "SUCCESS", status);
+        }
+
+        public static RetryExecutionResult skipped(String reason, Integer status) {
+            return new RetryExecutionResult("SKIPPED", reason, status);
+        }
+
+        public static RetryExecutionResult failed(String reason, Integer status) {
+            return new RetryExecutionResult("FAILED", reason, status);
+        }
+
+        public boolean isSuccess() {
+            return "SUCCESS".equals(resultType);
+        }
+
+        public boolean isSkipped() {
+            return "SKIPPED".equals(resultType);
+        }
+
+        public String getResultType() {
+            return resultType;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+
+        public Integer getStatus() {
+            return status;
+        }
     }
 }

@@ -64,5 +64,13 @@ public class ProductStoreSkuStockFlowDO extends BaseDO {
      * 最后执行时间
      */
     private LocalDateTime executeTime;
+    /**
+     * 最近重试操作人
+     */
+    private String lastRetryOperator;
+    /**
+     * 最近重试来源
+     */
+    private String lastRetrySource;
 
 }

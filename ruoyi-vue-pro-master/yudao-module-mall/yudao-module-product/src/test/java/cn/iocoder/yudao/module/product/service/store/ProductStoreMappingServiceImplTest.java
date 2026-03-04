@@ -22,6 +22,7 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowM
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
+import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
 import org.junit.jupiter.api.Test;
@@ -528,11 +529,13 @@ class ProductStoreMappingServiceImplTest {
         when(storeSkuMapper.selectByStoreIdAndSkuId(11L, 22L)).thenReturn(sku22);
         when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9301L),
                 eq(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()),
-                eq(3), eq(1), any(), eq(""))).thenReturn(1);
+                eq(3), eq(1), any(), eq(""),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull())).thenReturn(1);
         when(storeSkuMapper.updateStockDecrByStoreIdAndSkuId(11L, 22L, 1)).thenReturn(1);
         when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9301L), eq(3),
                 eq(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus()),
-                eq(1), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                eq(1), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
                 .thenReturn(1);
 
         int successCount = productStoreMappingService.retryStoreSkuStockFlow(null);
@@ -566,17 +569,22 @@ class ProductStoreMappingServiceImplTest {
         when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9701L),
                 eq(ProductStoreSkuStockFlowStatusEnum.FAILED.getStatus()),
                 eq(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()),
-                eq(1), any(), eq(""))).thenReturn(1);
+                eq(1), any(), eq(""), eq("库存运营A"), eq("ADMIN_UI"))).thenReturn(1);
         when(storeSkuMapper.updateStockDecrByStoreIdAndSkuId(11L, 22L, 1)).thenReturn(1);
         when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9701L),
                 eq(ProductStoreSkuStockFlowStatusEnum.PROCESSING.getStatus()),
                 eq(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus()),
-                eq(1), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                eq(1), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull(),
+                eq("库存运营A"), eq("ADMIN_UI")))
                 .thenReturn(1);
 
-        int successCount = productStoreMappingService.retryStoreSkuStockFlowByIds(Arrays.asList(9701L, 9702L, 9701L));
+        ProductStoreSkuStockFlowBatchRetryResult result = productStoreMappingService.retryStoreSkuStockFlowByIds(
+                Arrays.asList(9701L, 9702L, 9701L), "库存运营A", "admin_ui");
 
-        assertEquals(1, successCount);
+        assertEquals(2, result.getTotalCount());
+        assertEquals(1, result.getSuccessCount());
+        assertEquals(1, result.getSkippedCount());
+        assertEquals(0, result.getFailedCount());
         verify(storeSkuMapper).updateStockDecrByStoreIdAndSkuId(11L, 22L, 1);
         verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(eq(11L), eq(23L), any(Integer.class));
     }
@@ -584,7 +592,7 @@ class ProductStoreMappingServiceImplTest {
     @Test
     void retryStoreSkuStockFlowByIds_shouldThrowWhenFlowIdsEmpty() {
         ServiceException ex = assertThrows(ServiceException.class,
-                () -> productStoreMappingService.retryStoreSkuStockFlowByIds(Collections.emptyList()));
+                () -> productStoreMappingService.retryStoreSkuStockFlowByIds(Collections.emptyList(), "op", "source"));
         assertEquals(STORE_SKU_STOCK_FLOW_TARGETS_EMPTY.getCode(), ex.getCode());
     }
 

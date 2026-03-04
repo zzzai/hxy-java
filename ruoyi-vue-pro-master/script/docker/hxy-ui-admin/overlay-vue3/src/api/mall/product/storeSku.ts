@@ -88,6 +88,8 @@ export interface ProductStoreSkuStockFlow {
   nextRetryTime?: string
   lastErrorMsg?: string
   executeTime?: string
+  lastRetryOperator?: string
+  lastRetrySource?: string
   createTime?: string
 }
 
@@ -102,6 +104,24 @@ export interface ProductStoreSkuStockFlowPageReq extends PageParam {
 
 export interface ProductStoreSkuStockFlowBatchRetryReq {
   ids: number[]
+  source?: string
+}
+
+export interface ProductStoreSkuStockFlowBatchRetryItem {
+  id?: number
+  resultType?: 'SUCCESS' | 'SKIPPED' | 'FAILED' | string
+  reason?: string
+  status?: number
+  retryOperator?: string
+  retrySource?: string
+}
+
+export interface ProductStoreSkuStockFlowBatchRetryResp {
+  totalCount?: number
+  successCount?: number
+  skippedCount?: number
+  failedCount?: number
+  items?: ProductStoreSkuStockFlowBatchRetryItem[]
 }
 
 export const getStoreSkuPage = (params: PageParam) => {
@@ -133,7 +153,10 @@ export const getStoreSkuStockFlowPage = (params: ProductStoreSkuStockFlowPageReq
 }
 
 export const batchRetryStoreSkuStockFlow = (data: ProductStoreSkuStockFlowBatchRetryReq) => {
-  return request.post({ url: '/product/store-sku/stock-flow/batch-retry', data })
+  return request.post<ProductStoreSkuStockFlowBatchRetryResp>({
+    url: '/product/store-sku/stock-flow/batch-retry',
+    data
+  })
 }
 
 export const deleteStoreSku = (id: number) => {

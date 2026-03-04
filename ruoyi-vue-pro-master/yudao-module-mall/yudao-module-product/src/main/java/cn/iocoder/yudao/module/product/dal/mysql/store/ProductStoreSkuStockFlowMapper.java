@@ -8,6 +8,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStock
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.springframework.util.StringUtils;
 
 import java.util.Collection;
 import java.time.LocalDateTime;
@@ -46,6 +47,13 @@ public interface ProductStoreSkuStockFlowMapper extends BaseMapperX<ProductStore
 
     default int updateStatusByIdAndOldStatus(Long id, Integer oldStatus, Integer newStatus,
                                              Integer retryCount, LocalDateTime nextRetryTime, String lastErrorMsg) {
+        return updateStatusByIdAndOldStatus(id, oldStatus, newStatus, retryCount, nextRetryTime, lastErrorMsg,
+                null, null);
+    }
+
+    default int updateStatusByIdAndOldStatus(Long id, Integer oldStatus, Integer newStatus,
+                                             Integer retryCount, LocalDateTime nextRetryTime, String lastErrorMsg,
+                                             String retryOperator, String retrySource) {
         LambdaUpdateWrapper<ProductStoreSkuStockFlowDO> updateWrapper = new LambdaUpdateWrapper<ProductStoreSkuStockFlowDO>()
                 .eq(ProductStoreSkuStockFlowDO::getId, id)
                 .eq(ProductStoreSkuStockFlowDO::getStatus, oldStatus)
@@ -54,6 +62,12 @@ public interface ProductStoreSkuStockFlowMapper extends BaseMapperX<ProductStore
                 .set(ProductStoreSkuStockFlowDO::getNextRetryTime, nextRetryTime)
                 .set(ProductStoreSkuStockFlowDO::getLastErrorMsg, lastErrorMsg)
                 .set(ProductStoreSkuStockFlowDO::getExecuteTime, LocalDateTime.now());
+        if (StringUtils.hasText(retryOperator)) {
+            updateWrapper.set(ProductStoreSkuStockFlowDO::getLastRetryOperator, retryOperator.trim());
+        }
+        if (StringUtils.hasText(retrySource)) {
+            updateWrapper.set(ProductStoreSkuStockFlowDO::getLastRetrySource, retrySource.trim().toUpperCase());
+        }
         return update(null, updateWrapper);
     }
 
