@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
 
@@ -50,12 +52,15 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
 
     @Mock
     private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
+    @Mock
+    private ConfigApi configApi;
 
     @BeforeEach
     void setUpRouteProvider() {
         lenient().when(tradeTicketSlaRuleApi.matchRule(any()))
                 .thenReturn(matchedRule(11L, TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode(),
                         "P1", "HQ_AFTER_SALE", 120));
+        lenient().when(configApi.getConfigValueByKey(anyString())).thenReturn(null);
     }
 
     @Test
@@ -432,6 +437,34 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("HQ_RISK_FINANCE", captor.getValue().getEscalateTo());
         assertEquals("GLOBAL_DEFAULT_FALLBACK", captor.getValue().getRouteScope());
         assertNull(captor.getValue().getRouteId());
+    }
+
+    @Test
+    void shouldCreateTicketFallbackUseConfiguredP0Values() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        reqBO.setSeverity("P0");
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenThrow(new RuntimeException("down"));
+        when(configApi.getConfigValueByKey("hxy.trade.review-ticket.sla.fallback.p0.escalate-to"))
+                .thenReturn("HQ_CUSTOM_P0");
+        when(configApi.getConfigValueByKey("hxy.trade.review-ticket.sla.fallback.p0.sla-minutes"))
+                .thenReturn("25");
+        when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketDO ticket = invocation.getArgument(0);
+            ticket.setId(1003L);
+            return 1;
+        });
+
+        Long id = service.createReviewTicket(reqBO);
+
+        assertEquals(1003L, id);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).insert(captor.capture());
+        assertEquals("P0", captor.getValue().getSeverity());
+        assertEquals("HQ_CUSTOM_P0", captor.getValue().getEscalateTo());
+        assertEquals(25,
+                java.time.temporal.ChronoUnit.MINUTES.between(
+                        captor.getValue().getFirstTriggerTime(), captor.getValue().getSlaDeadlineTime()));
     }
 
     private static AfterSaleDO buildAfterSale(Long id) {

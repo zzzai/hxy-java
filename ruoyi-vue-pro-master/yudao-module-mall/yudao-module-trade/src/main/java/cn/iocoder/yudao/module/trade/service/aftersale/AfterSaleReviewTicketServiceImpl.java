@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchReqDTO;
 import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
@@ -52,11 +53,21 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private static final String ACTION_SLA_AUTO_ESCALATE = "SLA_AUTO_ESCALATE";
     private static final String ROUTE_DECISION_ORDER = "RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT";
     private static final String ROUTE_SCOPE_GLOBAL_FALLBACK = "GLOBAL_DEFAULT_FALLBACK";
+    private static final String CONFIG_KEY_FALLBACK_P0_ESCALATE_TO = "hxy.trade.review-ticket.sla.fallback.p0.escalate-to";
+    private static final String CONFIG_KEY_FALLBACK_P0_SLA_MINUTES = "hxy.trade.review-ticket.sla.fallback.p0.sla-minutes";
+    private static final String CONFIG_KEY_FALLBACK_DEFAULT_ESCALATE_TO = "hxy.trade.review-ticket.sla.fallback.default.escalate-to";
+    private static final String CONFIG_KEY_FALLBACK_DEFAULT_SLA_MINUTES = "hxy.trade.review-ticket.sla.fallback.default.sla-minutes";
+    private static final String FALLBACK_ESCALATE_TO_P0 = "HQ_RISK_FINANCE";
+    private static final String FALLBACK_ESCALATE_TO_DEFAULT = "HQ_AFTER_SALE";
+    private static final int FALLBACK_SLA_MINUTES_P0 = 30;
+    private static final int FALLBACK_SLA_MINUTES_DEFAULT = 120;
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
     @Resource
     private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
+    @Resource
+    private ConfigApi configApi;
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
@@ -352,10 +363,16 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private TicketRoute buildFallbackRoute(String requestedSeverity) {
         String severity = normalizeSeverity(requestedSeverity);
         if (StrUtil.equalsIgnoreCase("P0", severity)) {
-            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30, null,
+            return new TicketRoute("P0",
+                    resolveConfigString(CONFIG_KEY_FALLBACK_P0_ESCALATE_TO, FALLBACK_ESCALATE_TO_P0, 64),
+                    resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_P0_SLA_MINUTES, FALLBACK_SLA_MINUTES_P0, 1, 30),
+                    null,
                     ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
         }
-        return new TicketRoute(severity, "HQ_AFTER_SALE", 120, null,
+        return new TicketRoute(severity,
+                resolveConfigString(CONFIG_KEY_FALLBACK_DEFAULT_ESCALATE_TO, FALLBACK_ESCALATE_TO_DEFAULT, 64),
+                resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_DEFAULT_SLA_MINUTES, FALLBACK_SLA_MINUTES_DEFAULT, 1, 7 * 24 * 60),
+                null,
                 ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
     }
 
@@ -382,6 +399,24 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private String normalizeSeverity(String severity) {
         String normalized = StrUtil.blankToDefault(StrUtil.trim(severity), "P1").toUpperCase(Locale.ROOT);
         return StrUtil.equalsAny(normalized, "P0", "P1", "P2") ? normalized : "P1";
+    }
+
+    private String resolveConfigString(String key, String defaultValue, int maxLength) {
+        String value = StrUtil.trim(configApi.getConfigValueByKey(key));
+        return StrUtil.maxLength(StrUtil.blankToDefault(value, defaultValue), maxLength);
+    }
+
+    private Integer resolveConfigPositiveInt(String key, Integer defaultValue, int min, int max) {
+        String value = configApi.getConfigValueByKey(key);
+        if (StrUtil.isBlank(value) || !StrUtil.isNumeric(value.trim())) {
+            return clamp(defaultValue, min, max);
+        }
+        return clamp(Integer.parseInt(value.trim()), min, max);
+    }
+
+    private Integer clamp(Integer value, int min, int max) {
+        int safe = ObjUtil.defaultIfNull(value, min);
+        return Math.max(min, Math.min(safe, max));
     }
 
     private String nextEscalateTo(String currentEscalateTo, String severity, String routeEscalateTo) {

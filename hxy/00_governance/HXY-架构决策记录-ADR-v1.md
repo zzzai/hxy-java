@@ -564,3 +564,15 @@
 - 备选方案：保留旧的 `ruleCode` 硬编码映射作为兜底。
 - 否决原因：会形成隐式规则来源，运营在规则中心调参后仍可能被代码分支覆盖，审计难以解释。
 - 回滚条件：若新兜底策略与线上风险处置不符，可临时在规则中心补齐对应 `GLOBAL/TYPE` 规则，不必回滚代码映射。
+
+## ADR-064：售后工单 SLA 任务运行参数采用“infra_config 在线配置 + 代码边界约束”
+
+- 背景：工单升级任务批量阈值与全局兜底路由此前固化在代码常量，线上突发量变化时只能发版调整，响应效率不足。
+- 决策：将以下参数迁移到 `infra_config`：
+  1) `hxy.trade.review-ticket.sla.job.batch-limit.default/max`；
+  2) `hxy.trade.review-ticket.sla.fallback.p0/default.escalate-to/sla-minutes`。
+  代码仍保留边界防护：升级任务最大批量上限 5000；P0 兜底 SLA 上限 30 分钟；默认兜底 SLA 上限 7 天。
+- 影响范围：`AfterSaleReviewTicketEscalationJob` 参数解析、`AfterSaleReviewTicketServiceImpl` 全局兜底路由生成、运维侧在线调参能力。
+- 备选方案：维持代码常量，通过紧急发布调整阈值。
+- 否决原因：变更窗口长，无法满足高峰期快速止损和临时调度需求。
+- 回滚条件：若配置下发异常导致阈值失真，系统自动回退代码默认值（不阻断任务执行），并可通过删除配置项快速恢复。
