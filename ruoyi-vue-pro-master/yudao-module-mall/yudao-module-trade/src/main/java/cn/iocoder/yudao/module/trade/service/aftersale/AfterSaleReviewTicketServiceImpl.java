@@ -313,6 +313,9 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         for (AfterSaleReviewTicketDO ticket : overdueTickets) {
             String newSeverity = nextSeverity(ticket.getSeverity());
             TicketRoute route = buildRoute(ticket.getTicketType(), ticket.getRuleCode(), newSeverity, null);
+            if (!isEscalateDelaySatisfied(ticket, route, now)) {
+                continue;
+            }
             String newEscalateTo = nextEscalateTo(ticket.getEscalateTo(), newSeverity, route.getEscalateTo());
             String newRemark = buildEscalateRemark(ticket, now, newSeverity);
             int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
@@ -353,6 +356,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return new TicketRoute(routeSeverity,
                     StrUtil.blankToDefault(matchResp.getEscalateTo(), nextEscalateTo("", routeSeverity, null)),
                     resolveSlaMinutes(matchResp.getSlaMinutes(), 120),
+                    resolveEscalateDelayMinutes(matchResp.getEscalateDelayMinutes()),
                     matchResp.getRuleId(),
                     routeScope,
                     ROUTE_DECISION_ORDER);
@@ -366,12 +370,14 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return new TicketRoute("P0",
                     resolveConfigString(CONFIG_KEY_FALLBACK_P0_ESCALATE_TO, FALLBACK_ESCALATE_TO_P0, 64),
                     resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_P0_SLA_MINUTES, FALLBACK_SLA_MINUTES_P0, 1, 30),
+                    0,
                     null,
                     ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
         }
         return new TicketRoute(severity,
                 resolveConfigString(CONFIG_KEY_FALLBACK_DEFAULT_ESCALATE_TO, FALLBACK_ESCALATE_TO_DEFAULT, 64),
                 resolveConfigPositiveInt(CONFIG_KEY_FALLBACK_DEFAULT_SLA_MINUTES, FALLBACK_SLA_MINUTES_DEFAULT, 1, 7 * 24 * 60),
+                0,
                 null,
                 ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
     }
@@ -414,6 +420,10 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return clamp(Integer.parseInt(value.trim()), min, max);
     }
 
+    private Integer resolveEscalateDelayMinutes(Integer delayMinutes) {
+        return clamp(delayMinutes, 0, 7 * 24 * 60);
+    }
+
     private Integer clamp(Integer value, int min, int max) {
         int safe = ObjUtil.defaultIfNull(value, min);
         return Math.max(min, Math.min(safe, max));
@@ -442,6 +452,17 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return Math.min(resolved, 30);
         }
         return Math.min(resolved, 7 * 24 * 60);
+    }
+
+    private boolean isEscalateDelaySatisfied(AfterSaleReviewTicketDO ticket, TicketRoute route, LocalDateTime now) {
+        if (ticket == null || route == null || ticket.getSlaDeadlineTime() == null) {
+            return true;
+        }
+        Integer delayMinutes = ObjUtil.defaultIfNull(route.getEscalateDelayMinutes(), 0);
+        if (delayMinutes <= 0) {
+            return true;
+        }
+        return !now.isBefore(ticket.getSlaDeadlineTime().plusMinutes(delayMinutes));
     }
 
     private Integer resolveSlaMinutes(Integer requestSlaMinutes, Integer defaultSlaMinutes) {
@@ -546,6 +567,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         private String severity;
         private String escalateTo;
         private Integer slaMinutes;
+        private Integer escalateDelayMinutes;
         private Long routeId;
         private String matchedScope;
         private String decisionOrder;

@@ -386,6 +386,31 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void shouldSkipEscalateWhenEscalateDelayNotReached() {
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(20L);
+        ticket.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        ticket.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        ticket.setSeverity("P1");
+        ticket.setEscalateTo("HQ_AFTER_SALE");
+        ticket.setRuleCode("UNKNOWN_RULE");
+        ticket.setSlaDeadlineTime(LocalDateTime.now().minusMinutes(1));
+        ticket.setTriggerCount(1);
+        when(afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any(LocalDateTime.class), eq(200)))
+                .thenReturn(Collections.singletonList(ticket));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(55L, TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode(),
+                        "P0", "HQ_RISK_FINANCE", 30, 10));
+
+        int count = service.escalateOverduePendingTickets(null);
+
+        assertEquals(0, count);
+        verify(afterSaleReviewTicketMapper, never()).updateByIdAndStatus(eq(20L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any());
+    }
+
+    @Test
     void shouldCreateTicketFallbackToGlobalDefaultWhenRuleCenterUnavailable() {
         AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
         reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
@@ -478,6 +503,12 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
 
     private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
                                                               String severity, String escalateTo, Integer slaMinutes) {
+        return matchedRule(ruleId, matchLevel, severity, escalateTo, slaMinutes, null);
+    }
+
+    private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
+                                                              String severity, String escalateTo, Integer slaMinutes,
+                                                              Integer escalateDelayMinutes) {
         TradeTicketSlaRuleMatchRespDTO respDTO = new TradeTicketSlaRuleMatchRespDTO();
         respDTO.setMatched(true);
         respDTO.setRuleId(ruleId);
@@ -485,6 +516,7 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         respDTO.setSeverity(severity);
         respDTO.setEscalateTo(escalateTo);
         respDTO.setSlaMinutes(slaMinutes);
+        respDTO.setEscalateDelayMinutes(escalateDelayMinutes);
         return respDTO;
     }
 
