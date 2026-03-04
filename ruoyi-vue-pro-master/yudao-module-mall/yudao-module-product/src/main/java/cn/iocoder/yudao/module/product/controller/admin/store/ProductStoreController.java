@@ -154,9 +154,9 @@ public class ProductStoreController {
     }
 
     @PostMapping("/batch/lifecycle/execute")
-    @Operation(summary = "批量执行门店生命周期（含守卫汇总结果）")
+    @Operation(summary = "批量执行门店生命周期更新（返回执行结果）")
     @PreAuthorize("@ss.hasPermission('product:store:batch-lifecycle')")
-    public CommonResult<ProductStoreBatchLifecycleResultRespVO> batchExecuteLifecycle(
+    public CommonResult<ProductStoreBatchLifecycleExecuteRespVO> batchUpdateLifecycleExecute(
             @Valid @RequestBody ProductStoreBatchLifecycleReqVO reqVO) {
         return success(storeService.batchUpdateLifecycleWithResult(reqVO));
     }

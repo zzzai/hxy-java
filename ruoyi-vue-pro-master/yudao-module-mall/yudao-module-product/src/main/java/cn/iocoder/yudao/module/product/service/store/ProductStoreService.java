@@ -71,7 +71,7 @@ public interface ProductStoreService {
 
     void batchUpdateTags(@Valid ProductStoreBatchTagReqVO reqVO);
 
-    ProductStoreBatchLifecycleResultRespVO batchUpdateLifecycleWithResult(@Valid ProductStoreBatchLifecycleReqVO reqVO);
-
     void batchUpdateLifecycle(@Valid ProductStoreBatchLifecycleReqVO reqVO);
+
+    ProductStoreBatchLifecycleExecuteRespVO batchUpdateLifecycleWithResult(@Valid ProductStoreBatchLifecycleReqVO reqVO);
 }
