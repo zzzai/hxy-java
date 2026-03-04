@@ -74,6 +74,9 @@ public interface ErrorCodeConstants {
     ErrorCode AFTER_SALE_REVIEW_TICKET_ROUTE_SCOPE_INVALID = new ErrorCode(1_011_000_122, "人工复核工单路由规则作用域非法");
     ErrorCode AFTER_SALE_REVIEW_TICKET_ROUTE_KEY_CONFLICT = new ErrorCode(1_011_000_123, "人工复核工单路由规则唯一键冲突");
     ErrorCode AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED = new ErrorCode(1_011_000_124, "退款失败，退款上限已变化，请重新审核");
+    ErrorCode TICKET_SLA_RULE_NOT_EXISTS = new ErrorCode(1_011_000_125, "SLA 工单规则不存在");
+    ErrorCode TICKET_SLA_RULE_SCOPE_DUPLICATE = new ErrorCode(1_011_000_126, "SLA 工单规则范围重复，请调整后重试");
+    ErrorCode TICKET_SLA_RULE_SCOPE_STORE_REQUIRED = new ErrorCode(1_011_000_127, "门店作用域规则必须指定有效门店");
 
     // ========== Cart 模块 1-011-002-000 ==========
     ErrorCode CARD_ITEM_NOT_FOUND = new ErrorCode(1_011_002_000, "购物车项不存在");

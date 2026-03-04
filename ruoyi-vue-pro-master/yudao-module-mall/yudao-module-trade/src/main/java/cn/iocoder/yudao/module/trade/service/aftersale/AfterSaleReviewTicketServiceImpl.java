@@ -3,15 +3,22 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchReqDTO;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
+import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleMatchLevelEnum;
+import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -43,11 +50,13 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private static final String ACTION_TICKET_CREATE = "TICKET_CREATE";
     private static final String ACTION_RULE_RETRIGGER = "RULE_RETRIGGER";
     private static final String ACTION_SLA_AUTO_ESCALATE = "SLA_AUTO_ESCALATE";
+    private static final String ROUTE_DECISION_ORDER = "RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT";
+    private static final String ROUTE_SCOPE_GLOBAL_FALLBACK = "GLOBAL_DEFAULT_FALLBACK";
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
     @Resource
-    private AfterSaleReviewTicketRouteProvider reviewTicketRouteProvider;
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
@@ -69,7 +78,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return null;
         }
         Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
-        ReviewTicketRoute route = reviewTicketRouteProvider.resolve(ticketType, reqBO.getSeverity(), reqBO.getRuleCode());
+        TicketRoute route = buildRoute(ticketType, reqBO.getRuleCode(), reqBO.getSeverity(), null);
         LocalDateTime now = LocalDateTime.now();
         String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
         String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
@@ -108,10 +117,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return;
         }
         AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByAfterSaleId(afterSale.getId());
-        ReviewTicketRoute route = reviewTicketRouteProvider.resolve(
+        TicketRoute route = buildRoute(
                 AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType(),
+                decision.getRuleCode(),
                 existed == null ? null : existed.getSeverity(),
-                decision.getRuleCode());
+                null);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime slaDeadlineTime = now.plusMinutes(route.getSlaMinutes());
         if (existed == null) {
@@ -291,8 +301,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         int affectedRows = 0;
         for (AfterSaleReviewTicketDO ticket : overdueTickets) {
             String newSeverity = nextSeverity(ticket.getSeverity());
-            ReviewTicketRoute route = reviewTicketRouteProvider.resolve(
-                    ticket.getTicketType(), newSeverity, ticket.getRuleCode());
+            TicketRoute route = buildRoute(ticket.getTicketType(), ticket.getRuleCode(), newSeverity, null);
             String newEscalateTo = nextEscalateTo(ticket.getEscalateTo(), newSeverity, route.getEscalateTo());
             String newRemark = buildEscalateRemark(ticket, now, newSeverity);
             int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
@@ -313,6 +322,47 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             affectedRows += updateCount;
         }
         return affectedRows;
+    }
+
+    private TicketRoute buildRoute(Integer ticketType, String ruleCode, String severity, Long storeId) {
+        TradeTicketSlaRuleMatchRespDTO matchResp = null;
+        try {
+            TradeTicketSlaRuleMatchReqDTO reqDTO = new TradeTicketSlaRuleMatchReqDTO();
+            reqDTO.setTicketType(ObjUtil.defaultIfNull(ticketType, TicketSlaRuleTicketTypeEnum.AFTER_SALE_REVIEW.getType()));
+            reqDTO.setRuleCode(ruleCode);
+            reqDTO.setSeverity(severity);
+            reqDTO.setStoreId(storeId);
+            matchResp = tradeTicketSlaRuleApi.matchRule(reqDTO);
+        } catch (Exception ignore) {
+            // 规则中心不可用时走默认兜底，避免创建/升级流程中断
+        }
+        if (matchResp != null && Boolean.TRUE.equals(matchResp.getMatched())) {
+            String routeSeverity = StrUtil.blankToDefault(matchResp.getSeverity(), StrUtil.blankToDefault(severity, "P1"));
+            String routeScope = resolveRouteScope(matchResp.getMatchLevel());
+            return new TicketRoute(routeSeverity,
+                    StrUtil.blankToDefault(matchResp.getEscalateTo(), nextEscalateTo("", routeSeverity, null)),
+                    resolveSlaMinutes(matchResp.getSlaMinutes(), 120),
+                    matchResp.getRuleId(),
+                    routeScope,
+                    ROUTE_DECISION_ORDER);
+        }
+        return buildFallbackRoute(ruleCode);
+    }
+
+    private TicketRoute buildFallbackRoute(String ruleCode) {
+        if (StrUtil.equalsAnyIgnoreCase(ruleCode, "BLACKLIST_USER", "SUSPICIOUS_ORDER")) {
+            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "AMOUNT_OVER_LIMIT")) {
+            return new TicketRoute("P1", "HQ_FINANCE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "HIGH_FREQUENCY")) {
+            return new TicketRoute("P1", "HQ_AFTER_SALE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+        }
+        if (StrUtil.equalsIgnoreCase(ruleCode, "AUTO_REFUND_EXECUTE_FAIL")) {
+            return new TicketRoute("P0", "PAY_DEVOPS", 15, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+        }
+        return new TicketRoute("P1", "HQ_AFTER_SALE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
     }
 
     private String abbreviate(String text, int maxLength) {
@@ -394,7 +444,7 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
     }
 
-    private void applyRouteSnapshot(AfterSaleReviewTicketDO ticket, ReviewTicketRoute route) {
+    private void applyRouteSnapshot(AfterSaleReviewTicketDO ticket, TicketRoute route) {
         if (ticket == null || route == null) {
             return;
         }
@@ -403,19 +453,35 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         ticket.setRouteDecisionOrder(resolveRouteDecisionOrder(route));
     }
 
-    private String resolveRouteScope(ReviewTicketRoute route) {
+    private String resolveRouteScope(TicketRoute route) {
         if (route == null) {
-            return "GLOBAL_DEFAULT_FALLBACK";
+            return ROUTE_SCOPE_GLOBAL_FALLBACK;
         }
-        return StrUtil.maxLength(StrUtil.blankToDefault(route.getMatchedScope(), "GLOBAL_DEFAULT_FALLBACK"), 32);
+        return StrUtil.maxLength(StrUtil.blankToDefault(route.getMatchedScope(), ROUTE_SCOPE_GLOBAL_FALLBACK), 32);
     }
 
-    private String resolveRouteDecisionOrder(ReviewTicketRoute route) {
+    private String resolveRouteDecisionOrder(TicketRoute route) {
         if (route == null) {
-            return ReviewTicketRoute.DECISION_ORDER;
+            return ROUTE_DECISION_ORDER;
         }
         return StrUtil.maxLength(StrUtil.blankToDefault(route.getDecisionOrder(),
-                ReviewTicketRoute.DECISION_ORDER), 128);
+                ROUTE_DECISION_ORDER), 128);
+    }
+
+    private String resolveRouteScope(Integer matchLevel) {
+        if (TicketSlaRuleMatchLevelEnum.RULE.getCode().equals(matchLevel)) {
+            return "RULE";
+        }
+        if (TicketSlaRuleMatchLevelEnum.TYPE_SEVERITY.getCode().equals(matchLevel)) {
+            return "TYPE_SEVERITY";
+        }
+        if (TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode().equals(matchLevel)) {
+            return "TYPE_DEFAULT";
+        }
+        if (TicketSlaRuleMatchLevelEnum.GLOBAL_DEFAULT.getCode().equals(matchLevel)) {
+            return "GLOBAL_DEFAULT";
+        }
+        return ROUTE_SCOPE_GLOBAL_FALLBACK;
     }
 
     private void normalizePageReq(AfterSaleReviewTicketPageReqVO pageReqVO) {
@@ -438,6 +504,17 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     private String normalizeTrim(String value) {
         return StrUtil.trimToNull(value);
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class TicketRoute {
+        private String severity;
+        private String escalateTo;
+        private Integer slaMinutes;
+        private Long routeId;
+        private String matchedScope;
+        private String decisionOrder;
     }
 
 }

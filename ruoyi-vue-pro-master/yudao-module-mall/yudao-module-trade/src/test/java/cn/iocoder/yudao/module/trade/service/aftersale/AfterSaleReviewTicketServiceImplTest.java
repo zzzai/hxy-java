@@ -3,12 +3,15 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
+import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleMatchLevelEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.dto.AfterSaleReviewTicketBatchResolveResult;
@@ -30,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,16 +49,13 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
 
     @Mock
-    private AfterSaleReviewTicketRouteProvider reviewTicketRouteProvider;
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @BeforeEach
     void setUpRouteProvider() {
-        lenient().when(reviewTicketRouteProvider.resolve(anyInt(), any(), any()))
-                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120,
-                        11L, "TYPE_DEFAULT", ReviewTicketRoute.DECISION_ORDER));
-        lenient().when(reviewTicketRouteProvider.resolve(isNull(), any(), any()))
-                .thenReturn(new ReviewTicketRoute("P1", "HQ_AFTER_SALE", 120,
-                        11L, "TYPE_DEFAULT", ReviewTicketRoute.DECISION_ORDER));
+        lenient().when(tradeTicketSlaRuleApi.matchRule(any()))
+                .thenReturn(matchedRule(11L, TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode(),
+                        "P1", "HQ_AFTER_SALE", 120));
     }
 
     @Test
@@ -86,11 +87,7 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertNotNull(captor.getValue().getLastActionTime());
         assertEquals(11L, captor.getValue().getRouteId());
         assertEquals("TYPE_DEFAULT", captor.getValue().getRouteScope());
-        assertEquals(ReviewTicketRoute.DECISION_ORDER, captor.getValue().getRouteDecisionOrder());
-        verify(reviewTicketRouteProvider).resolve(
-                eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
-                isNull(),
-                eq("SERVICE_DELAY"));
+        assertEquals("RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT", captor.getValue().getRouteDecisionOrder());
     }
 
     @Test
@@ -148,11 +145,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         AfterSaleDO afterSale = buildAfterSale(1L);
         AfterSaleRefundDecisionBO decision = AfterSaleRefundDecisionBO.manual("BLACKLIST_USER", "黑名单命中");
         when(afterSaleReviewTicketMapper.selectByAfterSaleId(1L)).thenReturn(null);
-        when(reviewTicketRouteProvider.resolve(
-                eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
-                isNull(),
-                eq("BLACKLIST_USER"))).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30,
-                21L, "RULE", ReviewTicketRoute.DECISION_ORDER));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(21L, TicketSlaRuleMatchLevelEnum.RULE.getCode(),
+                        "P0", "HQ_RISK_FINANCE", 30));
 
         service.upsertManualReviewTicket(afterSale, decision);
 
@@ -163,10 +158,6 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(21L, captor.getValue().getRouteId());
         assertEquals("RULE", captor.getValue().getRouteScope());
         assertEquals(AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), captor.getValue().getStatus());
-        verify(reviewTicketRouteProvider).resolve(
-                eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
-                isNull(),
-                eq("BLACKLIST_USER"));
     }
 
     @Test
@@ -179,11 +170,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         existed.setSeverity("P2");
         existed.setTriggerCount(2);
         when(afterSaleReviewTicketMapper.selectByAfterSaleId(2L)).thenReturn(existed);
-        when(reviewTicketRouteProvider.resolve(
-                eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
-                eq("P2"),
-                eq("AMOUNT_OVER_LIMIT"))).thenReturn(new ReviewTicketRoute("P1", "HQ_FINANCE", 120,
-                22L, "TYPE_SEVERITY", ReviewTicketRoute.DECISION_ORDER));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(22L, TicketSlaRuleMatchLevelEnum.TYPE_SEVERITY.getCode(),
+                        "P1", "HQ_FINANCE", 120));
 
         service.upsertManualReviewTicket(afterSale, decision);
 
@@ -197,10 +186,6 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("RULE_RETRIGGER", captor.getValue().getLastActionCode());
         assertEquals("2", captor.getValue().getLastActionBizNo());
         assertNotNull(captor.getValue().getLastActionTime());
-        verify(reviewTicketRouteProvider).resolve(
-                eq(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType()),
-                eq("P2"),
-                eq("AMOUNT_OVER_LIMIT"));
     }
 
     @Test
@@ -319,11 +304,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(6L),
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any()))
                 .thenReturn(1);
-        when(reviewTicketRouteProvider.resolve(
-                eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
-                eq("P0"),
-                isNull())).thenReturn(new ReviewTicketRoute("P0", "HQ_RISK_FINANCE", 30,
-                33L, "TYPE_SEVERITY", ReviewTicketRoute.DECISION_ORDER));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(33L, TicketSlaRuleMatchLevelEnum.TYPE_SEVERITY.getCode(),
+                        "P0", "HQ_RISK_FINANCE", 30));
 
         int count = service.escalateOverduePendingTickets(null);
 
@@ -339,10 +322,6 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("SLA_AUTO_ESCALATE", captor.getValue().getLastActionCode());
         assertEquals("TICKET#6", captor.getValue().getLastActionBizNo());
         assertNotNull(captor.getValue().getLastActionTime());
-        verify(reviewTicketRouteProvider).resolve(
-                eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
-                eq("P0"),
-                isNull());
     }
 
     @Test
@@ -350,10 +329,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
         reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType());
         reqBO.setRuleCode("UNKNOWN_RULE");
-        when(reviewTicketRouteProvider.resolve(
-                eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
-                isNull(),
-                eq("UNKNOWN_RULE"))).thenReturn(new ReviewTicketRoute("P0", "HQ_SERVICE_OPS", 45));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(45L, TicketSlaRuleMatchLevelEnum.TYPE_DEFAULT.getCode(),
+                        "P0", "HQ_SERVICE_OPS", 45));
         when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class))).thenAnswer(invocation -> {
             AfterSaleReviewTicketDO ticket = invocation.getArgument(0);
             ticket.setId(1001L);
@@ -383,11 +361,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         when(afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any(LocalDateTime.class), eq(200)))
                 .thenReturn(Collections.singletonList(ticket));
-        when(reviewTicketRouteProvider.resolve(
-                eq(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType()),
-                eq("P1"),
-                eq("UNKNOWN_RULE"))).thenReturn(new ReviewTicketRoute("P1", "HQ_SERVICE_OPS", 90,
-                44L, "RULE", ReviewTicketRoute.DECISION_ORDER));
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(
+                matchedRule(44L, TicketSlaRuleMatchLevelEnum.RULE.getCode(),
+                        "P1", "HQ_SERVICE_OPS", 90));
         when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(18L),
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any()))
                 .thenReturn(1);
@@ -411,6 +387,18 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         afterSale.setOrderItemId(11L);
         afterSale.setUserId(12L);
         return afterSale;
+    }
+
+    private static TradeTicketSlaRuleMatchRespDTO matchedRule(Long ruleId, Integer matchLevel,
+                                                              String severity, String escalateTo, Integer slaMinutes) {
+        TradeTicketSlaRuleMatchRespDTO respDTO = new TradeTicketSlaRuleMatchRespDTO();
+        respDTO.setMatched(true);
+        respDTO.setRuleId(ruleId);
+        respDTO.setMatchLevel(matchLevel);
+        respDTO.setSeverity(severity);
+        respDTO.setEscalateTo(escalateTo);
+        respDTO.setSlaMinutes(slaMinutes);
+        return respDTO;
     }
 
 }

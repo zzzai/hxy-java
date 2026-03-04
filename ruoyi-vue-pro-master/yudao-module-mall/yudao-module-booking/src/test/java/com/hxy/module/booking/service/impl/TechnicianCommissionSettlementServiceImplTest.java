@@ -16,6 +16,8 @@ import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementMapper;
 import com.hxy.module.booking.dal.mysql.TechnicianCommissionSettlementNotifyOutboxMapper;
 import com.hxy.module.booking.enums.CommissionSettlementStatusEnum;
 import com.hxy.module.booking.enums.CommissionStatusEnum;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.system.api.permission.PermissionApi;
 import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import org.junit.jupiter.api.Test;
@@ -68,6 +70,8 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
     private NotifySendService notifySendService;
     @Mock
     private PermissionApi permissionApi;
+    @Mock
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @Test
     void shouldCreateDraftSettlementAndBindCommissions() {
@@ -135,6 +139,31 @@ class TechnicianCommissionSettlementServiceImplTest extends BaseMockitoUnitTest 
         assertEquals(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus(), captor.getValue().getStatus());
         assertNotNull(captor.getValue().getReviewDeadlineTime());
         verify(settlementLogMapper).insert(any(TechnicianCommissionSettlementLogDO.class));
+    }
+
+    @Test
+    void shouldSubmitDraftSettlementUseRuleCenterSlaWhenRequestEmpty() {
+        TechnicianCommissionSettlementDO settlement = buildSettlement(101L, CommissionSettlementStatusEnum.DRAFT.getStatus());
+        settlement.setStoreId(2001L);
+        when(settlementMapper.selectById(101L)).thenReturn(settlement);
+        when(settlementMapper.updateByIdAndStatus(eq(101L), eq(CommissionSettlementStatusEnum.DRAFT.getStatus()),
+                any(TechnicianCommissionSettlementDO.class))).thenReturn(1);
+
+        TradeTicketSlaRuleMatchRespDTO matchRespDTO = new TradeTicketSlaRuleMatchRespDTO();
+        matchRespDTO.setMatched(true);
+        matchRespDTO.setSlaMinutes(45);
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(matchRespDTO);
+
+        LocalDateTime before = LocalDateTime.now();
+        service.submitForReview(101L, null, "提审");
+        LocalDateTime after = LocalDateTime.now();
+
+        ArgumentCaptor<TechnicianCommissionSettlementDO> captor = ArgumentCaptor.forClass(TechnicianCommissionSettlementDO.class);
+        verify(settlementMapper).updateByIdAndStatus(eq(101L), eq(CommissionSettlementStatusEnum.DRAFT.getStatus()),
+                captor.capture());
+        LocalDateTime deadline = captor.getValue().getReviewDeadlineTime();
+        assertTrue(deadline.isAfter(before.plusMinutes(44)));
+        assertTrue(deadline.isBefore(after.plusMinutes(46)));
     }
 
     @Test
