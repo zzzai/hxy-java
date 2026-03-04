@@ -103,8 +103,10 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         reqVO.setRuleCode(" blacklist_user ");
         reqVO.setEscalateTo(" hq_after_sale ");
         reqVO.setLastActionCode(" manual_resolve ");
+        reqVO.setResolveActionCode(" auto_resolve ");
         reqVO.setSourceBizNo(" BK202603030001 ");
         reqVO.setLastActionBizNo(" OPS-202603030001 ");
+        reqVO.setResolveBizNo(" OPS-BATCH-20260303#1 ");
         when(afterSaleReviewTicketMapper.selectPage(any(AfterSaleReviewTicketPageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
 
@@ -115,8 +117,10 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("BLACKLIST_USER", reqVO.getRuleCode());
         assertEquals("HQ_AFTER_SALE", reqVO.getEscalateTo());
         assertEquals("MANUAL_RESOLVE", reqVO.getLastActionCode());
+        assertEquals("AUTO_RESOLVE", reqVO.getResolveActionCode());
         assertEquals("BK202603030001", reqVO.getSourceBizNo());
         assertEquals("OPS-202603030001", reqVO.getLastActionBizNo());
+        assertEquals("OPS-BATCH-20260303#1", reqVO.getResolveBizNo());
         verify(afterSaleReviewTicketMapper).selectPage(reqVO);
     }
 
@@ -128,8 +132,10 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         reqVO.setRuleCode("   ");
         reqVO.setEscalateTo("   ");
         reqVO.setLastActionCode("   ");
+        reqVO.setResolveActionCode("   ");
         reqVO.setSourceBizNo("   ");
         reqVO.setLastActionBizNo("   ");
+        reqVO.setResolveBizNo("   ");
         when(afterSaleReviewTicketMapper.selectPage(any(AfterSaleReviewTicketPageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
 
@@ -140,8 +146,10 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertNull(reqVO.getRuleCode());
         assertNull(reqVO.getEscalateTo());
         assertNull(reqVO.getLastActionCode());
+        assertNull(reqVO.getResolveActionCode());
         assertNull(reqVO.getSourceBizNo());
         assertNull(reqVO.getLastActionBizNo());
+        assertNull(reqVO.getResolveBizNo());
         verify(afterSaleReviewTicketMapper).selectPage(reqVO);
     }
 

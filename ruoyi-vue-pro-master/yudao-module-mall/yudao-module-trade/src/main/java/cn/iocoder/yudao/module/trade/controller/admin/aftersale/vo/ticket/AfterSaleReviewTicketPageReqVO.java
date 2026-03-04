@@ -72,6 +72,18 @@ public class AfterSaleReviewTicketPageReqVO extends PageParam {
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     private LocalDateTime[] lastActionTime;
 
+    @Schema(description = "收口人 ID", example = "10086")
+    private Long resolverId;
+
+    @Schema(description = "收口人类型", example = "1")
+    private Integer resolverType;
+
+    @Schema(description = "收口动作编码", example = "MANUAL_RESOLVE")
+    private String resolveActionCode;
+
+    @Schema(description = "收口业务号", example = "OPS-BATCH-20260304#123")
+    private String resolveBizNo;
+
     @Schema(description = "收口时间")
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     private LocalDateTime[] resolvedTime;

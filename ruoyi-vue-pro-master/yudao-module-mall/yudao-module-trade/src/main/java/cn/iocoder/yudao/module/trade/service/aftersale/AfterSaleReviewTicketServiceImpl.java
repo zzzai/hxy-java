@@ -549,8 +549,10 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         pageReqVO.setRuleCode(normalizeUpper(pageReqVO.getRuleCode()));
         pageReqVO.setEscalateTo(normalizeUpper(pageReqVO.getEscalateTo()));
         pageReqVO.setLastActionCode(normalizeUpper(pageReqVO.getLastActionCode()));
+        pageReqVO.setResolveActionCode(normalizeUpper(pageReqVO.getResolveActionCode()));
         pageReqVO.setSourceBizNo(normalizeTrim(pageReqVO.getSourceBizNo()));
         pageReqVO.setLastActionBizNo(normalizeTrim(pageReqVO.getLastActionBizNo()));
+        pageReqVO.setResolveBizNo(normalizeTrim(pageReqVO.getResolveBizNo()));
     }
 
     private String normalizeUpper(String value) {

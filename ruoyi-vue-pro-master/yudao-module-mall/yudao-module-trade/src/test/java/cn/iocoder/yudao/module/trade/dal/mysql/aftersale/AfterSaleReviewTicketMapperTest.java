@@ -100,17 +100,61 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         assertEquals(target.getId(), page.getList().get(0).getId());
     }
 
+    @Test
+    void shouldSelectByResolveAuditDimensions() {
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        AfterSaleReviewTicketDO target = insertTicket("SRC-RESOLVE-TARGET",
+                AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus(), now.minusMinutes(5),
+                "MANUAL_RESOLVE", "OPS-202603040001", now.minusMinutes(2),
+                null, "", 10086L, 1, "MANUAL_RESOLVE", "OPS-BATCH-20260304#1");
+        insertTicket("SRC-RESOLVE-ID-MISS",
+                AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus(), now.minusMinutes(5),
+                "MANUAL_RESOLVE", "OPS-202603040001", now.minusMinutes(2),
+                null, "", 10087L, 1, "MANUAL_RESOLVE", "OPS-BATCH-20260304#1");
+        insertTicket("SRC-RESOLVE-ACTION-MISS",
+                AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus(), now.minusMinutes(5),
+                "MANUAL_RESOLVE", "OPS-202603040001", now.minusMinutes(2),
+                null, "", 10086L, 1, "AUTO_RESOLVE", "OPS-BATCH-20260304#1");
+        insertTicket("SRC-RESOLVE-BIZ-MISS",
+                AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus(), now.minusMinutes(5),
+                "MANUAL_RESOLVE", "OPS-202603040001", now.minusMinutes(2),
+                null, "", 10086L, 1, "MANUAL_RESOLVE", "OPS-BATCH-20260304#2");
+
+        AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setResolverId(10086L);
+        reqVO.setResolverType(1);
+        reqVO.setResolveActionCode("MANUAL_RESOLVE");
+        reqVO.setResolveBizNo("OPS-BATCH-20260304#1");
+
+        PageResult<AfterSaleReviewTicketDO> page = mapper.selectPage(reqVO);
+
+        assertEquals(1L, page.getTotal());
+        assertEquals(1, page.getList().size());
+        assertEquals(target.getId(), page.getList().get(0).getId());
+    }
+
     private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
                                                  String lastActionCode, String lastActionBizNo,
                                                  LocalDateTime lastActionTime) {
         return insertTicket(sourceBizNo, status, deadline, lastActionCode, lastActionBizNo, lastActionTime,
-                null, "");
+                null, "", null, null, "", "");
     }
 
     private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
                                                  String lastActionCode, String lastActionBizNo,
                                                  LocalDateTime lastActionTime, Long routeId,
                                                  String routeScope) {
+        return insertTicket(sourceBizNo, status, deadline, lastActionCode, lastActionBizNo, lastActionTime,
+                routeId, routeScope, null, null, "", "");
+    }
+
+    private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
+                                                 String lastActionCode, String lastActionBizNo,
+                                                 LocalDateTime lastActionTime, Long routeId,
+                                                 String routeScope, Long resolverId, Integer resolverType,
+                                                 String resolveActionCode, String resolveBizNo) {
         AfterSaleReviewTicketDO row = new AfterSaleReviewTicketDO();
         row.setTicketType(10);
         row.setAfterSaleId(null);
@@ -133,8 +177,10 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         row.setLastActionCode(lastActionCode);
         row.setLastActionBizNo(lastActionBizNo);
         row.setLastActionTime(lastActionTime);
-        row.setResolveActionCode("");
-        row.setResolveBizNo("");
+        row.setResolverId(resolverId);
+        row.setResolverType(resolverType);
+        row.setResolveActionCode(resolveActionCode);
+        row.setResolveBizNo(resolveBizNo);
         row.setRemark("");
         mapper.insert(row);
         return row;
