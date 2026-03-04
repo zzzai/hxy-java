@@ -373,11 +373,19 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     public ProductStoreLifecycleGuardRespVO getLifecycleGuard(Long id, Integer lifecycleStatus) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         validateLifecycleStatus(lifecycleStatus);
-        LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
         ErrorCode transitionErrorCode = resolveLifecycleTransitionError(store, lifecycleStatus);
-        if (transitionErrorCode != null && guardEvaluation.getBlockedErrorCode() == null) {
-            guardEvaluation.setBlockedErrorCode(transitionErrorCode);
+        if (transitionErrorCode != null) {
+            ProductStoreLifecycleGuardRespVO respVO = new ProductStoreLifecycleGuardRespVO();
+            respVO.setStoreId(id);
+            respVO.setTargetLifecycleStatus(lifecycleStatus);
+            respVO.setBlocked(true);
+            respVO.setBlockedCode(transitionErrorCode.getCode());
+            respVO.setBlockedMessage(transitionErrorCode.getMsg());
+            respVO.setWarnings(Collections.emptyList());
+            respVO.setGuardItems(Collections.emptyList());
+            return respVO;
         }
+        LifecycleGuardEvaluation guardEvaluation = evaluateDisableOrCloseAllowed(store.getStatus(), lifecycleStatus, id);
         ProductStoreLifecycleGuardRespVO respVO = new ProductStoreLifecycleGuardRespVO();
         respVO.setStoreId(id);
         respVO.setTargetLifecycleStatus(lifecycleStatus);
