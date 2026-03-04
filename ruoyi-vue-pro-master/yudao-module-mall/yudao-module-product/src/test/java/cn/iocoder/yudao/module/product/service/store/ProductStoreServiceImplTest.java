@@ -3,8 +3,11 @@ package cn.iocoder.yudao.module.product.service.store;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLaunchReadinessRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleExecuteRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreCategoryDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagGroupDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagRelDO;
@@ -17,8 +20,10 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagGroupMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagRelMapper;
+import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleBatchLogService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +73,8 @@ class ProductStoreServiceImplTest {
     private ProductStoreTagGroupMapper storeTagGroupMapper;
     @Mock
     private ProductStoreAuditLogMapper storeAuditLogMapper;
+    @Mock
+    private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
 
     @InjectMocks
     private ProductStoreServiceImpl productStoreService;
@@ -281,5 +289,45 @@ class ProductStoreServiceImplTest {
 
         ServiceException ex = assertThrows(ServiceException.class, () -> productStoreService.deleteStore(1001L));
         assertEquals(STORE_HAS_PRODUCT_MAPPING.getCode(), ex.getCode());
+    }
+
+    @Test
+    void batchUpdateLifecycleWithResult_shouldPersistBatchLogAndContainBlockedWarnings() {
+        ProductStoreBatchLifecycleReqVO reqVO = new ProductStoreBatchLifecycleReqVO();
+        reqVO.setStoreIds(Arrays.asList(2001L, 2002L, 2003L));
+        reqVO.setLifecycleStatus(35);
+        reqVO.setReason("批量停业巡检");
+
+        ProductStoreDO store1Before = ProductStoreDO.builder().id(2001L).name("上海徐汇店").status(1).lifecycleStatus(30).build();
+        ProductStoreDO store1After = ProductStoreDO.builder().id(2001L).name("上海徐汇店").status(1).lifecycleStatus(35).build();
+        ProductStoreDO store2 = ProductStoreDO.builder().id(2002L).name("杭州西湖店").status(1).lifecycleStatus(30).build();
+        ProductStoreDO store3 = ProductStoreDO.builder().id(2003L).name("苏州工业园店").status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(2001L)).thenReturn(store1Before, store1Before, store1After);
+        when(storeMapper.selectById(2002L)).thenReturn(store2, store2);
+        when(storeMapper.selectById(2003L)).thenReturn(store3);
+        when(storeSpuMapper.selectCountByStoreId(2001L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(2001L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(2001L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(2001L), any())).thenReturn(0L);
+        when(storeSpuMapper.selectCountByStoreId(2002L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(2002L)).thenReturn(0L);
+        when(storeSkuMapper.selectPositiveStockCountByStoreId(2002L)).thenReturn(3L);
+
+        ProductStoreBatchLifecycleExecuteRespVO respVO = productStoreService.batchUpdateLifecycleWithResult(reqVO);
+
+        assertEquals(3, respVO.getTotalCount());
+        assertEquals(1, respVO.getSuccessCount());
+        assertEquals(1, respVO.getBlockedCount());
+        assertEquals(1, respVO.getWarningCount());
+
+        ArgumentCaptor<ProductStoreLifecycleBatchLogDO> logCaptor = ArgumentCaptor.forClass(ProductStoreLifecycleBatchLogDO.class);
+        verify(lifecycleBatchLogService).createLifecycleBatchLog(logCaptor.capture());
+        String detailJson = logCaptor.getValue().getDetailJson();
+        assertEquals("ADMIN_UI", logCaptor.getValue().getSource());
+        assertFalse(detailJson.isEmpty());
+        org.junit.jupiter.api.Assertions.assertTrue(detailJson.contains("\"blocked\""));
+        org.junit.jupiter.api.Assertions.assertTrue(detailJson.contains("\"warnings\""));
+        verify(storeMapper, times(1)).updateById(any(ProductStoreDO.class));
+        verifyNoMoreInteractions(lifecycleBatchLogService);
     }
 }

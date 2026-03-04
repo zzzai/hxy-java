@@ -228,3 +228,12 @@
 - 备选方案：分别在 booking/trade 维护独立规则表。
 - 否决原因：会导致重复实现与跨域口径漂移，无法形成统一审计链路。
 - 回滚条件：规则中心故障时保留代码兜底路径（trade fallback route + booking 常量），避免工单与提审链路中断。
+
+## ADR-027：门店生命周期批量执行结果必须台账化落库并可检索审计
+
+- 背景：`/product/store/batch/lifecycle/execute` 之前仅返回执行结果，缺少可追溯、可分页检索的审计台账，运营复盘依赖即时响应与人工截图，难以对账。
+- 决策：新增 `hxy_store_lifecycle_batch_log` 作为批量执行台账；执行接口完成后持久化批次号、目标状态、汇总计数、`detail_json` 明细快照、`operator/source`；新增 `/product/store/lifecycle-batch-log/page` 支持按 `batchNo/targetLifecycleStatus/operator/source/createTime` 分页检索。
+- 影响范围：product 门店生命周期批量执行链路、门店治理审计页、SQL 迁移脚本与测试。
+- 备选方案：继续仅保留接口响应，由外部日志系统检索历史执行明细。
+- 否决原因：接口响应不具备稳定留存与结构化检索能力，跨班次追溯成本高，且难以形成标准审计证据。
+- 回滚条件：台账写入异常时可临时降级为“只返回执行结果”，但需保留告警并在修复后补录关键批次审计数据。

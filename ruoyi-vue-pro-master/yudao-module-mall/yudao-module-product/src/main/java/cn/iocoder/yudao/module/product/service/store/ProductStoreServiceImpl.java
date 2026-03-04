@@ -5,6 +5,7 @@ import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
+import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.*;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.*;
 import cn.iocoder.yudao.module.product.dal.mysql.store.*;
@@ -16,6 +17,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String DOMAIN_CATEGORY = "CATEGORY";
     private static final String DOMAIN_TAG = "TAG";
     private static final String DOMAIN_TAG_GROUP = "TAG_GROUP";
+    private static final String SOURCE_ADMIN_UI = "ADMIN_UI";
+    private static final DateTimeFormatter BATCH_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     @Resource
     private ProductStoreMapper storeMapper;
@@ -54,6 +59,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private ProductStoreTagGroupMapper storeTagGroupMapper;
     @Resource
     private ProductStoreAuditLogMapper storeAuditLogMapper;
+    @Resource
+    private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -421,6 +428,69 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductStoreBatchLifecycleExecuteRespVO batchUpdateLifecycleWithResult(ProductStoreBatchLifecycleReqVO reqVO) {
+        validateLifecycleStatus(reqVO.getLifecycleStatus());
+        List<Long> storeIds = normalizeIds(reqVO.getStoreIds());
+        String batchNo = buildBatchNo();
+
+        ProductStoreBatchLifecycleExecuteRespVO respVO = new ProductStoreBatchLifecycleExecuteRespVO();
+        respVO.setBatchNo(batchNo);
+        respVO.setTargetLifecycleStatus(reqVO.getLifecycleStatus());
+        respVO.setTotalCount(storeIds.size());
+        respVO.setSuccessCount(0);
+        respVO.setBlockedCount(0);
+        respVO.setWarningCount(0);
+
+        List<ProductStoreBatchLifecycleExecuteRespVO.Detail> details = new ArrayList<>();
+        for (Long storeId : storeIds) {
+            ProductStoreDO store = storeMapper.selectById(storeId);
+            if (store == null) {
+                ProductStoreBatchLifecycleExecuteRespVO.Detail detail = buildDetail(storeId, null, "BLOCKED", "门店不存在");
+                details.add(detail);
+                respVO.setBlockedCount(respVO.getBlockedCount() + 1);
+                continue;
+            }
+            if (Objects.equals(store.getLifecycleStatus(), reqVO.getLifecycleStatus())) {
+                ProductStoreBatchLifecycleExecuteRespVO.Detail detail = buildDetail(storeId, store.getName(),
+                        "WARNING", "门店已是目标生命周期状态");
+                details.add(detail);
+                respVO.setWarningCount(respVO.getWarningCount() + 1);
+                continue;
+            }
+            try {
+                updateStoreLifecycle(storeId, reqVO.getLifecycleStatus(), reqVO.getReason());
+                ProductStoreBatchLifecycleExecuteRespVO.Detail detail = buildDetail(storeId, store.getName(),
+                        "SUCCESS", "执行成功");
+                details.add(detail);
+                respVO.setSuccessCount(respVO.getSuccessCount() + 1);
+            } catch (ServiceException ex) {
+                ProductStoreBatchLifecycleExecuteRespVO.Detail detail = buildDetail(storeId, store.getName(),
+                        "BLOCKED", ex.getMessage());
+                details.add(detail);
+                respVO.setBlockedCount(respVO.getBlockedCount() + 1);
+            }
+        }
+        respVO.setDetails(details);
+
+        String detailJson = buildLifecycleBatchDetailJson(details);
+        ProductStoreLifecycleBatchLogDO batchLog = ProductStoreLifecycleBatchLogDO.builder()
+                .batchNo(batchNo)
+                .targetLifecycleStatus(reqVO.getLifecycleStatus())
+                .totalCount(respVO.getTotalCount())
+                .successCount(respVO.getSuccessCount())
+                .blockedCount(respVO.getBlockedCount())
+                .warningCount(respVO.getWarningCount())
+                .auditSummary(buildAuditSummary(respVO))
+                .detailJson(detailJson)
+                .operator(resolveOperator())
+                .source(SOURCE_ADMIN_UI)
+                .build();
+        lifecycleBatchLogService.createLifecycleBatchLog(batchLog);
+        return respVO;
+    }
+
     private ProductStoreDO buildStoreDO(ProductStoreSaveReqVO reqVO) {
         ProductStoreDO store = BeanUtils.toBean(reqVO, ProductStoreDO.class);
         store.setCode(normalizeCode(reqVO.getCode()));
@@ -712,6 +782,47 @@ public class ProductStoreServiceImpl implements ProductStoreService {
             return Collections.emptyList();
         }
         return ids.stream().filter(Objects::nonNull).distinct().collect(Collectors.toList());
+    }
+
+    private static ProductStoreBatchLifecycleExecuteRespVO.Detail buildDetail(Long storeId, String storeName,
+                                                                              String result, String message) {
+        ProductStoreBatchLifecycleExecuteRespVO.Detail detail = new ProductStoreBatchLifecycleExecuteRespVO.Detail();
+        detail.setStoreId(storeId);
+        detail.setStoreName(storeName);
+        detail.setResult(result);
+        detail.setMessage(message);
+        return detail;
+    }
+
+    private String buildLifecycleBatchDetailJson(List<ProductStoreBatchLifecycleExecuteRespVO.Detail> details) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("details", details);
+        payload.put("blocked", details.stream()
+                .filter(detail -> Objects.equals(detail.getResult(), "BLOCKED"))
+                .collect(Collectors.toList()));
+        payload.put("warnings", details.stream()
+                .filter(detail -> Objects.equals(detail.getResult(), "WARNING"))
+                .collect(Collectors.toList()));
+        return JsonUtils.toJsonString(payload);
+    }
+
+    private static String buildBatchNo() {
+        return "LIFECYCLE-" + LocalDateTime.now().format(BATCH_NO_TIME_FORMAT)
+                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private static String buildAuditSummary(ProductStoreBatchLifecycleExecuteRespVO respVO) {
+        return String.format("total=%d,success=%d,blocked=%d,warning=%d",
+                respVO.getTotalCount(), respVO.getSuccessCount(), respVO.getBlockedCount(), respVO.getWarningCount());
+    }
+
+    private String resolveOperator() {
+        String nickname = SecurityFrameworkUtils.getLoginUserNickname();
+        if (StringUtils.hasText(nickname)) {
+            return nickname;
+        }
+        Long userId = SecurityFrameworkUtils.getLoginUserId();
+        return userId == null ? "SYSTEM" : String.valueOf(userId);
     }
 
     private void saveAuditLog(String domain, Long domainId, String action,
