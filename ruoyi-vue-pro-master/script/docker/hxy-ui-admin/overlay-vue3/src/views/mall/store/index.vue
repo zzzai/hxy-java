@@ -44,6 +44,10 @@
           <Icon class="mr-5px" icon="ep:operation" />
           批量生命周期变更
         </el-button>
+        <el-button v-hasPermi="['product:store:query']" type="info" plain @click="goLifecycleBatchLogPage">
+          <Icon class="mr-5px" icon="ep:document" />
+          Lifecycle Batch Log
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -327,6 +331,7 @@ import { ElMessageBox } from 'element-plus'
 defineOptions({ name: 'MallStoreIndex' })
 
 const message = useMessage()
+const { push } = useRouter()
 
 type LifecycleMode = 'single' | 'batch'
 
@@ -463,6 +468,10 @@ const resetQuery = () => {
     lifecycleStatus: undefined
   }
   getList()
+}
+
+const goLifecycleBatchLogPage = () => {
+  push('/mall/product/store-master/store-lifecycle-batch-log')
 }
 
 const formatTag = (item: StoreTagApi.HxyStoreTag) => {
