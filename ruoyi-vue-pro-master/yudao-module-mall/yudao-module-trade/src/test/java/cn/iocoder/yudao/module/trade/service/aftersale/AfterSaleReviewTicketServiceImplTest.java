@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
@@ -33,6 +35,8 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
 
     @Mock
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
+    @Mock
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @Test
     void shouldCreateGenericReviewTicket() {
@@ -58,6 +62,35 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(AfterSaleReviewTicketTypeEnum.SERVICE_FULFILLMENT.getType(), captor.getValue().getTicketType());
         assertEquals(AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), captor.getValue().getStatus());
         assertEquals("BK202603010001", captor.getValue().getSourceBizNo());
+    }
+
+    @Test
+    void shouldCreateTicketUseRuleCenterResult() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        reqBO.setRuleCode("BLACKLIST_USER");
+        reqBO.setOrderId(100L);
+        reqBO.setOrderItemId(101L);
+        reqBO.setUserId(102L);
+        TradeTicketSlaRuleMatchRespDTO ruleResp = new TradeTicketSlaRuleMatchRespDTO();
+        ruleResp.setMatched(true);
+        ruleResp.setSeverity("P0");
+        ruleResp.setEscalateTo("HQ_RISK_FINANCE");
+        ruleResp.setSlaMinutes(30);
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenReturn(ruleResp);
+        when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketDO ticket = invocation.getArgument(0);
+            ticket.setId(778L);
+            return 1;
+        });
+
+        Long id = service.createReviewTicket(reqBO);
+
+        assertEquals(778L, id);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).insert(captor.capture());
+        assertEquals("P0", captor.getValue().getSeverity());
+        assertEquals("HQ_RISK_FINANCE", captor.getValue().getEscalateTo());
     }
 
     @Test

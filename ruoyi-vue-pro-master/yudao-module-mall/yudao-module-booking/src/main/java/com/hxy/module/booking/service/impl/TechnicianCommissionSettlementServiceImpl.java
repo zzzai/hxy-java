@@ -4,6 +4,10 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchReqDTO;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
+import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleTicketTypeEnum;
 import cn.iocoder.yudao.module.system.api.permission.PermissionApi;
 import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import com.hxy.module.booking.controller.admin.vo.TechnicianCommissionSettlementPageReqVO;
@@ -50,6 +54,9 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
     private static final int DEFAULT_SLA_MINUTES = 120;
     private static final int DEFAULT_WARN_LEAD_MINUTES = 30;
     private static final int DEFAULT_ESCALATE_DELAY_MINUTES = 30;
+    private static final String DEFAULT_SLA_SEVERITY = "P1";
+    private static final int TICKET_TYPE_BOOKING_SETTLEMENT = TicketSlaRuleTicketTypeEnum.BOOKING_SETTLEMENT.getType();
+    private static final int TICKET_TYPE_BOOKING_SETTLEMENT_NOTIFY = TicketSlaRuleTicketTypeEnum.BOOKING_SETTLEMENT_NOTIFY.getType();
 
     private static final String LOG_ACTION_CREATE = "CREATE";
     private static final String LOG_ACTION_SUBMIT_REVIEW = "SUBMIT_REVIEW";
@@ -93,6 +100,8 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
     private NotifySendService notifySendService;
     @Resource
     private PermissionApi permissionApi;
+    @Resource
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @Value("${hxy.booking.commission.notify-target-role-ids:}")
     private String notifyTargetRoleIdsConfig;
@@ -141,7 +150,7 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
         ensureStatus(settlement, CommissionSettlementStatusEnum.DRAFT);
 
         LocalDateTime now = LocalDateTime.now();
-        int safeSlaMinutes = resolveSlaMinutes(slaMinutes);
+        int safeSlaMinutes = resolveSlaMinutes(slaMinutes, settlement.getStoreId());
         int updated = settlementMapper.updateByIdAndStatus(settlementId, CommissionSettlementStatusEnum.DRAFT.getStatus(),
                 new TechnicianCommissionSettlementDO()
                         .setStatus(CommissionSettlementStatusEnum.PENDING_REVIEW.getStatus())
@@ -542,28 +551,64 @@ public class TechnicianCommissionSettlementServiceImpl implements TechnicianComm
         }
     }
 
-    private int resolveSlaMinutes(Integer slaMinutes) {
-        int value = ObjUtil.defaultIfNull(slaMinutes, DEFAULT_SLA_MINUTES);
+    private int resolveSlaMinutes(Integer slaMinutes, Long storeId) {
+        Integer centerValue = resolveCenterSlaMinutes(storeId);
+        int value = ObjUtil.defaultIfNull(slaMinutes, ObjUtil.defaultIfNull(centerValue, DEFAULT_SLA_MINUTES));
         if (value <= 0) {
-            return DEFAULT_SLA_MINUTES;
+            return ObjUtil.defaultIfNull(centerValue, DEFAULT_SLA_MINUTES);
         }
         return Math.min(value, 10080);
     }
 
     private int resolveWarnLeadMinutes(Integer leadMinutes) {
-        int value = ObjUtil.defaultIfNull(leadMinutes, DEFAULT_WARN_LEAD_MINUTES);
+        Integer centerValue = resolveCenterWarnLeadMinutes();
+        int value = ObjUtil.defaultIfNull(leadMinutes, ObjUtil.defaultIfNull(centerValue, DEFAULT_WARN_LEAD_MINUTES));
         if (value <= 0) {
-            return DEFAULT_WARN_LEAD_MINUTES;
+            return ObjUtil.defaultIfNull(centerValue, DEFAULT_WARN_LEAD_MINUTES);
         }
         return Math.min(value, 1440);
     }
 
     private int resolveEscalateDelayMinutes(Integer delayMinutes) {
-        int value = ObjUtil.defaultIfNull(delayMinutes, DEFAULT_ESCALATE_DELAY_MINUTES);
+        Integer centerValue = resolveCenterEscalateDelayMinutes();
+        int value = ObjUtil.defaultIfNull(delayMinutes, ObjUtil.defaultIfNull(centerValue, DEFAULT_ESCALATE_DELAY_MINUTES));
         if (value <= 0) {
-            return DEFAULT_ESCALATE_DELAY_MINUTES;
+            return ObjUtil.defaultIfNull(centerValue, DEFAULT_ESCALATE_DELAY_MINUTES);
         }
         return Math.min(value, 1440);
+    }
+
+    private Integer resolveCenterSlaMinutes(Long storeId) {
+        TradeTicketSlaRuleMatchRespDTO matchResp = matchCenterRule(TICKET_TYPE_BOOKING_SETTLEMENT, DEFAULT_SLA_SEVERITY, "", storeId);
+        return matchResp == null ? null : matchResp.getSlaMinutes();
+    }
+
+    private Integer resolveCenterWarnLeadMinutes() {
+        TradeTicketSlaRuleMatchRespDTO matchResp = matchCenterRule(TICKET_TYPE_BOOKING_SETTLEMENT_NOTIFY, DEFAULT_SLA_SEVERITY, "", null);
+        return matchResp == null ? null : matchResp.getWarnLeadMinutes();
+    }
+
+    private Integer resolveCenterEscalateDelayMinutes() {
+        TradeTicketSlaRuleMatchRespDTO matchResp = matchCenterRule(TICKET_TYPE_BOOKING_SETTLEMENT_NOTIFY, DEFAULT_SLA_SEVERITY, "", null);
+        return matchResp == null ? null : matchResp.getEscalateDelayMinutes();
+    }
+
+    private TradeTicketSlaRuleMatchRespDTO matchCenterRule(Integer ticketType, String severity, String ruleCode, Long storeId) {
+        try {
+            TradeTicketSlaRuleMatchReqDTO reqDTO = new TradeTicketSlaRuleMatchReqDTO();
+            reqDTO.setTicketType(ticketType);
+            reqDTO.setSeverity(severity);
+            reqDTO.setRuleCode(ruleCode);
+            reqDTO.setStoreId(storeId);
+            TradeTicketSlaRuleMatchRespDTO respDTO = tradeTicketSlaRuleApi.matchRule(reqDTO);
+            if (respDTO != null && Boolean.TRUE.equals(respDTO.getMatched())) {
+                return respDTO;
+            }
+        } catch (Exception ex) {
+            log.warn("[matchCenterRule][ticketType({}) ruleCode({}) match failed]",
+                    ticketType, StrUtil.blankToDefault(ruleCode, "NONE"), ex);
+        }
+        return null;
     }
 
     private void validatePayEvidence(String payVoucherNo, String payRemark) {

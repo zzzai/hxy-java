@@ -3,12 +3,16 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.trade.api.ticketsla.TradeTicketSlaRuleApi;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchReqDTO;
+import cn.iocoder.yudao.module.trade.api.ticketsla.dto.TradeTicketSlaRuleMatchRespDTO;
 import cn.iocoder.yudao.module.trade.controller.admin.aftersale.vo.ticket.AfterSaleReviewTicketPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleReviewTicketMapper;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketTypeEnum;
+import cn.iocoder.yudao.module.trade.enums.ticketsla.TicketSlaRuleTicketTypeEnum;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleRefundDecisionBO;
 import lombok.AllArgsConstructor;
@@ -41,6 +45,8 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
 
     @Resource
     private AfterSaleReviewTicketMapper afterSaleReviewTicketMapper;
+    @Resource
+    private TradeTicketSlaRuleApi tradeTicketSlaRuleApi;
 
     @Override
     public PageResult<AfterSaleReviewTicketDO> getReviewTicketPage(AfterSaleReviewTicketPageReqVO pageReqVO) {
@@ -60,11 +66,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (reqBO == null) {
             return null;
         }
-        TicketRoute route = buildRoute(reqBO.getRuleCode());
+        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        TicketRoute route = buildRoute(ticketType, reqBO.getRuleCode(), reqBO.getSeverity(), null);
         LocalDateTime now = LocalDateTime.now();
         String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
         String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
-        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
         Integer slaMinutes = resolveSlaMinutes(reqBO.getSlaMinutes(), route.getSlaMinutes());
         String sourceBizNo = StrUtil.blankToDefault(reqBO.getSourceBizNo(),
                 reqBO.getAfterSaleId() == null ? "" : String.valueOf(reqBO.getAfterSaleId()));
@@ -95,7 +101,8 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         if (afterSale == null || decision == null || afterSale.getId() == null) {
             return;
         }
-        TicketRoute route = buildRoute(decision.getRuleCode());
+        TicketRoute route = buildRoute(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType(),
+                decision.getRuleCode(), null, null);
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime slaDeadlineTime = now.plusMinutes(route.getSlaMinutes());
         AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByAfterSaleId(afterSale.getId());
@@ -207,7 +214,28 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return affectedRows;
     }
 
-    private TicketRoute buildRoute(String ruleCode) {
+    private TicketRoute buildRoute(Integer ticketType, String ruleCode, String severity, Long storeId) {
+        TradeTicketSlaRuleMatchRespDTO matchResp = null;
+        try {
+            TradeTicketSlaRuleMatchReqDTO reqDTO = new TradeTicketSlaRuleMatchReqDTO();
+            reqDTO.setTicketType(ObjUtil.defaultIfNull(ticketType, TicketSlaRuleTicketTypeEnum.AFTER_SALE_REVIEW.getType()));
+            reqDTO.setRuleCode(ruleCode);
+            reqDTO.setSeverity(severity);
+            reqDTO.setStoreId(storeId);
+            matchResp = tradeTicketSlaRuleApi.matchRule(reqDTO);
+        } catch (Exception ignore) {
+            // 规则中心不可用时走默认兜底，避免创建/升级流程中断
+        }
+        if (matchResp != null && Boolean.TRUE.equals(matchResp.getMatched())) {
+            String routeSeverity = StrUtil.blankToDefault(matchResp.getSeverity(), StrUtil.blankToDefault(severity, "P1"));
+            String routeEscalateTo = StrUtil.blankToDefault(matchResp.getEscalateTo(),
+                    nextEscalateTo("", routeSeverity));
+            return new TicketRoute(routeSeverity, routeEscalateTo, resolveSlaMinutes(matchResp.getSlaMinutes(), 120));
+        }
+        return buildFallbackRoute(ruleCode);
+    }
+
+    private TicketRoute buildFallbackRoute(String ruleCode) {
         if (StrUtil.equalsAnyIgnoreCase(ruleCode, "BLACKLIST_USER", "SUSPICIOUS_ORDER")) {
             return new TicketRoute("P0", "HQ_RISK_FINANCE", 30);
         }
