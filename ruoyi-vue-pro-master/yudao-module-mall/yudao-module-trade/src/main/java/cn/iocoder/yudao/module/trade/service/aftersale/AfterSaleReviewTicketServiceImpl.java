@@ -346,23 +346,17 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
                     routeScope,
                     ROUTE_DECISION_ORDER);
         }
-        return buildFallbackRoute(ruleCode);
+        return buildFallbackRoute(severity);
     }
 
-    private TicketRoute buildFallbackRoute(String ruleCode) {
-        if (StrUtil.equalsAnyIgnoreCase(ruleCode, "BLACKLIST_USER", "SUSPICIOUS_ORDER")) {
-            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+    private TicketRoute buildFallbackRoute(String requestedSeverity) {
+        String severity = normalizeSeverity(requestedSeverity);
+        if (StrUtil.equalsIgnoreCase("P0", severity)) {
+            return new TicketRoute("P0", "HQ_RISK_FINANCE", 30, null,
+                    ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
         }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "AMOUNT_OVER_LIMIT")) {
-            return new TicketRoute("P1", "HQ_FINANCE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
-        }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "HIGH_FREQUENCY")) {
-            return new TicketRoute("P1", "HQ_AFTER_SALE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
-        }
-        if (StrUtil.equalsIgnoreCase(ruleCode, "AUTO_REFUND_EXECUTE_FAIL")) {
-            return new TicketRoute("P0", "PAY_DEVOPS", 15, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
-        }
-        return new TicketRoute("P1", "HQ_AFTER_SALE", 120, null, ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
+        return new TicketRoute(severity, "HQ_AFTER_SALE", 120, null,
+                ROUTE_SCOPE_GLOBAL_FALLBACK, ROUTE_DECISION_ORDER);
     }
 
     private String abbreviate(String text, int maxLength) {
@@ -383,6 +377,11 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
             return "P0";
         }
         return "P1";
+    }
+
+    private String normalizeSeverity(String severity) {
+        String normalized = StrUtil.blankToDefault(StrUtil.trim(severity), "P1").toUpperCase(Locale.ROOT);
+        return StrUtil.equalsAny(normalized, "P0", "P1", "P2") ? normalized : "P1";
     }
 
     private String nextEscalateTo(String currentEscalateTo, String severity, String routeEscalateTo) {

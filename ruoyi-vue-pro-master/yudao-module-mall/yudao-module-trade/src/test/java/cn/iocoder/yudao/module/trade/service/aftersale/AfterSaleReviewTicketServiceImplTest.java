@@ -380,6 +380,60 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals("RULE", captor.getValue().getRouteScope());
     }
 
+    @Test
+    void shouldCreateTicketFallbackToGlobalDefaultWhenRuleCenterUnavailable() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        reqBO.setRuleCode("BLACKLIST_USER");
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenThrow(new RuntimeException("down"));
+        when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketDO ticket = invocation.getArgument(0);
+            ticket.setId(1002L);
+            return 1;
+        });
+
+        Long id = service.createReviewTicket(reqBO);
+
+        assertEquals(1002L, id);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).insert(captor.capture());
+        assertEquals("P1", captor.getValue().getSeverity());
+        assertEquals("HQ_AFTER_SALE", captor.getValue().getEscalateTo());
+        assertEquals("GLOBAL_DEFAULT_FALLBACK", captor.getValue().getRouteScope());
+        assertNull(captor.getValue().getRouteId());
+    }
+
+    @Test
+    void shouldEscalateKeepP0WhenRuleCenterUnavailable() {
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(19L);
+        ticket.setTicketType(AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        ticket.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        ticket.setSeverity("P1");
+        ticket.setEscalateTo("HQ_AFTER_SALE");
+        ticket.setRuleCode("UNKNOWN_RULE");
+        ticket.setSlaDeadlineTime(LocalDateTime.now().minusMinutes(5));
+        ticket.setTriggerCount(1);
+        when(afterSaleReviewTicketMapper.selectListByStatusAndSlaDeadlineTimeBefore(
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any(LocalDateTime.class), eq(200)))
+                .thenReturn(Collections.singletonList(ticket));
+        when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(19L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any()))
+                .thenReturn(1);
+        when(tradeTicketSlaRuleApi.matchRule(any())).thenThrow(new RuntimeException("down"));
+
+        int count = service.escalateOverduePendingTickets(null);
+
+        assertEquals(1, count);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).updateByIdAndStatus(eq(19L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), captor.capture());
+        assertEquals("P0", captor.getValue().getSeverity());
+        assertEquals("HQ_RISK_FINANCE", captor.getValue().getEscalateTo());
+        assertEquals("GLOBAL_DEFAULT_FALLBACK", captor.getValue().getRouteScope());
+        assertNull(captor.getValue().getRouteId());
+    }
+
     private static AfterSaleDO buildAfterSale(Long id) {
         AfterSaleDO afterSale = new AfterSaleDO();
         afterSale.setId(id);
