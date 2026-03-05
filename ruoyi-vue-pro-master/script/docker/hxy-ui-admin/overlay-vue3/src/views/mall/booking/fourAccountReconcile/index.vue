@@ -283,7 +283,7 @@ const openRelatedTicket = (row: FourAccountReconcileApi.FourAccountReconcileVO) 
     return
   }
   router.push({
-    path: '/review-ticket',
+    path: '/mall/trade/after-sale/review-ticket',
     query: {
       ticketType: '40',
       sourceBizNo: `FOUR_ACCOUNT_RECONCILE:${row.bizDate}`
