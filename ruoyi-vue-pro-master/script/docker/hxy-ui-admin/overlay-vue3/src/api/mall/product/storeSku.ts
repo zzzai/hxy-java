@@ -90,6 +90,12 @@ export interface ProductStoreSkuStockFlow {
   executeTime?: string
   lastRetryOperator?: string
   lastRetrySource?: string
+  operator?: string
+  source?: string
+  canRetry?: boolean
+  retryable?: boolean
+  allowRetry?: boolean
+  canBatchRetry?: boolean
   createTime?: string
 }
 
@@ -99,6 +105,8 @@ export interface ProductStoreSkuStockFlowPageReq extends PageParam {
   bizType?: string
   bizNo?: string
   status?: number
+  operator?: string
+  source?: string
   executeTime?: string[]
 }
 
@@ -109,11 +117,18 @@ export interface ProductStoreSkuStockFlowBatchRetryReq {
 
 export interface ProductStoreSkuStockFlowBatchRetryItem {
   id?: number
+  storeId?: number
+  skuId?: number
   resultType?: 'SUCCESS' | 'SKIPPED' | 'FAILED' | string
+  resultStatus?: 'SUCCESS' | 'SKIPPED' | 'FAILED' | string
   reason?: string
+  failReason?: string
+  message?: string
   status?: number
   retryOperator?: string
   retrySource?: string
+  operator?: string
+  source?: string
 }
 
 export interface ProductStoreSkuStockFlowBatchRetryResp {
