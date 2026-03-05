@@ -58,78 +58,106 @@
 
   <ContentWrap>
     <el-table v-loading="loading" :data="list">
-      <el-table-column label="业务日期" prop="bizDate" width="120" />
+      <el-table-column label="业务日期" width="120">
+        <template #default="{ row }">
+          {{ textOrDash(row.bizDate) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="来源业务号" min-width="240" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ resolveSourceBizNo(row) }}
+        </template>
+      </el-table-column>
       <el-table-column label="交易账(元)" width="130">
         <template #default="{ row }">
-          {{ fenToYuan(row.tradeAmount) }}
+          {{ fenToYuanOrDash(row.tradeAmount) }}
         </template>
       </el-table-column>
       <el-table-column label="履约账(元)" width="130">
         <template #default="{ row }">
-          {{ fenToYuan(row.fulfillmentAmount) }}
+          {{ fenToYuanOrDash(row.fulfillmentAmount) }}
         </template>
       </el-table-column>
       <el-table-column label="提成账(元)" width="130">
         <template #default="{ row }">
-          {{ fenToYuan(row.commissionAmount) }}
+          {{ fenToYuanOrDash(row.commissionAmount) }}
         </template>
       </el-table-column>
       <el-table-column label="分账账(元)" width="130">
         <template #default="{ row }">
-          {{ fenToYuan(row.splitAmount) }}
+          {{ fenToYuanOrDash(row.splitAmount) }}
         </template>
       </el-table-column>
       <el-table-column label="差额(交易-履约)" width="160">
         <template #default="{ row }">
           <el-tag :type="diffTagType(row.tradeMinusFulfillment)">
-            {{ fenToYuan(row.tradeMinusFulfillment) }}
+            {{ fenToYuanOrDash(row.tradeMinusFulfillment) }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="差额(交易-提成-分账)" width="190">
         <template #default="{ row }">
           <el-tag :type="diffTagType(row.tradeMinusCommissionSplit)">
-            {{ fenToYuan(row.tradeMinusCommissionSplit) }}
+            {{ fenToYuanOrDash(row.tradeMinusCommissionSplit) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="状态" prop="status" width="100">
+      <el-table-column label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
             {{ statusText(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="问题编码" min-width="220" prop="issueCodes" show-overflow-tooltip />
-      <el-table-column label="关联工单" min-width="200">
+      <el-table-column label="问题编码" min-width="220" prop="issueCodes" show-overflow-tooltip>
         <template #default="{ row }">
-          <div class="flex flex-wrap items-center gap-6px">
-            <span>{{ row.relatedTicketId ? `#${row.relatedTicketId}` : '-' }}</span>
-            <el-tag v-if="row.relatedTicketStatus" :type="ticketStatusTagType(row.relatedTicketStatus)" size="small">
-              {{ ticketStatusText(row.relatedTicketStatus) }}
-            </el-tag>
-            <span v-else>-</span>
-            <el-tag v-if="row.relatedTicketSeverity" :type="ticketSeverityTagType(row.relatedTicketSeverity)" size="small">
-              {{ normalizeTicketSeverity(row.relatedTicketSeverity) }}
-            </el-tag>
-            <span v-else>-</span>
-          </div>
+          {{ textOrDash(row.issueCodes) }}
         </template>
       </el-table-column>
-      <el-table-column label="来源" prop="source" width="120" />
-      <el-table-column label="操作人" prop="operator" width="120" />
-      <el-table-column :formatter="dateFormatter" label="执行时间" prop="reconciledAt" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="260">
+      <el-table-column label="关联工单ID" width="120">
         <template #default="{ row }">
-          <el-button link type="info" @click="openIssueDetailDialog(row)">差异详情</el-button>
+          {{ textOrDash(row.relatedTicketId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="工单状态" width="110">
+        <template #default="{ row }">
+          <el-tag :type="ticketStatusTagType(row.relatedTicketStatus)">
+            {{ ticketStatusText(row.relatedTicketStatus) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="严重级别" width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.relatedTicketSeverity" :type="ticketSeverityTagType(row.relatedTicketSeverity)">
+            {{ normalizeTicketSeverity(row.relatedTicketSeverity) }}
+          </el-tag>
+          <span v-else>{{ EMPTY_TEXT }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="来源" width="120">
+        <template #default="{ row }">
+          {{ textOrDash(row.source) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作人" width="120">
+        <template #default="{ row }">
+          {{ textOrDash(row.operator) }}
+        </template>
+      </el-table-column>
+      <el-table-column :formatter="dateFormatter" label="执行时间" prop="reconciledAt" width="180" />
+      <el-table-column align="center" fixed="right" label="操作" width="270">
+        <template #default="{ row }">
+          <el-button link type="info" @click="openDetailDrawer(row)">查看详情</el-button>
           <el-button link type="warning" @click="copySourceBizNo(row)">复制来源号</el-button>
           <el-button
             v-hasPermi="['trade:after-sale:query']"
+            :disabled="!hasRelatedTicket(row)"
+            :title="hasRelatedTicket(row) ? '' : '暂无关联工单'"
             link
             type="primary"
             @click="openRelatedTicket(row)"
           >
-            查看关联工单
+            跳转工单
           </el-button>
         </template>
       </el-table-column>
@@ -164,34 +192,82 @@
     </template>
   </Dialog>
 
-  <Dialog v-model="issueDetailDialogVisible" title="差异详情" width="720px">
-    <el-empty v-if="!issueDetailAvailable" description="无可用明细" />
-    <template v-else>
+  <el-drawer v-model="detailDrawerVisible" size="58%" title="四账对账详情">
+    <div v-loading="detailLoading">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="交易账(元)">{{ fenToYuanOrDash(issueDetailData.tradeAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="履约账(元)">{{ fenToYuanOrDash(issueDetailData.fulfillmentAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="提成账(元)">{{ fenToYuanOrDash(issueDetailData.commissionAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="分账账(元)">{{ fenToYuanOrDash(issueDetailData.splitAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="差额(交易-履约)">
-          {{ fenToYuanOrDash(issueDetailData.tradeMinusFulfillment) }}
+        <el-descriptions-item label="记录ID">{{ textOrDash(detailData.id) }}</el-descriptions-item>
+        <el-descriptions-item label="对账流水号">{{ textOrDash(detailData.reconcileNo) }}</el-descriptions-item>
+        <el-descriptions-item label="业务日期">{{ textOrDash(detailData.bizDate) }}</el-descriptions-item>
+        <el-descriptions-item label="来源业务号">{{ resolveSourceBizNo(detailData) }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="statusTagType(detailData.status)">{{ statusText(detailData.status) }}</el-tag>
         </el-descriptions-item>
+        <el-descriptions-item label="问题编码">{{ textOrDash(detailData.issueCodes) }}</el-descriptions-item>
+        <el-descriptions-item label="关联工单ID">{{ textOrDash(detailData.relatedTicketId) }}</el-descriptions-item>
+        <el-descriptions-item label="工单状态">
+          <el-tag :type="ticketStatusTagType(detailData.relatedTicketStatus)">
+            {{ ticketStatusText(detailData.relatedTicketStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="严重级别">
+          <el-tag v-if="detailData.relatedTicketSeverity" :type="ticketSeverityTagType(detailData.relatedTicketSeverity)">
+            {{ normalizeTicketSeverity(detailData.relatedTicketSeverity) }}
+          </el-tag>
+          <span v-else>{{ EMPTY_TEXT }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="来源">{{ textOrDash(detailData.source) }}</el-descriptions-item>
+        <el-descriptions-item label="操作人">{{ textOrDash(detailData.operator) }}</el-descriptions-item>
+        <el-descriptions-item label="执行时间">{{ textOrDash(detailData.reconciledAt) }}</el-descriptions-item>
+      </el-descriptions>
+
+      <el-descriptions :column="2" border class="mt-16px">
+        <el-descriptions-item label="交易账(元)">{{ fenToYuanOrDash(detailData.tradeAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="履约账(元)">{{ fenToYuanOrDash(detailData.fulfillmentAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="提成账(元)">{{ fenToYuanOrDash(detailData.commissionAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="分账账(元)">{{ fenToYuanOrDash(detailData.splitAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="差额(交易-履约)">{{ fenToYuanOrDash(detailData.tradeMinusFulfillment) }}</el-descriptions-item>
         <el-descriptions-item label="差额(交易-提成-分账)">
-          {{ fenToYuanOrDash(issueDetailData.tradeMinusCommissionSplit) }}
-        </el-descriptions-item>
-        <el-descriptions-item :span="2" label="issues">
-          <div v-if="issueDetailIssues.length" class="flex flex-wrap items-center gap-6px">
-            <el-tag v-for="(issue, idx) in issueDetailIssues" :key="`${issue}-${idx}`" type="warning">
-              {{ issue }}
-            </el-tag>
-          </div>
-          <span v-else>-</span>
+          {{ fenToYuanOrDash(detailData.tradeMinusCommissionSplit) }}
         </el-descriptions-item>
       </el-descriptions>
-    </template>
-    <template #footer>
-      <el-button type="primary" @click="issueDetailDialogVisible = false">关闭</el-button>
-    </template>
-  </Dialog>
+
+      <div class="mt-16px">
+        <div class="mb-8px font-500">issueDetailJson（结构化）</div>
+        <el-alert v-if="detailIssueParseError" :closable="false" title="明细解析失败（原文保留）" type="warning" />
+        <el-empty v-else-if="!detailIssueAvailable" description="无可用明细" />
+        <el-descriptions v-else :column="2" border>
+          <el-descriptions-item label="tradeAmount">{{ fenToYuanOrDash(detailIssueData.tradeAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="fulfillmentAmount">{{ fenToYuanOrDash(detailIssueData.fulfillmentAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="commissionAmount">{{ fenToYuanOrDash(detailIssueData.commissionAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="splitAmount">{{ fenToYuanOrDash(detailIssueData.splitAmount) }}</el-descriptions-item>
+          <el-descriptions-item label="tradeMinusFulfillment">
+            {{ fenToYuanOrDash(detailIssueData.tradeMinusFulfillment) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="tradeMinusCommissionSplit">
+            {{ fenToYuanOrDash(detailIssueData.tradeMinusCommissionSplit) }}
+          </el-descriptions-item>
+          <el-descriptions-item :span="2" label="issues">
+            <div v-if="detailIssueTags.length" class="flex flex-wrap items-center gap-6px">
+              <el-tag v-for="(issue, idx) in detailIssueTags" :key="`${issue}-${idx}`" type="warning">
+                {{ issue }}
+              </el-tag>
+            </div>
+            <span v-else>{{ EMPTY_TEXT }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+
+      <div class="mt-16px">
+        <div class="mb-8px font-500">issueDetailJson 原文</div>
+        <el-input
+          :model-value="detailData.issueDetailJson || EMPTY_TEXT"
+          :rows="6"
+          readonly
+          type="textarea"
+        />
+      </div>
+    </div>
+  </el-drawer>
 </template>
 
 <script lang="ts" setup>
@@ -201,14 +277,32 @@ import { useRouter } from 'vue-router'
 
 defineOptions({ name: 'MallBookingFourAccountReconcileIndex' })
 
+interface IssueDetailData {
+  tradeAmount?: number
+  fulfillmentAmount?: number
+  commissionAmount?: number
+  splitAmount?: number
+  tradeMinusFulfillment?: number
+  tradeMinusCommissionSplit?: number
+}
+
+const EMPTY_TEXT = '--'
+
 const message = useMessage()
 const router = useRouter()
 
 const loading = ref(false)
 const runLoading = ref(false)
+const detailLoading = ref(false)
 const runDialogVisible = ref(false)
+const detailDrawerVisible = ref(false)
 const total = ref(0)
 const list = ref<FourAccountReconcileApi.FourAccountReconcileVO[]>([])
+const detailData = ref<Partial<FourAccountReconcileApi.FourAccountReconcileVO>>({})
+const detailIssueData = ref<IssueDetailData>({})
+const detailIssueTags = ref<string[]>([])
+const detailIssueAvailable = ref(false)
+const detailIssueParseError = ref(false)
 
 const queryParams = reactive<FourAccountReconcileApi.FourAccountReconcilePageReq>({
   pageNo: 1,
@@ -224,20 +318,6 @@ const runForm = reactive<FourAccountReconcileApi.FourAccountReconcileRunReq>({
   source: 'MANUAL'
 })
 
-interface IssueDetailData {
-  tradeAmount?: number
-  fulfillmentAmount?: number
-  commissionAmount?: number
-  splitAmount?: number
-  tradeMinusFulfillment?: number
-  tradeMinusCommissionSplit?: number
-}
-
-const issueDetailDialogVisible = ref(false)
-const issueDetailAvailable = ref(false)
-const issueDetailData = ref<IssueDetailData>({})
-const issueDetailIssues = ref<string[]>([])
-
 const createEmptyIssueDetailData = (): IssueDetailData => {
   return {
     tradeAmount: undefined,
@@ -247,6 +327,18 @@ const createEmptyIssueDetailData = (): IssueDetailData => {
     tradeMinusFulfillment: undefined,
     tradeMinusCommissionSplit: undefined
   }
+}
+
+const isValidNumber = (value: any): value is number => {
+  return typeof value === 'number' && !Number.isNaN(value)
+}
+
+const textOrDash = (value: any) => {
+  if (value === undefined || value === null) {
+    return EMPTY_TEXT
+  }
+  const text = String(value).trim()
+  return text ? text : EMPTY_TEXT
 }
 
 const formatDate = (date: Date): string => {
@@ -270,7 +362,7 @@ const normalizeQuery = () => {
 const statusText = (status?: number) => {
   if (status === 10) return '通过'
   if (status === 20) return '告警'
-  return '-'
+  return EMPTY_TEXT
 }
 
 const statusTagType = (status?: number) => {
@@ -282,7 +374,7 @@ const statusTagType = (status?: number) => {
 const ticketStatusText = (status?: number) => {
   if (status === 10) return '待处理'
   if (status === 20) return '已收口'
-  return '-'
+  return EMPTY_TEXT
 }
 
 const ticketStatusTagType = (status?: number) => {
@@ -304,7 +396,8 @@ const ticketSeverityTagType = (severity?: string) => {
 }
 
 const diffTagType = (amount?: number) => {
-  return Number(amount || 0) === 0 ? 'success' : 'danger'
+  if (!isValidNumber(amount)) return 'info'
+  return amount === 0 ? 'success' : 'danger'
 }
 
 const fenToYuan = (fen?: number) => {
@@ -312,17 +405,21 @@ const fenToYuan = (fen?: number) => {
 }
 
 const fenToYuanOrDash = (fen?: number) => {
-  return typeof fen === 'number' ? fenToYuan(fen) : '-'
+  return isValidNumber(fen) ? fenToYuan(fen) : EMPTY_TEXT
 }
 
 const buildSourceBizNo = (bizDate?: string) => {
   return bizDate ? `FOUR_ACCOUNT_RECONCILE:${bizDate}` : ''
 }
 
+const resolveSourceBizNo = (row: Partial<FourAccountReconcileApi.FourAccountReconcileVO>) => {
+  return row.sourceBizNo || buildSourceBizNo(row.bizDate) || EMPTY_TEXT
+}
+
 const copySourceBizNo = async (row: FourAccountReconcileApi.FourAccountReconcileVO) => {
-  const sourceBizNo = buildSourceBizNo(row.bizDate)
-  if (!sourceBizNo) {
-    message.warning('业务日期为空，无法复制来源号')
+  const sourceBizNo = resolveSourceBizNo(row)
+  if (sourceBizNo === EMPTY_TEXT) {
+    message.warning('来源业务号为空，无法复制')
     return
   }
   try {
@@ -331,6 +428,10 @@ const copySourceBizNo = async (row: FourAccountReconcileApi.FourAccountReconcile
   } catch {
     message.error('复制失败，请检查浏览器剪贴板权限')
   }
+}
+
+const hasRelatedTicket = (row: Partial<FourAccountReconcileApi.FourAccountReconcileVO>) => {
+  return Boolean(row.relatedTicketId)
 }
 
 const parseNumber = (value: any): number | undefined => {
@@ -371,26 +472,28 @@ const parseIssueLabels = (payload: Record<string, any>) => {
 }
 
 const hasIssueDetail = (data: IssueDetailData, issues: string[]) => {
-  const hasAmount = Object.values(data).some((value) => typeof value === 'number')
+  const hasAmount = Object.values(data).some((value) => isValidNumber(value))
   return hasAmount || issues.length > 0
 }
 
-const openIssueDetailDialog = (row: FourAccountReconcileApi.FourAccountReconcileVO) => {
-  issueDetailDialogVisible.value = true
-  issueDetailAvailable.value = false
-  issueDetailData.value = createEmptyIssueDetailData()
-  issueDetailIssues.value = []
-  const rawJson = (row.issueDetailJson || '').trim()
-  if (!rawJson) {
+const parseDetailIssueJson = (rawJson?: string) => {
+  detailIssueData.value = createEmptyIssueDetailData()
+  detailIssueTags.value = []
+  detailIssueAvailable.value = false
+  detailIssueParseError.value = false
+
+  const raw = (rawJson || '').trim()
+  if (!raw) {
     return
   }
   try {
-    const payload = JSON.parse(rawJson)
+    const payload = JSON.parse(raw)
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      detailIssueParseError.value = true
       return
     }
     const detailPayload = payload as Record<string, any>
-    const detailData: IssueDetailData = {
+    const parsedData: IssueDetailData = {
       tradeAmount: parseNumber(detailPayload.tradeAmount),
       fulfillmentAmount: parseNumber(detailPayload.fulfillmentAmount),
       commissionAmount: parseNumber(detailPayload.commissionAmount),
@@ -398,12 +501,12 @@ const openIssueDetailDialog = (row: FourAccountReconcileApi.FourAccountReconcile
       tradeMinusFulfillment: parseNumber(detailPayload.tradeMinusFulfillment),
       tradeMinusCommissionSplit: parseNumber(detailPayload.tradeMinusCommissionSplit)
     }
-    const issues = parseIssueLabels(detailPayload)
-    issueDetailData.value = detailData
-    issueDetailIssues.value = issues
-    issueDetailAvailable.value = hasIssueDetail(detailData, issues)
+    const parsedIssues = parseIssueLabels(detailPayload)
+    detailIssueData.value = parsedData
+    detailIssueTags.value = parsedIssues
+    detailIssueAvailable.value = hasIssueDetail(parsedData, parsedIssues)
   } catch {
-    issueDetailAvailable.value = false
+    detailIssueParseError.value = true
   }
 }
 
@@ -458,13 +561,35 @@ const handleRun = async () => {
       payload.bizDate = bizDate
     }
     const id = await FourAccountReconcileApi.runFourAccountReconcile(payload)
-    message.success(`手工执行成功，记录ID：${id || '-'}`)
+    message.success(`手工执行成功，记录ID：${id || EMPTY_TEXT}`)
     runDialogVisible.value = false
     await getList()
   } catch (error: any) {
     message.error(error?.msg || '手工执行失败')
   } finally {
     runLoading.value = false
+  }
+}
+
+const openDetailDrawer = async (row: FourAccountReconcileApi.FourAccountReconcileVO) => {
+  if (!row.id) {
+    message.warning('记录ID为空，无法查看详情')
+    return
+  }
+  detailDrawerVisible.value = true
+  detailLoading.value = true
+  detailData.value = {}
+  parseDetailIssueJson(undefined)
+  try {
+    const data = await FourAccountReconcileApi.getFourAccountReconcile(row.id)
+    detailData.value = data || {}
+    parseDetailIssueJson(detailData.value.issueDetailJson)
+  } catch (error: any) {
+    message.error(error?.msg || '详情获取失败')
+    detailData.value = {}
+    parseDetailIssueJson(undefined)
+  } finally {
+    detailLoading.value = false
   }
 }
 

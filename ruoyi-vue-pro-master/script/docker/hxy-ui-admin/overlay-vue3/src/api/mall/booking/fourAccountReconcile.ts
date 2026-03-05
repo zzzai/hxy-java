@@ -32,6 +32,7 @@ export interface FourAccountReconcileVO {
   id: number
   reconcileNo?: string
   bizDate?: string
+  sourceBizNo?: string
   tradeAmount?: number
   fulfillmentAmount?: number
   commissionAmount?: number
@@ -58,6 +59,10 @@ export interface FourAccountReconcileRunReq {
 
 export const getFourAccountReconcilePage = (params: FourAccountReconcilePageReq) => {
   return request.get({ url: '/booking/four-account-reconcile/page', params })
+}
+
+export const getFourAccountReconcile = (id: number) => {
+  return request.get<FourAccountReconcileVO>({ url: '/booking/four-account-reconcile/get', params: { id } })
 }
 
 export const runFourAccountReconcile = (data: FourAccountReconcileRunReq) => {
