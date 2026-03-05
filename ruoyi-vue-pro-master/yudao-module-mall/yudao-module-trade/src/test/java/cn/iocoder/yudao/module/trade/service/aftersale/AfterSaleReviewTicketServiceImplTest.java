@@ -31,6 +31,10 @@ import org.springframework.dao.DuplicateKeyException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -225,6 +229,42 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(false, resolved);
         verify(afterSaleReviewTicketMapper, never()).updateByIdAndStatus(eq(3002L),
                 eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any());
+    }
+
+    @Test
+    void shouldListLatestTicketBySourceBizNoWhenBatchQuery() {
+        AfterSaleReviewTicketDO latestA = new AfterSaleReviewTicketDO();
+        latestA.setId(5003L);
+        latestA.setTicketType(40);
+        latestA.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-06");
+        latestA.setStatus(10);
+        latestA.setSeverity("P1");
+        AfterSaleReviewTicketDO olderA = new AfterSaleReviewTicketDO();
+        olderA.setId(5002L);
+        olderA.setTicketType(40);
+        olderA.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-06");
+        AfterSaleReviewTicketDO latestB = new AfterSaleReviewTicketDO();
+        latestB.setId(5001L);
+        latestB.setTicketType(40);
+        latestB.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-05");
+        latestB.setStatus(20);
+        latestB.setSeverity("P2");
+        when(afterSaleReviewTicketMapper.selectListByTicketTypeAndSourceBizNos(eq(40), eq(Arrays.asList(
+                "FOUR_ACCOUNT_RECONCILE:2026-03-06", "FOUR_ACCOUNT_RECONCILE:2026-03-05"))))
+                .thenReturn(Arrays.asList(latestA, olderA, latestB));
+
+        List<AfterSaleReviewTicketDO> result = service.listLatestByTicketTypeAndSourceBizNos(40, Arrays.asList(
+                " FOUR_ACCOUNT_RECONCILE:2026-03-06 ", "FOUR_ACCOUNT_RECONCILE:2026-03-05",
+                "FOUR_ACCOUNT_RECONCILE:2026-03-06", " "));
+
+        assertEquals(2, result.size());
+        Set<Long> idSet = result.stream().map(AfterSaleReviewTicketDO::getId).collect(Collectors.toSet());
+        Set<String> sourceSet = result.stream().map(AfterSaleReviewTicketDO::getSourceBizNo).collect(Collectors.toSet());
+        assertEquals(new HashSet<>(Arrays.asList(5003L, 5001L)), idSet);
+        assertEquals(new HashSet<>(Arrays.asList("FOUR_ACCOUNT_RECONCILE:2026-03-06",
+                "FOUR_ACCOUNT_RECONCILE:2026-03-05")), sourceSet);
+        verify(afterSaleReviewTicketMapper).selectListByTicketTypeAndSourceBizNos(eq(40), eq(Arrays.asList(
+                "FOUR_ACCOUNT_RECONCILE:2026-03-06", "FOUR_ACCOUNT_RECONCILE:2026-03-05")));
     }
 
     @Test

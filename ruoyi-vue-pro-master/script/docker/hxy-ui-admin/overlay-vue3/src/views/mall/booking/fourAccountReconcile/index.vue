@@ -101,6 +101,16 @@
         </template>
       </el-table-column>
       <el-table-column label="问题编码" min-width="220" prop="issueCodes" show-overflow-tooltip />
+      <el-table-column label="关联工单" min-width="200">
+        <template #default="{ row }">
+          <div v-if="row.relatedTicketId">
+            <span>#{{ row.relatedTicketId }}</span>
+            <el-tag class="ml-6px" size="small" type="info">{{ ticketStatusText(row.relatedTicketStatus) }}</el-tag>
+            <el-tag v-if="row.relatedTicketSeverity" class="ml-6px" size="small">{{ row.relatedTicketSeverity }}</el-tag>
+          </div>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="来源" prop="source" width="120" />
       <el-table-column label="操作人" prop="operator" width="120" />
       <el-table-column :formatter="dateFormatter" label="执行时间" prop="reconciledAt" width="180" />
@@ -206,6 +216,12 @@ const statusTagType = (status?: number) => {
   if (status === 10) return 'success'
   if (status === 20) return 'warning'
   return 'info'
+}
+
+const ticketStatusText = (status?: number) => {
+  if (status === 10) return '待处理'
+  if (status === 20) return '已收口'
+  return '-'
 }
 
 const diffTagType = (amount?: number) => {

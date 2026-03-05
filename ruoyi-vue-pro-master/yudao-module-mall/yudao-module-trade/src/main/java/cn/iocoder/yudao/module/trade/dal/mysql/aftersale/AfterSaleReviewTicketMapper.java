@@ -9,7 +9,9 @@ import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTic
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.springframework.util.CollectionUtils;
 
+import java.util.Collections;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -77,6 +79,17 @@ public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReview
                 .eq(AfterSaleReviewTicketDO::getSourceBizNo, sourceBizNo)
                 .orderByDesc(AfterSaleReviewTicketDO::getId)
                 .last("LIMIT 1"));
+    }
+
+    default List<AfterSaleReviewTicketDO> selectListByTicketTypeAndSourceBizNos(Integer ticketType,
+                                                                                 List<String> sourceBizNos) {
+        if (ticketType == null || CollectionUtils.isEmpty(sourceBizNos)) {
+            return Collections.emptyList();
+        }
+        return selectList(new LambdaQueryWrapperX<AfterSaleReviewTicketDO>()
+                .eq(AfterSaleReviewTicketDO::getTicketType, ticketType)
+                .in(AfterSaleReviewTicketDO::getSourceBizNo, sourceBizNos)
+                .orderByDesc(AfterSaleReviewTicketDO::getId));
     }
 
     default int updateByIdAndStatus(Long id, Integer status, AfterSaleReviewTicketDO update) {

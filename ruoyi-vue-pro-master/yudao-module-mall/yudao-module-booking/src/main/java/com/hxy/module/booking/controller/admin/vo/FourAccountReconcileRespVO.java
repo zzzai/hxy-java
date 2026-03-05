@@ -58,7 +58,15 @@ public class FourAccountReconcileRespVO {
     @Schema(description = "对账执行时间")
     private LocalDateTime reconciledAt;
 
+    @Schema(description = "关联工单 ID", example = "1001")
+    private Long relatedTicketId;
+
+    @Schema(description = "关联工单状态（10待处理 20已收口）", example = "10")
+    private Integer relatedTicketStatus;
+
+    @Schema(description = "关联工单严重级别", example = "P1")
+    private String relatedTicketSeverity;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }
-

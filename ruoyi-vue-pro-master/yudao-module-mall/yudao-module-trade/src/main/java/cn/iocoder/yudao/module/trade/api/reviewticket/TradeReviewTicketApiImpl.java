@@ -2,12 +2,19 @@ package cn.iocoder.yudao.module.trade.api.reviewticket;
 
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketResolveReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryQueryReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleReviewTicketDO;
 import cn.iocoder.yudao.module.trade.service.aftersale.AfterSaleReviewTicketService;
 import cn.iocoder.yudao.module.trade.service.aftersale.bo.AfterSaleReviewTicketCreateReqBO;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 统一工单跨模块 API 实现。
@@ -48,6 +55,26 @@ public class TradeReviewTicketApiImpl implements TradeReviewTicketApi {
         return afterSaleReviewTicketService.resolveReviewTicketBySourceBizNo(
                 reqDTO.getTicketType(), reqDTO.getSourceBizNo(), reqDTO.getResolverId(), reqDTO.getResolverType(),
                 reqDTO.getResolveActionCode(), reqDTO.getResolveBizNo(), reqDTO.getResolveRemark());
+    }
+
+    @Override
+    public List<TradeReviewTicketSummaryRespDTO> listLatestTicketSummaryBySourceBizNos(
+            TradeReviewTicketSummaryQueryReqDTO reqDTO) {
+        if (reqDTO == null || reqDTO.getTicketType() == null || CollectionUtils.isEmpty(reqDTO.getSourceBizNos())) {
+            return Collections.emptyList();
+        }
+        List<AfterSaleReviewTicketDO> tickets = afterSaleReviewTicketService.listLatestByTicketTypeAndSourceBizNos(
+                reqDTO.getTicketType(), reqDTO.getSourceBizNos());
+        if (CollectionUtils.isEmpty(tickets)) {
+            return Collections.emptyList();
+        }
+        return tickets.stream().map(ticket -> new TradeReviewTicketSummaryRespDTO()
+                        .setId(ticket.getId())
+                        .setTicketType(ticket.getTicketType())
+                        .setSourceBizNo(ticket.getSourceBizNo())
+                        .setStatus(ticket.getStatus())
+                        .setSeverity(ticket.getSeverity()))
+                .collect(Collectors.toList());
     }
 
 }

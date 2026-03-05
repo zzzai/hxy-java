@@ -54,6 +54,15 @@ public interface AfterSaleReviewTicketService {
     Long upsertReviewTicketBySourceBizNo(AfterSaleReviewTicketCreateReqBO reqBO, String actionCode);
 
     /**
+     * 按 {@code ticketType + sourceBizNo} 批量查询工单摘要（每个来源号返回最新一条）。
+     *
+     * @param ticketType   工单类型
+     * @param sourceBizNos 来源业务号列表
+     * @return 工单列表
+     */
+    List<AfterSaleReviewTicketDO> listLatestByTicketTypeAndSourceBizNos(Integer ticketType, List<String> sourceBizNos);
+
+    /**
      * 按 {@code ticketType + sourceBizNo} 收口工单（仅待处理工单生效）。
      *
      * @param ticketType       工单类型

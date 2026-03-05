@@ -667,3 +667,12 @@
 - 备选方案：PASS 时仅写备注，不自动收口，由人工手动处理。
 - 否决原因：人工链路不稳定，无法保证“账面已通过但工单仍挂起”问题被及时清理。
 - 回滚条件：若自动收口策略影响审计判断，可临时关闭 booking 侧 PASS 收口调用，保留 WARN 建/更能力不变。
+
+## ADR-075：四账台账联查采用“跨域批量摘要查询”避免 N+1
+
+- 背景：四账页面需要展示“该业务日是否已生成工单、当前状态与严重级别”；仅靠前端按 `sourceBizNo` 跳转工单页无法实现台账列表内即时可见，也不利于批量巡检。
+- 决策：在 `trade-api` 增加批量摘要查询契约 `listLatestTicketSummaryBySourceBizNos(ticketType, sourceBizNos)`；trade 侧按 `ticketType + sourceBizNo` 返回每个来源号最新工单摘要；booking 在 `/booking/four-account-reconcile/page` 批量回填 `relatedTicketId/relatedTicketStatus/relatedTicketSeverity`。
+- 影响范围：`trade-api` 契约、`trade` 工单服务批量查询实现、`booking` 四账分页返回结构、overlay 四账台账展示能力。
+- 备选方案：booking 逐条调用单工单查询接口（N+1）或前端二次逐条请求工单模块。
+- 否决原因：N+1 在分页扩容时会放大延迟且增加跨域调用抖动；前端二次请求无法保证分页数据与工单快照一致性。
+- 回滚条件：若跨域摘要查询造成 trade 压力，可在 booking 侧临时关闭联查回填（仅保留跳转），不影响四账主链路与工单幂等收口。

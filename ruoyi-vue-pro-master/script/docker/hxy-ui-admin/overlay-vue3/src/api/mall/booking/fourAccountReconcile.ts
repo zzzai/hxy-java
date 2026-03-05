@@ -25,6 +25,9 @@ export interface FourAccountReconcileVO {
   source?: string
   operator?: string
   reconciledAt?: string
+  relatedTicketId?: number
+  relatedTicketStatus?: number
+  relatedTicketSeverity?: string
   createTime?: string
 }
 

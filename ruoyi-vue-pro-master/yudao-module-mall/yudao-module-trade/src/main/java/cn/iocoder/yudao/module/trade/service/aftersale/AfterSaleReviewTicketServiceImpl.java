@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
@@ -269,6 +270,36 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         applyRouteSnapshot(updateObj, route);
         afterSaleReviewTicketMapper.updateById(updateObj);
         return existed.getId();
+    }
+
+    @Override
+    public List<AfterSaleReviewTicketDO> listLatestByTicketTypeAndSourceBizNos(Integer ticketType,
+                                                                                List<String> sourceBizNos) {
+        if (ticketType == null || CollectionUtils.isEmpty(sourceBizNos)) {
+            return Collections.emptyList();
+        }
+        List<String> normalizedSourceBizNos = sourceBizNos.stream()
+                .filter(StrUtil::isNotBlank)
+                .map(StrUtil::trim)
+                .distinct()
+                .collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(normalizedSourceBizNos)) {
+            return Collections.emptyList();
+        }
+        List<AfterSaleReviewTicketDO> tickets =
+                afterSaleReviewTicketMapper.selectListByTicketTypeAndSourceBizNos(ticketType, normalizedSourceBizNos);
+        if (CollectionUtils.isEmpty(tickets)) {
+            return Collections.emptyList();
+        }
+        Map<String, AfterSaleReviewTicketDO> latestBySourceBizNo = new HashMap<>();
+        for (AfterSaleReviewTicketDO ticket : tickets) {
+            if (ticket == null || StrUtil.isBlank(ticket.getSourceBizNo())
+                    || latestBySourceBizNo.containsKey(ticket.getSourceBizNo())) {
+                continue;
+            }
+            latestBySourceBizNo.put(ticket.getSourceBizNo(), ticket);
+        }
+        return new ArrayList<>(latestBySourceBizNo.values());
     }
 
     @Override
