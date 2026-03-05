@@ -2,6 +2,7 @@ package cn.iocoder.yudao.module.product.service.store;
 
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuUpdateStockReqDTO;
@@ -9,6 +10,9 @@ import cn.iocoder.yudao.module.product.controller.admin.spu.vo.ProductSpuPageReq
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
@@ -20,12 +24,16 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuSaveReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
+import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockAdjustOrderMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockAdjustOrderStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuManualStockBizTypeEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
@@ -41,6 +49,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -55,6 +64,8 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserNickname;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.*;
 
 @Service
@@ -69,6 +80,13 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     private static final int STOCK_PROCESSING_LEASE_SECONDS = 120;
     private static final String STOCK_RETRY_SOURCE_DEFAULT = "ADMIN_UI";
     private static final String STOCK_RETRY_OPERATOR_DEFAULT = "SYSTEM";
+    private static final String STOCK_ADJUST_SOURCE_DEFAULT = "ADMIN_UI";
+    private static final String STOCK_ADJUST_ACTION_CREATE = "CREATE";
+    private static final String STOCK_ADJUST_ACTION_SUBMIT = "SUBMIT";
+    private static final String STOCK_ADJUST_ACTION_APPROVE = "APPROVE";
+    private static final String STOCK_ADJUST_ACTION_REJECT = "REJECT";
+    private static final String STOCK_ADJUST_ACTION_CANCEL = "CANCEL";
+    private static final DateTimeFormatter STOCK_ADJUST_ORDER_NO_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     @Resource
     private ProductStoreSpuMapper storeSpuMapper;
@@ -76,6 +94,8 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     private ProductStoreSkuMapper storeSkuMapper;
     @Resource
     private ProductStoreSkuStockFlowMapper storeSkuStockFlowMapper;
+    @Resource
+    private ProductStoreSkuStockAdjustOrderMapper stockAdjustOrderMapper;
     @Resource
     private ProductSpuService productSpuService;
     @Resource
@@ -440,6 +460,152 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createStockAdjustOrder(ProductStoreSkuStockAdjustOrderCreateReqVO reqVO) {
+        ProductStoreDO store = validateStoreExistsAndGet(reqVO.getStoreId());
+        ProductStoreSkuManualStockBizTypeEnum bizTypeEnum = ProductStoreSkuManualStockBizTypeEnum
+                .valueOfCode(reqVO.getBizType());
+        if (bizTypeEnum == null) {
+            throw exception(STORE_SKU_STOCK_MANUAL_BIZ_TYPE_INVALID, reqVO.getBizType());
+        }
+        List<ProductStoreSkuUpdateStockReqDTO.Item> detailItems = normalizeManualStockItems(
+                convertStockAdjustCreateItems(reqVO.getItems()), bizTypeEnum);
+        LocalDateTime now = LocalDateTime.now();
+        String operator = resolveStockAdjustOperator();
+        ProductStoreSkuStockAdjustOrderDO order = ProductStoreSkuStockAdjustOrderDO.builder()
+                .orderNo(buildStockAdjustOrderNo())
+                .storeId(store.getId())
+                .storeName(store.getName())
+                .bizType(bizTypeEnum.getCode())
+                .reason(StrUtil.trim(reqVO.getReason()))
+                .remark(StrUtil.trimToEmpty(reqVO.getRemark()))
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus())
+                .detailJson(JsonUtils.toJsonString(detailItems))
+                .applyOperator(operator)
+                .applySource(normalizeStockAdjustApplySource(reqVO.getApplySource()))
+                .lastActionCode(STOCK_ADJUST_ACTION_CREATE)
+                .lastActionOperator(operator)
+                .lastActionTime(now)
+                .build();
+        stockAdjustOrderMapper.insert(order);
+        return order.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void submitStockAdjustOrder(ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        ProductStoreSkuStockAdjustOrderDO order = validateStockAdjustOrderStatus(
+                reqVO.getId(), ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus());
+        LocalDateTime now = LocalDateTime.now();
+        ProductStoreSkuStockAdjustOrderDO updateObj = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus())
+                .lastActionCode(STOCK_ADJUST_ACTION_SUBMIT)
+                .lastActionOperator(resolveStockAdjustOperator())
+                .lastActionTime(now)
+                .build();
+        stockAdjustOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void approveStockAdjustOrder(ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        ProductStoreSkuStockAdjustOrderDO order = validateStockAdjustOrderStatus(
+                reqVO.getId(), ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus());
+        ProductStoreSkuManualStockBizTypeEnum bizTypeEnum = ProductStoreSkuManualStockBizTypeEnum
+                .valueOfCode(order.getBizType());
+        if (bizTypeEnum == null) {
+            throw exception(STORE_SKU_STOCK_MANUAL_BIZ_TYPE_INVALID, order.getBizType());
+        }
+        List<ProductStoreSkuManualStockAdjustReqVO.Item> detailItems = parseStockAdjustDetailItems(order.getDetailJson());
+        // 再次复核明细方向与 SKU 唯一性，避免草稿阶段与审批阶段之间数据被污染。
+        List<ProductStoreSkuUpdateStockReqDTO.Item> normalizedItems = normalizeManualStockItems(detailItems, bizTypeEnum);
+
+        ProductStoreSkuUpdateStockReqDTO stockReq = new ProductStoreSkuUpdateStockReqDTO();
+        stockReq.setStoreId(order.getStoreId());
+        stockReq.setBizType(bizTypeEnum.getStockFlowBizType());
+        stockReq.setBizNo(order.getOrderNo());
+        stockReq.setItems(normalizedItems);
+        updateStoreSkuStock(stockReq);
+
+        LocalDateTime now = LocalDateTime.now();
+        ProductStoreSkuStockAdjustOrderDO updateObj = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.APPROVED.getStatus())
+                .approveOperator(resolveStockAdjustOperator())
+                .approveRemark(StrUtil.trimToEmpty(reqVO.getRemark()))
+                .approveTime(now)
+                .lastActionCode(STOCK_ADJUST_ACTION_APPROVE)
+                .lastActionOperator(resolveStockAdjustOperator())
+                .lastActionTime(now)
+                .build();
+        stockAdjustOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectStockAdjustOrder(ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        ProductStoreSkuStockAdjustOrderDO order = validateStockAdjustOrderStatus(
+                reqVO.getId(), ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus());
+        LocalDateTime now = LocalDateTime.now();
+        ProductStoreSkuStockAdjustOrderDO updateObj = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.REJECTED.getStatus())
+                .approveOperator(resolveStockAdjustOperator())
+                .approveRemark(StrUtil.trimToEmpty(reqVO.getRemark()))
+                .approveTime(now)
+                .lastActionCode(STOCK_ADJUST_ACTION_REJECT)
+                .lastActionOperator(resolveStockAdjustOperator())
+                .lastActionTime(now)
+                .build();
+        stockAdjustOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelStockAdjustOrder(ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        ProductStoreSkuStockAdjustOrderDO order = getStockAdjustOrder(reqVO.getId());
+        Integer status = order.getStatus();
+        if (!Objects.equals(status, ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus())
+                && !Objects.equals(status, ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus())) {
+            throw exception(STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID, status,
+                    ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus() + "/"
+                            + ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus());
+        }
+        LocalDateTime now = LocalDateTime.now();
+        ProductStoreSkuStockAdjustOrderDO updateObj = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.CANCELLED.getStatus())
+                .approveOperator(resolveStockAdjustOperator())
+                .approveRemark(StrUtil.trimToEmpty(reqVO.getRemark()))
+                .approveTime(now)
+                .lastActionCode(STOCK_ADJUST_ACTION_CANCEL)
+                .lastActionOperator(resolveStockAdjustOperator())
+                .lastActionTime(now)
+                .build();
+        stockAdjustOrderMapper.updateStatusByIdAndOldStatus(updateObj, status);
+    }
+
+    @Override
+    public ProductStoreSkuStockAdjustOrderDO getStockAdjustOrder(Long id) {
+        ProductStoreSkuStockAdjustOrderDO order = stockAdjustOrderMapper.selectById(id);
+        if (order == null) {
+            throw exception(STORE_SKU_STOCK_ADJUST_ORDER_NOT_EXISTS);
+        }
+        return order;
+    }
+
+    @Override
+    public PageResult<ProductStoreSkuStockAdjustOrderDO> getStockAdjustOrderPage(
+            ProductStoreSkuStockAdjustOrderPageReqVO reqVO) {
+        ProductStoreSkuStockAdjustOrderPageReqVO normalizedReq = normalizeStockAdjustOrderPageReq(reqVO);
+        return stockAdjustOrderMapper.selectPage(normalizedReq);
+    }
+
+    @Override
     public int retryStoreSkuStockFlow(Integer limit) {
         int safeLimit = limit == null || limit <= 0 ? STOCK_RETRY_DEFAULT_LIMIT : Math.min(limit, STOCK_RETRY_MAX_LIMIT);
         LocalDateTime now = LocalDateTime.now();
@@ -679,6 +845,90 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
         if (!Objects.equals(flow.getIncrCount(), incrCount)) {
             throw exception(STORE_SKU_STOCK_BIZ_KEY_CONFLICT);
         }
+    }
+
+    private ProductStoreDO validateStoreExistsAndGet(Long storeId) {
+        productStoreService.validateStoreExists(storeId);
+        ProductStoreDO store = productStoreService.getStore(storeId);
+        if (store == null) {
+            throw exception(STORE_NOT_EXISTS);
+        }
+        return store;
+    }
+
+    private ProductStoreSkuStockAdjustOrderDO validateStockAdjustOrderStatus(Long id, Integer expectStatus) {
+        ProductStoreSkuStockAdjustOrderDO order = getStockAdjustOrder(id);
+        if (!Objects.equals(order.getStatus(), expectStatus)) {
+            throw exception(STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID, order.getStatus(), expectStatus);
+        }
+        return order;
+    }
+
+    private List<ProductStoreSkuManualStockAdjustReqVO.Item> convertStockAdjustCreateItems(
+            List<ProductStoreSkuStockAdjustOrderCreateReqVO.Item> items) {
+        if (items == null || items.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ProductStoreSkuManualStockAdjustReqVO.Item> converted = new ArrayList<>(items.size());
+        for (ProductStoreSkuStockAdjustOrderCreateReqVO.Item item : items) {
+            ProductStoreSkuManualStockAdjustReqVO.Item convertedItem = new ProductStoreSkuManualStockAdjustReqVO.Item();
+            if (item != null) {
+                convertedItem.setSkuId(item.getSkuId());
+                convertedItem.setIncrCount(item.getIncrCount());
+            }
+            converted.add(convertedItem);
+        }
+        return converted;
+    }
+
+    private List<ProductStoreSkuManualStockAdjustReqVO.Item> parseStockAdjustDetailItems(String detailJson) {
+        try {
+            List<ProductStoreSkuManualStockAdjustReqVO.Item> items = JsonUtils.parseArray(detailJson,
+                    ProductStoreSkuManualStockAdjustReqVO.Item.class);
+            if (items == null || items.isEmpty()) {
+                throw exception(STORE_SKU_STOCK_ADJUST_ORDER_DETAIL_INVALID);
+            }
+            return items;
+        } catch (RuntimeException ex) {
+            throw exception(STORE_SKU_STOCK_ADJUST_ORDER_DETAIL_INVALID);
+        }
+    }
+
+    private ProductStoreSkuStockAdjustOrderPageReqVO normalizeStockAdjustOrderPageReq(
+            ProductStoreSkuStockAdjustOrderPageReqVO reqVO) {
+        if (reqVO == null) {
+            return new ProductStoreSkuStockAdjustOrderPageReqVO();
+        }
+        reqVO.setOrderNo(normalizeStockFlowPageTrim(reqVO.getOrderNo()));
+        reqVO.setApplyOperator(normalizeStockFlowPageTrim(reqVO.getApplyOperator()));
+        reqVO.setLastActionOperator(normalizeStockFlowPageTrim(reqVO.getLastActionOperator()));
+        reqVO.setBizType(normalizeStockFlowPageUppercase(reqVO.getBizType()));
+        reqVO.setLastActionCode(normalizeStockFlowPageUppercase(reqVO.getLastActionCode()));
+        return reqVO;
+    }
+
+    private String resolveStockAdjustOperator() {
+        String nickname = StrUtil.trim(getLoginUserNickname());
+        if (StrUtil.isNotBlank(nickname)) {
+            return nickname;
+        }
+        Long loginUserId = getLoginUserId();
+        return loginUserId == null ? STOCK_RETRY_OPERATOR_DEFAULT : String.valueOf(loginUserId);
+    }
+
+    private String normalizeStockAdjustApplySource(String source) {
+        String normalized = StrUtil.trim(source);
+        if (StrUtil.isBlank(normalized)) {
+            return STOCK_ADJUST_SOURCE_DEFAULT;
+        }
+        return StrUtil.maxLength(normalized.toUpperCase(Locale.ROOT), 32);
+    }
+
+    private String buildStockAdjustOrderNo() {
+        String timePart = LocalDateTime.now().format(STOCK_ADJUST_ORDER_NO_FORMATTER);
+        String random = StrUtil.sub(java.util.UUID.randomUUID().toString().replace("-", ""), 0, 8)
+                .toUpperCase(Locale.ROOT);
+        return "SAO-" + timePart + "-" + random;
     }
 
     private ProductSpuDO validateSpuExists(Long spuId) {

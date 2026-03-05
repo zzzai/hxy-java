@@ -5,6 +5,9 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.store.dto.ProductStoreSkuUpdateStockReqDTO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
@@ -15,11 +18,15 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
+import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockAdjustOrderMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockAdjustOrderStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
@@ -41,6 +48,7 @@ import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.SKU_STOCK
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_BATCH_ADJUST_FIELDS_EMPTY;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_FLOW_TARGETS_EMPTY;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_SERVICE_FORBIDDEN;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_INCR_COUNT_INVALID;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,6 +70,8 @@ class ProductStoreMappingServiceImplTest {
     private ProductStoreSkuMapper storeSkuMapper;
     @Mock
     private ProductStoreSkuStockFlowMapper storeSkuStockFlowMapper;
+    @Mock
+    private ProductStoreSkuStockAdjustOrderMapper stockAdjustOrderMapper;
     @Mock
     private ProductSpuService productSpuService;
     @Mock
@@ -796,5 +806,93 @@ class ProductStoreMappingServiceImplTest {
         assertEquals(STORE_SKU_STOCK_SERVICE_FORBIDDEN.getCode(), ex.getCode());
         verify(storeSkuMapper, never()).updateStockIncrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
         verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(any(Long.class), any(Long.class), any(Integer.class));
+    }
+
+    @Test
+    void createStockAdjustOrder_shouldPersistDraftOrder() {
+        ProductStoreSkuStockAdjustOrderCreateReqVO reqVO = new ProductStoreSkuStockAdjustOrderCreateReqVO();
+        reqVO.setStoreId(11L);
+        reqVO.setBizType("REPLENISH_IN");
+        reqVO.setReason("总部补货");
+        reqVO.setApplySource("admin_ui");
+        ProductStoreSkuStockAdjustOrderCreateReqVO.Item item = new ProductStoreSkuStockAdjustOrderCreateReqVO.Item();
+        item.setSkuId(22L);
+        item.setIncrCount(8);
+        reqVO.setItems(Collections.singletonList(item));
+
+        ProductStoreDO store = ProductStoreDO.builder().id(11L).name("上海徐汇店").build();
+        when(productStoreService.getStore(11L)).thenReturn(store);
+        doAnswer(invocation -> {
+            ProductStoreSkuStockAdjustOrderDO order = invocation.getArgument(0);
+            order.setId(10001L);
+            return 1;
+        }).when(stockAdjustOrderMapper).insert(org.mockito.ArgumentMatchers.<ProductStoreSkuStockAdjustOrderDO>any());
+
+        Long id = productStoreMappingService.createStockAdjustOrder(reqVO);
+
+        assertEquals(10001L, id);
+        verify(stockAdjustOrderMapper).insert(org.mockito.ArgumentMatchers.<ProductStoreSkuStockAdjustOrderDO>argThat(order ->
+                order != null
+                        && "REPLENISH_IN".equals(order.getBizType())
+                        && ProductStoreSkuStockAdjustOrderStatusEnum.DRAFT.getStatus().equals(order.getStatus())
+                        && "ADMIN_UI".equals(order.getApplySource())
+                        && order.getDetailJson().contains("\"skuId\":22")
+                        && order.getDetailJson().contains("\"incrCount\":8")));
+    }
+
+    @Test
+    void approveStockAdjustOrder_shouldApplyStockAndMoveApproved() {
+        ProductStoreSkuStockAdjustOrderDO order = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(10001L)
+                .orderNo("SAO-20260305180000-ABCD1234")
+                .storeId(11L)
+                .bizType("REPLENISH_IN")
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus())
+                .detailJson("[{\"skuId\":22,\"incrCount\":5}]")
+                .build();
+        when(stockAdjustOrderMapper.selectById(10001L)).thenReturn(order);
+
+        ProductStoreSkuDO sku = ProductStoreSkuDO.builder().id(301L).storeId(11L).skuId(22L).stock(10).build();
+        when(storeSkuMapper.selectByStoreIdAndSkuId(11L, 22L)).thenReturn(sku);
+        ProductStoreSkuStockFlowDO flow = ProductStoreSkuStockFlowDO.builder()
+                .id(9901L).incrCount(5).status(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()).retryCount(0).build();
+        when(storeSkuStockFlowMapper.selectByBizKey("MANUAL_REPLENISH_IN", order.getOrderNo(), 11L, 22L))
+                .thenReturn(null, flow);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9901L),
+                eq(ProductStoreSkuStockFlowStatusEnum.PENDING.getStatus()), eq(3),
+                eq(0), any(), eq(""))).thenReturn(1);
+        when(storeSkuMapper.updateStockIncrByStoreIdAndSkuId(11L, 22L, 5)).thenReturn(1);
+        when(storeSkuStockFlowMapper.updateStatusByIdAndOldStatus(eq(9901L), eq(3),
+                eq(ProductStoreSkuStockFlowStatusEnum.SUCCESS.getStatus()),
+                eq(0), org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(1);
+
+        ProductStoreSkuStockAdjustOrderActionReqVO reqVO = new ProductStoreSkuStockAdjustOrderActionReqVO();
+        reqVO.setId(10001L);
+        reqVO.setRemark("审批通过");
+        productStoreMappingService.approveStockAdjustOrder(reqVO);
+
+        verify(storeSkuMapper).updateStockIncrByStoreIdAndSkuId(11L, 22L, 5);
+        verify(stockAdjustOrderMapper).updateStatusByIdAndOldStatus(argThat(updateObj ->
+                        updateObj != null
+                                && ProductStoreSkuStockAdjustOrderStatusEnum.APPROVED.getStatus().equals(updateObj.getStatus())
+                                && "APPROVE".equals(updateObj.getLastActionCode())),
+                eq(ProductStoreSkuStockAdjustOrderStatusEnum.PENDING.getStatus()));
+    }
+
+    @Test
+    void submitStockAdjustOrder_shouldThrowWhenStatusInvalid() {
+        ProductStoreSkuStockAdjustOrderDO order = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(10001L)
+                .status(ProductStoreSkuStockAdjustOrderStatusEnum.APPROVED.getStatus())
+                .build();
+        when(stockAdjustOrderMapper.selectById(10001L)).thenReturn(order);
+
+        ProductStoreSkuStockAdjustOrderActionReqVO reqVO = new ProductStoreSkuStockAdjustOrderActionReqVO();
+        reqVO.setId(10001L);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreMappingService.submitStockAdjustOrder(reqVO));
+
+        assertEquals(STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID.getCode(), ex.getCode());
     }
 }

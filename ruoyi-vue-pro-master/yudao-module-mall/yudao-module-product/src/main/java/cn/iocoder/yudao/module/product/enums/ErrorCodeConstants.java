@@ -72,6 +72,9 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_SKU_STOCK_MANUAL_SKU_DUPLICATED = new ErrorCode(1_008_009_009, "门店库存人工调整存在重复 SKU：{}");
     ErrorCode STORE_SKU_STOCK_FLOW_TARGETS_EMPTY = new ErrorCode(1_008_009_010, "库存流水重试目标不能为空");
     ErrorCode STORE_SKU_STOCK_SERVICE_FORBIDDEN = new ErrorCode(1_008_009_011, "服务商品不允许走库存变更：SKU {}");
+    ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_NOT_EXISTS = new ErrorCode(1_008_009_012, "门店库存调整单不存在");
+    ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID = new ErrorCode(1_008_009_013, "门店库存调整单状态非法：当前 {}，期望 {}");
+    ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_DETAIL_INVALID = new ErrorCode(1_008_009_014, "门店库存调整单明细非法，无法执行审批");
 
     // ========== 门店主数据 1-008-010-000 ==========
     ErrorCode STORE_NOT_EXISTS = new ErrorCode(1_008_010_000, "门店不存在");

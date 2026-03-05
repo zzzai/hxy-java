@@ -7,6 +7,9 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreOpt
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchAdjustReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
@@ -16,6 +19,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuSaveReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
 import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
@@ -65,6 +69,20 @@ public interface ProductStoreMappingService {
     void updateStoreSkuStock(@Valid ProductStoreSkuUpdateStockReqDTO updateStockReqDTO);
 
     Integer manualAdjustStoreSkuStock(@Valid ProductStoreSkuManualStockAdjustReqVO reqVO);
+
+    Long createStockAdjustOrder(@Valid ProductStoreSkuStockAdjustOrderCreateReqVO reqVO);
+
+    void submitStockAdjustOrder(@Valid ProductStoreSkuStockAdjustOrderActionReqVO reqVO);
+
+    void approveStockAdjustOrder(@Valid ProductStoreSkuStockAdjustOrderActionReqVO reqVO);
+
+    void rejectStockAdjustOrder(@Valid ProductStoreSkuStockAdjustOrderActionReqVO reqVO);
+
+    void cancelStockAdjustOrder(@Valid ProductStoreSkuStockAdjustOrderActionReqVO reqVO);
+
+    ProductStoreSkuStockAdjustOrderDO getStockAdjustOrder(Long id);
+
+    PageResult<ProductStoreSkuStockAdjustOrderDO> getStockAdjustOrderPage(ProductStoreSkuStockAdjustOrderPageReqVO reqVO);
 
     int retryStoreSkuStockFlow(Integer limit);
 

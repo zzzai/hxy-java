@@ -12,6 +12,10 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuOptionRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
@@ -20,6 +24,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpuOptionRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
@@ -90,6 +95,68 @@ public class ProductStoreSkuController {
     @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
     public CommonResult<Integer> manualAdjustStock(@Valid @RequestBody ProductStoreSkuManualStockAdjustReqVO reqVO) {
         return success(storeMappingService.manualAdjustStoreSkuStock(reqVO));
+    }
+
+    @PostMapping("/stock-adjust-order/create")
+    @Operation(summary = "创建门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Long> createStockAdjustOrder(
+            @Valid @RequestBody ProductStoreSkuStockAdjustOrderCreateReqVO reqVO) {
+        return success(storeMappingService.createStockAdjustOrder(reqVO));
+    }
+
+    @PostMapping("/stock-adjust-order/submit")
+    @Operation(summary = "提交门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> submitStockAdjustOrder(
+            @Valid @RequestBody ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        storeMappingService.submitStockAdjustOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/stock-adjust-order/approve")
+    @Operation(summary = "审批通过门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> approveStockAdjustOrder(
+            @Valid @RequestBody ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        storeMappingService.approveStockAdjustOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/stock-adjust-order/reject")
+    @Operation(summary = "驳回门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> rejectStockAdjustOrder(
+            @Valid @RequestBody ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        storeMappingService.rejectStockAdjustOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/stock-adjust-order/cancel")
+    @Operation(summary = "取消门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> cancelStockAdjustOrder(
+            @Valid @RequestBody ProductStoreSkuStockAdjustOrderActionReqVO reqVO) {
+        storeMappingService.cancelStockAdjustOrder(reqVO);
+        return success(true);
+    }
+
+    @GetMapping("/stock-adjust-order/get")
+    @Operation(summary = "获得门店 SKU 库存调整单")
+    @Parameter(name = "id", description = "编号", required = true, example = "1001")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:query')")
+    public CommonResult<ProductStoreSkuStockAdjustOrderRespVO> getStockAdjustOrder(@RequestParam("id") Long id) {
+        ProductStoreSkuStockAdjustOrderDO order = storeMappingService.getStockAdjustOrder(id);
+        return success(BeanUtils.toBean(order, ProductStoreSkuStockAdjustOrderRespVO.class));
+    }
+
+    @GetMapping("/stock-adjust-order/page")
+    @Operation(summary = "分页查询门店 SKU 库存调整单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:query')")
+    public CommonResult<PageResult<ProductStoreSkuStockAdjustOrderRespVO>> pageStockAdjustOrder(
+            @Valid ProductStoreSkuStockAdjustOrderPageReqVO reqVO) {
+        return success(BeanUtils.toBean(storeMappingService.getStockAdjustOrderPage(reqVO),
+                ProductStoreSkuStockAdjustOrderRespVO.class));
     }
 
     @DeleteMapping("/delete")

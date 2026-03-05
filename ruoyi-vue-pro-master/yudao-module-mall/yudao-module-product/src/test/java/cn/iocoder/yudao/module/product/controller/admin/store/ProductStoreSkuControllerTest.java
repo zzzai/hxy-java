@@ -2,6 +2,10 @@ package cn.iocoder.yudao.module.product.controller.admin.store;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryRespVO;
@@ -10,6 +14,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.sku.ProductSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
@@ -121,5 +126,56 @@ class ProductStoreSkuControllerTest {
             assertEquals(11L, result.getData().getItems().get(0).getStoreId());
             assertEquals(22L, result.getData().getItems().get(0).getSkuId());
         }
+    }
+
+    @Test
+    void createStockAdjustOrder_shouldReturnId() {
+        ProductStoreSkuStockAdjustOrderCreateReqVO reqVO = new ProductStoreSkuStockAdjustOrderCreateReqVO();
+        reqVO.setStoreId(1001L);
+        reqVO.setBizType("REPLENISH_IN");
+        reqVO.setReason("总部到货入库");
+        reqVO.setApplySource("ADMIN_UI");
+        ProductStoreSkuStockAdjustOrderCreateReqVO.Item item = new ProductStoreSkuStockAdjustOrderCreateReqVO.Item();
+        item.setSkuId(2001L);
+        item.setIncrCount(10);
+        reqVO.setItems(Collections.singletonList(item));
+        when(storeMappingService.createStockAdjustOrder(any(ProductStoreSkuStockAdjustOrderCreateReqVO.class)))
+                .thenReturn(10001L);
+
+        CommonResult<Long> result = controller.createStockAdjustOrder(reqVO);
+
+        assertEquals(10001L, result.getData());
+    }
+
+    @Test
+    void approveStockAdjustOrder_shouldInvokeService() {
+        ProductStoreSkuStockAdjustOrderActionReqVO reqVO = new ProductStoreSkuStockAdjustOrderActionReqVO();
+        reqVO.setId(10001L);
+        reqVO.setRemark("审批通过");
+
+        CommonResult<Boolean> result = controller.approveStockAdjustOrder(reqVO);
+
+        assertEquals(true, result.getData());
+    }
+
+    @Test
+    void pageStockAdjustOrder_shouldMapResponse() {
+        ProductStoreSkuStockAdjustOrderPageReqVO reqVO = new ProductStoreSkuStockAdjustOrderPageReqVO();
+        reqVO.setOrderNo("SAO-20260305");
+        ProductStoreSkuStockAdjustOrderDO order = ProductStoreSkuStockAdjustOrderDO.builder()
+                .id(10001L)
+                .orderNo("SAO-20260305123000-ABCD1234")
+                .storeId(1001L)
+                .storeName("上海徐汇店")
+                .bizType("REPLENISH_IN")
+                .status(10)
+                .build();
+        when(storeMappingService.getStockAdjustOrderPage(any(ProductStoreSkuStockAdjustOrderPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.singletonList(order), 1L));
+
+        CommonResult<PageResult<ProductStoreSkuStockAdjustOrderRespVO>> result = controller.pageStockAdjustOrder(reqVO);
+
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals("SAO-20260305123000-ABCD1234", result.getData().getList().get(0).getOrderNo());
     }
 }

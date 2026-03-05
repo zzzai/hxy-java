@@ -763,3 +763,16 @@
 - 备选方案：仅做人工处理，不引入自动收口。
 - 否决原因：滞留单据会持续积压，且无法保证全量及时清理。
 - 回滚条件：若上线初期误收口风险较高，可将 Job 调度关闭，仅保留字段与接口筛选能力。
+
+## ADR-083：门店供应链调整采用“库存调整单审批 + 复用库存幂等流水”最小闭环
+
+- 背景：当前已具备 `manual-stock-adjust` 直调能力，但缺少申请-审批-执行的单据化链路，运营在补货/调拨/盘点/损耗场景中无法稳定留痕与追责。
+- 决策：
+  1) 新增库存调整单主表 `hxy_store_sku_stock_adjust_order`，状态机 `DRAFT -> PENDING -> APPROVED/REJECTED/CANCELLED`；
+  2) 开放管理端接口 `create/submit/approve/reject/cancel/get/page`（`/product/store-sku/stock-adjust-order/*`）；
+  3) `approve` 时不另起库存执行器，直接复用现有库存幂等流水链路（`updateStoreSkuStock`，`bizNo=orderNo`，幂等键仍为 `biz_type + biz_no + store_id + sku_id`）；
+  4) 明细方向与去重规则继续复用手工调整校验器，支持 `REPLENISH_IN/TRANSFER_IN/TRANSFER_OUT/STOCKTAKE/LOSS/SCRAP` 六类。
+- 影响范围：`product` 门店 SKU 供应链操作、库存审计回溯能力、运营审批链路稳定性。
+- 备选方案：继续仅保留 `manual-stock-adjust` 直调接口，由前端自行拼接审批流程。
+- 否决原因：审批与执行分离后无法保证后端幂等一致性，且审计链路容易断裂。
+- 回滚条件：若审批单链路在高峰期影响时效，可临时退回到 `manual-stock-adjust` 直调入口，但保留库存调整单表用于审计追踪。
