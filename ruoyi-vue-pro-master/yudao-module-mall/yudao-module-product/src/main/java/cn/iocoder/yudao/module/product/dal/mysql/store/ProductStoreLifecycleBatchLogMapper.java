@@ -19,4 +19,11 @@ public interface ProductStoreLifecycleBatchLogMapper extends BaseMapperX<Product
                 .betweenIfPresent(ProductStoreLifecycleBatchLogDO::getCreateTime, reqVO.getCreateTime())
                 .orderByDesc(ProductStoreLifecycleBatchLogDO::getId));
     }
+
+    default ProductStoreLifecycleBatchLogDO selectLatestByBatchNo(String batchNo) {
+        return selectOne(new LambdaQueryWrapperX<ProductStoreLifecycleBatchLogDO>()
+                .eqIfPresent(ProductStoreLifecycleBatchLogDO::getBatchNo, batchNo)
+                .orderByDesc(ProductStoreLifecycleBatchLogDO::getId)
+                .last("LIMIT 1"));
+    }
 }

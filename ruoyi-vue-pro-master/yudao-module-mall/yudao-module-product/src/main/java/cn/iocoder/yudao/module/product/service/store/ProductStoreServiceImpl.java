@@ -15,15 +15,21 @@ import cn.iocoder.yudao.module.product.enums.store.ProductStoreLifecycleStatusEn
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.trade.api.store.TradeStoreLifecycleGuardApi;
 import cn.iocoder.yudao.module.trade.api.store.dto.TradeStoreLifecycleGuardStatRespDTO;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -55,6 +61,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String DOMAIN_TAG_GROUP = "TAG_GROUP";
     private static final String SOURCE_ADMIN_UI = "ADMIN_UI";
     private static final DateTimeFormatter BATCH_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final Pattern STORE_ID_PATTERN = Pattern.compile("\"storeId\"\\s*:\\s*(\\d+)");
 
     @Resource
     private ProductStoreMapper storeMapper;
@@ -78,6 +85,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private TradeStoreLifecycleGuardApi tradeStoreLifecycleGuardApi;
     @Resource
     private ConfigApi configApi;
+    @Resource
     private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
 
     @Override
@@ -414,6 +422,73 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     }
 
     @Override
+    public ProductStoreLifecycleGuardBatchRecheckRespVO recheckLifecycleGuardByBatch(
+            ProductStoreLifecycleGuardBatchRecheckReqVO reqVO) {
+        ProductStoreLifecycleBatchLogDO batchLog = resolveBatchLog(reqVO);
+        StoreIdExtractionResult extractionResult = extractStoreIdsForRecheck(batchLog.getDetailJson());
+        List<Long> storeIds = extractionResult.getStoreIds();
+        ProductStoreLifecycleGuardBatchRecheckRespVO respVO = new ProductStoreLifecycleGuardBatchRecheckRespVO();
+        respVO.setLogId(batchLog.getId());
+        respVO.setBatchNo(batchLog.getBatchNo());
+        respVO.setTargetLifecycleStatus(batchLog.getTargetLifecycleStatus());
+        respVO.setGuardRuleVersion(batchLog.getGuardRuleVersion());
+        respVO.setGuardConfigSnapshotJson(batchLog.getGuardConfigSnapshotJson());
+        respVO.setDetailParseError(extractionResult.isParseError());
+        if (CollUtil.isEmpty(storeIds)) {
+            respVO.setTotalCount(0);
+            respVO.setBlockedCount(0);
+            respVO.setWarningCount(0);
+            return respVO;
+        }
+        Map<Long, ProductStoreDO> storeMap = getStoreMap(storeIds);
+        List<ProductStoreLifecycleGuardBatchRecheckRespVO.Detail> details = new ArrayList<>(storeIds.size());
+        int blockedCount = 0;
+        int warningCount = 0;
+        for (Long storeId : storeIds) {
+            ProductStoreLifecycleGuardRespVO guard;
+            try {
+                guard = getLifecycleGuard(storeId, batchLog.getTargetLifecycleStatus());
+            } catch (ServiceException ex) {
+                ProductStoreLifecycleGuardBatchRecheckRespVO.Detail blocked =
+                        new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
+                blocked.setStoreId(storeId);
+                ProductStoreDO store = storeMap.get(storeId);
+                blocked.setStoreName(store == null ? null : store.getName());
+                blocked.setBlocked(true);
+                blocked.setBlockedCode(ex.getCode());
+                blocked.setBlockedMessage(ex.getMessage());
+                blocked.setWarnings(Collections.emptyList());
+                blocked.setGuardItems(Collections.emptyList());
+                details.add(blocked);
+                blockedCount++;
+                continue;
+            }
+            ProductStoreLifecycleGuardBatchRecheckRespVO.Detail detail =
+                    new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
+            detail.setStoreId(guard.getStoreId());
+            ProductStoreDO store = storeMap.get(guard.getStoreId());
+            detail.setStoreName(store == null ? null : store.getName());
+            detail.setBlocked(Boolean.TRUE.equals(guard.getBlocked()));
+            detail.setBlockedCode(guard.getBlockedCode());
+            detail.setBlockedMessage(guard.getBlockedMessage());
+            detail.setWarnings(guard.getWarnings());
+            detail.setGuardItems(guard.getGuardItems());
+            details.add(detail);
+            if (Boolean.TRUE.equals(guard.getBlocked())) {
+                blockedCount++;
+            }
+            if (CollUtil.isNotEmpty(guard.getWarnings())) {
+                warningCount++;
+            }
+        }
+        respVO.setDetails(details);
+        respVO.setTotalCount(details.size());
+        respVO.setBlockedCount(blockedCount);
+        respVO.setWarningCount(warningCount);
+        return respVO;
+    }
+
+    @Override
     public ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         List<String> reasons = new ArrayList<>();
@@ -497,6 +572,9 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         validateLifecycleStatus(reqVO.getLifecycleStatus());
         List<Long> storeIds = normalizeIds(reqVO.getStoreIds());
         String batchNo = buildBatchNo();
+        Map<String, Object> guardConfigSnapshot = buildGuardConfigSnapshot();
+        String guardConfigSnapshotJson = JsonUtils.toJsonString(guardConfigSnapshot);
+        String guardRuleVersion = buildGuardRuleVersion(guardConfigSnapshotJson);
 
         ProductStoreBatchLifecycleExecuteRespVO respVO = new ProductStoreBatchLifecycleExecuteRespVO();
         respVO.setBatchNo(batchNo);
@@ -564,6 +642,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 .blockedCount(respVO.getBlockedCount())
                 .warningCount(respVO.getWarningCount())
                 .auditSummary(buildAuditSummary(respVO))
+                .guardRuleVersion(guardRuleVersion)
+                .guardConfigSnapshotJson(guardConfigSnapshotJson)
                 .detailJson(detailJson)
                 .operator(resolveOperator())
                 .source(SOURCE_ADMIN_UI)
@@ -1041,6 +1121,104 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         return JsonUtils.toJsonString(payload);
     }
 
+    private ProductStoreLifecycleBatchLogDO resolveBatchLog(ProductStoreLifecycleGuardBatchRecheckReqVO reqVO) {
+        if (reqVO == null || (reqVO.getLogId() == null && !StringUtils.hasText(reqVO.getBatchNo()))) {
+            throw exception(STORE_LIFECYCLE_BATCH_LOG_QUERY_REQUIRED);
+        }
+        ProductStoreLifecycleBatchLogDO log = reqVO.getLogId() != null
+                ? lifecycleBatchLogService.getLifecycleBatchLog(reqVO.getLogId())
+                : lifecycleBatchLogService.getLatestLifecycleBatchLogByBatchNo(reqVO.getBatchNo().trim());
+        if (log == null) {
+            throw exception(STORE_LIFECYCLE_BATCH_LOG_NOT_EXISTS);
+        }
+        return log;
+    }
+
+    private StoreIdExtractionResult extractStoreIdsForRecheck(String detailJson) {
+        if (!StringUtils.hasText(detailJson)) {
+            return new StoreIdExtractionResult(Collections.emptyList(), false);
+        }
+        LinkedHashSet<Long> storeIds = new LinkedHashSet<>();
+        Map<String, Object> payload = JsonUtils.parseObjectQuietly(detailJson, new TypeReference<Map<String, Object>>() {});
+        boolean parseError = payload == null;
+        if (payload != null) {
+            Object detailsObj = payload.get("details");
+            if (detailsObj instanceof List) {
+                for (Object item : (List<?>) detailsObj) {
+                    if (!(item instanceof Map)) {
+                        continue;
+                    }
+                    Object storeIdObj = ((Map<?, ?>) item).get("storeId");
+                    Long storeId = toLong(storeIdObj);
+                    if (storeId != null) {
+                        storeIds.add(storeId);
+                    }
+                }
+            }
+            if (!storeIds.isEmpty()) {
+                return new StoreIdExtractionResult(new ArrayList<>(storeIds), parseError);
+            }
+        }
+        Matcher matcher = STORE_ID_PATTERN.matcher(detailJson);
+        while (matcher.find()) {
+            Long id = toLong(matcher.group(1));
+            if (id != null) {
+                storeIds.add(id);
+            }
+        }
+        return new StoreIdExtractionResult(new ArrayList<>(storeIds), parseError);
+    }
+
+    private static Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        String text = String.valueOf(value).trim();
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException ignore) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> buildGuardConfigSnapshot() {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("mappingMode", resolveGuardMode(GUARD_MODE_MAPPING));
+        snapshot.put("stockMode", resolveGuardMode(GUARD_MODE_STOCK));
+        snapshot.put("stockFlowPendingMode", resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_PENDING, GUARD_MODE_STOCK_FLOW));
+        snapshot.put("stockFlowProcessingMode", resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_PROCESSING, GUARD_MODE_STOCK_FLOW));
+        snapshot.put("stockFlowFailedMode", resolveGuardModeWithFallback(GUARD_MODE_STOCK_FLOW_FAILED, GUARD_MODE_STOCK_FLOW));
+        snapshot.put("pendingOrderMode", resolveGuardMode(GUARD_MODE_PENDING_ORDER));
+        snapshot.put("inflightTicketMode", resolveGuardMode(GUARD_MODE_INFLIGHT_TICKET));
+        snapshot.put("generatedAt", LocalDateTime.now());
+        return snapshot;
+    }
+
+    private String buildGuardRuleVersion(String guardConfigSnapshotJson) {
+        String digest = sha256Hex(guardConfigSnapshotJson == null ? "" : guardConfigSnapshotJson);
+        return "GRV-" + digest.substring(0, 12).toUpperCase(Locale.ROOT);
+    }
+
+    private static String sha256Hex(String text) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(text.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
     private static String buildBatchNo() {
         return "LIFECYCLE-" + LocalDateTime.now().format(BATCH_NO_TIME_FORMAT)
                 + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
@@ -1097,6 +1275,25 @@ public class ProductStoreServiceImpl implements ProductStoreService {
 
         public void setBlockedErrorCode(ErrorCode blockedErrorCode) {
             this.blockedErrorCode = blockedErrorCode;
+        }
+    }
+
+    private static final class StoreIdExtractionResult {
+
+        private final List<Long> storeIds;
+        private final boolean parseError;
+
+        private StoreIdExtractionResult(List<Long> storeIds, boolean parseError) {
+            this.storeIds = storeIds;
+            this.parseError = parseError;
+        }
+
+        public List<Long> getStoreIds() {
+            return storeIds;
+        }
+
+        public boolean isParseError() {
+            return parseError;
         }
     }
 }

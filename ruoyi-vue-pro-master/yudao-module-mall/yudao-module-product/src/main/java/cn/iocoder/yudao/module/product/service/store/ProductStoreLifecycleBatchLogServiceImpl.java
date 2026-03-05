@@ -26,4 +26,17 @@ public class ProductStoreLifecycleBatchLogServiceImpl implements ProductStoreLif
     public PageResult<ProductStoreLifecycleBatchLogDO> getLifecycleBatchLogPage(ProductStoreLifecycleBatchLogPageReqVO reqVO) {
         return lifecycleBatchLogMapper.selectPage(reqVO);
     }
+
+    @Override
+    public ProductStoreLifecycleBatchLogDO getLifecycleBatchLog(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return lifecycleBatchLogMapper.selectById(id);
+    }
+
+    @Override
+    public ProductStoreLifecycleBatchLogDO getLatestLifecycleBatchLogByBatchNo(String batchNo) {
+        return lifecycleBatchLogMapper.selectLatestByBatchNo(batchNo);
+    }
 }

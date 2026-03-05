@@ -56,6 +56,14 @@ public class ProductStoreLifecycleBatchLogDO extends BaseDO {
      */
     private String auditSummary;
     /**
+     * 守卫规则版本
+     */
+    private String guardRuleVersion;
+    /**
+     * 守卫配置快照 JSON
+     */
+    private String guardConfigSnapshotJson;
+    /**
      * 明细快照 JSON
      */
     private String detailJson;

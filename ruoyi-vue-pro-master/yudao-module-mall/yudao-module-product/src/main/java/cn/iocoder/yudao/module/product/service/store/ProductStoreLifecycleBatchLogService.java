@@ -9,4 +9,8 @@ public interface ProductStoreLifecycleBatchLogService {
     Long createLifecycleBatchLog(ProductStoreLifecycleBatchLogDO log);
 
     PageResult<ProductStoreLifecycleBatchLogDO> getLifecycleBatchLogPage(ProductStoreLifecycleBatchLogPageReqVO reqVO);
+
+    ProductStoreLifecycleBatchLogDO getLifecycleBatchLog(Long id);
+
+    ProductStoreLifecycleBatchLogDO getLatestLifecycleBatchLogByBatchNo(String batchNo);
 }

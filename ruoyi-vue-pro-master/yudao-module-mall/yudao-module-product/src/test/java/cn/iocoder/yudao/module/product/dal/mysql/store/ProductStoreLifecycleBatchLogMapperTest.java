@@ -76,4 +76,32 @@ class ProductStoreLifecycleBatchLogMapperTest {
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("LIFECYCLE-20260304")));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("运营同学")));
     }
+
+    @Test
+    void selectLatestByBatchNo_shouldBuildBatchNoFilterAndLimit() {
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), ""),
+                ProductStoreLifecycleBatchLogDO.class);
+        LambdaUtils.installCache(tableInfo);
+
+        ProductStoreLifecycleBatchLogMapper mapper = mock(ProductStoreLifecycleBatchLogMapper.class, CALLS_REAL_METHODS);
+        AtomicReference<Wrapper<ProductStoreLifecycleBatchLogDO>> wrapperRef = new AtomicReference<>();
+        ProductStoreLifecycleBatchLogDO expected = ProductStoreLifecycleBatchLogDO.builder().id(1L).build();
+        doAnswer(invocation -> {
+            wrapperRef.set(invocation.getArgument(0));
+            return expected;
+        }).when(mapper).selectOne(org.mockito.ArgumentMatchers.<Wrapper<ProductStoreLifecycleBatchLogDO>>any());
+
+        ProductStoreLifecycleBatchLogDO actual = mapper.selectLatestByBatchNo("LIFECYCLE-20260304");
+
+        assertSame(expected, actual);
+        Wrapper<ProductStoreLifecycleBatchLogDO> wrapper = wrapperRef.get();
+        assertNotNull(wrapper);
+        String sqlSegment = wrapper.getSqlSegment();
+        assertTrue(sqlSegment.contains("batch_no"));
+        assertTrue(sqlSegment.contains("ORDER BY"));
+        assertTrue(sqlSegment.contains("LIMIT 1"));
+        AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
+        assertTrue(abstractWrapper.getParamNameValuePairs().values().contains("LIFECYCLE-20260304"));
+    }
 }

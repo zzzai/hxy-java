@@ -4,6 +4,8 @@ import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleExecuteRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLaunchReadinessRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSaveReqVO;
@@ -54,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -675,10 +678,101 @@ class ProductStoreServiceImplTest {
         verify(lifecycleBatchLogService).createLifecycleBatchLog(logCaptor.capture());
         String detailJson = logCaptor.getValue().getDetailJson();
         assertEquals("ADMIN_UI", logCaptor.getValue().getSource());
+        assertTrue(logCaptor.getValue().getGuardRuleVersion().startsWith("GRV-"));
+        assertTrue(logCaptor.getValue().getGuardConfigSnapshotJson().contains("mappingMode"));
+        assertTrue(logCaptor.getValue().getGuardConfigSnapshotJson().contains("stockFlowFailedMode"));
         assertFalse(detailJson.isEmpty());
         org.junit.jupiter.api.Assertions.assertTrue(detailJson.contains("\"blocked\""));
         org.junit.jupiter.api.Assertions.assertTrue(detailJson.contains("\"warnings\""));
         verify(storeMapper, times(1)).updateById(any(ProductStoreDO.class));
         verifyNoMoreInteractions(lifecycleBatchLogService);
+    }
+
+    @Test
+    void recheckLifecycleGuardByBatch_shouldReturnSummaryWithoutStateMutation() {
+        ProductStoreLifecycleBatchLogDO batchLog = ProductStoreLifecycleBatchLogDO.builder()
+                .id(9001L)
+                .batchNo("LIFECYCLE-20260305000100-ABCD1234")
+                .targetLifecycleStatus(35)
+                .guardRuleVersion("GRV-AAAABBBBCCCC")
+                .guardConfigSnapshotJson("{\"stockMode\":\"BLOCK\"}")
+                .detailJson("{\"details\":[{\"storeId\":3001},{\"storeId\":3002}]}")
+                .build();
+        when(lifecycleBatchLogService.getLifecycleBatchLog(9001L)).thenReturn(batchLog);
+
+        ProductStoreDO blockedStore = ProductStoreDO.builder().id(3001L).name("杭州西湖店").status(1).lifecycleStatus(30).build();
+        ProductStoreDO warnStore = ProductStoreDO.builder().id(3002L).name("苏州工业园店").status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(3001L)).thenReturn(blockedStore);
+        when(storeMapper.selectById(3002L)).thenReturn(warnStore);
+        when(storeMapper.selectBatchIds(Arrays.asList(3001L, 3002L))).thenReturn(Arrays.asList(blockedStore, warnStore));
+        when(storeSpuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(any(Long.class))).thenReturn(0L);
+        doAnswer(invocation -> {
+            Long storeId = invocation.getArgument(0);
+            if (storeId != null && storeId.equals(3001L)) {
+                return 2L; // 阻塞
+            }
+            return 0L;
+        }).when(storeSkuMapper).selectNonZeroStockCountByStoreId(any(Long.class));
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(3001L), any())).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(3002L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(3001L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L));
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(3002L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(3L).setInflightTicketCount(0L));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+        when(configApi.getConfigValueByKey("hxy.store.lifecycle.guard.pending-order.mode")).thenReturn("WARN");
+
+        ProductStoreLifecycleGuardBatchRecheckReqVO reqVO = new ProductStoreLifecycleGuardBatchRecheckReqVO();
+        reqVO.setLogId(9001L);
+        ProductStoreLifecycleGuardBatchRecheckRespVO result = productStoreService.recheckLifecycleGuardByBatch(reqVO);
+
+        assertEquals(9001L, result.getLogId());
+        assertEquals("LIFECYCLE-20260305000100-ABCD1234", result.getBatchNo());
+        assertEquals(2, result.getTotalCount());
+        assertEquals(1, result.getBlockedCount());
+        assertEquals(1, result.getWarningCount());
+        assertFalse(result.getDetailParseError());
+        assertEquals("GRV-AAAABBBBCCCC", result.getGuardRuleVersion());
+        assertEquals(2, result.getDetails().size());
+        assertTrue(result.getDetails().stream().anyMatch(item -> item.getStoreId().equals(3001L) && item.getBlocked()));
+        assertTrue(result.getDetails().stream()
+                .anyMatch(item -> item.getStoreId().equals(3002L) && !item.getBlocked() && item.getWarnings().size() == 1));
+        verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void recheckLifecycleGuardByBatch_shouldDegradeWhenDetailJsonMalformed() {
+        ProductStoreLifecycleBatchLogDO batchLog = ProductStoreLifecycleBatchLogDO.builder()
+                .id(9002L)
+                .batchNo("LIFECYCLE-20260305000200-ABCD1234")
+                .targetLifecycleStatus(35)
+                .detailJson("{\"details\":[{\"storeId\":3101},INVALID]")
+                .build();
+        when(lifecycleBatchLogService.getLatestLifecycleBatchLogByBatchNo("LIFECYCLE-20260305000200-ABCD1234"))
+                .thenReturn(batchLog);
+
+        ProductStoreDO store = ProductStoreDO.builder().id(3101L).name("南京鼓楼店").status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(3101L)).thenReturn(store);
+        when(storeMapper.selectBatchIds(Collections.singletonList(3101L))).thenReturn(Collections.singletonList(store));
+        when(storeSpuMapper.selectCountByStoreId(3101L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(3101L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(3101L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(3101L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(3101L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L));
+        when(configApi.getConfigValueByKey(org.mockito.ArgumentMatchers.anyString())).thenReturn(null);
+
+        ProductStoreLifecycleGuardBatchRecheckReqVO reqVO = new ProductStoreLifecycleGuardBatchRecheckReqVO();
+        reqVO.setBatchNo("LIFECYCLE-20260305000200-ABCD1234");
+        ProductStoreLifecycleGuardBatchRecheckRespVO result = productStoreService.recheckLifecycleGuardByBatch(reqVO);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getBlockedCount());
+        assertEquals(0, result.getWarningCount());
+        assertTrue(result.getDetailParseError());
+        assertEquals(3101L, result.getDetails().get(0).getStoreId());
+        assertFalse(result.getDetails().get(0).getBlocked());
+        assertNull(result.getDetails().get(0).getBlockedCode());
     }
 }
