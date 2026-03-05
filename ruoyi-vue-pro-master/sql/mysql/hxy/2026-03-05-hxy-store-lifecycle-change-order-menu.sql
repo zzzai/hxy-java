@@ -23,20 +23,29 @@ WHERE @store_master_menu_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1
     FROM system_menu
-    WHERE parent_id = @store_master_menu_id
-      AND path = 'store-lifecycle-change-order'
+    WHERE path = 'store-lifecycle-change-order'
       AND deleted = 0
 );
 
-SET @store_lifecycle_change_order_menu_id := (
-    SELECT id
-    FROM system_menu
-    WHERE parent_id = @store_master_menu_id
-      AND path = 'store-lifecycle-change-order'
-      AND deleted = 0
-    ORDER BY id DESC
-    LIMIT 1
-);
+SET @store_lifecycle_change_order_menu_id := COALESCE(
+        (
+            SELECT id
+            FROM system_menu
+            WHERE parent_id = @store_master_menu_id
+              AND path = 'store-lifecycle-change-order'
+              AND deleted = 0
+            ORDER BY id DESC
+            LIMIT 1
+        ),
+        (
+            SELECT id
+            FROM system_menu
+            WHERE path = 'store-lifecycle-change-order'
+              AND deleted = 0
+            ORDER BY id DESC
+            LIMIT 1
+        )
+    );
 
 INSERT INTO system_role_menu (role_id, menu_id, creator, updater, deleted, tenant_id)
 SELECT role_seed.role_id, @store_lifecycle_change_order_menu_id, '1', '1', b'0', @tenant_id
