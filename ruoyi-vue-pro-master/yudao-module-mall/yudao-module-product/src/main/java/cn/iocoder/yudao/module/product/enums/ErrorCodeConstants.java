@@ -110,6 +110,10 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_LIFECYCLE_BATCH_LOG_NOT_EXISTS = new ErrorCode(1_008_014_008, "门店生命周期批次台账不存在");
     ErrorCode STORE_LIFECYCLE_BATCH_LOG_QUERY_REQUIRED = new ErrorCode(1_008_014_009, "批次复核入参错误：logId 或 batchNo 至少传一个");
     ErrorCode STORE_LIFECYCLE_RECHECK_LOG_NOT_EXISTS = new ErrorCode(1_008_014_010, "门店生命周期复核台账不存在");
+    ErrorCode STORE_LIFECYCLE_CHANGE_ORDER_NOT_EXISTS = new ErrorCode(1_008_014_011, "门店生命周期变更单不存在");
+    ErrorCode STORE_LIFECYCLE_CHANGE_ORDER_STATUS_INVALID = new ErrorCode(1_008_014_012, "门店生命周期变更单状态非法：当前 {}，期望 {}");
+    ErrorCode STORE_LIFECYCLE_CHANGE_ORDER_GUARD_BLOCKED = new ErrorCode(1_008_014_013, "门店生命周期变更单守卫阻塞，无法审批通过");
+    ErrorCode STORE_LIFECYCLE_CHANGE_ORDER_FROM_STATUS_CHANGED = new ErrorCode(1_008_014_014, "门店当前生命周期已变化，请刷新后重新创建变更单");
 
     // ========== 类目模板与 SKU 生成 1-008-015-000 ==========
     ErrorCode CATEGORY_TEMPLATE_NOT_EXISTS = new ErrorCode(1_008_015_000, "类目模板不存在");

@@ -737,3 +737,16 @@
 - 备选方案：将查询态接口直接改为每次都落账。
 - 否决原因：会放大高频探查请求写放大，且难区分“预览探查”与“正式复核”操作。
 - 回滚条件：若台账写入压力异常，可短期将 execute 落账降为异步写入；保留查询态与执行态接口分离。
+
+## ADR-081：门店生命周期迁移采用“变更单审批 + 审批时二次复核”双门禁
+
+- 背景：现有 `update-lifecycle` 直改状态虽然可用，但缺少“申请-审批-执行”审计链路；在门店状态、库存、在途单据高频变化时，单次预检结果容易在审批时点失效。
+- 决策：
+  1) 新增生命周期变更单主表 `hxy_store_lifecycle_change_order` 与状态机 `DRAFT -> PENDING -> APPROVED/REJECTED/CANCELLED`；
+  2) `submit` 强制复用现有生命周期守卫，仅固化 `guardSnapshotJson/guardBlocked/guardWarnings`，不改门店状态；
+  3) `approve` 强制二次复核守卫并校验 `fromLifecycleStatus` 未漂移，只有复核通过才调用既有 `updateStoreLifecycle` 执行迁移；
+  4) `reject/cancel` 仅变更单状态流转，不触发生命周期迁移。
+- 影响范围：`product` 门店生命周期管理接口、审计追溯链路、门店停业/闭店审批流程一致性。
+- 备选方案：仅保留单次预检（submit）结果，approve 直接执行迁移不复核。
+- 否决原因：会在审批时点引入“预检通过但执行失败”的漂移风险，且无法保证审批动作与执行门禁口径一致。
+- 回滚条件：若审批链路上线初期影响时效，可临时允许低风险状态（如 `SUSPENDED -> OPERATING`）走快速通道，但仍需保留变更单台账。

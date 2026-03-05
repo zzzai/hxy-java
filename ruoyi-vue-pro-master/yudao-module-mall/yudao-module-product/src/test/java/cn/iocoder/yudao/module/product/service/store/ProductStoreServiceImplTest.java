@@ -4,6 +4,9 @@ import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.infra.api.config.ConfigApi;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleExecuteRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBatchLifecycleReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardRespVO;
@@ -13,12 +16,14 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreAuditLog
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreCategoryDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleChangeOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleRecheckLogDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagGroupDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagRelDO;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreAuditLogMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreCategoryMapper;
+import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreLifecycleChangeOrderMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSkuStockFlowMapper;
@@ -26,6 +31,7 @@ import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreSpuMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagGroupMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagMapper;
 import cn.iocoder.yudao.module.product.dal.mysql.store.ProductStoreTagRelMapper;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreLifecycleChangeOrderStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleBatchLogService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleRecheckLogService;
@@ -42,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_CATEGORY_NOT_EXISTS;
@@ -50,6 +57,9 @@ import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIF
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_STOCK_FLOW;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_PENDING_ORDER;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CHANGE_ORDER_FROM_STATUS_CHANGED;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CHANGE_ORDER_GUARD_BLOCKED;
+import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_CHANGE_ORDER_STATUS_INVALID;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_REASON_REQUIRED;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_LIFECYCLE_TRANSITION_NOT_ALLOWED;
 import static cn.iocoder.yudao.module.product.enums.ErrorCodeConstants.STORE_TAG_GROUP_MUTEX_CONFLICT;
@@ -98,6 +108,8 @@ class ProductStoreServiceImplTest {
     private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
     @Mock
     private ProductStoreLifecycleRecheckLogService lifecycleRecheckLogService;
+    @Mock
+    private ProductStoreLifecycleChangeOrderMapper lifecycleChangeOrderMapper;
 
     @InjectMocks
     private ProductStoreServiceImpl productStoreService;
@@ -832,5 +844,198 @@ class ProductStoreServiceImplTest {
         assertFalse(logCaptor.getValue().getDetailParseError());
         assertTrue(logCaptor.getValue().getDetailJson().contains("\"details\""));
         verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void createLifecycleChangeOrder_shouldPersistDraftOrder() {
+        ProductStoreLifecycleChangeOrderCreateReqVO reqVO = new ProductStoreLifecycleChangeOrderCreateReqVO();
+        reqVO.setStoreId(4001L);
+        reqVO.setToLifecycleStatus(35);
+        reqVO.setReason("临时停业巡检");
+        reqVO.setApplySource("admin_ui");
+        ProductStoreDO store = ProductStoreDO.builder().id(4001L).name("上海徐汇店").status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(4001L)).thenReturn(store);
+        doAnswer(invocation -> {
+            ProductStoreLifecycleChangeOrderDO order = invocation.getArgument(0);
+            order.setId(701L);
+            return 1;
+        }).when(lifecycleChangeOrderMapper).insert(any(ProductStoreLifecycleChangeOrderDO.class));
+
+        Long id = productStoreService.createLifecycleChangeOrder(reqVO);
+
+        assertEquals(701L, id);
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper).insert(captor.capture());
+        ProductStoreLifecycleChangeOrderDO order = captor.getValue();
+        assertTrue(order.getOrderNo().startsWith("LCO-"));
+        assertEquals(4001L, order.getStoreId());
+        assertEquals(30, order.getFromLifecycleStatus());
+        assertEquals(35, order.getToLifecycleStatus());
+        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus(), order.getStatus());
+        assertEquals("ADMIN_UI", order.getApplySource());
+        assertEquals(false, order.getGuardBlocked());
+    }
+
+    @Test
+    void submitLifecycleChangeOrder_shouldPrecheckGuardAndMoveToPendingWithoutStoreMutation() {
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(702L)
+                .storeId(4002L)
+                .fromLifecycleStatus(30)
+                .toLifecycleStatus(35)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(702L)).thenReturn(order);
+        ProductStoreDO store = ProductStoreDO.builder().id(4002L).name("杭州西湖店").status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(4002L)).thenReturn(store, store, store);
+        when(storeSpuMapper.selectCountByStoreId(4002L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(4002L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(4002L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(4002L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(4002L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L));
+
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(702L);
+        productStoreService.submitLifecycleChangeOrder(reqVO);
+
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper).updateById(captor.capture());
+        ProductStoreLifecycleChangeOrderDO updated = captor.getValue();
+        assertEquals(702L, updated.getId());
+        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus(), updated.getStatus());
+        assertEquals(false, updated.getGuardBlocked());
+        assertTrue(updated.getGuardSnapshotJson().contains("\"guardItems\""));
+        verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void approveLifecycleChangeOrder_shouldRecheckAndMigrateStoreWhenGuardPasses() {
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(703L)
+                .storeId(4003L)
+                .fromLifecycleStatus(30)
+                .toLifecycleStatus(35)
+                .reason("临时停业整备")
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(703L)).thenReturn(order);
+        ProductStoreDO storeBefore = ProductStoreDO.builder().id(4003L).name("苏州园区店").status(1).lifecycleStatus(30).build();
+        ProductStoreDO storeAfter = ProductStoreDO.builder().id(4003L).name("苏州园区店").status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(4003L)).thenReturn(storeBefore, storeBefore, storeBefore, storeAfter);
+        when(storeSpuMapper.selectCountByStoreId(4003L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(4003L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(4003L)).thenReturn(0L);
+        when(storeSkuStockFlowMapper.selectCountByStoreIdAndStatuses(eq(4003L), any())).thenReturn(0L);
+        when(tradeStoreLifecycleGuardApi.getStoreLifecycleGuardStat(4003L))
+                .thenReturn(new TradeStoreLifecycleGuardStatRespDTO().setPendingOrderCount(0L).setInflightTicketCount(0L));
+
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(703L);
+        reqVO.setRemark("审批通过");
+        productStoreService.approveLifecycleChangeOrder(reqVO);
+
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper, times(2)).updateById(captor.capture());
+        List<ProductStoreLifecycleChangeOrderDO> updates = captor.getAllValues();
+        assertTrue(updates.get(0).getGuardSnapshotJson().contains("\"guardItems\""));
+        assertEquals(false, updates.get(0).getGuardBlocked());
+        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus(), updates.get(1).getStatus());
+        assertEquals("审批通过", updates.get(1).getApproveRemark());
+        assertTrue(updates.get(1).getApproveTime().isBefore(LocalDateTime.now().plusSeconds(1)));
+        verify(storeMapper, times(1)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void approveLifecycleChangeOrder_shouldThrowWhenGuardBlocked() {
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(704L)
+                .storeId(4004L)
+                .fromLifecycleStatus(30)
+                .toLifecycleStatus(35)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(704L)).thenReturn(order);
+        ProductStoreDO store = ProductStoreDO.builder().id(4004L).status(1).lifecycleStatus(30).build();
+        when(storeMapper.selectById(4004L)).thenReturn(store, store);
+        when(storeSpuMapper.selectCountByStoreId(4004L)).thenReturn(0L);
+        when(storeSkuMapper.selectCountByStoreId(4004L)).thenReturn(0L);
+        when(storeSkuMapper.selectNonZeroStockCountByStoreId(4004L)).thenReturn(2L);
+
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(704L);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.approveLifecycleChangeOrder(reqVO));
+
+        assertEquals(STORE_LIFECYCLE_CHANGE_ORDER_GUARD_BLOCKED.getCode(), ex.getCode());
+        verify(lifecycleChangeOrderMapper, times(1)).updateById(any(ProductStoreLifecycleChangeOrderDO.class));
+        verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+    }
+
+    @Test
+    void rejectAndCancelLifecycleChangeOrder_shouldRespectStateMachine() {
+        ProductStoreLifecycleChangeOrderDO pendingOrder = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(705L)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(705L)).thenReturn(pendingOrder);
+
+        ProductStoreLifecycleChangeOrderActionReqVO rejectReq = new ProductStoreLifecycleChangeOrderActionReqVO();
+        rejectReq.setId(705L);
+        rejectReq.setRemark("条件不满足");
+        productStoreService.rejectLifecycleChangeOrder(rejectReq);
+
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> rejectCaptor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper).updateById(rejectCaptor.capture());
+        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.REJECTED.getStatus(), rejectCaptor.getValue().getStatus());
+        assertEquals("条件不满足", rejectCaptor.getValue().getApproveRemark());
+        verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
+
+        ProductStoreLifecycleChangeOrderDO approvedOrder = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(706L)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(706L)).thenReturn(approvedOrder);
+        ProductStoreLifecycleChangeOrderActionReqVO cancelReq = new ProductStoreLifecycleChangeOrderActionReqVO();
+        cancelReq.setId(706L);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.cancelLifecycleChangeOrder(cancelReq));
+        assertEquals(STORE_LIFECYCLE_CHANGE_ORDER_STATUS_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void submitLifecycleChangeOrder_shouldThrowWhenStoreLifecycleChanged() {
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(707L)
+                .storeId(4005L)
+                .fromLifecycleStatus(30)
+                .toLifecycleStatus(35)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectById(707L)).thenReturn(order);
+        ProductStoreDO store = ProductStoreDO.builder().id(4005L).status(1).lifecycleStatus(35).build();
+        when(storeMapper.selectById(4005L)).thenReturn(store);
+
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(707L);
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> productStoreService.submitLifecycleChangeOrder(reqVO));
+
+        assertEquals(STORE_LIFECYCLE_CHANGE_ORDER_FROM_STATUS_CHANGED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void lifecycleChangeOrderPage_shouldDelegateMapper() {
+        ProductStoreLifecycleChangeOrderPageReqVO reqVO = new ProductStoreLifecycleChangeOrderPageReqVO();
+        reqVO.setOrderNo("LCO-20260305");
+        when(lifecycleChangeOrderMapper.selectPage(reqVO))
+                .thenReturn(new cn.iocoder.yudao.framework.common.pojo.PageResult<>(Collections.emptyList(), 0L));
+
+        assertEquals(0L, productStoreService.getLifecycleChangeOrderPage(reqVO).getTotal());
+        verify(lifecycleChangeOrderMapper).selectPage(reqVO);
     }
 }

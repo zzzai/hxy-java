@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.product.service.store;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.*;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreCategoryDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleChangeOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreTagGroupDO;
@@ -70,6 +71,21 @@ public interface ProductStoreService {
 
     ProductStoreLifecycleGuardBatchRecheckRespVO executeLifecycleGuardRecheckByBatch(
             @Valid ProductStoreLifecycleGuardBatchRecheckReqVO reqVO);
+
+    Long createLifecycleChangeOrder(@Valid ProductStoreLifecycleChangeOrderCreateReqVO reqVO);
+
+    void submitLifecycleChangeOrder(@Valid ProductStoreLifecycleChangeOrderActionReqVO reqVO);
+
+    void approveLifecycleChangeOrder(@Valid ProductStoreLifecycleChangeOrderActionReqVO reqVO);
+
+    void rejectLifecycleChangeOrder(@Valid ProductStoreLifecycleChangeOrderActionReqVO reqVO);
+
+    void cancelLifecycleChangeOrder(@Valid ProductStoreLifecycleChangeOrderActionReqVO reqVO);
+
+    ProductStoreLifecycleChangeOrderDO getLifecycleChangeOrder(Long id);
+
+    PageResult<ProductStoreLifecycleChangeOrderDO> getLifecycleChangeOrderPage(
+            ProductStoreLifecycleChangeOrderPageReqVO reqVO);
 
     ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id);
 

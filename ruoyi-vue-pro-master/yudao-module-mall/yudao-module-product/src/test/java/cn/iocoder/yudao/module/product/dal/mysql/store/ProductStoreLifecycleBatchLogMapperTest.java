@@ -3,8 +3,10 @@ package cn.iocoder.yudao.module.product.dal.mysql.store;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleBatchLogPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogPageReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleChangeOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleRecheckLogDO;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
@@ -158,5 +160,61 @@ class ProductStoreLifecycleBatchLogMapperTest {
         assertTrue(params.values().contains(end));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("RECHECK-20260305")));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("LIFECYCLE-20260305")));
+    }
+
+    @Test
+    void changeOrderSelectPage_shouldBuildFiltersWhenReqFieldsPresent() {
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), ""),
+                ProductStoreLifecycleChangeOrderDO.class);
+        LambdaUtils.installCache(tableInfo);
+
+        ProductStoreLifecycleChangeOrderMapper mapper =
+                mock(ProductStoreLifecycleChangeOrderMapper.class, CALLS_REAL_METHODS);
+        AtomicReference<Wrapper<ProductStoreLifecycleChangeOrderDO>> wrapperRef = new AtomicReference<>();
+        PageResult<ProductStoreLifecycleChangeOrderDO> expected = new PageResult<>(Collections.emptyList(), 0L);
+        doAnswer(invocation -> {
+            wrapperRef.set(invocation.getArgument(1));
+            return expected;
+        }).when(mapper).selectPage(any(PageParam.class),
+                org.mockito.ArgumentMatchers.<Wrapper<ProductStoreLifecycleChangeOrderDO>>any());
+
+        LocalDateTime begin = LocalDateTime.of(2026, 3, 5, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 3, 5, 23, 59, 59);
+        ProductStoreLifecycleChangeOrderPageReqVO reqVO = new ProductStoreLifecycleChangeOrderPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setOrderNo("LCO-20260305");
+        reqVO.setStoreId(2001L);
+        reqVO.setStatus(10);
+        reqVO.setFromLifecycleStatus(30);
+        reqVO.setToLifecycleStatus(35);
+        reqVO.setApplyOperator("运营同学");
+        reqVO.setCreateTime(new LocalDateTime[]{begin, end});
+
+        PageResult<ProductStoreLifecycleChangeOrderDO> actual = mapper.selectPage(reqVO);
+
+        assertSame(expected, actual);
+        Wrapper<ProductStoreLifecycleChangeOrderDO> wrapper = wrapperRef.get();
+        assertNotNull(wrapper);
+        String sqlSegment = wrapper.getSqlSegment();
+        assertTrue(sqlSegment.contains("order_no"));
+        assertTrue(sqlSegment.contains("store_id"));
+        assertTrue(sqlSegment.contains("status"));
+        assertTrue(sqlSegment.contains("from_lifecycle_status"));
+        assertTrue(sqlSegment.contains("to_lifecycle_status"));
+        assertTrue(sqlSegment.contains("apply_operator"));
+        assertTrue(sqlSegment.contains("create_time"));
+
+        AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
+        Map<String, Object> params = abstractWrapper.getParamNameValuePairs();
+        assertTrue(params.values().contains(2001L));
+        assertTrue(params.values().contains(10));
+        assertTrue(params.values().contains(30));
+        assertTrue(params.values().contains(35));
+        assertTrue(params.values().contains(begin));
+        assertTrue(params.values().contains(end));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("LCO-20260305")));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("运营同学")));
     }
 }

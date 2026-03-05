@@ -7,12 +7,17 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreBat
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleBatchLogGetRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleBatchLogPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleBatchLogRespVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogGetRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleChangeOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleRecheckLogDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleBatchLogService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleRecheckLogService;
@@ -198,6 +203,130 @@ class ProductStoreControllerTest {
         assertEquals("RECHECK-20260305152000-ABCD1234", result.getData().getRecheckNo());
         assertEquals(2, result.getData().getTotalCount());
         verify(productStoreService).executeLifecycleGuardRecheckByBatch(any(ProductStoreLifecycleGuardBatchRecheckReqVO.class));
+    }
+
+    @Test
+    void createLifecycleChangeOrder_shouldReturnId() {
+        ProductStoreLifecycleChangeOrderCreateReqVO reqVO = new ProductStoreLifecycleChangeOrderCreateReqVO();
+        reqVO.setStoreId(1001L);
+        reqVO.setToLifecycleStatus(35);
+        reqVO.setReason("临时停业");
+        reqVO.setApplySource("ADMIN_UI");
+        when(productStoreService.createLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderCreateReqVO.class)))
+                .thenReturn(11L);
+
+        CommonResult<Long> result = productStoreController.createLifecycleChangeOrder(reqVO);
+
+        assertEquals(11L, result.getData());
+        verify(productStoreService).createLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderCreateReqVO.class));
+    }
+
+    @Test
+    void submitLifecycleChangeOrder_shouldInvokeService() {
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(11L);
+
+        CommonResult<Boolean> result = productStoreController.submitLifecycleChangeOrder(reqVO);
+
+        assertEquals(true, result.getData());
+        verify(productStoreService).submitLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderActionReqVO.class));
+    }
+
+    @Test
+    void approveLifecycleChangeOrder_shouldInvokeService() {
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(11L);
+        reqVO.setRemark("审批通过");
+
+        CommonResult<Boolean> result = productStoreController.approveLifecycleChangeOrder(reqVO);
+
+        assertEquals(true, result.getData());
+        verify(productStoreService).approveLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderActionReqVO.class));
+    }
+
+    @Test
+    void rejectLifecycleChangeOrder_shouldInvokeService() {
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(11L);
+        reqVO.setRemark("库存未清");
+
+        CommonResult<Boolean> result = productStoreController.rejectLifecycleChangeOrder(reqVO);
+
+        assertEquals(true, result.getData());
+        verify(productStoreService).rejectLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderActionReqVO.class));
+    }
+
+    @Test
+    void cancelLifecycleChangeOrder_shouldInvokeService() {
+        ProductStoreLifecycleChangeOrderActionReqVO reqVO = new ProductStoreLifecycleChangeOrderActionReqVO();
+        reqVO.setId(11L);
+        reqVO.setRemark("申请人撤回");
+
+        CommonResult<Boolean> result = productStoreController.cancelLifecycleChangeOrder(reqVO);
+
+        assertEquals(true, result.getData());
+        verify(productStoreService).cancelLifecycleChangeOrder(any(ProductStoreLifecycleChangeOrderActionReqVO.class));
+    }
+
+    @Test
+    void pageLifecycleChangeOrder_shouldPassFiltersAndMapResponse() {
+        ProductStoreLifecycleChangeOrderPageReqVO reqVO = new ProductStoreLifecycleChangeOrderPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setOrderNo("LCO-20260305");
+        reqVO.setStoreId(1001L);
+        reqVO.setStatus(10);
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(11L)
+                .orderNo("LCO-20260305101010-ABCD1234")
+                .storeId(1001L)
+                .storeName("上海徐汇店")
+                .fromLifecycleStatus(30)
+                .toLifecycleStatus(35)
+                .reason("临时停业")
+                .applyOperator("运营同学")
+                .applySource("ADMIN_UI")
+                .status(10)
+                .guardBlocked(false)
+                .guardWarnings("pending-order")
+                .build();
+        when(productStoreService.getLifecycleChangeOrderPage(any(ProductStoreLifecycleChangeOrderPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.singletonList(order), 1L));
+
+        CommonResult<PageResult<ProductStoreLifecycleChangeOrderRespVO>> result =
+                productStoreController.pageLifecycleChangeOrder(reqVO);
+
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals("LCO-20260305101010-ABCD1234", result.getData().getList().get(0).getOrderNo());
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderPageReqVO> reqCaptor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderPageReqVO.class);
+        verify(productStoreService).getLifecycleChangeOrderPage(reqCaptor.capture());
+        assertEquals("LCO-20260305", reqCaptor.getValue().getOrderNo());
+        assertEquals(1001L, reqCaptor.getValue().getStoreId());
+        assertEquals(10, reqCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void getLifecycleChangeOrder_shouldReturnOrder() {
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(12L)
+                .orderNo("LCO-20260305112233-ABCD1234")
+                .storeId(1002L)
+                .storeName("杭州西湖店")
+                .fromLifecycleStatus(35)
+                .toLifecycleStatus(30)
+                .status(20)
+                .approveOperator("审批同学")
+                .build();
+        when(productStoreService.getLifecycleChangeOrder(12L)).thenReturn(order);
+
+        CommonResult<ProductStoreLifecycleChangeOrderRespVO> result =
+                productStoreController.getLifecycleChangeOrder(12L);
+
+        assertEquals(12L, result.getData().getId());
+        assertEquals("LCO-20260305112233-ABCD1234", result.getData().getOrderNo());
+        assertEquals(20, result.getData().getStatus());
+        verify(productStoreService).getLifecycleChangeOrder(12L);
     }
 
     @Test

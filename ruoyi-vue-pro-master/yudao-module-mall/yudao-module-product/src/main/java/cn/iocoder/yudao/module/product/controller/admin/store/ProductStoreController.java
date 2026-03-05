@@ -137,6 +137,67 @@ public class ProductStoreController {
         return success(storeService.executeLifecycleGuardRecheckByBatch(reqVO));
     }
 
+    @PostMapping("/lifecycle-change-order/create")
+    @Operation(summary = "创建门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:update')")
+    public CommonResult<Long> createLifecycleChangeOrder(
+            @Valid @RequestBody ProductStoreLifecycleChangeOrderCreateReqVO reqVO) {
+        return success(storeService.createLifecycleChangeOrder(reqVO));
+    }
+
+    @PostMapping("/lifecycle-change-order/submit")
+    @Operation(summary = "提交门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:update')")
+    public CommonResult<Boolean> submitLifecycleChangeOrder(
+            @Valid @RequestBody ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        storeService.submitLifecycleChangeOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/lifecycle-change-order/approve")
+    @Operation(summary = "审批通过门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:update')")
+    public CommonResult<Boolean> approveLifecycleChangeOrder(
+            @Valid @RequestBody ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        storeService.approveLifecycleChangeOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/lifecycle-change-order/reject")
+    @Operation(summary = "驳回门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:update')")
+    public CommonResult<Boolean> rejectLifecycleChangeOrder(
+            @Valid @RequestBody ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        storeService.rejectLifecycleChangeOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/lifecycle-change-order/cancel")
+    @Operation(summary = "取消门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:update')")
+    public CommonResult<Boolean> cancelLifecycleChangeOrder(
+            @Valid @RequestBody ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        storeService.cancelLifecycleChangeOrder(reqVO);
+        return success(true);
+    }
+
+    @GetMapping("/lifecycle-change-order/get")
+    @Operation(summary = "获得门店生命周期变更单")
+    @Parameter(name = "id", description = "编号", required = true, example = "1001")
+    @PreAuthorize("@ss.hasPermission('product:store:query')")
+    public CommonResult<ProductStoreLifecycleChangeOrderRespVO> getLifecycleChangeOrder(@RequestParam("id") Long id) {
+        return success(BeanUtils.toBean(storeService.getLifecycleChangeOrder(id), ProductStoreLifecycleChangeOrderRespVO.class));
+    }
+
+    @GetMapping("/lifecycle-change-order/page")
+    @Operation(summary = "分页查询门店生命周期变更单")
+    @PreAuthorize("@ss.hasPermission('product:store:query')")
+    public CommonResult<PageResult<ProductStoreLifecycleChangeOrderRespVO>> pageLifecycleChangeOrder(
+            @Valid ProductStoreLifecycleChangeOrderPageReqVO reqVO) {
+        return success(BeanUtils.toBean(storeService.getLifecycleChangeOrderPage(reqVO),
+                ProductStoreLifecycleChangeOrderRespVO.class));
+    }
+
     @GetMapping("/check-launch-readiness")
     @Operation(summary = "检查门店上线门禁")
     @Parameter(name = "id", description = "门店编号", required = true, example = "1001")

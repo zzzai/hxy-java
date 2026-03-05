@@ -11,6 +11,7 @@ import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.*;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.*;
 import cn.iocoder.yudao.module.product.dal.mysql.store.*;
+import cn.iocoder.yudao.module.product.enums.store.ProductStoreLifecycleChangeOrderStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreLifecycleStatusEnum;
 import cn.iocoder.yudao.module.product.enums.store.ProductStoreSkuStockFlowStatusEnum;
 import cn.iocoder.yudao.module.trade.api.store.TradeStoreLifecycleGuardApi;
@@ -62,6 +63,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String SOURCE_ADMIN_UI = "ADMIN_UI";
     private static final DateTimeFormatter BATCH_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final DateTimeFormatter RECHECK_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter CHANGE_ORDER_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final Pattern STORE_ID_PATTERN = Pattern.compile("\"storeId\"\\s*:\\s*(\\d+)");
 
     @Resource
@@ -90,6 +92,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
     @Resource
     private ProductStoreLifecycleRecheckLogService lifecycleRecheckLogService;
+    @Resource
+    private ProductStoreLifecycleChangeOrderMapper lifecycleChangeOrderMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -459,6 +463,129 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createLifecycleChangeOrder(ProductStoreLifecycleChangeOrderCreateReqVO reqVO) {
+        ProductStoreDO store = validateStoreExistsAndGet(reqVO.getStoreId());
+        validateLifecycleStatus(reqVO.getToLifecycleStatus());
+        validateLifecycleTransition(store, reqVO.getToLifecycleStatus());
+        validateLifecycleReasonRequired(reqVO.getToLifecycleStatus(), reqVO.getReason());
+        ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
+                .orderNo(buildChangeOrderNo())
+                .storeId(store.getId())
+                .storeName(store.getName())
+                .fromLifecycleStatus(store.getLifecycleStatus())
+                .toLifecycleStatus(reqVO.getToLifecycleStatus())
+                .reason(reqVO.getReason())
+                .applyOperator(resolveOperator())
+                .applySource(resolveApplySource(reqVO.getApplySource()))
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus())
+                .guardBlocked(Boolean.FALSE)
+                .guardWarnings("")
+                .guardSnapshotJson("")
+                .build();
+        lifecycleChangeOrderMapper.insert(order);
+        return order.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void submitLifecycleChangeOrder(ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        ProductStoreLifecycleChangeOrderDO order = validateLifecycleChangeOrderStatus(
+                reqVO.getId(), ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus());
+        ProductStoreDO store = validateStoreExistsAndGet(order.getStoreId());
+        validateLifecycleChangeOrderFromStatus(store, order.getFromLifecycleStatus());
+        ProductStoreLifecycleGuardRespVO guardResp = getLifecycleGuard(order.getStoreId(), order.getToLifecycleStatus());
+        ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .guardSnapshotJson(buildLifecycleChangeOrderGuardSnapshot(order, guardResp))
+                .guardBlocked(Boolean.TRUE.equals(guardResp.getBlocked()))
+                .guardWarnings(buildGuardWarningText(guardResp.getWarnings()))
+                .build();
+        lifecycleChangeOrderMapper.updateById(updateObj);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void approveLifecycleChangeOrder(ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        ProductStoreLifecycleChangeOrderDO order = validateLifecycleChangeOrderStatus(
+                reqVO.getId(), ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
+        ProductStoreDO store = validateStoreExistsAndGet(order.getStoreId());
+        validateLifecycleChangeOrderFromStatus(store, order.getFromLifecycleStatus());
+        ProductStoreLifecycleGuardRespVO guardResp = getLifecycleGuard(order.getStoreId(), order.getToLifecycleStatus());
+        ProductStoreLifecycleChangeOrderDO guardUpdate = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(order.getId())
+                .guardSnapshotJson(buildLifecycleChangeOrderGuardSnapshot(order, guardResp))
+                .guardBlocked(Boolean.TRUE.equals(guardResp.getBlocked()))
+                .guardWarnings(buildGuardWarningText(guardResp.getWarnings()))
+                .build();
+        lifecycleChangeOrderMapper.updateById(guardUpdate);
+        if (Boolean.TRUE.equals(guardResp.getBlocked())) {
+            throw exception(STORE_LIFECYCLE_CHANGE_ORDER_GUARD_BLOCKED);
+        }
+        updateStoreLifecycle(order.getStoreId(), order.getToLifecycleStatus(), order.getReason());
+        ProductStoreLifecycleChangeOrderDO approveUpdate = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus())
+                .approveOperator(resolveOperator())
+                .approveRemark(reqVO.getRemark())
+                .approveTime(LocalDateTime.now())
+                .build();
+        lifecycleChangeOrderMapper.updateById(approveUpdate);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectLifecycleChangeOrder(ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        ProductStoreLifecycleChangeOrderDO order = validateLifecycleChangeOrderStatus(
+                reqVO.getId(), ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
+        ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.REJECTED.getStatus())
+                .approveOperator(resolveOperator())
+                .approveRemark(reqVO.getRemark())
+                .approveTime(LocalDateTime.now())
+                .build();
+        lifecycleChangeOrderMapper.updateById(updateObj);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelLifecycleChangeOrder(ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
+        ProductStoreLifecycleChangeOrderDO order = getLifecycleChangeOrder(reqVO.getId());
+        Integer status = order.getStatus();
+        if (!Objects.equals(status, ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus())
+                && !Objects.equals(status, ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())) {
+            throw exception(STORE_LIFECYCLE_CHANGE_ORDER_STATUS_INVALID, status,
+                    ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus() + "/"
+                            + ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
+        }
+        ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(order.getId())
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.CANCELLED.getStatus())
+                .approveOperator(resolveOperator())
+                .approveRemark(reqVO.getRemark())
+                .approveTime(LocalDateTime.now())
+                .build();
+        lifecycleChangeOrderMapper.updateById(updateObj);
+    }
+
+    @Override
+    public ProductStoreLifecycleChangeOrderDO getLifecycleChangeOrder(Long id) {
+        ProductStoreLifecycleChangeOrderDO order = lifecycleChangeOrderMapper.selectById(id);
+        if (order == null) {
+            throw exception(STORE_LIFECYCLE_CHANGE_ORDER_NOT_EXISTS);
+        }
+        return order;
+    }
+
+    @Override
+    public PageResult<ProductStoreLifecycleChangeOrderDO> getLifecycleChangeOrderPage(
+            ProductStoreLifecycleChangeOrderPageReqVO reqVO) {
+        return lifecycleChangeOrderMapper.selectPage(reqVO);
+    }
+
+    @Override
     public ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id) {
         ProductStoreDO store = validateStoreExistsAndGet(id);
         List<String> reasons = new ArrayList<>();
@@ -620,6 +747,43 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 .build();
         lifecycleBatchLogService.createLifecycleBatchLog(batchLog);
         return respVO;
+    }
+
+    private String buildLifecycleChangeOrderGuardSnapshot(ProductStoreLifecycleChangeOrderDO order,
+                                                          ProductStoreLifecycleGuardRespVO guardResp) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("storeId", order.getStoreId());
+        snapshot.put("fromLifecycleStatus", order.getFromLifecycleStatus());
+        snapshot.put("toLifecycleStatus", order.getToLifecycleStatus());
+        snapshot.put("blocked", guardResp.getBlocked());
+        snapshot.put("blockedCode", guardResp.getBlockedCode());
+        snapshot.put("blockedMessage", guardResp.getBlockedMessage());
+        snapshot.put("warnings", Optional.ofNullable(guardResp.getWarnings()).orElse(Collections.emptyList()));
+        snapshot.put("guardItems", Optional.ofNullable(guardResp.getGuardItems()).orElse(Collections.emptyList()));
+        snapshot.put("guardConfigSnapshot", buildGuardConfigSnapshot());
+        snapshot.put("checkedAt", LocalDateTime.now());
+        return JsonUtils.toJsonString(snapshot);
+    }
+
+    private String resolveApplySource(String applySource) {
+        if (!StringUtils.hasText(applySource)) {
+            return SOURCE_ADMIN_UI;
+        }
+        return applySource.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private ProductStoreLifecycleChangeOrderDO validateLifecycleChangeOrderStatus(Long id, Integer expectStatus) {
+        ProductStoreLifecycleChangeOrderDO order = getLifecycleChangeOrder(id);
+        if (!Objects.equals(order.getStatus(), expectStatus)) {
+            throw exception(STORE_LIFECYCLE_CHANGE_ORDER_STATUS_INVALID, order.getStatus(), expectStatus);
+        }
+        return order;
+    }
+
+    private void validateLifecycleChangeOrderFromStatus(ProductStoreDO store, Integer expectFromLifecycleStatus) {
+        if (!Objects.equals(store.getLifecycleStatus(), expectFromLifecycleStatus)) {
+            throw exception(STORE_LIFECYCLE_CHANGE_ORDER_FROM_STATUS_CHANGED);
+        }
     }
 
     private String buildGuardWarningText(List<String> warnings) {
@@ -1261,6 +1425,11 @@ public class ProductStoreServiceImpl implements ProductStoreService {
 
     private static String buildRecheckNo() {
         return "RECHECK-" + LocalDateTime.now().format(RECHECK_NO_TIME_FORMAT)
+                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private static String buildChangeOrderNo() {
+        return "LCO-" + LocalDateTime.now().format(CHANGE_ORDER_NO_TIME_FORMAT)
                 + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
