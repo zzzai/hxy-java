@@ -73,6 +73,10 @@
           <Icon class="mr-5px" icon="ep:back" />
           返回批次台账
         </el-button>
+        <el-button plain type="warning" @click="goChangeOrder()">
+          <Icon class="mr-5px" icon="ep:tickets" />
+          变更单审批
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -573,6 +577,10 @@ const goBatchLog = (row?: LifecycleRecheckLogApi.StoreLifecycleRecheckLogItem) =
         }
       : undefined
   })
+}
+
+const goChangeOrder = () => {
+  router.push('/mall/product/store-master/store-lifecycle-change-order')
 }
 
 const openDetailDrawer = async (row: LifecycleRecheckLogApi.StoreLifecycleRecheckLogItem) => {

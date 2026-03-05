@@ -48,6 +48,10 @@
           <Icon class="mr-5px" icon="ep:document" />
           Lifecycle Batch Log
         </el-button>
+        <el-button v-hasPermi="['product:store:query']" type="warning" plain @click="goLifecycleChangeOrderPage">
+          <Icon class="mr-5px" icon="ep:tickets" />
+          Lifecycle Change Order
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -472,6 +476,10 @@ const resetQuery = () => {
 
 const goLifecycleBatchLogPage = () => {
   push('/mall/product/store-master/store-lifecycle-batch-log')
+}
+
+const goLifecycleChangeOrderPage = () => {
+  push('/mall/product/store-master/store-lifecycle-change-order')
 }
 
 const formatTag = (item: StoreTagApi.HxyStoreTag) => {

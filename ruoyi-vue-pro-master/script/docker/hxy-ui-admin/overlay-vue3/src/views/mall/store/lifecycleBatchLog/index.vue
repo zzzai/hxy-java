@@ -61,6 +61,10 @@
           <Icon class="mr-5px" icon="ep:clock" />
           复核历史
         </el-button>
+        <el-button plain type="warning" @click="openChangeOrderPage()">
+          <Icon class="mr-5px" icon="ep:tickets" />
+          变更单审批
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -626,6 +630,10 @@ const openRecheckHistory = (row?: LifecycleBatchLogApi.StoreLifecycleBatchLogIte
         }
       : undefined
   })
+}
+
+const openChangeOrderPage = () => {
+  router.push('/mall/product/store-master/store-lifecycle-change-order')
 }
 
 const openDetailDrawer = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
