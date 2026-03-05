@@ -1,5 +1,25 @@
 import request from '@/config/axios'
 
+export type FourAccountRelatedTicketStatus = 10 | 20 | number
+export type FourAccountRelatedTicketSeverity = 'P0' | 'P1' | 'P2' | string
+
+export interface FourAccountIssueDetail {
+  tradeAmount?: number
+  fulfillmentAmount?: number
+  commissionAmount?: number
+  splitAmount?: number
+  tradeMinusFulfillment?: number
+  tradeMinusCommissionSplit?: number
+  issues?: Array<{
+    code?: string
+    message?: string
+    issueCode?: string
+    msg?: string
+    reason?: string
+    detail?: string
+  }>
+}
+
 export interface FourAccountReconcilePageReq extends PageParam {
   reconcileNo?: string
   bizDate?: string[]
@@ -26,8 +46,8 @@ export interface FourAccountReconcileVO {
   operator?: string
   reconciledAt?: string
   relatedTicketId?: number
-  relatedTicketStatus?: number
-  relatedTicketSeverity?: string
+  relatedTicketStatus?: FourAccountRelatedTicketStatus
+  relatedTicketSeverity?: FourAccountRelatedTicketSeverity
   createTime?: string
 }
 

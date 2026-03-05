@@ -103,19 +103,26 @@
       <el-table-column label="问题编码" min-width="220" prop="issueCodes" show-overflow-tooltip />
       <el-table-column label="关联工单" min-width="200">
         <template #default="{ row }">
-          <div v-if="row.relatedTicketId">
-            <span>#{{ row.relatedTicketId }}</span>
-            <el-tag class="ml-6px" size="small" type="info">{{ ticketStatusText(row.relatedTicketStatus) }}</el-tag>
-            <el-tag v-if="row.relatedTicketSeverity" class="ml-6px" size="small">{{ row.relatedTicketSeverity }}</el-tag>
+          <div class="flex flex-wrap items-center gap-6px">
+            <span>{{ row.relatedTicketId ? `#${row.relatedTicketId}` : '-' }}</span>
+            <el-tag v-if="row.relatedTicketStatus" :type="ticketStatusTagType(row.relatedTicketStatus)" size="small">
+              {{ ticketStatusText(row.relatedTicketStatus) }}
+            </el-tag>
+            <span v-else>-</span>
+            <el-tag v-if="row.relatedTicketSeverity" :type="ticketSeverityTagType(row.relatedTicketSeverity)" size="small">
+              {{ normalizeTicketSeverity(row.relatedTicketSeverity) }}
+            </el-tag>
+            <span v-else>-</span>
           </div>
-          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="来源" prop="source" width="120" />
       <el-table-column label="操作人" prop="operator" width="120" />
       <el-table-column :formatter="dateFormatter" label="执行时间" prop="reconciledAt" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="130">
+      <el-table-column align="center" fixed="right" label="操作" width="260">
         <template #default="{ row }">
+          <el-button link type="info" @click="openIssueDetailDialog(row)">差异详情</el-button>
+          <el-button link type="warning" @click="copySourceBizNo(row)">复制来源号</el-button>
           <el-button
             v-hasPermi="['trade:after-sale:query']"
             link
@@ -156,6 +163,35 @@
       <el-button :loading="runLoading" type="primary" @click="handleRun">确认执行</el-button>
     </template>
   </Dialog>
+
+  <Dialog v-model="issueDetailDialogVisible" title="差异详情" width="720px">
+    <el-empty v-if="!issueDetailAvailable" description="无可用明细" />
+    <template v-else>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="交易账(元)">{{ fenToYuanOrDash(issueDetailData.tradeAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="履约账(元)">{{ fenToYuanOrDash(issueDetailData.fulfillmentAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="提成账(元)">{{ fenToYuanOrDash(issueDetailData.commissionAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="分账账(元)">{{ fenToYuanOrDash(issueDetailData.splitAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="差额(交易-履约)">
+          {{ fenToYuanOrDash(issueDetailData.tradeMinusFulfillment) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="差额(交易-提成-分账)">
+          {{ fenToYuanOrDash(issueDetailData.tradeMinusCommissionSplit) }}
+        </el-descriptions-item>
+        <el-descriptions-item :span="2" label="issues">
+          <div v-if="issueDetailIssues.length" class="flex flex-wrap items-center gap-6px">
+            <el-tag v-for="(issue, idx) in issueDetailIssues" :key="`${issue}-${idx}`" type="warning">
+              {{ issue }}
+            </el-tag>
+          </div>
+          <span v-else>-</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </template>
+    <template #footer>
+      <el-button type="primary" @click="issueDetailDialogVisible = false">关闭</el-button>
+    </template>
+  </Dialog>
 </template>
 
 <script lang="ts" setup>
@@ -187,6 +223,31 @@ const runForm = reactive<FourAccountReconcileApi.FourAccountReconcileRunReq>({
   bizDate: '',
   source: 'MANUAL'
 })
+
+interface IssueDetailData {
+  tradeAmount?: number
+  fulfillmentAmount?: number
+  commissionAmount?: number
+  splitAmount?: number
+  tradeMinusFulfillment?: number
+  tradeMinusCommissionSplit?: number
+}
+
+const issueDetailDialogVisible = ref(false)
+const issueDetailAvailable = ref(false)
+const issueDetailData = ref<IssueDetailData>({})
+const issueDetailIssues = ref<string[]>([])
+
+const createEmptyIssueDetailData = (): IssueDetailData => {
+  return {
+    tradeAmount: undefined,
+    fulfillmentAmount: undefined,
+    commissionAmount: undefined,
+    splitAmount: undefined,
+    tradeMinusFulfillment: undefined,
+    tradeMinusCommissionSplit: undefined
+  }
+}
 
 const formatDate = (date: Date): string => {
   const year = date.getFullYear()
@@ -224,12 +285,126 @@ const ticketStatusText = (status?: number) => {
   return '-'
 }
 
+const ticketStatusTagType = (status?: number) => {
+  if (status === 10) return 'warning'
+  if (status === 20) return 'success'
+  return 'info'
+}
+
+const normalizeTicketSeverity = (severity?: string) => {
+  return (severity || '').trim().toUpperCase()
+}
+
+const ticketSeverityTagType = (severity?: string) => {
+  const normalized = normalizeTicketSeverity(severity)
+  if (normalized === 'P0') return 'danger'
+  if (normalized === 'P1') return 'warning'
+  if (normalized === 'P2') return 'info'
+  return ''
+}
+
 const diffTagType = (amount?: number) => {
   return Number(amount || 0) === 0 ? 'success' : 'danger'
 }
 
 const fenToYuan = (fen?: number) => {
   return (Number(fen || 0) / 100).toFixed(2)
+}
+
+const fenToYuanOrDash = (fen?: number) => {
+  return typeof fen === 'number' ? fenToYuan(fen) : '-'
+}
+
+const buildSourceBizNo = (bizDate?: string) => {
+  return bizDate ? `FOUR_ACCOUNT_RECONCILE:${bizDate}` : ''
+}
+
+const copySourceBizNo = async (row: FourAccountReconcileApi.FourAccountReconcileVO) => {
+  const sourceBizNo = buildSourceBizNo(row.bizDate)
+  if (!sourceBizNo) {
+    message.warning('业务日期为空，无法复制来源号')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(sourceBizNo)
+    message.success('来源号复制成功')
+  } catch {
+    message.error('复制失败，请检查浏览器剪贴板权限')
+  }
+}
+
+const parseNumber = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const normalizeIssueLabel = (issue: any): string => {
+  if (typeof issue === 'string') {
+    return issue.trim()
+  }
+  if (!issue || typeof issue !== 'object') {
+    return ''
+  }
+  const code = String(issue.code || issue.issueCode || issue.type || '').trim()
+  const messageText = String(issue.message || issue.msg || issue.reason || issue.detail || '').trim()
+  if (code && messageText) {
+    return `${code}: ${messageText}`
+  }
+  if (code) {
+    return code
+  }
+  if (messageText) {
+    return messageText
+  }
+  return ''
+}
+
+const parseIssueLabels = (payload: Record<string, any>) => {
+  const issues = payload.issues || payload.issueList || payload.issueDetails
+  if (!Array.isArray(issues)) {
+    return []
+  }
+  return issues.map((item) => normalizeIssueLabel(item)).filter(Boolean)
+}
+
+const hasIssueDetail = (data: IssueDetailData, issues: string[]) => {
+  const hasAmount = Object.values(data).some((value) => typeof value === 'number')
+  return hasAmount || issues.length > 0
+}
+
+const openIssueDetailDialog = (row: FourAccountReconcileApi.FourAccountReconcileVO) => {
+  issueDetailDialogVisible.value = true
+  issueDetailAvailable.value = false
+  issueDetailData.value = createEmptyIssueDetailData()
+  issueDetailIssues.value = []
+  const rawJson = (row.issueDetailJson || '').trim()
+  if (!rawJson) {
+    return
+  }
+  try {
+    const payload = JSON.parse(rawJson)
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return
+    }
+    const detailPayload = payload as Record<string, any>
+    const detailData: IssueDetailData = {
+      tradeAmount: parseNumber(detailPayload.tradeAmount),
+      fulfillmentAmount: parseNumber(detailPayload.fulfillmentAmount),
+      commissionAmount: parseNumber(detailPayload.commissionAmount),
+      splitAmount: parseNumber(detailPayload.splitAmount),
+      tradeMinusFulfillment: parseNumber(detailPayload.tradeMinusFulfillment),
+      tradeMinusCommissionSplit: parseNumber(detailPayload.tradeMinusCommissionSplit)
+    }
+    const issues = parseIssueLabels(detailPayload)
+    issueDetailData.value = detailData
+    issueDetailIssues.value = issues
+    issueDetailAvailable.value = hasIssueDetail(detailData, issues)
+  } catch {
+    issueDetailAvailable.value = false
+  }
 }
 
 const getList = async () => {
