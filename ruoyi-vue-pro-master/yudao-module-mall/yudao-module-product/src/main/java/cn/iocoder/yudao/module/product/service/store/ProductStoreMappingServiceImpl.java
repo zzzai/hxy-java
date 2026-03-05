@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -349,6 +350,7 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
 
     @Override
     public PageResult<ProductStoreSkuStockFlowDO> getStoreSkuStockFlowPage(ProductStoreSkuStockFlowPageReqVO reqVO) {
+        normalizeStockFlowPageReq(reqVO);
         return storeSkuStockFlowMapper.selectPage(reqVO);
     }
 
@@ -487,6 +489,8 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
             }
             items.add(ProductStoreSkuStockFlowBatchRetryResult.Item.builder()
                     .id(flowId)
+                    .storeId(flow == null ? null : flow.getStoreId())
+                    .skuId(flow == null ? null : flow.getSkuId())
                     .resultType(executionResult.getResultType())
                     .reason(executionResult.getReason())
                     .status(executionResult.getStatus())
@@ -683,6 +687,26 @@ public class ProductStoreMappingServiceImpl implements ProductStoreMappingServic
             throw exception(SPU_NOT_EXISTS);
         }
         return spu;
+    }
+
+    private void normalizeStockFlowPageReq(ProductStoreSkuStockFlowPageReqVO reqVO) {
+        if (reqVO == null) {
+            return;
+        }
+        reqVO.setBizType(normalizeStockFlowPageUppercase(reqVO.getBizType()));
+        reqVO.setSource(normalizeStockFlowPageUppercase(reqVO.getSource()));
+        reqVO.setBizNo(normalizeStockFlowPageTrim(reqVO.getBizNo()));
+        reqVO.setOperator(normalizeStockFlowPageTrim(reqVO.getOperator()));
+    }
+
+    private String normalizeStockFlowPageTrim(String value) {
+        String normalized = StrUtil.trim(value);
+        return StrUtil.isBlank(normalized) ? null : normalized;
+    }
+
+    private String normalizeStockFlowPageUppercase(String value) {
+        String normalized = normalizeStockFlowPageTrim(value);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
     private void validateStoreSpuExists(Long id) {

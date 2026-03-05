@@ -47,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -398,6 +399,26 @@ class ProductStoreMappingServiceImplTest {
     }
 
     @Test
+    void getStoreSkuStockFlowPage_shouldNormalizeSourceAndOperatorFilters() {
+        ProductStoreSkuStockFlowPageReqVO reqVO = new ProductStoreSkuStockFlowPageReqVO();
+        reqVO.setBizType("manual_replenish_in");
+        reqVO.setBizNo("  supply-001  ");
+        reqVO.setOperator("  库存运营A  ");
+        reqVO.setSource(" admin_ui ");
+        when(storeSkuStockFlowMapper.selectPage(any(ProductStoreSkuStockFlowPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
+
+        PageResult<ProductStoreSkuStockFlowDO> result = productStoreMappingService.getStoreSkuStockFlowPage(reqVO);
+
+        assertEquals(0L, result.getTotal());
+        verify(storeSkuStockFlowMapper).selectPage(argThat(param ->
+                "MANUAL_REPLENISH_IN".equals(param.getBizType())
+                        && "supply-001".equals(param.getBizNo())
+                        && "库存运营A".equals(param.getOperator())
+                        && "ADMIN_UI".equals(param.getSource())));
+    }
+
+    @Test
     void updateStoreSkuStock_shouldThrowWhenStockNotEnoughBeforeDecr() {
         ProductStoreSkuUpdateStockReqDTO reqDTO = new ProductStoreSkuUpdateStockReqDTO();
         reqDTO.setStoreId(11L);
@@ -585,6 +606,12 @@ class ProductStoreMappingServiceImplTest {
         assertEquals(1, result.getSuccessCount());
         assertEquals(1, result.getSkippedCount());
         assertEquals(0, result.getFailedCount());
+        assertEquals(9701L, result.getItems().get(0).getId());
+        assertEquals(11L, result.getItems().get(0).getStoreId());
+        assertEquals(22L, result.getItems().get(0).getSkuId());
+        assertEquals(9702L, result.getItems().get(1).getId());
+        assertEquals(11L, result.getItems().get(1).getStoreId());
+        assertEquals(23L, result.getItems().get(1).getSkuId());
         verify(storeSkuMapper).updateStockDecrByStoreIdAndSkuId(11L, 22L, 1);
         verify(storeSkuMapper, never()).updateStockDecrByStoreIdAndSkuId(eq(11L), eq(23L), any(Integer.class));
     }

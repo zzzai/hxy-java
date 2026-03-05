@@ -93,7 +93,16 @@ class ProductStoreSkuControllerTest {
                 .successCount(1)
                 .skippedCount(1)
                 .failedCount(0)
-                .items(Collections.emptyList())
+                .items(Collections.singletonList(ProductStoreSkuStockFlowBatchRetryResult.Item.builder()
+                        .id(901L)
+                        .storeId(11L)
+                        .skuId(22L)
+                        .resultType("SUCCESS")
+                        .reason("")
+                        .status(1)
+                        .retryOperator("库存运营A")
+                        .retrySource("ADMIN_UI")
+                        .build()))
                 .build();
         when(storeMappingService.retryStoreSkuStockFlowByIds(reqVO.getIds(), "库存运营A", "admin_ui"))
                 .thenReturn(serviceResp);
@@ -108,6 +117,9 @@ class ProductStoreSkuControllerTest {
             assertEquals(2, result.getData().getTotalCount());
             assertEquals(1, result.getData().getSuccessCount());
             assertEquals(1, result.getData().getSkippedCount());
+            assertEquals(901L, result.getData().getItems().get(0).getId());
+            assertEquals(11L, result.getData().getItems().get(0).getStoreId());
+            assertEquals(22L, result.getData().getItems().get(0).getSkuId());
         }
     }
 }

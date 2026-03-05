@@ -42,6 +42,14 @@ public class ProductStoreSkuStockFlowBatchRetryResult {
          */
         private Long id;
         /**
+         * 门店 ID
+         */
+        private Long storeId;
+        /**
+         * SKU ID
+         */
+        private Long skuId;
+        /**
          * 结果类型：SUCCESS/SKIPPED/FAILED
          */
         private String resultType;

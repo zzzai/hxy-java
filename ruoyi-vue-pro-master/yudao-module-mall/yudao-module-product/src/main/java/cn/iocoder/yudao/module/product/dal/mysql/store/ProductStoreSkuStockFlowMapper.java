@@ -24,6 +24,8 @@ public interface ProductStoreSkuStockFlowMapper extends BaseMapperX<ProductStore
                 .eqIfPresent(ProductStoreSkuStockFlowDO::getBizType, reqVO.getBizType())
                 .eqIfPresent(ProductStoreSkuStockFlowDO::getBizNo, reqVO.getBizNo())
                 .eqIfPresent(ProductStoreSkuStockFlowDO::getStatus, reqVO.getStatus())
+                .likeIfPresent(ProductStoreSkuStockFlowDO::getLastRetryOperator, reqVO.getOperator())
+                .eqIfPresent(ProductStoreSkuStockFlowDO::getLastRetrySource, reqVO.getSource())
                 .betweenIfPresent(ProductStoreSkuStockFlowDO::getExecuteTime, reqVO.getExecuteTime())
                 .orderByDesc(ProductStoreSkuStockFlowDO::getId));
     }

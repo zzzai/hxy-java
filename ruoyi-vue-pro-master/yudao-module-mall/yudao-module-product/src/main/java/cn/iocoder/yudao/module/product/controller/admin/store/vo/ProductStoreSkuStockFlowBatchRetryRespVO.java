@@ -30,6 +30,12 @@ public class ProductStoreSkuStockFlowBatchRetryRespVO {
         @Schema(description = "流水编号", example = "1001")
         private Long id;
 
+        @Schema(description = "门店编号", example = "1001")
+        private Long storeId;
+
+        @Schema(description = "SKU 编号", example = "3001")
+        private Long skuId;
+
         @Schema(description = "结果类型：SUCCESS/SKIPPED/FAILED", example = "SUCCESS")
         private String resultType;
 

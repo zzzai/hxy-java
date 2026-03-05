@@ -32,8 +32,13 @@ public class ProductStoreSkuStockFlowPageReqVO extends PageParam {
     @Schema(description = "流水状态：0待执行 1成功 2失败 3执行中", example = "2")
     private Integer status;
 
+    @Schema(description = "操作人（最近重试操作人）", example = "库存运营A")
+    private String operator;
+
+    @Schema(description = "来源（最近重试来源）", example = "ADMIN_UI")
+    private String source;
+
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     @Schema(description = "执行时间")
     private LocalDateTime[] executeTime;
 }
-
