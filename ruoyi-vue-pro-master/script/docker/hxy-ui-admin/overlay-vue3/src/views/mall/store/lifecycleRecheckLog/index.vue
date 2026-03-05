@@ -1,10 +1,22 @@
 <template>
   <ContentWrap>
-    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="104px">
+    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="102px">
+      <el-form-item label="复核编号" prop="recheckNo">
+        <el-input
+          v-model="queryParams.recheckNo"
+          class="!w-220px"
+          clearable
+          placeholder="请输入复核编号"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="批次台账ID" prop="logId">
+        <el-input-number v-model="queryParams.logId" :controls="false" :min="1" class="!w-180px" placeholder="请输入台账ID" />
+      </el-form-item>
       <el-form-item label="批次号" prop="batchNo">
         <el-input
           v-model="queryParams.batchNo"
-          class="!w-240px"
+          class="!w-230px"
           clearable
           placeholder="请输入批次号"
           @keyup.enter="handleQuery"
@@ -22,7 +34,7 @@
       <el-form-item label="操作人" prop="operator">
         <el-input
           v-model="queryParams.operator"
-          class="!w-180px"
+          class="!w-170px"
           clearable
           placeholder="请输入操作人"
           @keyup.enter="handleQuery"
@@ -31,7 +43,7 @@
       <el-form-item label="来源" prop="source">
         <el-input
           v-model="queryParams.source"
-          class="!w-160px"
+          class="!w-150px"
           clearable
           placeholder="请输入来源"
           @keyup.enter="handleQuery"
@@ -57,9 +69,9 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
-        <el-button plain type="primary" @click="openRecheckHistory()">
-          <Icon class="mr-5px" icon="ep:clock" />
-          复核历史
+        <el-button plain type="primary" @click="goBatchLog()">
+          <Icon class="mr-5px" icon="ep:back" />
+          返回批次台账
         </el-button>
       </el-form-item>
     </el-form>
@@ -68,7 +80,17 @@
   <ContentWrap>
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="88" />
-      <el-table-column label="批次号" min-width="260" show-overflow-tooltip>
+      <el-table-column label="复核编号" min-width="230" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.recheckNo) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="批次台账ID" width="110">
+        <template #default="{ row }">
+          {{ numberOrDash(row.logId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="批次号" min-width="250" show-overflow-tooltip>
         <template #default="{ row }">
           {{ textOrDash(row.batchNo) }}
         </template>
@@ -80,13 +102,19 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="总数" prop="totalCount" width="88" />
-      <el-table-column label="成功" prop="successCount" width="88" />
-      <el-table-column label="阻塞" prop="blockedCount" width="88" />
-      <el-table-column label="告警" prop="warningCount" width="88" />
-      <el-table-column label="审计摘要" min-width="220" show-overflow-tooltip>
+      <el-table-column label="总数" width="90">
         <template #default="{ row }">
-          {{ textOrDash(row.auditSummary) }}
+          {{ numberOrDash(row.totalCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="阻塞" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.blockedCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="告警" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.warningCount) }}
         </template>
       </el-table-column>
       <el-table-column label="操作人" min-width="120" show-overflow-tooltip>
@@ -100,21 +128,12 @@
         </template>
       </el-table-column>
       <el-table-column :formatter="dateFormatter" label="创建时间" prop="createTime" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="330">
+      <el-table-column align="center" fixed="right" label="操作" width="240">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetailDrawer(row)">查看详情</el-button>
-          <el-button link type="warning" @click="copyBatchNo(row)">复制批次号</el-button>
-          <el-button link type="warning" @click="copySourceNo(row)">复制来源号</el-button>
-          <el-button
-            v-hasPermi="['product:store:query']"
-            :loading="recheckExecutingId === row.id"
-            link
-            type="danger"
-            @click="executeRecheck(row)"
-          >
-            复核执行
-          </el-button>
-          <el-button link type="info" @click="openRecheckHistory(row)">复核历史</el-button>
+          <el-button link type="warning" @click="copyText(row.batchNo, '批次号')">复制批次号</el-button>
+          <el-button link type="warning" @click="copyText(row.source, '来源号')">复制来源号</el-button>
+          <el-button link type="info" @click="goBatchLog(row)">批次台账</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -127,26 +146,26 @@
     />
   </ContentWrap>
 
-  <el-drawer v-model="detailDrawerVisible" size="74%" title="生命周期批次台账详情">
+  <el-drawer v-model="detailDrawerVisible" size="74%" title="复核台账详情">
     <div v-loading="detailLoading">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="台账ID">{{ textOrDash(detailData.id) }}</el-descriptions-item>
+        <el-descriptions-item label="台账ID">{{ numberOrDash(detailData.id) }}</el-descriptions-item>
+        <el-descriptions-item label="复核编号">{{ textOrDash(detailData.recheckNo) }}</el-descriptions-item>
+        <el-descriptions-item label="批次台账ID">{{ numberOrDash(detailData.logId) }}</el-descriptions-item>
         <el-descriptions-item label="批次号">{{ textOrDash(detailData.batchNo) }}</el-descriptions-item>
         <el-descriptions-item label="目标生命周期">
           <el-tag :type="lifecycleTagType(detailData.targetLifecycleStatus)">
             {{ lifecycleText(detailData.targetLifecycleStatus) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="审计摘要">{{ textOrDash(detailData.auditSummary) }}</el-descriptions-item>
-        <el-descriptions-item label="守卫规则版本">{{ textOrDash(detailData.guardRuleVersion) }}</el-descriptions-item>
+        <el-descriptions-item label="规则版本">{{ textOrDash(detailData.guardRuleVersion) }}</el-descriptions-item>
         <el-descriptions-item label="操作人">{{ textOrDash(detailData.operator) }}</el-descriptions-item>
         <el-descriptions-item label="来源">{{ textOrDash(detailData.source) }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ textOrDash(detailData.createTime) }}</el-descriptions-item>
       </el-descriptions>
 
-      <el-descriptions :column="4" border class="mt-14px">
+      <el-descriptions :column="3" border class="mt-14px">
         <el-descriptions-item label="总数">{{ numberOrDash(detailData.totalCount) }}</el-descriptions-item>
-        <el-descriptions-item label="成功">{{ numberOrDash(detailData.successCount) }}</el-descriptions-item>
         <el-descriptions-item label="阻塞">{{ numberOrDash(detailData.blockedCount) }}</el-descriptions-item>
         <el-descriptions-item label="告警">{{ numberOrDash(detailData.warningCount) }}</el-descriptions-item>
       </el-descriptions>
@@ -176,18 +195,18 @@
         <el-alert v-if="detailParseFailed" :closable="false" title="明细解析失败（原文保留）" type="warning" />
         <div v-if="detailRows.length" class="mb-10px mt-8px flex flex-wrap items-center gap-8px">
           <el-tag type="info">总明细 {{ detailRows.length }}</el-tag>
-          <el-tag type="danger">阻塞 {{ detailBlockedCount }}</el-tag>
-          <el-tag type="warning">告警 {{ detailWarningCount }}</el-tag>
-          <el-tag type="success">通过 {{ detailPassCount }}</el-tag>
+          <el-tag type="danger">阻塞 {{ detailBlockedRows.length }}</el-tag>
+          <el-tag type="warning">告警 {{ detailWarningRows.length }}</el-tag>
+          <el-tag type="success">通过 {{ detailPassRows.length }}</el-tag>
         </div>
         <el-empty v-else-if="!detailParseFailed" description="无可用明细" />
         <el-table v-if="detailRows.length" :data="detailRows" border max-height="420">
-          <el-table-column label="门店ID" prop="storeId" width="100">
+          <el-table-column label="门店ID" width="100">
             <template #default="{ row }">
               {{ numberOrDash(row.storeId) }}
             </template>
           </el-table-column>
-          <el-table-column label="门店名称" min-width="180" prop="storeName" show-overflow-tooltip>
+          <el-table-column label="门店名称" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               {{ textOrDash(row.storeName) }}
             </template>
@@ -197,9 +216,9 @@
               <el-tag :type="resultTagType(row.result)">{{ row.result }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="阻塞原因" min-width="220" show-overflow-tooltip>
+          <el-table-column label="阻塞原因" min-width="240" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ textOrDash(row.blockedMessage || row.message) }}
+              {{ textOrDash(row.blockedMessage) }}
             </template>
           </el-table-column>
           <el-table-column label="告警" min-width="220" show-overflow-tooltip>
@@ -207,7 +226,7 @@
               {{ warningsText(row.warnings) }}
             </template>
           </el-table-column>
-          <el-table-column label="guardItems" min-width="250" show-overflow-tooltip>
+          <el-table-column label="guardItems" min-width="260" show-overflow-tooltip>
             <template #default="{ row }">
               {{ guardItemsText(row.guardItems) }}
             </template>
@@ -217,72 +236,20 @@
       </div>
     </div>
   </el-drawer>
-
-  <el-dialog v-model="recheckResultVisible" title="复核执行结果" width="1100px">
-    <el-descriptions :column="5" border class="mb-12px">
-      <el-descriptions-item label="复核编号">{{ textOrDash(recheckResultData.recheckNo) }}</el-descriptions-item>
-      <el-descriptions-item label="总数">{{ numberOrDash(recheckResultData.totalCount) }}</el-descriptions-item>
-      <el-descriptions-item label="阻塞">{{ numberOrDash(recheckResultData.blockedCount) }}</el-descriptions-item>
-      <el-descriptions-item label="告警">{{ numberOrDash(recheckResultData.warningCount) }}</el-descriptions-item>
-      <el-descriptions-item label="规则版本">{{ textOrDash(recheckResultData.guardRuleVersion) }}</el-descriptions-item>
-    </el-descriptions>
-    <el-alert v-if="recheckResultParseFailed" :closable="false" title="明细解析失败（原文保留）" type="warning" />
-    <div class="mb-12px mt-8px flex flex-wrap items-center gap-8px">
-      <el-tag type="info">总明细 {{ recheckResultRows.length }}</el-tag>
-      <el-tag type="danger">阻塞 {{ recheckBlockedRows.length }}</el-tag>
-      <el-tag type="warning">告警 {{ recheckWarningRows.length }}</el-tag>
-      <el-tag type="success">通过 {{ recheckPassRows.length }}</el-tag>
-    </div>
-    <el-table :data="recheckResultRows" max-height="460">
-      <el-table-column label="门店ID" width="100">
-        <template #default="{ row }">
-          {{ numberOrDash(row.storeId) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="门店名称" min-width="180" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ textOrDash(row.storeName) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="结果" width="110">
-        <template #default="{ row }">
-          <el-tag :type="resultTagType(row.result)">{{ row.result }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="阻塞原因" min-width="240" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ textOrDash(row.blockedMessage || row.message) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="告警" min-width="220" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ warningsText(row.warnings) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="guardItems" min-width="260" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ guardItemsText(row.guardItems) }}
-        </template>
-      </el-table-column>
-    </el-table>
-    <template #footer>
-      <el-button @click="recheckResultVisible = false">关闭</el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <script lang="ts" setup>
 import { dateFormatter } from '@/utils/formatTime'
 import * as LifecycleBatchLogApi from '@/api/mall/store/lifecycleBatchLog'
+import * as LifecycleRecheckLogApi from '@/api/mall/store/lifecycleRecheckLog'
 import { useRoute, useRouter } from 'vue-router'
 
-defineOptions({ name: 'MallStoreLifecycleBatchLogIndex' })
+defineOptions({ name: 'MallStoreLifecycleRecheckLogIndex' })
 
-interface DetailRow {
+interface RecheckDetailRow {
   storeId?: number
   storeName?: string
   result: string
-  message?: string
   blocked?: boolean
   blockedCode?: number
   blockedMessage?: string
@@ -298,11 +265,13 @@ const router = useRouter()
 
 const loading = ref(false)
 const total = ref(0)
-const list = ref<LifecycleBatchLogApi.StoreLifecycleBatchLogItem[]>([])
+const list = ref<LifecycleRecheckLogApi.StoreLifecycleRecheckLogItem[]>([])
 
-const queryParams = reactive<LifecycleBatchLogApi.StoreLifecycleBatchLogPageReq>({
+const queryParams = reactive<LifecycleRecheckLogApi.StoreLifecycleRecheckLogPageReq>({
   pageNo: 1,
   pageSize: 10,
+  recheckNo: undefined,
+  logId: undefined,
   batchNo: undefined,
   targetLifecycleStatus: undefined,
   operator: undefined,
@@ -312,27 +281,17 @@ const queryParams = reactive<LifecycleBatchLogApi.StoreLifecycleBatchLogPageReq>
 
 const detailDrawerVisible = ref(false)
 const detailLoading = ref(false)
-const detailData = ref<Partial<LifecycleBatchLogApi.StoreLifecycleBatchLogGetResp>>({})
-const detailRows = ref<DetailRow[]>([])
+const detailData = ref<Partial<LifecycleRecheckLogApi.StoreLifecycleRecheckLogGetResp>>({})
+const detailRows = ref<RecheckDetailRow[]>([])
 const detailParseFailed = ref(false)
 const detailRawJson = ref('')
 const guardConfigParseFailed = ref(false)
 const guardConfigRows = ref<Array<{ key: string; value: string }>>([])
 const guardConfigRawJson = ref('')
 
-const recheckExecutingId = ref<number>()
-const recheckResultVisible = ref(false)
-const recheckResultData = ref<Partial<LifecycleBatchLogApi.StoreLifecycleGuardBatchRecheckResp>>({})
-const recheckResultRows = ref<DetailRow[]>([])
-const recheckResultParseFailed = ref(false)
-
-const detailBlockedCount = computed(() => detailRows.value.filter((item) => item.result === 'BLOCKED').length)
-const detailWarningCount = computed(() => detailRows.value.filter((item) => item.result === 'WARNING').length)
-const detailPassCount = computed(() => detailRows.value.filter((item) => item.result === 'SUCCESS').length)
-
-const recheckBlockedRows = computed(() => recheckResultRows.value.filter((item) => item.result === 'BLOCKED'))
-const recheckWarningRows = computed(() => recheckResultRows.value.filter((item) => item.result === 'WARNING'))
-const recheckPassRows = computed(() => recheckResultRows.value.filter((item) => item.result === 'SUCCESS'))
+const detailBlockedRows = computed(() => detailRows.value.filter((item) => item.result === 'BLOCKED'))
+const detailWarningRows = computed(() => detailRows.value.filter((item) => item.result === 'WARNING'))
+const detailPassRows = computed(() => detailRows.value.filter((item) => item.result === 'SUCCESS'))
 
 const lifecycleText = (status?: number) => {
   if (status === 10) return 'PREPARING'
@@ -394,13 +353,6 @@ const normalizeGuardItems = (value: any): LifecycleBatchLogApi.StoreLifecycleBat
 }
 
 const normalizeResult = (item: any) => {
-  const rawResult = String(item?.result || '').trim().toUpperCase()
-  if (rawResult) {
-    if (rawResult === 'PASS') {
-      return 'SUCCESS'
-    }
-    return rawResult
-  }
   if (item?.blocked === true) {
     return 'BLOCKED'
   }
@@ -411,7 +363,7 @@ const normalizeResult = (item: any) => {
   return 'SUCCESS'
 }
 
-const normalizeDetailRows = (source: any[]): DetailRow[] => {
+const normalizeDetailRows = (source: any[]): RecheckDetailRow[] => {
   if (!Array.isArray(source)) {
     return []
   }
@@ -419,7 +371,6 @@ const normalizeDetailRows = (source: any[]): DetailRow[] => {
     storeId: typeof item?.storeId === 'number' ? item.storeId : Number(item?.storeId || 0) || undefined,
     storeName: item?.storeName,
     result: normalizeResult(item),
-    message: item?.message,
     blocked: item?.blocked === true,
     blockedCode: typeof item?.blockedCode === 'number' ? item.blockedCode : Number(item?.blockedCode || 0) || undefined,
     blockedMessage: item?.blockedMessage,
@@ -428,7 +379,7 @@ const normalizeDetailRows = (source: any[]): DetailRow[] => {
   }))
 }
 
-const extractDetailRows = (payload: Record<string, any>): DetailRow[] => {
+const extractDetailRows = (payload: Record<string, any>) => {
   const rowsFromDetails = normalizeDetailRows(payload?.details)
   if (rowsFromDetails.length) {
     return rowsFromDetails
@@ -551,14 +502,6 @@ const copyText = async (value: any, label: string) => {
   }
 }
 
-const copyBatchNo = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
-  await copyText(row.batchNo, '批次号')
-}
-
-const copySourceNo = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
-  await copyText(row.source, '来源号')
-}
-
 const firstQueryValue = (value: any): string => {
   if (Array.isArray(value)) {
     return String(value[0] || '')
@@ -566,23 +509,26 @@ const firstQueryValue = (value: any): string => {
   return String(value || '')
 }
 
-const parseQueryNumber = (value: any): number | undefined => {
+const parseNumber = (value: any): number | undefined => {
   const text = firstQueryValue(value).trim()
   if (!text) {
     return undefined
   }
   const parsed = Number(text)
-  return Number.isFinite(parsed) ? parsed : undefined
+  if (Number.isFinite(parsed)) {
+    return parsed
+  }
+  return undefined
 }
 
 const initQueryFromRoute = () => {
   queryParams.batchNo = firstQueryValue(route.query.batchNo).trim() || undefined
-  queryParams.targetLifecycleStatus = parseQueryNumber(route.query.targetLifecycleStatus)
-  queryParams.operator = firstQueryValue(route.query.operator).trim() || undefined
-  queryParams.source = firstQueryValue(route.query.source).trim() || undefined
+  queryParams.recheckNo = firstQueryValue(route.query.recheckNo).trim() || undefined
+  queryParams.logId = parseNumber(route.query.logId)
 }
 
 const normalizeQuery = () => {
+  queryParams.recheckNo = String(queryParams.recheckNo || '').trim() || undefined
   queryParams.batchNo = String(queryParams.batchNo || '').trim() || undefined
   queryParams.operator = String(queryParams.operator || '').trim() || undefined
   queryParams.source = String(queryParams.source || '').trim().toUpperCase() || undefined
@@ -592,7 +538,7 @@ const getList = async () => {
   loading.value = true
   try {
     normalizeQuery()
-    const data = await LifecycleBatchLogApi.getStoreLifecycleBatchLogPage(queryParams)
+    const data = await LifecycleRecheckLogApi.getStoreLifecycleRecheckLogPage(queryParams)
     list.value = data.list || []
     total.value = data.total || 0
   } finally {
@@ -608,6 +554,8 @@ const handleQuery = async () => {
 const resetQuery = async () => {
   queryParams.pageNo = 1
   queryParams.pageSize = 10
+  queryParams.recheckNo = undefined
+  queryParams.logId = undefined
   queryParams.batchNo = undefined
   queryParams.targetLifecycleStatus = undefined
   queryParams.operator = undefined
@@ -616,19 +564,18 @@ const resetQuery = async () => {
   await getList()
 }
 
-const openRecheckHistory = (row?: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
+const goBatchLog = (row?: LifecycleRecheckLogApi.StoreLifecycleRecheckLogItem) => {
   router.push({
-    path: '/mall/product/store-master/store-lifecycle-recheck-log',
+    path: '/mall/product/store-master/store-lifecycle-batch-log',
     query: row
       ? {
-          batchNo: row.batchNo,
-          logId: String(row.id || '')
+          batchNo: row.batchNo
         }
       : undefined
   })
 }
 
-const openDetailDrawer = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
+const openDetailDrawer = async (row: LifecycleRecheckLogApi.StoreLifecycleRecheckLogItem) => {
   detailDrawerVisible.value = true
   detailLoading.value = true
   detailRows.value = []
@@ -639,7 +586,7 @@ const openDetailDrawer = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLog
   guardConfigRawJson.value = ''
 
   try {
-    const data = await LifecycleBatchLogApi.getStoreLifecycleBatchLog(row.id)
+    const data = await LifecycleRecheckLogApi.getStoreLifecycleRecheckLog(row.id)
     detailData.value = data || {}
     detailRawJson.value = String(data?.detailJson || '')
     parseGuardConfigRows(data?.guardConfigSnapshotJson)
@@ -650,39 +597,12 @@ const openDetailDrawer = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLog
   } catch {
     detailData.value = {
       id: row.id,
+      recheckNo: row.recheckNo,
       batchNo: row.batchNo
     }
-    message.error('加载批次详情失败')
+    message.error('加载复核详情失败')
   } finally {
     detailLoading.value = false
-  }
-}
-
-const executeRecheck = async (row: LifecycleBatchLogApi.StoreLifecycleBatchLogItem) => {
-  if (!row?.id) {
-    message.warning('台账ID为空，无法执行复核')
-    return
-  }
-  try {
-    await message.confirm(`确认对批次 ${textOrDash(row.batchNo)} 执行复核并落账吗？该操作不会变更门店生命周期状态。`)
-  } catch {
-    return
-  }
-
-  recheckExecutingId.value = row.id
-  try {
-    const result = await LifecycleBatchLogApi.executeStoreLifecycleGuardRecheckByBatch({ logId: row.id })
-    recheckResultData.value = result || {}
-    recheckResultRows.value = normalizeDetailRows(result?.details || [])
-    recheckResultParseFailed.value = Boolean(result?.detailParseError)
-    recheckResultVisible.value = true
-    message.success(
-      `复核执行完成：总数${result?.totalCount || 0}，阻塞${result?.blockedCount || 0}，告警${result?.warningCount || 0}`
-    )
-  } catch {
-    message.error('复核执行失败')
-  } finally {
-    recheckExecutingId.value = undefined
   }
 }
 
