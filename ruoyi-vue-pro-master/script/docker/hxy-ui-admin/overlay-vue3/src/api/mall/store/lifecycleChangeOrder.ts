@@ -16,6 +16,12 @@ export interface StoreLifecycleChangeOrderItem {
   guardWarnings?: string
   applyOperator?: string
   applySource?: string
+  submitTime?: string
+  slaDeadlineTime?: string
+  overdue?: boolean
+  lastActionCode?: string
+  lastActionOperator?: string
+  lastActionTime?: string
   approveOperator?: string
   approveTime?: string
   approveRemark?: string
@@ -30,6 +36,9 @@ export interface StoreLifecycleChangeOrderPageReq extends PageParam {
   fromLifecycleStatus?: number
   toLifecycleStatus?: number
   applyOperator?: string
+  overdue?: boolean
+  lastActionCode?: string
+  lastActionOperator?: string
   createTime?: string[]
 }
 

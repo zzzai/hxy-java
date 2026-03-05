@@ -55,6 +55,30 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="超时" prop="overdue">
+        <el-select v-model="queryParams.overdue" class="!w-130px" clearable placeholder="全部">
+          <el-option :value="true" label="已超时" />
+          <el-option :value="false" label="未超时" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="最近动作编码" prop="lastActionCode">
+        <el-input
+          v-model="queryParams.lastActionCode"
+          class="!w-190px"
+          clearable
+          placeholder="请输入动作编码"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最近动作人" prop="lastActionOperator">
+        <el-input
+          v-model="queryParams.lastActionOperator"
+          class="!w-180px"
+          clearable
+          placeholder="请输入动作人"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
       <el-form-item label="申请时间" prop="createTime">
         <el-date-picker
           v-model="queryParams.createTime"
@@ -92,6 +116,16 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div class="mb-12px flex flex-wrap items-center gap-8px">
+      <el-button :type="quickFilter === 'all' ? 'primary' : 'default'" @click="setQuickFilter('all')">全部</el-button>
+      <el-button :type="quickFilter === 'pending' ? 'primary' : 'default'" @click="setQuickFilter('pending')">
+        待审批
+      </el-button>
+      <el-button :type="quickFilter === 'overdue' ? 'danger' : 'default'" @click="setQuickFilter('overdue')">
+        已超时
+      </el-button>
+    </div>
+
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="88" />
       <el-table-column label="变更单号" min-width="220" show-overflow-tooltip>
@@ -128,9 +162,41 @@
           {{ textOrDash(row.applyOperator) }}
         </template>
       </el-table-column>
+      <el-table-column label="提交时间" width="180">
+        <template #default="{ row }">
+          {{ textOrDash(row.submitTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="SLA 截止" width="180">
+        <template #default="{ row }">
+          {{ textOrDash(row.slaDeadlineTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="SLA 状态" width="120">
+        <template #default="{ row }">
+          <el-tag :type="slaTagType(row)">
+            {{ slaText(row) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="申请时间" width="180">
         <template #default="{ row }">
           {{ textOrDash(row.createTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="最近动作编码" min-width="150" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.lastActionCode) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="最近动作人" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.lastActionOperator) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="最近动作时间" width="180">
+        <template #default="{ row }">
+          {{ textOrDash(row.lastActionTime) }}
         </template>
       </el-table-column>
       <el-table-column label="审批信息" min-width="280" show-overflow-tooltip>
@@ -139,7 +205,7 @@
           <div class="text-[var(--el-text-color-secondary)]">{{ approvalRemark(row) }}</div>
         </template>
       </el-table-column>
-      <el-table-column align="center" fixed="right" label="操作" width="390">
+      <el-table-column align="center" fixed="right" label="操作" width="420">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetailDrawer(row)">查看详情</el-button>
           <el-button link type="warning" @click="copyText(row.orderNo, '变更单号')">复制单号</el-button>
@@ -242,6 +308,18 @@
         </el-descriptions-item>
         <el-descriptions-item label="申请人">{{ textOrDash(detailData.applyOperator) }}</el-descriptions-item>
         <el-descriptions-item label="申请时间">{{ textOrDash(detailData.createTime) }}</el-descriptions-item>
+        <el-descriptions-item label="提交时间">{{ textOrDash(detailData.submitTime) }}</el-descriptions-item>
+        <el-descriptions-item label="SLA 截止">{{ textOrDash(detailData.slaDeadlineTime) }}</el-descriptions-item>
+        <el-descriptions-item label="SLA 状态">
+          <el-tag :type="slaTagType(detailData)">
+            {{ slaText(detailData) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="最近动作编码">{{ textOrDash(detailData.lastActionCode) }}</el-descriptions-item>
+        <el-descriptions-item label="最近动作人">{{ textOrDash(detailData.lastActionOperator) }}</el-descriptions-item>
+        <el-descriptions-item label="最近动作时间">{{ textOrDash(detailData.lastActionTime) }}</el-descriptions-item>
+        <el-descriptions-item label="守卫阻塞">{{ booleanText(detailData.guardBlocked) }}</el-descriptions-item>
+        <el-descriptions-item label="守卫告警">{{ textOrDash(detailData.guardWarnings) }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ textOrDash(detailData.approveOperator) }}</el-descriptions-item>
         <el-descriptions-item label="审批时间">{{ textOrDash(detailData.approveTime) }}</el-descriptions-item>
       </el-descriptions>
@@ -284,8 +362,10 @@ import { useRoute, useRouter } from 'vue-router'
 defineOptions({ name: 'MallStoreLifecycleChangeOrderIndex' })
 
 type ActionType = 'approve' | 'reject' | 'cancel' | 'submit'
+type QuickFilterType = 'all' | 'pending' | 'overdue'
 
 const EMPTY_TEXT = '--'
+const SLA_NEAR_TIMEOUT_MINUTES = 120
 
 const message = useMessage()
 const route = useRoute()
@@ -304,8 +384,12 @@ const queryParams = reactive<LifecycleChangeOrderApi.StoreLifecycleChangeOrderPa
   fromLifecycleStatus: undefined,
   toLifecycleStatus: undefined,
   applyOperator: undefined,
+  overdue: undefined,
+  lastActionCode: undefined,
+  lastActionOperator: undefined,
   createTime: undefined
 })
+const quickFilter = ref<QuickFilterType>('all')
 
 const createDialogVisible = ref(false)
 const createLoading = ref(false)
@@ -374,6 +458,12 @@ const numberOrDash = (value: any) => {
   return Number.isFinite(parsed) ? String(parsed) : EMPTY_TEXT
 }
 
+const booleanText = (value: any) => {
+  if (value === true) return '是'
+  if (value === false) return '否'
+  return EMPTY_TEXT
+}
+
 const stringifyValue = (value: any) => {
   if (value === undefined || value === null) {
     return EMPTY_TEXT
@@ -412,6 +502,68 @@ const parseQueryNumber = (value: any): number | undefined => {
 const parseStatus = (status: any): number | undefined => {
   const parsed = Number(status)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const parseDateMs = (value?: string) => {
+  const text = String(value || '').trim()
+  if (!text) {
+    return undefined
+  }
+  const time = new Date(text).getTime()
+  return Number.isFinite(time) ? time : undefined
+}
+
+const isPendingStatus = (status?: number) => parseStatus(status) === 10
+
+const isRowOverdue = (row: Partial<LifecycleChangeOrderApi.StoreLifecycleChangeOrderItem>) => {
+  if (!isPendingStatus(row.status)) {
+    return false
+  }
+  if (row.overdue === true) {
+    return true
+  }
+  const deadlineMs = parseDateMs(row.slaDeadlineTime)
+  if (deadlineMs === undefined) {
+    return false
+  }
+  return Date.now() > deadlineMs
+}
+
+const isNearTimeout = (row: Partial<LifecycleChangeOrderApi.StoreLifecycleChangeOrderItem>) => {
+  if (!isPendingStatus(row.status) || isRowOverdue(row)) {
+    return false
+  }
+  const deadlineMs = parseDateMs(row.slaDeadlineTime)
+  if (deadlineMs === undefined) {
+    return false
+  }
+  return deadlineMs - Date.now() <= SLA_NEAR_TIMEOUT_MINUTES * 60 * 1000
+}
+
+const slaText = (row: Partial<LifecycleChangeOrderApi.StoreLifecycleChangeOrderItem>) => {
+  if (!isPendingStatus(row.status)) {
+    return EMPTY_TEXT
+  }
+  if (isRowOverdue(row)) {
+    return '已超时'
+  }
+  if (isNearTimeout(row)) {
+    return '即将超时'
+  }
+  return '正常'
+}
+
+const slaTagType = (row: Partial<LifecycleChangeOrderApi.StoreLifecycleChangeOrderItem>) => {
+  if (!isPendingStatus(row.status)) {
+    return 'info'
+  }
+  if (isRowOverdue(row)) {
+    return 'danger'
+  }
+  if (isNearTimeout(row)) {
+    return 'warning'
+  }
+  return 'success'
 }
 
 const lifecycleText = (status?: number) => {
@@ -527,11 +679,40 @@ const initQueryFromRoute = () => {
   queryParams.orderNo = firstQueryValue(route.query.orderNo).trim() || undefined
   queryParams.storeId = parseQueryNumber(route.query.storeId)
   queryParams.status = parseQueryNumber(route.query.status)
+  const overdueText = firstQueryValue(route.query.overdue).trim().toLowerCase()
+  queryParams.overdue = overdueText === 'true' ? true : overdueText === 'false' ? false : undefined
+  queryParams.lastActionCode = firstQueryValue(route.query.lastActionCode).trim() || undefined
+  queryParams.lastActionOperator = firstQueryValue(route.query.lastActionOperator).trim() || undefined
+  if (queryParams.status === 10 && queryParams.overdue === true) {
+    quickFilter.value = 'overdue'
+  } else if (queryParams.status === 10) {
+    quickFilter.value = 'pending'
+  } else {
+    quickFilter.value = 'all'
+  }
 }
 
 const normalizeQuery = () => {
   queryParams.orderNo = String(queryParams.orderNo || '').trim() || undefined
   queryParams.applyOperator = String(queryParams.applyOperator || '').trim() || undefined
+  queryParams.lastActionCode = String(queryParams.lastActionCode || '').trim().toUpperCase() || undefined
+  queryParams.lastActionOperator = String(queryParams.lastActionOperator || '').trim() || undefined
+}
+
+const setQuickFilter = async (type: QuickFilterType) => {
+  quickFilter.value = type
+  queryParams.pageNo = 1
+  if (type === 'all') {
+    queryParams.status = undefined
+    queryParams.overdue = undefined
+  } else if (type === 'pending') {
+    queryParams.status = 10
+    queryParams.overdue = undefined
+  } else {
+    queryParams.status = 10
+    queryParams.overdue = true
+  }
+  await getList()
 }
 
 const getList = async () => {
@@ -549,6 +730,13 @@ const getList = async () => {
 }
 
 const handleQuery = async () => {
+  if (queryParams.status === 10 && queryParams.overdue === true) {
+    quickFilter.value = 'overdue'
+  } else if (queryParams.status === 10) {
+    quickFilter.value = 'pending'
+  } else {
+    quickFilter.value = 'all'
+  }
   queryParams.pageNo = 1
   await getList()
 }
@@ -562,7 +750,11 @@ const resetQuery = async () => {
   queryParams.fromLifecycleStatus = undefined
   queryParams.toLifecycleStatus = undefined
   queryParams.applyOperator = undefined
+  queryParams.overdue = undefined
+  queryParams.lastActionCode = undefined
+  queryParams.lastActionOperator = undefined
   queryParams.createTime = undefined
+  quickFilter.value = 'all'
   await getList()
 }
 
