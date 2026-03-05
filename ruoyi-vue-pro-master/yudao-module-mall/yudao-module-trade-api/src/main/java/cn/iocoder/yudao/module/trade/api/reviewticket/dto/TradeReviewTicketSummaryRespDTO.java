@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * 统一工单摘要响应 DTO。
@@ -32,5 +33,8 @@ public class TradeReviewTicketSummaryRespDTO implements Serializable {
      * 严重级别
      */
     private String severity;
+    /**
+     * 收口时间
+     */
+    private LocalDateTime resolvedTime;
 }
-

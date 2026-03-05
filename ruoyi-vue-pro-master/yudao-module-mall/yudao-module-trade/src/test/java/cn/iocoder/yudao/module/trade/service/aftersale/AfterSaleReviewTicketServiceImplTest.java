@@ -239,6 +239,7 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         latestA.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-06");
         latestA.setStatus(10);
         latestA.setSeverity("P1");
+        latestA.setResolvedTime(LocalDateTime.of(2026, 3, 6, 10, 0, 0));
         AfterSaleReviewTicketDO olderA = new AfterSaleReviewTicketDO();
         olderA.setId(5002L);
         olderA.setTicketType(40);
@@ -263,6 +264,9 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(new HashSet<>(Arrays.asList(5003L, 5001L)), idSet);
         assertEquals(new HashSet<>(Arrays.asList("FOUR_ACCOUNT_RECONCILE:2026-03-06",
                 "FOUR_ACCOUNT_RECONCILE:2026-03-05")), sourceSet);
+        assertEquals(LocalDateTime.of(2026, 3, 6, 10, 0, 0), result.stream()
+                .filter(item -> Long.valueOf(5003L).equals(item.getId()))
+                .findFirst().orElseThrow().getResolvedTime());
         verify(afterSaleReviewTicketMapper).selectListByTicketTypeAndSourceBizNos(eq(40), eq(Arrays.asList(
                 "FOUR_ACCOUNT_RECONCILE:2026-03-06", "FOUR_ACCOUNT_RECONCILE:2026-03-05")));
     }

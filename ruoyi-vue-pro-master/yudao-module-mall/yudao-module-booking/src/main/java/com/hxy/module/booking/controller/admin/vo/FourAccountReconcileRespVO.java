@@ -19,6 +19,9 @@ public class FourAccountReconcileRespVO {
     @Schema(description = "业务日期")
     private LocalDate bizDate;
 
+    @Schema(description = "来源业务号", example = "FOUR_ACCOUNT_RECONCILE:2026-03-05")
+    private String sourceBizNo;
+
     @Schema(description = "交易账净额（分）", example = "10000")
     private Integer tradeAmount;
 

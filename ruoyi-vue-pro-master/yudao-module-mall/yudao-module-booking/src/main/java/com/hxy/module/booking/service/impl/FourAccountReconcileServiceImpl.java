@@ -147,6 +147,14 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         return reconcileMapper.selectPage(reqVO);
     }
 
+    @Override
+    public FourAccountReconcileDO getReconcile(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return reconcileMapper.selectById(id);
+    }
+
     private void normalizePageReq(FourAccountReconcilePageReqVO reqVO) {
         if (reqVO == null) {
             return;

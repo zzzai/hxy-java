@@ -12,12 +12,15 @@ import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.service.FourAccountReconcileService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,6 +41,7 @@ import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUti
 @RestController
 @RequestMapping("/booking/four-account-reconcile")
 @Validated
+@Slf4j
 public class FourAccountReconcileController {
 
     private static final Integer REVIEW_TICKET_TYPE = 40;
@@ -53,12 +57,28 @@ public class FourAccountReconcileController {
     @PreAuthorize("@ss.hasPermission('booking:commission:query')")
     public CommonResult<PageResult<FourAccountReconcileRespVO>> page(@Valid FourAccountReconcilePageReqVO reqVO) {
         PageResult<FourAccountReconcileDO> pageResult = reconcileService.getReconcilePage(reqVO);
-        if (pageResult == null || pageResult.getList() == null || pageResult.getList().isEmpty()) {
-            return success(BeanUtils.toBean(pageResult, FourAccountReconcileRespVO.class));
+        if (pageResult == null) {
+            return success(new PageResult<>(Collections.emptyList(), 0L));
         }
-        List<FourAccountReconcileRespVO> records = BeanUtils.toBean(pageResult.getList(), FourAccountReconcileRespVO.class);
+        List<FourAccountReconcileDO> pageList = pageResult.getList() == null
+                ? Collections.emptyList() : pageResult.getList();
+        List<FourAccountReconcileRespVO> records = BeanUtils.toBean(pageList, FourAccountReconcileRespVO.class);
         bindRelatedTicketSummary(records);
         return success(new PageResult<>(records, pageResult.getTotal()));
+    }
+
+    @GetMapping("/get")
+    @Operation(summary = "获得四账对账详情")
+    @Parameter(name = "id", required = true, description = "对账记录ID")
+    @PreAuthorize("@ss.hasPermission('booking:commission:query')")
+    public CommonResult<FourAccountReconcileRespVO> get(@RequestParam("id") Long id) {
+        FourAccountReconcileDO reconcile = reconcileService.getReconcile(id);
+        if (reconcile == null) {
+            return success(null);
+        }
+        FourAccountReconcileRespVO respVO = BeanUtils.toBean(reconcile, FourAccountReconcileRespVO.class);
+        bindRelatedTicketSummary(Collections.singletonList(respVO));
+        return success(respVO);
     }
 
     @PostMapping("/run")
@@ -78,25 +98,34 @@ public class FourAccountReconcileController {
     }
 
     private void bindRelatedTicketSummary(List<FourAccountReconcileRespVO> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        records.forEach(this::fillSourceBizNo);
         List<String> sourceBizNos = records.stream()
-                .map(FourAccountReconcileRespVO::getBizDate)
-                .map(this::buildReviewTicketSourceBizNo)
+                .map(FourAccountReconcileRespVO::getSourceBizNo)
                 .filter(sourceBizNo -> sourceBizNo != null && !sourceBizNo.isEmpty())
                 .distinct()
                 .collect(Collectors.toList());
         if (sourceBizNos.isEmpty()) {
             return;
         }
-        List<TradeReviewTicketSummaryRespDTO> ticketSummaries = tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(
-                new TradeReviewTicketSummaryQueryReqDTO()
-                        .setTicketType(REVIEW_TICKET_TYPE)
-                        .setSourceBizNos(sourceBizNos));
+        List<TradeReviewTicketSummaryRespDTO> ticketSummaries;
+        try {
+            ticketSummaries = tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(
+                    new TradeReviewTicketSummaryQueryReqDTO()
+                            .setTicketType(REVIEW_TICKET_TYPE)
+                            .setSourceBizNos(sourceBizNos));
+        } catch (Exception ex) {
+            log.warn("[bindRelatedTicketSummary][trade summary degrade, sourceBizNos={}]", sourceBizNos, ex);
+            return;
+        }
         Map<String, TradeReviewTicketSummaryRespDTO> ticketMap = ticketSummaries == null ? Collections.emptyMap()
                 : ticketSummaries.stream().filter(item -> item.getSourceBizNo() != null)
                 .collect(Collectors.toMap(TradeReviewTicketSummaryRespDTO::getSourceBizNo,
                         Function.identity(), (left, right) -> left));
         records.forEach(record -> {
-            TradeReviewTicketSummaryRespDTO ticket = ticketMap.get(buildReviewTicketSourceBizNo(record.getBizDate()));
+            TradeReviewTicketSummaryRespDTO ticket = ticketMap.get(record.getSourceBizNo());
             if (ticket == null) {
                 return;
             }
@@ -104,6 +133,13 @@ public class FourAccountReconcileController {
             record.setRelatedTicketStatus(ticket.getStatus());
             record.setRelatedTicketSeverity(ticket.getSeverity());
         });
+    }
+
+    private void fillSourceBizNo(FourAccountReconcileRespVO record) {
+        if (record == null) {
+            return;
+        }
+        record.setSourceBizNo(buildReviewTicketSourceBizNo(record.getBizDate()));
     }
 
     private String buildReviewTicketSourceBizNo(LocalDate bizDate) {

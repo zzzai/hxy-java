@@ -25,5 +25,12 @@ public interface FourAccountReconcileService {
      * 分页查询对账记录
      */
     PageResult<FourAccountReconcileDO> getReconcilePage(FourAccountReconcilePageReqVO reqVO);
-}
 
+    /**
+     * 查询对账详情
+     *
+     * @param id 对账记录ID
+     * @return 对账记录，未命中返回 null
+     */
+    FourAccountReconcileDO getReconcile(Long id);
+}

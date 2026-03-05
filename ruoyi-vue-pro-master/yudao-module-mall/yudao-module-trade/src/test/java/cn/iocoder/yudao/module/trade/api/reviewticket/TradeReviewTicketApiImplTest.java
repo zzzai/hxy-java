@@ -13,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -87,6 +88,7 @@ class TradeReviewTicketApiImplTest extends BaseMockitoUnitTest {
         ticket.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-05");
         ticket.setStatus(10);
         ticket.setSeverity("P1");
+        ticket.setResolvedTime(LocalDateTime.of(2026, 3, 5, 10, 30, 0));
         when(afterSaleReviewTicketService.listLatestByTicketTypeAndSourceBizNos(
                 eq(40), eq(Collections.singletonList("FOUR_ACCOUNT_RECONCILE:2026-03-05"))))
                 .thenReturn(Collections.singletonList(ticket));
@@ -99,6 +101,7 @@ class TradeReviewTicketApiImplTest extends BaseMockitoUnitTest {
         assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-05", respList.get(0).getSourceBizNo());
         assertEquals(10, respList.get(0).getStatus());
         assertEquals("P1", respList.get(0).getSeverity());
+        assertEquals(LocalDateTime.of(2026, 3, 5, 10, 30, 0), respList.get(0).getResolvedTime());
         verify(afterSaleReviewTicketService).listLatestByTicketTypeAndSourceBizNos(
                 eq(40), eq(Collections.singletonList("FOUR_ACCOUNT_RECONCILE:2026-03-05")));
     }

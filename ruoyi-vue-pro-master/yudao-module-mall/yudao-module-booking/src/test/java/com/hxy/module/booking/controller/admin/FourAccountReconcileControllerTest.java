@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -67,6 +68,7 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertTrue(result.isSuccess());
         assertEquals(1L, result.getData().getTotal());
         assertEquals(1L, result.getData().getList().get(0).getId());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-04", result.getData().getList().get(0).getSourceBizNo());
         assertEquals(101L, result.getData().getList().get(0).getRelatedTicketId());
         assertEquals(10, result.getData().getList().get(0).getRelatedTicketStatus());
         assertEquals("P1", result.getData().getList().get(0).getRelatedTicketSeverity());
@@ -76,6 +78,70 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
                         && Integer.valueOf(40).equals(param.getTicketType())
                         && param.getSourceBizNos() != null
                         && param.getSourceBizNos().contains("FOUR_ACCOUNT_RECONCILE:2026-03-04")));
+    }
+
+    @Test
+    void page_shouldDegradeWhenTradeTicketApiThrows() {
+        FourAccountReconcileDO row = FourAccountReconcileDO.builder()
+                .id(2L)
+                .bizDate(LocalDate.of(2026, 3, 5))
+                .tradeAmount(10000)
+                .status(10)
+                .issueCount(0)
+                .build();
+        FourAccountReconcilePageReqVO reqVO = new FourAccountReconcilePageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        when(reconcileService.getReconcilePage(reqVO))
+                .thenReturn(new PageResult<>(Collections.singletonList(row), 1L));
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenThrow(new RuntimeException("trade-api timeout"));
+
+        CommonResult<PageResult<FourAccountReconcileRespVO>> result = controller.page(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals(2L, result.getData().getList().get(0).getId());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-05", result.getData().getList().get(0).getSourceBizNo());
+        assertNull(result.getData().getList().get(0).getRelatedTicketId());
+        assertNull(result.getData().getList().get(0).getRelatedTicketStatus());
+        assertNull(result.getData().getList().get(0).getRelatedTicketSeverity());
+        verify(tradeReviewTicketApi).listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class));
+    }
+
+    @Test
+    void get_shouldReturnData() {
+        FourAccountReconcileDO row = FourAccountReconcileDO.builder()
+                .id(3L)
+                .bizDate(LocalDate.of(2026, 3, 6))
+                .tradeAmount(12000)
+                .fulfillmentAmount(10000)
+                .status(20)
+                .issueCount(1)
+                .build();
+        when(reconcileService.getReconcile(3L)).thenReturn(row);
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenReturn(Collections.singletonList(new TradeReviewTicketSummaryRespDTO()
+                        .setId(102L)
+                        .setTicketType(40)
+                        .setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-06")
+                        .setStatus(10)
+                        .setSeverity("P0")));
+
+        CommonResult<FourAccountReconcileRespVO> result = controller.get(3L);
+
+        assertTrue(result.isSuccess());
+        assertEquals(3L, result.getData().getId());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-06", result.getData().getSourceBizNo());
+        assertEquals(102L, result.getData().getRelatedTicketId());
+        assertEquals(10, result.getData().getRelatedTicketStatus());
+        assertEquals("P0", result.getData().getRelatedTicketSeverity());
+        verify(reconcileService).getReconcile(3L);
+        verify(tradeReviewTicketApi).listLatestTicketSummaryBySourceBizNos(
+                argThat(param -> param != null
+                        && Integer.valueOf(40).equals(param.getTicketType())
+                        && param.getSourceBizNos() != null
+                        && param.getSourceBizNos().contains("FOUR_ACCOUNT_RECONCILE:2026-03-06")));
     }
 
     @Test

@@ -73,7 +73,8 @@ public class TradeReviewTicketApiImpl implements TradeReviewTicketApi {
                         .setTicketType(ticket.getTicketType())
                         .setSourceBizNo(ticket.getSourceBizNo())
                         .setStatus(ticket.getStatus())
-                        .setSeverity(ticket.getSeverity()))
+                        .setSeverity(ticket.getSeverity())
+                        .setResolvedTime(ticket.getResolvedTime()))
                 .collect(Collectors.toList());
     }
 
