@@ -725,3 +725,15 @@
 - 备选方案：仅保留分页与历史 `detailJson` 原文，不建设详情结构化视图与复核接口。
 - 否决原因：无法支持“历史证据 + 当前规则复核”双视角排障，且脏快照会直接放大为接口错误。
 - 回滚条件：若复核接口在高峰期带来压力，可临时下调批量复核并发或仅开放按 `logId` 单批次复核，不回滚快照字段。
+
+## ADR-080：生命周期守卫复核采用“查询态与执行落账态分离”策略
+
+- 背景：仅有 `recheck-by-batch` 查询接口时，运营可看到当前阻塞结果，但缺少“谁在何时复核过、复核结论是什么”的结构化留痕，不利于班次交接与审计。
+- 决策：
+  1) 保留 `POST /product/store/lifecycle-guard/recheck-by-batch` 作为纯查询态接口（不改状态、不落账）；
+  2) 新增 `POST /product/store/lifecycle-guard/recheck-by-batch/execute`，复核完成后落 `hxy_store_lifecycle_recheck_log` 台账；
+  3) 复核台账提供 `GET /product/store/lifecycle-recheck-log/page|get`，并固化 `guardRuleVersion/guardConfigSnapshotJson/detailParseError`。
+- 影响范围：门店生命周期复盘链路、跨班组协作可追溯性、审计证据沉淀。
+- 备选方案：将查询态接口直接改为每次都落账。
+- 否决原因：会放大高频探查请求写放大，且难区分“预览探查”与“正式复核”操作。
+- 回滚条件：若台账写入压力异常，可短期将 execute 落账降为异步写入；保留查询态与执行态接口分离。

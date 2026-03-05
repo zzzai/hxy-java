@@ -61,6 +61,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String DOMAIN_TAG_GROUP = "TAG_GROUP";
     private static final String SOURCE_ADMIN_UI = "ADMIN_UI";
     private static final DateTimeFormatter BATCH_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter RECHECK_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final Pattern STORE_ID_PATTERN = Pattern.compile("\"storeId\"\\s*:\\s*(\\d+)");
 
     @Resource
@@ -87,6 +88,8 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private ConfigApi configApi;
     @Resource
     private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
+    @Resource
+    private ProductStoreLifecycleRecheckLogService lifecycleRecheckLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -425,66 +428,33 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     public ProductStoreLifecycleGuardBatchRecheckRespVO recheckLifecycleGuardByBatch(
             ProductStoreLifecycleGuardBatchRecheckReqVO reqVO) {
         ProductStoreLifecycleBatchLogDO batchLog = resolveBatchLog(reqVO);
-        StoreIdExtractionResult extractionResult = extractStoreIdsForRecheck(batchLog.getDetailJson());
-        List<Long> storeIds = extractionResult.getStoreIds();
-        ProductStoreLifecycleGuardBatchRecheckRespVO respVO = new ProductStoreLifecycleGuardBatchRecheckRespVO();
-        respVO.setLogId(batchLog.getId());
-        respVO.setBatchNo(batchLog.getBatchNo());
-        respVO.setTargetLifecycleStatus(batchLog.getTargetLifecycleStatus());
-        respVO.setGuardRuleVersion(batchLog.getGuardRuleVersion());
-        respVO.setGuardConfigSnapshotJson(batchLog.getGuardConfigSnapshotJson());
-        respVO.setDetailParseError(extractionResult.isParseError());
-        if (CollUtil.isEmpty(storeIds)) {
-            respVO.setTotalCount(0);
-            respVO.setBlockedCount(0);
-            respVO.setWarningCount(0);
-            return respVO;
-        }
-        Map<Long, ProductStoreDO> storeMap = getStoreMap(storeIds);
-        List<ProductStoreLifecycleGuardBatchRecheckRespVO.Detail> details = new ArrayList<>(storeIds.size());
-        int blockedCount = 0;
-        int warningCount = 0;
-        for (Long storeId : storeIds) {
-            ProductStoreLifecycleGuardRespVO guard;
-            try {
-                guard = getLifecycleGuard(storeId, batchLog.getTargetLifecycleStatus());
-            } catch (ServiceException ex) {
-                ProductStoreLifecycleGuardBatchRecheckRespVO.Detail blocked =
-                        new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
-                blocked.setStoreId(storeId);
-                ProductStoreDO store = storeMap.get(storeId);
-                blocked.setStoreName(store == null ? null : store.getName());
-                blocked.setBlocked(true);
-                blocked.setBlockedCode(ex.getCode());
-                blocked.setBlockedMessage(ex.getMessage());
-                blocked.setWarnings(Collections.emptyList());
-                blocked.setGuardItems(Collections.emptyList());
-                details.add(blocked);
-                blockedCount++;
-                continue;
-            }
-            ProductStoreLifecycleGuardBatchRecheckRespVO.Detail detail =
-                    new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
-            detail.setStoreId(guard.getStoreId());
-            ProductStoreDO store = storeMap.get(guard.getStoreId());
-            detail.setStoreName(store == null ? null : store.getName());
-            detail.setBlocked(Boolean.TRUE.equals(guard.getBlocked()));
-            detail.setBlockedCode(guard.getBlockedCode());
-            detail.setBlockedMessage(guard.getBlockedMessage());
-            detail.setWarnings(guard.getWarnings());
-            detail.setGuardItems(guard.getGuardItems());
-            details.add(detail);
-            if (Boolean.TRUE.equals(guard.getBlocked())) {
-                blockedCount++;
-            }
-            if (CollUtil.isNotEmpty(guard.getWarnings())) {
-                warningCount++;
-            }
-        }
-        respVO.setDetails(details);
-        respVO.setTotalCount(details.size());
-        respVO.setBlockedCount(blockedCount);
-        respVO.setWarningCount(warningCount);
+        return evaluateLifecycleGuardByBatchLog(batchLog);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProductStoreLifecycleGuardBatchRecheckRespVO executeLifecycleGuardRecheckByBatch(
+            ProductStoreLifecycleGuardBatchRecheckReqVO reqVO) {
+        ProductStoreLifecycleBatchLogDO batchLog = resolveBatchLog(reqVO);
+        ProductStoreLifecycleGuardBatchRecheckRespVO respVO = evaluateLifecycleGuardByBatchLog(batchLog);
+        String recheckNo = buildRecheckNo();
+        respVO.setRecheckNo(recheckNo);
+        ProductStoreLifecycleRecheckLogDO recheckLog = ProductStoreLifecycleRecheckLogDO.builder()
+                .recheckNo(recheckNo)
+                .logId(batchLog.getId())
+                .batchNo(batchLog.getBatchNo())
+                .targetLifecycleStatus(batchLog.getTargetLifecycleStatus())
+                .totalCount(respVO.getTotalCount())
+                .blockedCount(respVO.getBlockedCount())
+                .warningCount(respVO.getWarningCount())
+                .detailJson(buildLifecycleRecheckDetailJson(respVO))
+                .detailParseError(Boolean.TRUE.equals(respVO.getDetailParseError()))
+                .guardRuleVersion(batchLog.getGuardRuleVersion())
+                .guardConfigSnapshotJson(batchLog.getGuardConfigSnapshotJson())
+                .operator(resolveOperator())
+                .source(SOURCE_ADMIN_UI)
+                .build();
+        lifecycleRecheckLogService.createLifecycleRecheckLog(recheckLog);
         return respVO;
     }
 
@@ -1134,6 +1104,71 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         return log;
     }
 
+    private ProductStoreLifecycleGuardBatchRecheckRespVO evaluateLifecycleGuardByBatchLog(
+            ProductStoreLifecycleBatchLogDO batchLog) {
+        StoreIdExtractionResult extractionResult = extractStoreIdsForRecheck(batchLog.getDetailJson());
+        List<Long> storeIds = extractionResult.getStoreIds();
+        ProductStoreLifecycleGuardBatchRecheckRespVO respVO = new ProductStoreLifecycleGuardBatchRecheckRespVO();
+        respVO.setLogId(batchLog.getId());
+        respVO.setBatchNo(batchLog.getBatchNo());
+        respVO.setTargetLifecycleStatus(batchLog.getTargetLifecycleStatus());
+        respVO.setGuardRuleVersion(batchLog.getGuardRuleVersion());
+        respVO.setGuardConfigSnapshotJson(batchLog.getGuardConfigSnapshotJson());
+        respVO.setDetailParseError(extractionResult.isParseError());
+        if (CollUtil.isEmpty(storeIds)) {
+            respVO.setTotalCount(0);
+            respVO.setBlockedCount(0);
+            respVO.setWarningCount(0);
+            return respVO;
+        }
+        Map<Long, ProductStoreDO> storeMap = getStoreMap(storeIds);
+        List<ProductStoreLifecycleGuardBatchRecheckRespVO.Detail> details = new ArrayList<>(storeIds.size());
+        int blockedCount = 0;
+        int warningCount = 0;
+        for (Long storeId : storeIds) {
+            ProductStoreLifecycleGuardRespVO guard;
+            try {
+                guard = getLifecycleGuard(storeId, batchLog.getTargetLifecycleStatus());
+            } catch (ServiceException ex) {
+                ProductStoreLifecycleGuardBatchRecheckRespVO.Detail blocked =
+                        new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
+                blocked.setStoreId(storeId);
+                ProductStoreDO store = storeMap.get(storeId);
+                blocked.setStoreName(store == null ? null : store.getName());
+                blocked.setBlocked(true);
+                blocked.setBlockedCode(ex.getCode());
+                blocked.setBlockedMessage(ex.getMessage());
+                blocked.setWarnings(Collections.emptyList());
+                blocked.setGuardItems(Collections.emptyList());
+                details.add(blocked);
+                blockedCount++;
+                continue;
+            }
+            ProductStoreLifecycleGuardBatchRecheckRespVO.Detail detail =
+                    new ProductStoreLifecycleGuardBatchRecheckRespVO.Detail();
+            detail.setStoreId(guard.getStoreId());
+            ProductStoreDO store = storeMap.get(guard.getStoreId());
+            detail.setStoreName(store == null ? null : store.getName());
+            detail.setBlocked(Boolean.TRUE.equals(guard.getBlocked()));
+            detail.setBlockedCode(guard.getBlockedCode());
+            detail.setBlockedMessage(guard.getBlockedMessage());
+            detail.setWarnings(guard.getWarnings());
+            detail.setGuardItems(guard.getGuardItems());
+            details.add(detail);
+            if (Boolean.TRUE.equals(guard.getBlocked())) {
+                blockedCount++;
+            }
+            if (CollUtil.isNotEmpty(guard.getWarnings())) {
+                warningCount++;
+            }
+        }
+        respVO.setDetails(details);
+        respVO.setTotalCount(details.size());
+        respVO.setBlockedCount(blockedCount);
+        respVO.setWarningCount(warningCount);
+        return respVO;
+    }
+
     private StoreIdExtractionResult extractStoreIdsForRecheck(String detailJson) {
         if (!StringUtils.hasText(detailJson)) {
             return new StoreIdExtractionResult(Collections.emptyList(), false);
@@ -1224,9 +1259,28 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
+    private static String buildRecheckNo() {
+        return "RECHECK-" + LocalDateTime.now().format(RECHECK_NO_TIME_FORMAT)
+                + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
     private static String buildAuditSummary(ProductStoreBatchLifecycleExecuteRespVO respVO) {
         return String.format("total=%d,success=%d,blocked=%d,warning=%d",
                 respVO.getTotalCount(), respVO.getSuccessCount(), respVO.getBlockedCount(), respVO.getWarningCount());
+    }
+
+    private static String buildLifecycleRecheckDetailJson(ProductStoreLifecycleGuardBatchRecheckRespVO respVO) {
+        List<ProductStoreLifecycleGuardBatchRecheckRespVO.Detail> details = Optional.ofNullable(respVO.getDetails())
+                .orElse(Collections.emptyList());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("details", details);
+        payload.put("blocked", details.stream()
+                .filter(detail -> Boolean.TRUE.equals(detail.getBlocked()))
+                .collect(Collectors.toList()));
+        payload.put("warnings", details.stream()
+                .filter(detail -> CollUtil.isNotEmpty(detail.getWarnings()))
+                .collect(Collectors.toList()));
+        return JsonUtils.toJsonString(payload);
     }
 
     private String resolveOperator() {

@@ -9,8 +9,13 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLif
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleBatchLogRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleGuardBatchRecheckRespVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogGetRespVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogRespVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleRecheckLogDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleBatchLogService;
+import cn.iocoder.yudao.module.product.service.store.ProductStoreLifecycleRecheckLogService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,11 +38,15 @@ class ProductStoreControllerTest {
     private ProductStoreService productStoreService;
     @Mock
     private ProductStoreLifecycleBatchLogService lifecycleBatchLogService;
+    @Mock
+    private ProductStoreLifecycleRecheckLogService lifecycleRecheckLogService;
 
     @InjectMocks
     private ProductStoreController productStoreController;
     @InjectMocks
     private ProductStoreLifecycleBatchLogController lifecycleBatchLogController;
+    @InjectMocks
+    private ProductStoreLifecycleRecheckLogController lifecycleRecheckLogController;
 
     @Test
     void batchUpdateLifecycleExecute_shouldReturnExecutionSummary() {
@@ -165,5 +174,89 @@ class ProductStoreControllerTest {
         assertEquals(2, result.getData().getTotalCount());
         assertEquals(1, result.getData().getBlockedCount());
         verify(productStoreService).recheckLifecycleGuardByBatch(any(ProductStoreLifecycleGuardBatchRecheckReqVO.class));
+    }
+
+    @Test
+    void executeLifecycleGuardRecheckByBatch_shouldReturnSummaryAndRecheckNo() {
+        ProductStoreLifecycleGuardBatchRecheckReqVO reqVO = new ProductStoreLifecycleGuardBatchRecheckReqVO();
+        reqVO.setLogId(9L);
+
+        ProductStoreLifecycleGuardBatchRecheckRespVO respVO = new ProductStoreLifecycleGuardBatchRecheckRespVO();
+        respVO.setRecheckNo("RECHECK-20260305152000-ABCD1234");
+        respVO.setLogId(9L);
+        respVO.setBatchNo("LIFECYCLE-20260304000000-ABCD1234");
+        respVO.setTargetLifecycleStatus(35);
+        respVO.setTotalCount(2);
+        respVO.setBlockedCount(1);
+        respVO.setWarningCount(1);
+        when(productStoreService.executeLifecycleGuardRecheckByBatch(any(ProductStoreLifecycleGuardBatchRecheckReqVO.class)))
+                .thenReturn(respVO);
+
+        CommonResult<ProductStoreLifecycleGuardBatchRecheckRespVO> result =
+                productStoreController.executeLifecycleGuardRecheckByBatch(reqVO);
+
+        assertEquals("RECHECK-20260305152000-ABCD1234", result.getData().getRecheckNo());
+        assertEquals(2, result.getData().getTotalCount());
+        verify(productStoreService).executeLifecycleGuardRecheckByBatch(any(ProductStoreLifecycleGuardBatchRecheckReqVO.class));
+    }
+
+    @Test
+    void pageLifecycleRecheckLog_shouldPassFiltersAndMapResponse() {
+        ProductStoreLifecycleRecheckLogPageReqVO reqVO = new ProductStoreLifecycleRecheckLogPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setRecheckNo("RECHECK-20260305");
+        reqVO.setLogId(11L);
+        reqVO.setBatchNo("LIFECYCLE-20260305");
+        reqVO.setTargetLifecycleStatus(35);
+        reqVO.setOperator("运营同学");
+        reqVO.setSource("ADMIN_UI");
+
+        ProductStoreLifecycleRecheckLogDO row = ProductStoreLifecycleRecheckLogDO.builder()
+                .id(1L)
+                .recheckNo("RECHECK-20260305152000-ABCD1234")
+                .logId(11L)
+                .batchNo("LIFECYCLE-20260305000000-ABCD1234")
+                .targetLifecycleStatus(35)
+                .totalCount(3)
+                .blockedCount(1)
+                .warningCount(1)
+                .detailParseError(false)
+                .operator("运营同学")
+                .source("ADMIN_UI")
+                .build();
+        when(lifecycleRecheckLogService.getLifecycleRecheckLogPage(any(ProductStoreLifecycleRecheckLogPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.singletonList(row), 1L));
+
+        CommonResult<PageResult<ProductStoreLifecycleRecheckLogRespVO>> result =
+                lifecycleRecheckLogController.pageLifecycleRecheckLog(reqVO);
+
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals("RECHECK-20260305152000-ABCD1234", result.getData().getList().get(0).getRecheckNo());
+        ArgumentCaptor<ProductStoreLifecycleRecheckLogPageReqVO> reqCaptor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleRecheckLogPageReqVO.class);
+        verify(lifecycleRecheckLogService).getLifecycleRecheckLogPage(reqCaptor.capture());
+        assertEquals("RECHECK-20260305", reqCaptor.getValue().getRecheckNo());
+        assertEquals(11L, reqCaptor.getValue().getLogId());
+    }
+
+    @Test
+    void getLifecycleRecheckLog_shouldDegradeWhenDetailJsonMalformed() {
+        ProductStoreLifecycleRecheckLogDO row = ProductStoreLifecycleRecheckLogDO.builder()
+                .id(3L)
+                .recheckNo("RECHECK-20260305152000-ABCD1234")
+                .batchNo("LIFECYCLE-20260305000000-ABCD1234")
+                .targetLifecycleStatus(35)
+                .detailJson("{\"details\":[INVALID]")
+                .detailParseError(false)
+                .build();
+        when(lifecycleRecheckLogService.getLifecycleRecheckLog(3L)).thenReturn(row);
+
+        CommonResult<ProductStoreLifecycleRecheckLogGetRespVO> result =
+                lifecycleRecheckLogController.getLifecycleRecheckLog(3L);
+
+        assertEquals(3L, result.getData().getId());
+        assertEquals(true, result.getData().getDetailParseError());
+        assertEquals(null, result.getData().getDetailView());
     }
 }

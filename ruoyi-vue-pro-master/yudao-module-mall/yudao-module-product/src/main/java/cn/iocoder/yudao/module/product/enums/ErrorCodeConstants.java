@@ -109,6 +109,7 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_LIFECYCLE_CLOSE_BLOCKED_BY_INFLIGHT_TICKET = new ErrorCode(1_008_014_007, "门店存在在途售后工单，无法停业或闭店");
     ErrorCode STORE_LIFECYCLE_BATCH_LOG_NOT_EXISTS = new ErrorCode(1_008_014_008, "门店生命周期批次台账不存在");
     ErrorCode STORE_LIFECYCLE_BATCH_LOG_QUERY_REQUIRED = new ErrorCode(1_008_014_009, "批次复核入参错误：logId 或 batchNo 至少传一个");
+    ErrorCode STORE_LIFECYCLE_RECHECK_LOG_NOT_EXISTS = new ErrorCode(1_008_014_010, "门店生命周期复核台账不存在");
 
     // ========== 类目模板与 SKU 生成 1-008-015-000 ==========
     ErrorCode CATEGORY_TEMPLATE_NOT_EXISTS = new ErrorCode(1_008_015_000, "类目模板不存在");

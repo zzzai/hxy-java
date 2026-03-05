@@ -10,6 +10,9 @@ import java.util.List;
 @Data
 public class ProductStoreLifecycleGuardBatchRecheckRespVO {
 
+    @Schema(description = "复核编号（仅 execute 接口返回）", example = "RECHECK-20260305152000-ABCD1234")
+    private String recheckNo;
+
     @Schema(description = "批次台账 ID", example = "1001")
     private Long logId;
 
