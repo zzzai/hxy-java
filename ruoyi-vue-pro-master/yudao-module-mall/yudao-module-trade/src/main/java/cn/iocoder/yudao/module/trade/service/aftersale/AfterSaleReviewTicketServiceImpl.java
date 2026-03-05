@@ -272,6 +272,26 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     }
 
     @Override
+    public boolean resolveReviewTicketBySourceBizNo(Integer ticketType, String sourceBizNo, Long resolverId,
+                                                    Integer resolverType, String resolveActionCode,
+                                                    String resolveBizNo, String resolveRemark) {
+        if (ticketType == null || StrUtil.isBlank(sourceBizNo)) {
+            return false;
+        }
+        AfterSaleReviewTicketDO ticket =
+                afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(ticketType, sourceBizNo);
+        if (ticket == null || !AfterSaleReviewTicketStatusEnum.isPending(ticket.getStatus())) {
+            return false;
+        }
+        String normalizedActionCode = normalizeResolveActionCode(resolveActionCode, DEFAULT_RESOLVE_ACTION_AUTO);
+        String normalizedBizNo = normalizeResolveBizNo(resolveBizNo, ticket.getId());
+        int updateCount = afterSaleReviewTicketMapper.updateByIdAndStatus(ticket.getId(),
+                AfterSaleReviewTicketStatusEnum.PENDING.getStatus(),
+                buildResolvedTicketUpdate(resolverId, resolverType, normalizedActionCode, normalizedBizNo, resolveRemark));
+        return updateCount > 0;
+    }
+
+    @Override
     public void upsertManualReviewTicket(AfterSaleDO afterSale, AfterSaleRefundDecisionBO decision) {
         if (afterSale == null || decision == null || afterSale.getId() == null) {
             return;

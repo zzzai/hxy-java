@@ -3,6 +3,7 @@ package com.hxy.module.booking.service.impl;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketResolveReqDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -63,6 +64,11 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(200, captor.getValue().getTradeMinusFulfillment());
         assertEquals(7300, captor.getValue().getTradeMinusCommissionSplit());
         verify(tradeReviewTicketApi, never()).upsertReviewTicket(any(TradeReviewTicketUpsertReqDTO.class));
+        ArgumentCaptor<TradeReviewTicketResolveReqDTO> resolveCaptor =
+                ArgumentCaptor.forClass(TradeReviewTicketResolveReqDTO.class);
+        verify(tradeReviewTicketApi).resolveReviewTicketBySourceBizNo(resolveCaptor.capture());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-04", resolveCaptor.getValue().getSourceBizNo());
+        assertEquals("FOUR_ACCOUNT_RECONCILE_PASS", resolveCaptor.getValue().getResolveActionCode());
     }
 
     @Test
@@ -97,6 +103,7 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(40, ticketCaptor.getValue().getTicketType());
         assertEquals("FOUR_ACCOUNT_RECONCILE_WARN", ticketCaptor.getValue().getRuleCode());
         assertEquals("P1", ticketCaptor.getValue().getSeverity());
+        verify(tradeReviewTicketApi, never()).resolveReviewTicketBySourceBizNo(any(TradeReviewTicketResolveReqDTO.class));
     }
 
     @Test

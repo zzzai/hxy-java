@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketResolveReqDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -42,6 +43,8 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
     private static final String REVIEW_TICKET_RULE_CODE = "FOUR_ACCOUNT_RECONCILE_WARN";
     private static final String REVIEW_TICKET_SEVERITY = "P1";
     private static final String REVIEW_TICKET_ACTION_CODE = "FOUR_ACCOUNT_RECONCILE_WARN";
+    private static final String REVIEW_TICKET_RESOLVE_ACTION_CODE = "FOUR_ACCOUNT_RECONCILE_PASS";
+    private static final String REVIEW_TICKET_RESOLVE_REMARK = "四账对账通过自动收口";
 
     @Resource
     private FourAccountReconcileMapper reconcileMapper;
@@ -132,6 +135,8 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         }
         if (FourAccountReconcileStatusEnum.WARN.getStatus().equals(status)) {
             upsertWarnReviewTicket(targetDate, issueCodeText, issueDetailJson);
+        } else {
+            resolvePassReviewTicket(targetDate);
         }
         return reconcileId;
     }
@@ -233,5 +238,24 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
             reason = reason + ":" + issueCodeText;
         }
         return StrUtil.maxLength(reason, 500);
+    }
+
+    private void resolvePassReviewTicket(LocalDate bizDate) {
+        if (bizDate == null) {
+            return;
+        }
+        String sourceBizNo = REVIEW_TICKET_SOURCE_PREFIX + bizDate;
+        TradeReviewTicketResolveReqDTO reqDTO = new TradeReviewTicketResolveReqDTO()
+                .setTicketType(REVIEW_TICKET_TYPE)
+                .setSourceBizNo(sourceBizNo)
+                .setResolveActionCode(REVIEW_TICKET_RESOLVE_ACTION_CODE)
+                .setResolveBizNo(sourceBizNo)
+                .setResolveRemark(REVIEW_TICKET_RESOLVE_REMARK);
+        try {
+            tradeReviewTicketApi.resolveReviewTicketBySourceBizNo(reqDTO);
+        } catch (Exception ex) {
+            log.warn("[resolvePassReviewTicket][bizDate({}) sourceBizNo({}) failed]",
+                    bizDate, sourceBizNo, ex);
+        }
     }
 }

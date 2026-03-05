@@ -54,6 +54,22 @@ public interface AfterSaleReviewTicketService {
     Long upsertReviewTicketBySourceBizNo(AfterSaleReviewTicketCreateReqBO reqBO, String actionCode);
 
     /**
+     * 按 {@code ticketType + sourceBizNo} 收口工单（仅待处理工单生效）。
+     *
+     * @param ticketType       工单类型
+     * @param sourceBizNo      来源业务号
+     * @param resolverId       收口人
+     * @param resolverType     收口人类型
+     * @param resolveActionCode 收口动作编码
+     * @param resolveBizNo     收口业务号
+     * @param resolveRemark    收口备注
+     * @return 是否完成收口
+     */
+    boolean resolveReviewTicketBySourceBizNo(Integer ticketType, String sourceBizNo, Long resolverId,
+                                             Integer resolverType, String resolveActionCode, String resolveBizNo,
+                                             String resolveRemark);
+
+    /**
      * 人工复核场景下创建或更新工单
      *
      * @param afterSale 售后单

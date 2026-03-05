@@ -189,6 +189,45 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void shouldResolveBySourceWhenTicketPending() {
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(3001L);
+        ticket.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        when(afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(40, "FOUR_ACCOUNT_RECONCILE:2026-03-05"))
+                .thenReturn(ticket);
+        when(afterSaleReviewTicketMapper.updateByIdAndStatus(eq(3001L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any())).thenReturn(1);
+
+        boolean resolved = service.resolveReviewTicketBySourceBizNo(
+                40, "FOUR_ACCOUNT_RECONCILE:2026-03-05", null, null,
+                "FOUR_ACCOUNT_RECONCILE_PASS", "FOUR_ACCOUNT_RECONCILE:2026-03-05", "auto resolve");
+
+        assertEquals(true, resolved);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).updateByIdAndStatus(eq(3001L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), captor.capture());
+        assertEquals(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus(), captor.getValue().getStatus());
+        assertEquals("FOUR_ACCOUNT_RECONCILE_PASS", captor.getValue().getResolveActionCode());
+    }
+
+    @Test
+    void shouldSkipResolveBySourceWhenTicketNotPending() {
+        AfterSaleReviewTicketDO ticket = new AfterSaleReviewTicketDO();
+        ticket.setId(3002L);
+        ticket.setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus());
+        when(afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(40, "FOUR_ACCOUNT_RECONCILE:2026-03-06"))
+                .thenReturn(ticket);
+
+        boolean resolved = service.resolveReviewTicketBySourceBizNo(
+                40, "FOUR_ACCOUNT_RECONCILE:2026-03-06", null, null,
+                "FOUR_ACCOUNT_RECONCILE_PASS", "FOUR_ACCOUNT_RECONCILE:2026-03-06", "auto resolve");
+
+        assertEquals(false, resolved);
+        verify(afterSaleReviewTicketMapper, never()).updateByIdAndStatus(eq(3002L),
+                eq(AfterSaleReviewTicketStatusEnum.PENDING.getStatus()), any());
+    }
+
+    @Test
     void shouldNormalizeQueryFiltersWhenQueryPage() {
         AfterSaleReviewTicketPageReqVO reqVO = new AfterSaleReviewTicketPageReqVO();
         reqVO.setRouteScope(" rule ");
