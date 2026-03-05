@@ -35,6 +35,15 @@ public class ProductStoreLifecycleChangeOrderPageReqVO extends PageParam {
     @Schema(description = "申请人", example = "运营同学")
     private String applyOperator;
 
+    @Schema(description = "是否超时（仅待审批且 slaDeadlineTime < now 生效）", example = "true")
+    private Boolean overdue;
+
+    @Schema(description = "最后动作编码", example = "SUBMIT")
+    private String lastActionCode;
+
+    @Schema(description = "最后动作操作人", example = "运营同学")
+    private String lastActionOperator;
+
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     @Schema(description = "创建时间范围")
     private LocalDateTime[] createTime;

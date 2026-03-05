@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -190,6 +191,9 @@ class ProductStoreLifecycleBatchLogMapperTest {
         reqVO.setFromLifecycleStatus(30);
         reqVO.setToLifecycleStatus(35);
         reqVO.setApplyOperator("运营同学");
+        reqVO.setOverdue(true);
+        reqVO.setLastActionCode("SUBMIT");
+        reqVO.setLastActionOperator("审批同学");
         reqVO.setCreateTime(new LocalDateTime[]{begin, end});
 
         PageResult<ProductStoreLifecycleChangeOrderDO> actual = mapper.selectPage(reqVO);
@@ -204,6 +208,9 @@ class ProductStoreLifecycleBatchLogMapperTest {
         assertTrue(sqlSegment.contains("from_lifecycle_status"));
         assertTrue(sqlSegment.contains("to_lifecycle_status"));
         assertTrue(sqlSegment.contains("apply_operator"));
+        assertTrue(sqlSegment.contains("last_action_code"));
+        assertTrue(sqlSegment.contains("last_action_operator"));
+        assertTrue(sqlSegment.contains("sla_deadline_time"));
         assertTrue(sqlSegment.contains("create_time"));
 
         AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
@@ -214,7 +221,39 @@ class ProductStoreLifecycleBatchLogMapperTest {
         assertTrue(params.values().contains(35));
         assertTrue(params.values().contains(begin));
         assertTrue(params.values().contains(end));
+        assertTrue(params.values().contains("SUBMIT"));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("LCO-20260305")));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("运营同学")));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("审批同学")));
+    }
+
+    @Test
+    void changeOrderSelectSlaExpiredPendingList_shouldBuildDeadlineFilterAndLimit() {
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), ""),
+                ProductStoreLifecycleChangeOrderDO.class);
+        LambdaUtils.installCache(tableInfo);
+
+        ProductStoreLifecycleChangeOrderMapper mapper =
+                mock(ProductStoreLifecycleChangeOrderMapper.class, CALLS_REAL_METHODS);
+        AtomicReference<Wrapper<ProductStoreLifecycleChangeOrderDO>> wrapperRef = new AtomicReference<>();
+        doAnswer(invocation -> {
+            wrapperRef.set(invocation.getArgument(0));
+            return Collections.emptyList();
+        }).when(mapper).selectList(org.mockito.ArgumentMatchers.<Wrapper<ProductStoreLifecycleChangeOrderDO>>any());
+
+        LocalDateTime now = LocalDateTime.of(2026, 3, 5, 18, 30);
+        List<ProductStoreLifecycleChangeOrderDO> list = mapper.selectSlaExpiredPendingList(now, 100);
+
+        assertNotNull(list);
+        Wrapper<ProductStoreLifecycleChangeOrderDO> wrapper = wrapperRef.get();
+        assertNotNull(wrapper);
+        String sqlSegment = wrapper.getSqlSegment();
+        assertTrue(sqlSegment.contains("status"));
+        assertTrue(sqlSegment.contains("sla_deadline_time"));
+        assertTrue(sqlSegment.contains("LIMIT 100"));
+        AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
+        assertTrue(abstractWrapper.getParamNameValuePairs().values().contains(10));
+        assertTrue(abstractWrapper.getParamNameValuePairs().values().contains(now));
     }
 }

@@ -87,6 +87,8 @@ public interface ProductStoreService {
     PageResult<ProductStoreLifecycleChangeOrderDO> getLifecycleChangeOrderPage(
             ProductStoreLifecycleChangeOrderPageReqVO reqVO);
 
+    int expirePendingLifecycleChangeOrders(int limit);
+
     ProductStoreLaunchReadinessRespVO getLaunchReadiness(Long id);
 
     void batchUpdateCategory(@Valid ProductStoreBatchCategoryReqVO reqVO);

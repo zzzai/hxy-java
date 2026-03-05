@@ -57,6 +57,21 @@ public class ProductStoreLifecycleChangeOrderRespVO {
     @Schema(description = "审批时间")
     private LocalDateTime approveTime;
 
+    @Schema(description = "提交时间")
+    private LocalDateTime submitTime;
+
+    @Schema(description = "SLA 截止时间")
+    private LocalDateTime slaDeadlineTime;
+
+    @Schema(description = "最后动作编码")
+    private String lastActionCode;
+
+    @Schema(description = "最后动作操作人")
+    private String lastActionOperator;
+
+    @Schema(description = "最后动作时间")
+    private LocalDateTime lastActionTime;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 }

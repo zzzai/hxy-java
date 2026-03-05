@@ -89,4 +89,24 @@ public class ProductStoreLifecycleChangeOrderDO extends BaseDO {
      * 审批时间
      */
     private LocalDateTime approveTime;
+    /**
+     * 提交时间
+     */
+    private LocalDateTime submitTime;
+    /**
+     * SLA 截止时间
+     */
+    private LocalDateTime slaDeadlineTime;
+    /**
+     * 最后动作编码
+     */
+    private String lastActionCode;
+    /**
+     * 最后动作操作人
+     */
+    private String lastActionOperator;
+    /**
+     * 最后动作时间
+     */
+    private LocalDateTime lastActionTime;
 }

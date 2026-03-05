@@ -276,6 +276,9 @@ class ProductStoreControllerTest {
         reqVO.setOrderNo("LCO-20260305");
         reqVO.setStoreId(1001L);
         reqVO.setStatus(10);
+        reqVO.setOverdue(true);
+        reqVO.setLastActionCode("SUBMIT");
+        reqVO.setLastActionOperator("运营同学");
         ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
                 .id(11L)
                 .orderNo("LCO-20260305101010-ABCD1234")
@@ -289,6 +292,11 @@ class ProductStoreControllerTest {
                 .status(10)
                 .guardBlocked(false)
                 .guardWarnings("pending-order")
+                .submitTime(java.time.LocalDateTime.of(2026, 3, 5, 10, 10, 10))
+                .slaDeadlineTime(java.time.LocalDateTime.of(2026, 3, 6, 10, 10, 10))
+                .lastActionCode("SUBMIT")
+                .lastActionOperator("运营同学")
+                .lastActionTime(java.time.LocalDateTime.of(2026, 3, 5, 10, 11, 10))
                 .build();
         when(productStoreService.getLifecycleChangeOrderPage(any(ProductStoreLifecycleChangeOrderPageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.singletonList(order), 1L));
@@ -304,6 +312,10 @@ class ProductStoreControllerTest {
         assertEquals("LCO-20260305", reqCaptor.getValue().getOrderNo());
         assertEquals(1001L, reqCaptor.getValue().getStoreId());
         assertEquals(10, reqCaptor.getValue().getStatus());
+        assertEquals(true, reqCaptor.getValue().getOverdue());
+        assertEquals("SUBMIT", reqCaptor.getValue().getLastActionCode());
+        assertEquals("运营同学", reqCaptor.getValue().getLastActionOperator());
+        assertEquals("SUBMIT", result.getData().getList().get(0).getLastActionCode());
     }
 
     @Test
@@ -317,6 +329,11 @@ class ProductStoreControllerTest {
                 .toLifecycleStatus(30)
                 .status(20)
                 .approveOperator("审批同学")
+                .submitTime(java.time.LocalDateTime.of(2026, 3, 5, 11, 22, 33))
+                .slaDeadlineTime(java.time.LocalDateTime.of(2026, 3, 6, 11, 22, 33))
+                .lastActionCode("APPROVE")
+                .lastActionOperator("审批同学")
+                .lastActionTime(java.time.LocalDateTime.of(2026, 3, 5, 11, 23, 33))
                 .build();
         when(productStoreService.getLifecycleChangeOrder(12L)).thenReturn(order);
 
@@ -326,6 +343,8 @@ class ProductStoreControllerTest {
         assertEquals(12L, result.getData().getId());
         assertEquals("LCO-20260305112233-ABCD1234", result.getData().getOrderNo());
         assertEquals(20, result.getData().getStatus());
+        assertEquals("APPROVE", result.getData().getLastActionCode());
+        assertEquals("审批同学", result.getData().getLastActionOperator());
         verify(productStoreService).getLifecycleChangeOrder(12L);
     }
 

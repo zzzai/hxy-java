@@ -875,6 +875,9 @@ class ProductStoreServiceImplTest {
         assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus(), order.getStatus());
         assertEquals("ADMIN_UI", order.getApplySource());
         assertEquals(false, order.getGuardBlocked());
+        assertEquals("CREATE", order.getLastActionCode());
+        assertTrue(order.getLastActionOperator() != null && !order.getLastActionOperator().isEmpty());
+        assertTrue(order.getLastActionTime() != null);
     }
 
     @Test
@@ -902,12 +905,19 @@ class ProductStoreServiceImplTest {
 
         ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
                 ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
-        verify(lifecycleChangeOrderMapper).updateById(captor.capture());
+        verify(lifecycleChangeOrderMapper).updateStatusByIdAndOldStatus(captor.capture(),
+                eq(ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus()));
         ProductStoreLifecycleChangeOrderDO updated = captor.getValue();
         assertEquals(702L, updated.getId());
         assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus(), updated.getStatus());
         assertEquals(false, updated.getGuardBlocked());
         assertTrue(updated.getGuardSnapshotJson().contains("\"guardItems\""));
+        assertTrue(updated.getSubmitTime() != null);
+        assertTrue(updated.getSlaDeadlineTime() != null);
+        assertTrue(updated.getSlaDeadlineTime().isAfter(updated.getSubmitTime().minusSeconds(1)));
+        assertEquals("SUBMIT", updated.getLastActionCode());
+        assertTrue(updated.getLastActionOperator() != null && !updated.getLastActionOperator().isEmpty());
+        assertTrue(updated.getLastActionTime() != null);
         verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
     }
 
@@ -937,15 +947,23 @@ class ProductStoreServiceImplTest {
         reqVO.setRemark("审批通过");
         productStoreService.approveLifecycleChangeOrder(reqVO);
 
-        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> guardCaptor =
                 ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
-        verify(lifecycleChangeOrderMapper, times(2)).updateById(captor.capture());
-        List<ProductStoreLifecycleChangeOrderDO> updates = captor.getAllValues();
-        assertTrue(updates.get(0).getGuardSnapshotJson().contains("\"guardItems\""));
-        assertEquals(false, updates.get(0).getGuardBlocked());
-        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus(), updates.get(1).getStatus());
-        assertEquals("审批通过", updates.get(1).getApproveRemark());
-        assertTrue(updates.get(1).getApproveTime().isBefore(LocalDateTime.now().plusSeconds(1)));
+        verify(lifecycleChangeOrderMapper).updateById(guardCaptor.capture());
+        assertTrue(guardCaptor.getValue().getGuardSnapshotJson().contains("\"guardItems\""));
+        assertEquals(false, guardCaptor.getValue().getGuardBlocked());
+
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> approveCaptor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper).updateStatusByIdAndOldStatus(approveCaptor.capture(),
+                eq(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus()));
+        ProductStoreLifecycleChangeOrderDO approveUpdate = approveCaptor.getValue();
+        assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus(), approveUpdate.getStatus());
+        assertEquals("审批通过", approveUpdate.getApproveRemark());
+        assertTrue(approveUpdate.getApproveTime().isBefore(LocalDateTime.now().plusSeconds(1)));
+        assertEquals("APPROVE", approveUpdate.getLastActionCode());
+        assertTrue(approveUpdate.getLastActionOperator() != null && !approveUpdate.getLastActionOperator().isEmpty());
+        assertTrue(approveUpdate.getLastActionTime() != null);
         verify(storeMapper, times(1)).updateById(any(ProductStoreDO.class));
     }
 
@@ -990,9 +1008,11 @@ class ProductStoreServiceImplTest {
 
         ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> rejectCaptor =
                 ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
-        verify(lifecycleChangeOrderMapper).updateById(rejectCaptor.capture());
+        verify(lifecycleChangeOrderMapper).updateStatusByIdAndOldStatus(rejectCaptor.capture(),
+                eq(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus()));
         assertEquals(ProductStoreLifecycleChangeOrderStatusEnum.REJECTED.getStatus(), rejectCaptor.getValue().getStatus());
         assertEquals("条件不满足", rejectCaptor.getValue().getApproveRemark());
+        assertEquals("REJECT", rejectCaptor.getValue().getLastActionCode());
         verify(storeMapper, times(0)).updateById(any(ProductStoreDO.class));
 
         ProductStoreLifecycleChangeOrderDO approvedOrder = ProductStoreLifecycleChangeOrderDO.builder()
@@ -1031,11 +1051,54 @@ class ProductStoreServiceImplTest {
     @Test
     void lifecycleChangeOrderPage_shouldDelegateMapper() {
         ProductStoreLifecycleChangeOrderPageReqVO reqVO = new ProductStoreLifecycleChangeOrderPageReqVO();
-        reqVO.setOrderNo("LCO-20260305");
-        when(lifecycleChangeOrderMapper.selectPage(reqVO))
+        reqVO.setOrderNo(" LCO-20260305 ");
+        reqVO.setApplyOperator(" 运营同学 ");
+        reqVO.setLastActionCode(" submit ");
+        reqVO.setLastActionOperator(" 审批同学 ");
+        when(lifecycleChangeOrderMapper.selectPage(argThat(v ->
+                        v != null
+                                && "LCO-20260305".equals(v.getOrderNo())
+                                && "运营同学".equals(v.getApplyOperator())
+                                && "SUBMIT".equals(v.getLastActionCode())
+                                && "审批同学".equals(v.getLastActionOperator()))))
                 .thenReturn(new cn.iocoder.yudao.framework.common.pojo.PageResult<>(Collections.emptyList(), 0L));
 
         assertEquals(0L, productStoreService.getLifecycleChangeOrderPage(reqVO).getTotal());
-        verify(lifecycleChangeOrderMapper).selectPage(reqVO);
+        verify(lifecycleChangeOrderMapper).selectPage(argThat(v ->
+                v != null
+                        && "LCO-20260305".equals(v.getOrderNo())
+                        && "运营同学".equals(v.getApplyOperator())
+                        && "SUBMIT".equals(v.getLastActionCode())
+                        && "审批同学".equals(v.getLastActionOperator())));
+    }
+
+    @Test
+    void expirePendingLifecycleChangeOrders_shouldCancelPendingExpiredOrders() {
+        ProductStoreLifecycleChangeOrderDO order1 = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(9001L)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .build();
+        ProductStoreLifecycleChangeOrderDO order2 = ProductStoreLifecycleChangeOrderDO.builder()
+                .id(9002L)
+                .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
+                .build();
+        when(lifecycleChangeOrderMapper.selectSlaExpiredPendingList(any(LocalDateTime.class), eq(100)))
+                .thenReturn(Arrays.asList(order1, order2));
+        when(lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(any(ProductStoreLifecycleChangeOrderDO.class),
+                eq(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus()))).thenReturn(1);
+
+        int affected = productStoreService.expirePendingLifecycleChangeOrders(0);
+
+        assertEquals(2, affected);
+        ArgumentCaptor<ProductStoreLifecycleChangeOrderDO> captor =
+                ArgumentCaptor.forClass(ProductStoreLifecycleChangeOrderDO.class);
+        verify(lifecycleChangeOrderMapper, times(2))
+                .updateStatusByIdAndOldStatus(captor.capture(),
+                        eq(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus()));
+        List<ProductStoreLifecycleChangeOrderDO> updates = captor.getAllValues();
+        assertTrue(updates.stream().allMatch(v ->
+                ProductStoreLifecycleChangeOrderStatusEnum.CANCELLED.getStatus().equals(v.getStatus())
+                        && "SYSTEM_SLA_EXPIRED".equals(v.getApproveRemark())
+                        && "EXPIRE".equals(v.getLastActionCode())));
     }
 }

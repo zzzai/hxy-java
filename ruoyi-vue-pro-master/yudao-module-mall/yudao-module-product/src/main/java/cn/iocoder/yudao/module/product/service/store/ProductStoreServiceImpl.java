@@ -61,6 +61,20 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     private static final String DOMAIN_TAG = "TAG";
     private static final String DOMAIN_TAG_GROUP = "TAG_GROUP";
     private static final String SOURCE_ADMIN_UI = "ADMIN_UI";
+    private static final String SOURCE_SYSTEM_JOB = "SYSTEM_JOB";
+    private static final String CHANGE_ORDER_SLA_MINUTES_CONFIG_KEY = "hxy.store.lifecycle.change-order.sla-minutes";
+    private static final int CHANGE_ORDER_SLA_MINUTES_DEFAULT = 1440;
+    private static final int CHANGE_ORDER_SLA_MINUTES_MIN = 5;
+    private static final int CHANGE_ORDER_SLA_MINUTES_MAX = 10080;
+    private static final int DEFAULT_EXPIRE_LIMIT = 100;
+    private static final int MAX_EXPIRE_LIMIT = 1000;
+    private static final String CHANGE_ORDER_ACTION_CREATE = "CREATE";
+    private static final String CHANGE_ORDER_ACTION_SUBMIT = "SUBMIT";
+    private static final String CHANGE_ORDER_ACTION_APPROVE = "APPROVE";
+    private static final String CHANGE_ORDER_ACTION_REJECT = "REJECT";
+    private static final String CHANGE_ORDER_ACTION_CANCEL = "CANCEL";
+    private static final String CHANGE_ORDER_ACTION_EXPIRE = "EXPIRE";
+    private static final String CHANGE_ORDER_EXPIRE_REMARK = "SYSTEM_SLA_EXPIRED";
     private static final DateTimeFormatter BATCH_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final DateTimeFormatter RECHECK_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final DateTimeFormatter CHANGE_ORDER_NO_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -469,6 +483,7 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         validateLifecycleStatus(reqVO.getToLifecycleStatus());
         validateLifecycleTransition(store, reqVO.getToLifecycleStatus());
         validateLifecycleReasonRequired(reqVO.getToLifecycleStatus(), reqVO.getReason());
+        LocalDateTime now = LocalDateTime.now();
         ProductStoreLifecycleChangeOrderDO order = ProductStoreLifecycleChangeOrderDO.builder()
                 .orderNo(buildChangeOrderNo())
                 .storeId(store.getId())
@@ -482,6 +497,9 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                 .guardBlocked(Boolean.FALSE)
                 .guardWarnings("")
                 .guardSnapshotJson("")
+                .lastActionCode(CHANGE_ORDER_ACTION_CREATE)
+                .lastActionOperator(resolveOperator())
+                .lastActionTime(now)
                 .build();
         lifecycleChangeOrderMapper.insert(order);
         return order.getId();
@@ -495,14 +513,22 @@ public class ProductStoreServiceImpl implements ProductStoreService {
         ProductStoreDO store = validateStoreExistsAndGet(order.getStoreId());
         validateLifecycleChangeOrderFromStatus(store, order.getFromLifecycleStatus());
         ProductStoreLifecycleGuardRespVO guardResp = getLifecycleGuard(order.getStoreId(), order.getToLifecycleStatus());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime slaDeadlineTime = now.plusMinutes(resolveChangeOrderSlaMinutes());
         ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
                 .id(order.getId())
                 .status(ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus())
                 .guardSnapshotJson(buildLifecycleChangeOrderGuardSnapshot(order, guardResp))
                 .guardBlocked(Boolean.TRUE.equals(guardResp.getBlocked()))
                 .guardWarnings(buildGuardWarningText(guardResp.getWarnings()))
+                .submitTime(now)
+                .slaDeadlineTime(slaDeadlineTime)
+                .lastActionCode(CHANGE_ORDER_ACTION_SUBMIT)
+                .lastActionOperator(resolveOperator())
+                .lastActionTime(now)
                 .build();
-        lifecycleChangeOrderMapper.updateById(updateObj);
+        lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus());
     }
 
     @Override
@@ -524,14 +550,19 @@ public class ProductStoreServiceImpl implements ProductStoreService {
             throw exception(STORE_LIFECYCLE_CHANGE_ORDER_GUARD_BLOCKED);
         }
         updateStoreLifecycle(order.getStoreId(), order.getToLifecycleStatus(), order.getReason());
+        LocalDateTime now = LocalDateTime.now();
         ProductStoreLifecycleChangeOrderDO approveUpdate = ProductStoreLifecycleChangeOrderDO.builder()
                 .id(order.getId())
                 .status(ProductStoreLifecycleChangeOrderStatusEnum.APPROVED.getStatus())
                 .approveOperator(resolveOperator())
                 .approveRemark(reqVO.getRemark())
-                .approveTime(LocalDateTime.now())
+                .approveTime(now)
+                .lastActionCode(CHANGE_ORDER_ACTION_APPROVE)
+                .lastActionOperator(resolveOperator())
+                .lastActionTime(now)
                 .build();
-        lifecycleChangeOrderMapper.updateById(approveUpdate);
+        lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(approveUpdate,
+                ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
     }
 
     @Override
@@ -539,14 +570,19 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     public void rejectLifecycleChangeOrder(ProductStoreLifecycleChangeOrderActionReqVO reqVO) {
         ProductStoreLifecycleChangeOrderDO order = validateLifecycleChangeOrderStatus(
                 reqVO.getId(), ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
+        LocalDateTime now = LocalDateTime.now();
         ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
                 .id(order.getId())
                 .status(ProductStoreLifecycleChangeOrderStatusEnum.REJECTED.getStatus())
                 .approveOperator(resolveOperator())
                 .approveRemark(reqVO.getRemark())
-                .approveTime(LocalDateTime.now())
+                .approveTime(now)
+                .lastActionCode(CHANGE_ORDER_ACTION_REJECT)
+                .lastActionOperator(resolveOperator())
+                .lastActionTime(now)
                 .build();
-        lifecycleChangeOrderMapper.updateById(updateObj);
+        lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
     }
 
     @Override
@@ -560,14 +596,18 @@ public class ProductStoreServiceImpl implements ProductStoreService {
                     ProductStoreLifecycleChangeOrderStatusEnum.DRAFT.getStatus() + "/"
                             + ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
         }
+        LocalDateTime now = LocalDateTime.now();
         ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
                 .id(order.getId())
                 .status(ProductStoreLifecycleChangeOrderStatusEnum.CANCELLED.getStatus())
                 .approveOperator(resolveOperator())
                 .approveRemark(reqVO.getRemark())
-                .approveTime(LocalDateTime.now())
+                .approveTime(now)
+                .lastActionCode(CHANGE_ORDER_ACTION_CANCEL)
+                .lastActionOperator(resolveOperator())
+                .lastActionTime(now)
                 .build();
-        lifecycleChangeOrderMapper.updateById(updateObj);
+        lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(updateObj, status);
     }
 
     @Override
@@ -582,7 +622,36 @@ public class ProductStoreServiceImpl implements ProductStoreService {
     @Override
     public PageResult<ProductStoreLifecycleChangeOrderDO> getLifecycleChangeOrderPage(
             ProductStoreLifecycleChangeOrderPageReqVO reqVO) {
-        return lifecycleChangeOrderMapper.selectPage(reqVO);
+        ProductStoreLifecycleChangeOrderPageReqVO normalized = normalizeLifecycleChangeOrderPageReq(reqVO);
+        return lifecycleChangeOrderMapper.selectPage(normalized);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int expirePendingLifecycleChangeOrders(int limit) {
+        int normalizedLimit = normalizePositiveLimit(limit, DEFAULT_EXPIRE_LIMIT, MAX_EXPIRE_LIMIT);
+        LocalDateTime now = LocalDateTime.now();
+        List<ProductStoreLifecycleChangeOrderDO> expiredOrders =
+                lifecycleChangeOrderMapper.selectSlaExpiredPendingList(now, normalizedLimit);
+        if (CollUtil.isEmpty(expiredOrders)) {
+            return 0;
+        }
+        int affected = 0;
+        for (ProductStoreLifecycleChangeOrderDO order : expiredOrders) {
+            ProductStoreLifecycleChangeOrderDO updateObj = ProductStoreLifecycleChangeOrderDO.builder()
+                    .id(order.getId())
+                    .status(ProductStoreLifecycleChangeOrderStatusEnum.CANCELLED.getStatus())
+                    .approveOperator(SOURCE_SYSTEM_JOB)
+                    .approveRemark(CHANGE_ORDER_EXPIRE_REMARK)
+                    .approveTime(now)
+                    .lastActionCode(CHANGE_ORDER_ACTION_EXPIRE)
+                    .lastActionOperator(SOURCE_SYSTEM_JOB)
+                    .lastActionTime(now)
+                    .build();
+            affected += lifecycleChangeOrderMapper.updateStatusByIdAndOldStatus(updateObj,
+                    ProductStoreLifecycleChangeOrderStatusEnum.PENDING.getStatus());
+        }
+        return affected;
     }
 
     @Override
@@ -770,6 +839,60 @@ public class ProductStoreServiceImpl implements ProductStoreService {
             return SOURCE_ADMIN_UI;
         }
         return applySource.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private ProductStoreLifecycleChangeOrderPageReqVO normalizeLifecycleChangeOrderPageReq(
+            ProductStoreLifecycleChangeOrderPageReqVO reqVO) {
+        if (reqVO == null) {
+            return new ProductStoreLifecycleChangeOrderPageReqVO();
+        }
+        if (StringUtils.hasText(reqVO.getOrderNo())) {
+            reqVO.setOrderNo(reqVO.getOrderNo().trim());
+        } else {
+            reqVO.setOrderNo(null);
+        }
+        if (StringUtils.hasText(reqVO.getApplyOperator())) {
+            reqVO.setApplyOperator(reqVO.getApplyOperator().trim());
+        } else {
+            reqVO.setApplyOperator(null);
+        }
+        if (StringUtils.hasText(reqVO.getLastActionCode())) {
+            reqVO.setLastActionCode(reqVO.getLastActionCode().trim().toUpperCase(Locale.ROOT));
+        } else {
+            reqVO.setLastActionCode(null);
+        }
+        if (StringUtils.hasText(reqVO.getLastActionOperator())) {
+            reqVO.setLastActionOperator(reqVO.getLastActionOperator().trim());
+        } else {
+            reqVO.setLastActionOperator(null);
+        }
+        return reqVO;
+    }
+
+    private int resolveChangeOrderSlaMinutes() {
+        String value = configApi.getConfigValueByKey(CHANGE_ORDER_SLA_MINUTES_CONFIG_KEY);
+        if (!StringUtils.hasText(value)) {
+            return CHANGE_ORDER_SLA_MINUTES_DEFAULT;
+        }
+        try {
+            int minutes = Integer.parseInt(value.trim());
+            if (minutes < CHANGE_ORDER_SLA_MINUTES_MIN) {
+                return CHANGE_ORDER_SLA_MINUTES_MIN;
+            }
+            if (minutes > CHANGE_ORDER_SLA_MINUTES_MAX) {
+                return CHANGE_ORDER_SLA_MINUTES_MAX;
+            }
+            return minutes;
+        } catch (NumberFormatException ex) {
+            return CHANGE_ORDER_SLA_MINUTES_DEFAULT;
+        }
+    }
+
+    private int normalizePositiveLimit(int value, int defaultValue, int maxValue) {
+        if (value <= 0) {
+            return defaultValue;
+        }
+        return Math.min(value, maxValue);
     }
 
     private ProductStoreLifecycleChangeOrderDO validateLifecycleChangeOrderStatus(Long id, Integer expectStatus) {
