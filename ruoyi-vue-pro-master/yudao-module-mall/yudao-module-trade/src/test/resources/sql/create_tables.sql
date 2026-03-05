@@ -183,7 +183,9 @@ CREATE TABLE IF NOT EXISTS "trade_after_sale_review_ticket"
     "update_time"       datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     "deleted"           bit      NOT NULL DEFAULT FALSE,
     PRIMARY KEY ("id"),
-    CONSTRAINT "uk_trade_after_sale_review_ticket_after_sale_id" UNIQUE ("after_sale_id")
+    CONSTRAINT "uk_trade_after_sale_review_ticket_after_sale_id" UNIQUE ("after_sale_id"),
+    CONSTRAINT "uk_trade_after_sale_review_ticket_ticket_type_source_biz_no"
+        UNIQUE ("ticket_type", "source_biz_no", "deleted")
 ) COMMENT '售后人工复核工单表';
 
 CREATE TABLE IF NOT EXISTS "trade_after_sale_review_ticket_notify_outbox"

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -105,6 +106,86 @@ class AfterSaleReviewTicketServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(11L, captor.getValue().getRouteId());
         assertEquals("TYPE_DEFAULT", captor.getValue().getRouteScope());
         assertEquals("RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT", captor.getValue().getRouteDecisionOrder());
+    }
+
+    @Test
+    void shouldInsertWhenUpsertBySourceTicketNotExists() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType());
+        reqBO.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-04");
+        reqBO.setRuleCode("FOUR_ACCOUNT_RECONCILE_WARN");
+        reqBO.setDecisionReason("四账对账告警");
+        when(afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(
+                AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType(),
+                "FOUR_ACCOUNT_RECONCILE:2026-03-04")).thenReturn(null);
+        when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class))).thenAnswer(invocation -> {
+            AfterSaleReviewTicketDO ticket = invocation.getArgument(0);
+            ticket.setId(2001L);
+            return 1;
+        });
+
+        Long id = service.upsertReviewTicketBySourceBizNo(reqBO, "FOUR_ACCOUNT_RECONCILE_WARN");
+
+        assertEquals(2001L, id);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).insert(captor.capture());
+        assertEquals(AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType(), captor.getValue().getTicketType());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-04", captor.getValue().getSourceBizNo());
+        assertEquals("FOUR_ACCOUNT_RECONCILE_WARN", captor.getValue().getLastActionCode());
+        assertEquals(1, captor.getValue().getTriggerCount());
+    }
+
+    @Test
+    void shouldUpdateWhenUpsertBySourceTicketExists() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType());
+        reqBO.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-04");
+        reqBO.setRuleCode("FOUR_ACCOUNT_RECONCILE_WARN");
+        reqBO.setDecisionReason("四账对账告警");
+        reqBO.setSeverity("P1");
+        AfterSaleReviewTicketDO existed = new AfterSaleReviewTicketDO();
+        existed.setId(2002L);
+        existed.setTriggerCount(2);
+        existed.setStatus(AfterSaleReviewTicketStatusEnum.RESOLVED.getStatus());
+        when(afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(
+                AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType(),
+                "FOUR_ACCOUNT_RECONCILE:2026-03-04")).thenReturn(existed);
+
+        Long id = service.upsertReviewTicketBySourceBizNo(reqBO, "FOUR_ACCOUNT_RECONCILE_WARN");
+
+        assertEquals(2002L, id);
+        ArgumentCaptor<AfterSaleReviewTicketDO> captor = ArgumentCaptor.forClass(AfterSaleReviewTicketDO.class);
+        verify(afterSaleReviewTicketMapper).updateById(captor.capture());
+        assertEquals(2002L, captor.getValue().getId());
+        assertEquals(AfterSaleReviewTicketStatusEnum.PENDING.getStatus(), captor.getValue().getStatus());
+        assertEquals(3, captor.getValue().getTriggerCount());
+        assertEquals("FOUR_ACCOUNT_RECONCILE_WARN", captor.getValue().getLastActionCode());
+        assertEquals("", captor.getValue().getResolveActionCode());
+    }
+
+    @Test
+    void shouldFallbackToUpdateWhenUpsertInsertDuplicate() {
+        AfterSaleReviewTicketCreateReqBO reqBO = new AfterSaleReviewTicketCreateReqBO();
+        reqBO.setTicketType(AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType());
+        reqBO.setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-05");
+        reqBO.setRuleCode("FOUR_ACCOUNT_RECONCILE_WARN");
+        reqBO.setDecisionReason("四账对账告警");
+        AfterSaleReviewTicketDO existed = new AfterSaleReviewTicketDO();
+        existed.setId(2003L);
+        existed.setTriggerCount(1);
+        when(afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(
+                AfterSaleReviewTicketTypeEnum.BOOKING_SETTLEMENT.getType(),
+                "FOUR_ACCOUNT_RECONCILE:2026-03-05"))
+                .thenReturn(null)
+                .thenReturn(existed);
+        when(afterSaleReviewTicketMapper.insert(any(AfterSaleReviewTicketDO.class)))
+                .thenThrow(new DuplicateKeyException("duplicate"));
+
+        Long id = service.upsertReviewTicketBySourceBizNo(reqBO, "FOUR_ACCOUNT_RECONCILE_WARN");
+
+        assertEquals(2003L, id);
+        verify(afterSaleReviewTicketMapper).updateById(
+                org.mockito.ArgumentMatchers.<AfterSaleReviewTicketDO>argThat(update -> update.getId().equals(2003L)));
     }
 
     @Test

@@ -135,6 +135,16 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         assertEquals(target.getId(), page.getList().get(0).getId());
     }
 
+    @Test
+    void shouldSelectLatestByTicketTypeAndSourceBizNo() {
+        insertTicketWithType(20, "BIZ-20260305");
+        AfterSaleReviewTicketDO target = insertTicketWithType(40, "BIZ-20260305");
+
+        AfterSaleReviewTicketDO actual = mapper.selectByTicketTypeAndSourceBizNo(40, "BIZ-20260305");
+
+        assertEquals(target.getId(), actual.getId());
+    }
+
     private AfterSaleReviewTicketDO insertTicket(String sourceBizNo, Integer status, LocalDateTime deadline,
                                                  String lastActionCode, String lastActionBizNo,
                                                  LocalDateTime lastActionTime) {
@@ -181,6 +191,32 @@ class AfterSaleReviewTicketMapperTest extends BaseDbUnitTest {
         row.setResolverType(resolverType);
         row.setResolveActionCode(resolveActionCode);
         row.setResolveBizNo(resolveBizNo);
+        row.setRemark("");
+        mapper.insert(row);
+        return row;
+    }
+
+    private AfterSaleReviewTicketDO insertTicketWithType(Integer ticketType, String sourceBizNo) {
+        AfterSaleReviewTicketDO row = new AfterSaleReviewTicketDO();
+        row.setTicketType(ticketType);
+        row.setAfterSaleId(null);
+        row.setSourceBizNo(sourceBizNo);
+        row.setOrderId(2001L);
+        row.setOrderItemId(3001L);
+        row.setUserId(4001L);
+        row.setRuleCode("FOUR_ACCOUNT_RECONCILE_WARN");
+        row.setDecisionReason("测试");
+        row.setSeverity("P1");
+        row.setEscalateTo("HQ_AFTER_SALE");
+        row.setRouteDecisionOrder("RULE>TYPE_SEVERITY>TYPE_DEFAULT>GLOBAL_DEFAULT");
+        row.setSlaDeadlineTime(LocalDateTime.now().plusHours(1));
+        row.setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus());
+        row.setFirstTriggerTime(LocalDateTime.now().minusMinutes(10));
+        row.setLastTriggerTime(LocalDateTime.now().minusMinutes(1));
+        row.setTriggerCount(1);
+        row.setLastActionCode("FOUR_ACCOUNT_RECONCILE_WARN");
+        row.setLastActionBizNo(sourceBizNo);
+        row.setLastActionTime(LocalDateTime.now().minusMinutes(1));
         row.setRemark("");
         mapper.insert(row);
         return row;

@@ -71,6 +71,14 @@ public interface AfterSaleReviewTicketMapper extends BaseMapperX<AfterSaleReview
                 .eq(AfterSaleReviewTicketDO::getAfterSaleId, afterSaleId));
     }
 
+    default AfterSaleReviewTicketDO selectByTicketTypeAndSourceBizNo(Integer ticketType, String sourceBizNo) {
+        return selectOne(new LambdaQueryWrapperX<AfterSaleReviewTicketDO>()
+                .eq(AfterSaleReviewTicketDO::getTicketType, ticketType)
+                .eq(AfterSaleReviewTicketDO::getSourceBizNo, sourceBizNo)
+                .orderByDesc(AfterSaleReviewTicketDO::getId)
+                .last("LIMIT 1"));
+    }
+
     default int updateByIdAndStatus(Long id, Integer status, AfterSaleReviewTicketDO update) {
         return update(update, new LambdaUpdateWrapper<AfterSaleReviewTicketDO>()
                 .eq(AfterSaleReviewTicketDO::getId, id)

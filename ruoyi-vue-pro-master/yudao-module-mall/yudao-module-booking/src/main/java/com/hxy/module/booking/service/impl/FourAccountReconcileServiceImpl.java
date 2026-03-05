@@ -1,14 +1,18 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
+import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
 import com.hxy.module.booking.enums.FourAccountReconcileStatusEnum;
 import com.hxy.module.booking.service.FourAccountReconcileService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,16 +31,24 @@ import java.util.Map;
 
 @Service
 @Validated
+@Slf4j
 public class FourAccountReconcileServiceImpl implements FourAccountReconcileService {
 
     private static final DateTimeFormatter RECONCILE_NO_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String DEFAULT_SOURCE = "JOB_DAILY";
     private static final String DEFAULT_OPERATOR = "SYSTEM";
+    private static final Integer REVIEW_TICKET_TYPE = 40;
+    private static final String REVIEW_TICKET_SOURCE_PREFIX = "FOUR_ACCOUNT_RECONCILE:";
+    private static final String REVIEW_TICKET_RULE_CODE = "FOUR_ACCOUNT_RECONCILE_WARN";
+    private static final String REVIEW_TICKET_SEVERITY = "P1";
+    private static final String REVIEW_TICKET_ACTION_CODE = "FOUR_ACCOUNT_RECONCILE_WARN";
 
     @Resource
     private FourAccountReconcileMapper reconcileMapper;
     @Resource
     private FourAccountReconcileQueryMapper queryMapper;
+    @Resource
+    private TradeReviewTicketApi tradeReviewTicketApi;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -61,6 +73,7 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         String issueDetailJson = buildIssueDetailJson(tradeAmount, fulfillmentAmount, commissionAmount, splitAmount,
                 tradeMinusFulfillment, tradeMinusCommissionSplit, issueCodes);
 
+        Long reconcileId;
         FourAccountReconcileDO existing = reconcileMapper.selectByBizDate(targetDate);
         if (existing == null) {
             FourAccountReconcileDO createObj = FourAccountReconcileDO.builder()
@@ -82,30 +95,45 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
                     .build();
             try {
                 reconcileMapper.insert(createObj);
-                return createObj.getId();
+                reconcileId = createObj.getId();
             } catch (DuplicateKeyException ignore) {
                 // 并发重复触发按业务日幂等收敛到更新路径
                 existing = reconcileMapper.selectByBizDate(targetDate);
+                reconcileId = null;
+            }
+        } else {
+            reconcileId = null;
+        }
+        if (reconcileId == null && existing != null) {
+            FourAccountReconcileDO updateObj = FourAccountReconcileDO.builder()
+                    .id(existing.getId())
+                    .tradeAmount(tradeAmount)
+                    .fulfillmentAmount(fulfillmentAmount)
+                    .commissionAmount(commissionAmount)
+                    .splitAmount(splitAmount)
+                    .tradeMinusFulfillment(tradeMinusFulfillment)
+                    .tradeMinusCommissionSplit(tradeMinusCommissionSplit)
+                    .status(status)
+                    .issueCount(issueCodes.size())
+                    .issueCodes(issueCodeText)
+                    .issueDetailJson(issueDetailJson)
+                    .source(normalizedSource)
+                    .operator(normalizedOperator)
+                    .reconciledAt(LocalDateTime.now())
+                    .build();
+            reconcileMapper.updateById(updateObj);
+            reconcileId = existing.getId();
+        }
+        if (reconcileId == null) {
+            FourAccountReconcileDO latest = reconcileMapper.selectByBizDate(targetDate);
+            if (latest != null) {
+                reconcileId = latest.getId();
             }
         }
-        FourAccountReconcileDO updateObj = FourAccountReconcileDO.builder()
-                .id(existing.getId())
-                .tradeAmount(tradeAmount)
-                .fulfillmentAmount(fulfillmentAmount)
-                .commissionAmount(commissionAmount)
-                .splitAmount(splitAmount)
-                .tradeMinusFulfillment(tradeMinusFulfillment)
-                .tradeMinusCommissionSplit(tradeMinusCommissionSplit)
-                .status(status)
-                .issueCount(issueCodes.size())
-                .issueCodes(issueCodeText)
-                .issueDetailJson(issueDetailJson)
-                .source(normalizedSource)
-                .operator(normalizedOperator)
-                .reconciledAt(LocalDateTime.now())
-                .build();
-        reconcileMapper.updateById(updateObj);
-        return existing.getId();
+        if (FourAccountReconcileStatusEnum.WARN.getStatus().equals(status)) {
+            upsertWarnReviewTicket(targetDate, issueCodeText, issueDetailJson);
+        }
+        return reconcileId;
     }
 
     @Override
@@ -178,5 +206,32 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
     private int defaultZero(Integer value) {
         return value == null ? 0 : value;
     }
-}
 
+    private void upsertWarnReviewTicket(LocalDate bizDate, String issueCodeText, String issueDetailJson) {
+        if (bizDate == null) {
+            return;
+        }
+        TradeReviewTicketUpsertReqDTO reqDTO = new TradeReviewTicketUpsertReqDTO()
+                .setTicketType(REVIEW_TICKET_TYPE)
+                .setSourceBizNo(REVIEW_TICKET_SOURCE_PREFIX + bizDate)
+                .setRuleCode(REVIEW_TICKET_RULE_CODE)
+                .setDecisionReason(buildWarnDecisionReason(issueCodeText))
+                .setSeverity(REVIEW_TICKET_SEVERITY)
+                .setRemark(issueDetailJson)
+                .setActionCode(REVIEW_TICKET_ACTION_CODE);
+        try {
+            tradeReviewTicketApi.upsertReviewTicket(reqDTO);
+        } catch (Exception ex) {
+            log.warn("[upsertWarnReviewTicket][bizDate({}) sourceBizNo({}) failed]",
+                    bizDate, reqDTO.getSourceBizNo(), ex);
+        }
+    }
+
+    private String buildWarnDecisionReason(String issueCodeText) {
+        String reason = "四账差异告警";
+        if (StringUtils.hasText(issueCodeText)) {
+            reason = reason + ":" + issueCodeText;
+        }
+        return StrUtil.maxLength(reason, 500);
+    }
+}

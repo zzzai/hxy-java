@@ -185,6 +185,93 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     }
 
     @Override
+    public Long upsertReviewTicketBySourceBizNo(AfterSaleReviewTicketCreateReqBO reqBO, String actionCode) {
+        if (reqBO == null) {
+            return null;
+        }
+        Integer ticketType = ObjUtil.defaultIfNull(reqBO.getTicketType(), AfterSaleReviewTicketTypeEnum.AFTER_SALE.getType());
+        String sourceBizNo = resolveSourceBizNo(reqBO, null);
+        if (StrUtil.isBlank(sourceBizNo)) {
+            return null;
+        }
+        String normalizedActionCode = normalizeActionCode(actionCode, ACTION_RULE_RETRIGGER);
+        AfterSaleReviewTicketDO existed = afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(ticketType, sourceBizNo);
+        if (existed == null) {
+            TicketRoute route = buildRoute(ticketType, reqBO.getRuleCode(), reqBO.getSeverity(), null);
+            LocalDateTime now = LocalDateTime.now();
+            String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
+            String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
+            Integer slaMinutes = resolveSlaMinutes(reqBO.getSlaMinutes(), route.getSlaMinutes());
+            AfterSaleReviewTicketDO createObj = new AfterSaleReviewTicketDO()
+                    .setTicketType(ticketType)
+                    .setAfterSaleId(reqBO.getAfterSaleId())
+                    .setOrderId(reqBO.getOrderId())
+                    .setOrderItemId(reqBO.getOrderItemId())
+                    .setUserId(reqBO.getUserId())
+                    .setSourceBizNo(sourceBizNo)
+                    .setRuleCode(StrUtil.blankToDefault(reqBO.getRuleCode(), "MANUAL_CREATE"))
+                    .setDecisionReason(abbreviate(reqBO.getDecisionReason(), 500))
+                    .setSeverity(severity)
+                    .setEscalateTo(escalateTo)
+                    .setSlaDeadlineTime(now.plusMinutes(slaMinutes))
+                    .setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                    .setFirstTriggerTime(now)
+                    .setLastTriggerTime(now)
+                    .setTriggerCount(1)
+                    .setLastActionCode(normalizedActionCode)
+                    .setLastActionBizNo(normalizeActionBizNo(sourceBizNo, reqBO.getAfterSaleId()))
+                    .setLastActionTime(now)
+                    .setRemark(abbreviate(reqBO.getRemark(), 255));
+            applyRouteSnapshot(createObj, route);
+            try {
+                afterSaleReviewTicketMapper.insert(createObj);
+                return createObj.getId();
+            } catch (DuplicateKeyException ex) {
+                existed = afterSaleReviewTicketMapper.selectByTicketTypeAndSourceBizNo(ticketType, sourceBizNo);
+                if (existed == null) {
+                    throw ex;
+                }
+            }
+        }
+        TicketRoute route = buildRoute(ticketType, reqBO.getRuleCode(),
+                StrUtil.blankToDefault(reqBO.getSeverity(), existed.getSeverity()), null);
+        LocalDateTime now = LocalDateTime.now();
+        String severity = StrUtil.blankToDefault(reqBO.getSeverity(), route.getSeverity());
+        String escalateTo = StrUtil.blankToDefault(reqBO.getEscalateTo(), route.getEscalateTo());
+        Integer slaMinutes = resolveSlaMinutes(reqBO.getSlaMinutes(), route.getSlaMinutes());
+        String ruleCode = StrUtil.blankToDefault(reqBO.getRuleCode(), StrUtil.blankToDefault(existed.getRuleCode(), "UNKNOWN"));
+        AfterSaleReviewTicketDO updateObj = new AfterSaleReviewTicketDO()
+                .setId(existed.getId())
+                .setTicketType(ticketType)
+                .setAfterSaleId(ObjUtil.defaultIfNull(reqBO.getAfterSaleId(), existed.getAfterSaleId()))
+                .setOrderId(ObjUtil.defaultIfNull(reqBO.getOrderId(), existed.getOrderId()))
+                .setOrderItemId(ObjUtil.defaultIfNull(reqBO.getOrderItemId(), existed.getOrderItemId()))
+                .setUserId(ObjUtil.defaultIfNull(reqBO.getUserId(), existed.getUserId()))
+                .setSourceBizNo(sourceBizNo)
+                .setRuleCode(ruleCode)
+                .setDecisionReason(abbreviate(StrUtil.blankToDefault(reqBO.getDecisionReason(), existed.getDecisionReason()), 500))
+                .setSeverity(severity)
+                .setEscalateTo(escalateTo)
+                .setSlaDeadlineTime(now.plusMinutes(slaMinutes))
+                .setStatus(AfterSaleReviewTicketStatusEnum.PENDING.getStatus())
+                .setFirstTriggerTime(ObjUtil.defaultIfNull(existed.getFirstTriggerTime(), now))
+                .setLastTriggerTime(now)
+                .setTriggerCount(ObjUtil.defaultIfNull(existed.getTriggerCount(), 0) + 1)
+                .setResolvedTime(null)
+                .setResolverId(null)
+                .setResolverType(null)
+                .setResolveActionCode("")
+                .setResolveBizNo("")
+                .setLastActionCode(normalizedActionCode)
+                .setLastActionBizNo(normalizeActionBizNo(sourceBizNo, reqBO.getAfterSaleId()))
+                .setLastActionTime(now)
+                .setRemark(abbreviate(StrUtil.blankToDefault(reqBO.getRemark(), existed.getRemark()), 255));
+        applyRouteSnapshot(updateObj, route);
+        afterSaleReviewTicketMapper.updateById(updateObj);
+        return existed.getId();
+    }
+
+    @Override
     public void upsertManualReviewTicket(AfterSaleDO afterSale, AfterSaleRefundDecisionBO decision) {
         if (afterSale == null || decision == null || afterSale.getId() == null) {
             return;
@@ -893,6 +980,10 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
         return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(resolveActionCode), defaultCode), 64);
     }
 
+    private String normalizeActionCode(String actionCode, String defaultCode) {
+        return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(actionCode), defaultCode), 64);
+    }
+
     private String normalizeResolveBizNo(String resolveBizNo, Long fallbackId) {
         return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(resolveBizNo),
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
@@ -901,6 +992,15 @@ public class AfterSaleReviewTicketServiceImpl implements AfterSaleReviewTicketSe
     private String normalizeActionBizNo(String actionBizNo, Long fallbackId) {
         return StrUtil.maxLength(StrUtil.blankToDefault(StrUtil.trim(actionBizNo),
                 fallbackId == null ? "" : String.valueOf(fallbackId)), 64);
+    }
+
+    private String resolveSourceBizNo(AfterSaleReviewTicketCreateReqBO reqBO, Long fallbackId) {
+        if (reqBO == null) {
+            return "";
+        }
+        Long safeFallbackId = ObjUtil.defaultIfNull(reqBO.getAfterSaleId(), fallbackId);
+        return StrUtil.blankToDefault(reqBO.getSourceBizNo(),
+                safeFallbackId == null ? "" : String.valueOf(safeFallbackId));
     }
 
     private void applyRouteSnapshot(AfterSaleReviewTicketDO ticket, TicketRoute route) {

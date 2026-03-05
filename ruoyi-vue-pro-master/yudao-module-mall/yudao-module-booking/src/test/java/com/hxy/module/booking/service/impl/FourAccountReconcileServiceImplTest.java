@@ -2,6 +2,8 @@ package com.hxy.module.booking.service.impl;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
@@ -20,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +35,8 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
     private FourAccountReconcileMapper reconcileMapper;
     @Mock
     private FourAccountReconcileQueryMapper queryMapper;
+    @Mock
+    private TradeReviewTicketApi tradeReviewTicketApi;
 
     @Test
     void runReconcile_shouldCreatePassSnapshotWhenNoIssue() {
@@ -57,6 +62,7 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(0, captor.getValue().getIssueCount());
         assertEquals(200, captor.getValue().getTradeMinusFulfillment());
         assertEquals(7300, captor.getValue().getTradeMinusCommissionSplit());
+        verify(tradeReviewTicketApi, never()).upsertReviewTicket(any(TradeReviewTicketUpsertReqDTO.class));
     }
 
     @Test
@@ -84,6 +90,13 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertTrue(captor.getValue().getIssueCodes().contains("COMMISSION_GT_FULFILLMENT"));
         assertTrue(captor.getValue().getIssueCodes().contains("SPLIT_GT_TRADE"));
         assertTrue(captor.getValue().getIssueCodes().contains("COMMISSION_SPLIT_GT_TRADE"));
+        ArgumentCaptor<TradeReviewTicketUpsertReqDTO> ticketCaptor =
+                ArgumentCaptor.forClass(TradeReviewTicketUpsertReqDTO.class);
+        verify(tradeReviewTicketApi).upsertReviewTicket(ticketCaptor.capture());
+        assertEquals("FOUR_ACCOUNT_RECONCILE:2026-03-03", ticketCaptor.getValue().getSourceBizNo());
+        assertEquals(40, ticketCaptor.getValue().getTicketType());
+        assertEquals("FOUR_ACCOUNT_RECONCILE_WARN", ticketCaptor.getValue().getRuleCode());
+        assertEquals("P1", ticketCaptor.getValue().getSeverity());
     }
 
     @Test
@@ -100,4 +113,3 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         verify(reconcileMapper).selectPage(eq(reqVO));
     }
 }
-

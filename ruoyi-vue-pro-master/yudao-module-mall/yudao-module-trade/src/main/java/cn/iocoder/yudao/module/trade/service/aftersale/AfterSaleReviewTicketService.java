@@ -45,6 +45,15 @@ public interface AfterSaleReviewTicketService {
     Long createReviewTicket(AfterSaleReviewTicketCreateReqBO reqBO);
 
     /**
+     * 按 {@code ticketType + sourceBizNo} 幂等创建或刷新工单。
+     *
+     * @param reqBO       工单参数
+     * @param actionCode  最近动作编码（为空时按默认动作回填）
+     * @return 工单 ID
+     */
+    Long upsertReviewTicketBySourceBizNo(AfterSaleReviewTicketCreateReqBO reqBO, String actionCode);
+
+    /**
      * 人工复核场景下创建或更新工单
      *
      * @param afterSale 售后单

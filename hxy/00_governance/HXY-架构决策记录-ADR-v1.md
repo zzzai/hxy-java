@@ -648,3 +648,13 @@
 - 备选方案：保留“资源守卫优先，状态机兜底”顺序。
 - 否决原因：阻塞原因易漂移且不稳定，运营侧会先处理错误方向的问题，增加排障与恢复时长。
 - 回滚条件：若后续需要“展示全部阻塞原因”，可新增“扩展诊断模式”接口返回多维阻塞列表，但默认阻塞优先级不变。
+
+## ADR-073：四账告警工单采用“ticketType + sourceBizNo 幂等 upsert”跨域收口
+
+- 背景：四账对账已具备日快照与告警状态，但在重复补跑/并发触发场景下，如果每次都新建工单会造成同一业务日告警工单膨胀，影响客服处置与SLA统计。
+- 决策：新增跨模块 API `TradeReviewTicketApi.upsertReviewTicket`，由 booking 在 `WARN` 场景按 `sourceBizNo=FOUR_ACCOUNT_RECONCILE:<bizDate>` 调用；trade 侧按 `ticketType + sourceBizNo` 执行“存在则刷新（重开待处理并累加 triggerCount），不存在则创建”。
+- 幂等约束：数据库新增唯一索引 `uk_ticket_type_source_biz_no(ticket_type, source_biz_no, deleted)`；迁移脚本先回填空来源号并对历史重复来源做去重后再建索引，避免上线失败。
+- 影响范围：`booking` 四账告警链路、`trade-api` 跨模块契约、`trade` 统一工单服务与表结构、运营端工单去重口径。
+- 备选方案：booking 端仅做“先查后建”逻辑，不加数据库唯一约束。
+- 否决原因：并发场景仍可能重复写入，无法保证严格幂等。
+- 回滚条件：若唯一键上线触发历史数据冲突，可先回滚索引新增语句，仅保留服务层 upsert 逻辑，待历史数据治理后再重新执行索引迁移。

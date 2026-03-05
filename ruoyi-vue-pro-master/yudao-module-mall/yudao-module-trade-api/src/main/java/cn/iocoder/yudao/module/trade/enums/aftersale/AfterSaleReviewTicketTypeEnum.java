@@ -15,7 +15,9 @@ public enum AfterSaleReviewTicketTypeEnum implements ArrayValuable<Integer> {
 
     AFTER_SALE(10, "售后复核"),
     SERVICE_FULFILLMENT(20, "服务履约"),
-    COMMISSION_DISPUTE(30, "提成争议");
+    COMMISSION_DISPUTE(30, "提成争议"),
+    BOOKING_SETTLEMENT(40, "预约结算"),
+    BOOKING_SETTLEMENT_NOTIFY(41, "预约结算预警/升级");
 
     public static final Integer[] ARRAYS = Arrays.stream(values())
             .map(AfterSaleReviewTicketTypeEnum::getType)
