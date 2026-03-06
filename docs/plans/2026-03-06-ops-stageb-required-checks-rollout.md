@@ -127,3 +127,28 @@ gh api /repos/<owner>/<repo>/branches/main
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --help
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run --enable-ops-stageb-p1
 ```
+
+## 6. 巡检接口回归测试（退款-提成联调）
+
+### 6.1 本地执行
+
+`run_ops_stageb_p1_local_ci.sh` 默认已纳入巡检接口关键回归用例：
+- `FourAccountReconcileServiceImplTest`
+- `FourAccountReconcileControllerTest`
+
+执行命令：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+```
+
+如需临时覆盖回归测试集合，可通过环境变量：
+
+```bash
+REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+```
+
+### 6.2 CI 执行
+
+`hxy-ops-stageb-p1-guard` workflow 在 `regression-tests` 步骤调用同一脚本与默认测试集合，确保本地与 CI 口径一致。

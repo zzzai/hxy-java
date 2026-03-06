@@ -40,6 +40,7 @@ LIFECYCLE_REQUIRE_OVERDUE_ZERO="${LIFECYCLE_REQUIRE_OVERDUE_ZERO:-${REQUIRE_STOR
 LIFECYCLE_REQUIRE_EXPIRE_ABNORMAL_ZERO="${LIFECYCLE_REQUIRE_EXPIRE_ABNORMAL_ZERO:-${REQUIRE_STORE_LIFECYCLE_GATE}}"
 LIFECYCLE_EXPIRE_ACTION_CODE="${LIFECYCLE_EXPIRE_ACTION_CODE:-EXPIRE}"
 LIFECYCLE_EXPIRE_REMARK="${LIFECYCLE_EXPIRE_REMARK:-SYSTEM_SLA_EXPIRED}"
+REGRESSION_TEST_CLASSES="${REGRESSION_TEST_CLASSES:-ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest}"
 
 usage() {
   cat <<'USAGE'
@@ -71,6 +72,9 @@ Options:
 
   --pending-approval-timeout-minutes <n>     库存审批单待审超时阈值（默认 120）
   -h, --help                                 显示帮助
+
+Env:
+  REGRESSION_TEST_CLASSES                    覆盖默认回归测试集合（逗号分隔）
 
 Exit Code:
   0: PASS
@@ -269,6 +273,7 @@ finalize() {
     echo "run_store_sku_stock_gate=${RUN_STORE_SKU_STOCK_GATE}"
     echo "run_store_lifecycle_gate=${RUN_STORE_LIFECYCLE_GATE}"
     echo "run_tests=${RUN_TESTS}"
+    echo "regression_test_classes=${REGRESSION_TEST_CLASSES}"
     echo "require_naming_guard=${REQUIRE_NAMING_GUARD}"
     echo "require_memory_guard=${REQUIRE_MEMORY_GUARD}"
     echo "require_store_sku_stock_gate=${REQUIRE_STORE_SKU_STOCK_GATE}"
@@ -472,7 +477,7 @@ if [[ "${RUN_TESTS}" == "1" ]]; then
   set +e
   mvn -f pom.xml \
     -pl yudao-module-mall/yudao-module-product,yudao-module-mall/yudao-module-booking,yudao-module-mall/yudao-module-trade -am \
-    -Dtest=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,FourAccountReconcileControllerTest \
+    -Dtest="${REGRESSION_TEST_CLASSES}" \
     -Dsurefire.failIfNoSpecifiedTests=false test > "${TEST_LOG}" 2>&1
   tests_rc=$?
   set -e

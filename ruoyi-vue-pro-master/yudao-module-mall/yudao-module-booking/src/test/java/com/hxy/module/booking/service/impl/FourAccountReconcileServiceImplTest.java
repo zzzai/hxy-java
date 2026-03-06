@@ -10,6 +10,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpser
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -31,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -240,5 +243,44 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(1L, page.getTotal());
         assertEquals(1003L, page.getList().get(0).getOrderId());
         assertEquals("REVERSAL_WITHOUT_REFUND", page.getList().get(0).getMismatchType());
+    }
+
+    @Test
+    void syncRefundCommissionAuditTickets_shouldUpsertAndFailOpen() {
+        FourAccountRefundCommissionAuditSyncReqVO reqVO = new FourAccountRefundCommissionAuditSyncReqVO();
+        reqVO.setLimit(10);
+        FourAccountRefundCommissionAuditRow row1 = new FourAccountRefundCommissionAuditRow();
+        row1.setOrderId(2001L);
+        row1.setTradeOrderNo("B001");
+        row1.setUserId(3001L);
+        row1.setRefundPrice(8800);
+        row1.setSettledCommissionAmount(1200);
+        row1.setReversalCommissionAmountAbs(0);
+        FourAccountRefundCommissionAuditRow row2 = new FourAccountRefundCommissionAuditRow();
+        row2.setOrderId(2002L);
+        row2.setTradeOrderNo("B002");
+        row2.setUserId(3002L);
+        row2.setRefundPrice(0);
+        row2.setSettledCommissionAmount(0);
+        row2.setReversalCommissionAmountAbs(900);
+        when(queryMapper.selectRefundCommissionAuditCandidates(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(Arrays.asList(row1, row2));
+        doThrow(new RuntimeException("trade-api failure"))
+                .when(tradeReviewTicketApi).upsertReviewTicket(org.mockito.ArgumentMatchers.<TradeReviewTicketUpsertReqDTO>argThat(
+                        dto -> dto != null && Long.valueOf(2002L).equals(dto.getOrderId())));
+
+        FourAccountRefundCommissionAuditSyncRespVO respVO = service.syncRefundCommissionAuditTickets(reqVO);
+
+        assertEquals(2, respVO.getTotalMismatchCount());
+        assertEquals(2, respVO.getAttemptedCount());
+        assertEquals(1, respVO.getSuccessCount());
+        assertEquals(1, respVO.getFailedCount());
+        assertEquals(1, respVO.getFailedOrderIds().size());
+        assertEquals(2002L, respVO.getFailedOrderIds().get(0));
+        verify(tradeReviewTicketApi).upsertReviewTicket(org.mockito.ArgumentMatchers.<TradeReviewTicketUpsertReqDTO>argThat(
+                dto -> dto != null
+                        && Long.valueOf(2001L).equals(dto.getOrderId())
+                        && "P0".equals(dto.getSeverity())
+                        && "REFUND_COMMISSION_AUDIT:2001".equals(dto.getSourceBizNo())));
     }
 }
