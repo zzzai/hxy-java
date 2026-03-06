@@ -11,9 +11,12 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
+import com.hxy.module.booking.dal.dataobject.FourAccountRefundCommissionAuditRow;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
 import com.hxy.module.booking.enums.FourAccountReconcileStatusEnum;
@@ -54,6 +57,9 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
     private static final String REVIEW_TICKET_ACTION_CODE = "FOUR_ACCOUNT_RECONCILE_WARN";
     private static final String REVIEW_TICKET_RESOLVE_ACTION_CODE = "FOUR_ACCOUNT_RECONCILE_PASS";
     private static final String REVIEW_TICKET_RESOLVE_REMARK = "四账对账通过自动收口";
+    private static final String MISMATCH_REFUND_WITHOUT_REVERSAL = "REFUND_WITHOUT_REVERSAL";
+    private static final String MISMATCH_REVERSAL_WITHOUT_REFUND = "REVERSAL_WITHOUT_REFUND";
+    private static final String MISMATCH_REVERSAL_AMOUNT_MISMATCH = "REVERSAL_AMOUNT_MISMATCH";
 
     @Resource
     private FourAccountReconcileMapper reconcileMapper;
@@ -204,6 +210,43 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         return respVO;
     }
 
+    @Override
+    public PageResult<FourAccountRefundCommissionAuditRespVO> getRefundCommissionAuditPage(
+            FourAccountRefundCommissionAuditPageReqVO reqVO) {
+        FourAccountRefundCommissionAuditPageReqVO safeReq = reqVO == null
+                ? new FourAccountRefundCommissionAuditPageReqVO() : reqVO;
+        normalizeRefundCommissionAuditReq(safeReq);
+        LocalDateTime beginTime = resolveAuditBeginTime(safeReq.getBeginBizDate(), safeReq.getEndBizDate());
+        LocalDateTime endTime = resolveAuditEndTime(safeReq.getBeginBizDate(), safeReq.getEndBizDate());
+        if (endTime.isBefore(beginTime)) {
+            LocalDateTime swap = beginTime;
+            beginTime = endTime;
+            endTime = swap;
+        }
+        List<FourAccountRefundCommissionAuditRow> candidateRows =
+                queryMapper.selectRefundCommissionAuditCandidates(beginTime, endTime);
+        if (candidateRows == null || candidateRows.isEmpty()) {
+            return new PageResult<>(Collections.emptyList(), 0L);
+        }
+        List<FourAccountRefundCommissionAuditRespVO> mismatchRows = candidateRows.stream()
+                .map(this::buildAuditMismatchRow)
+                .filter(Objects::nonNull)
+                .filter(row -> filterByRequest(row, safeReq))
+                .collect(Collectors.toList());
+        if (mismatchRows.isEmpty()) {
+            return new PageResult<>(Collections.emptyList(), 0L);
+        }
+        int pageNo = safeReq.getPageNo() == null ? 1 : Math.max(safeReq.getPageNo(), 1);
+        int pageSize = safeReq.getPageSize() == null ? 10 : Math.max(safeReq.getPageSize(), 1);
+        int fromIndex = (pageNo - 1) * pageSize;
+        if (fromIndex >= mismatchRows.size()) {
+            return new PageResult<>(Collections.emptyList(), (long) mismatchRows.size());
+        }
+        int toIndex = Math.min(fromIndex + pageSize, mismatchRows.size());
+        List<FourAccountRefundCommissionAuditRespVO> pageList = mismatchRows.subList(fromIndex, toIndex);
+        return new PageResult<>(pageList, (long) mismatchRows.size());
+    }
+
     private void normalizePageReq(FourAccountReconcilePageReqVO reqVO) {
         if (reqVO == null) {
             return;
@@ -214,6 +257,98 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         if (StringUtils.hasText(reqVO.getIssueCode())) {
             reqVO.setIssueCode(reqVO.getIssueCode().trim().toUpperCase(Locale.ROOT));
         }
+    }
+
+    private void normalizeRefundCommissionAuditReq(FourAccountRefundCommissionAuditPageReqVO reqVO) {
+        if (reqVO == null) {
+            return;
+        }
+        if (StringUtils.hasText(reqVO.getMismatchType())) {
+            reqVO.setMismatchType(reqVO.getMismatchType().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StringUtils.hasText(reqVO.getKeyword())) {
+            reqVO.setKeyword(reqVO.getKeyword().trim());
+        }
+    }
+
+    private LocalDateTime resolveAuditBeginTime(LocalDate beginBizDate, LocalDate endBizDate) {
+        if (beginBizDate != null) {
+            return beginBizDate.atStartOfDay();
+        }
+        if (endBizDate != null) {
+            return endBizDate.minusDays(6).atStartOfDay();
+        }
+        return LocalDate.now().minusDays(7).atStartOfDay();
+    }
+
+    private LocalDateTime resolveAuditEndTime(LocalDate beginBizDate, LocalDate endBizDate) {
+        if (endBizDate != null) {
+            return endBizDate.plusDays(1).atStartOfDay();
+        }
+        if (beginBizDate != null) {
+            return beginBizDate.plusDays(7).atStartOfDay();
+        }
+        return LocalDate.now().plusDays(1).atStartOfDay();
+    }
+
+    private FourAccountRefundCommissionAuditRespVO buildAuditMismatchRow(FourAccountRefundCommissionAuditRow row) {
+        if (row == null) {
+            return null;
+        }
+        int refundPrice = defaultZero(row.getRefundPrice());
+        int settledAmount = defaultZero(row.getSettledCommissionAmount());
+        int reversalAmount = defaultZero(row.getReversalCommissionAmountAbs());
+        boolean refunded = refundPrice > 0;
+        String mismatchType = null;
+        String mismatchReason = null;
+        if (refunded && settledAmount > 0 && reversalAmount == 0) {
+            mismatchType = MISMATCH_REFUND_WITHOUT_REVERSAL;
+            mismatchReason = "订单已退款且存在已结算正向提成，但未找到有效冲正记录";
+        } else if (!refunded && reversalAmount > 0) {
+            mismatchType = MISMATCH_REVERSAL_WITHOUT_REFUND;
+            mismatchReason = "订单未退款，但存在有效冲正提成记录";
+        } else if (refunded && settledAmount > 0 && reversalAmount > 0 && reversalAmount != settledAmount) {
+            mismatchType = MISMATCH_REVERSAL_AMOUNT_MISMATCH;
+            mismatchReason = "订单已退款，冲正金额与已结算提成金额不一致";
+        }
+        if (mismatchType == null) {
+            return null;
+        }
+        FourAccountRefundCommissionAuditRespVO respVO = new FourAccountRefundCommissionAuditRespVO();
+        respVO.setOrderId(row.getOrderId());
+        respVO.setTradeOrderNo(row.getTradeOrderNo());
+        respVO.setUserId(row.getUserId());
+        respVO.setPayTime(row.getPayTime());
+        respVO.setRefundPrice(refundPrice);
+        respVO.setSettledCommissionAmount(settledAmount);
+        respVO.setReversalCommissionAmountAbs(reversalAmount);
+        respVO.setActiveCommissionAmount(defaultZero(row.getActiveCommissionAmount()));
+        respVO.setExpectedReversalAmount(refunded ? settledAmount : 0);
+        respVO.setMismatchType(mismatchType);
+        respVO.setMismatchReason(mismatchReason);
+        return respVO;
+    }
+
+    private boolean filterByRequest(FourAccountRefundCommissionAuditRespVO row,
+                                    FourAccountRefundCommissionAuditPageReqVO reqVO) {
+        if (row == null) {
+            return false;
+        }
+        if (reqVO == null) {
+            return true;
+        }
+        if (reqVO.getOrderId() != null && !Objects.equals(reqVO.getOrderId(), row.getOrderId())) {
+            return false;
+        }
+        if (StringUtils.hasText(reqVO.getMismatchType())
+                && !reqVO.getMismatchType().equalsIgnoreCase(row.getMismatchType())) {
+            return false;
+        }
+        if (StringUtils.hasText(reqVO.getKeyword())) {
+            String orderNo = row.getTradeOrderNo();
+            return orderNo != null && orderNo.contains(reqVO.getKeyword());
+        }
+        return true;
     }
 
     private TicketSummaryLoadResult loadTicketSummaryMap(List<FourAccountReconcileDO> reconcileRows) {

@@ -9,6 +9,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -95,6 +97,14 @@ public class FourAccountReconcileController {
     @PreAuthorize("@ss.hasPermission('booking:commission:query')")
     public CommonResult<FourAccountReconcileSummaryRespVO> summary(@Valid FourAccountReconcileSummaryReqVO reqVO) {
         return success(reconcileService.getReconcileSummary(reqVO));
+    }
+
+    @GetMapping("/refund-commission-audit-page")
+    @Operation(summary = "退款-提成联调巡检分页")
+    @PreAuthorize("@ss.hasPermission('booking:commission:query')")
+    public CommonResult<PageResult<FourAccountRefundCommissionAuditRespVO>> refundCommissionAuditPage(
+            @Valid FourAccountRefundCommissionAuditPageReqVO reqVO) {
+        return success(reconcileService.getRefundCommissionAuditPage(reqVO));
     }
 
     private String resolveOperator() {

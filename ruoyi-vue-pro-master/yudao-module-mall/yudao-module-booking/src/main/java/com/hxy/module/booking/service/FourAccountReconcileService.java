@@ -2,6 +2,8 @@ package com.hxy.module.booking.service;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -40,4 +42,10 @@ public interface FourAccountReconcileService {
      * 汇总四账对账台账
      */
     FourAccountReconcileSummaryRespVO getReconcileSummary(FourAccountReconcileSummaryReqVO reqVO);
+
+    /**
+     * 退款-提成联调巡检分页
+     */
+    PageResult<FourAccountRefundCommissionAuditRespVO> getRefundCommissionAuditPage(
+            FourAccountRefundCommissionAuditPageReqVO reqVO);
 }

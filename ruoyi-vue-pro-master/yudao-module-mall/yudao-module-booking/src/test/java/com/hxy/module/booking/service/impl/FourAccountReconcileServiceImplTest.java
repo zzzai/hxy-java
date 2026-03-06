@@ -8,9 +8,12 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
+import com.hxy.module.booking.dal.dataobject.FourAccountRefundCommissionAuditRow;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
 import com.hxy.module.booking.enums.FourAccountReconcileStatusEnum;
@@ -185,5 +188,57 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(1L, respVO.getWarnCount());
         assertEquals(0L, respVO.getUnresolvedTicketCount());
         assertEquals(true, respVO.getTicketSummaryDegraded());
+    }
+
+    @Test
+    void getRefundCommissionAuditPage_shouldReturnRefundWithoutReversal() {
+        FourAccountRefundCommissionAuditPageReqVO reqVO = new FourAccountRefundCommissionAuditPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        FourAccountRefundCommissionAuditRow row = new FourAccountRefundCommissionAuditRow();
+        row.setOrderId(1001L);
+        row.setTradeOrderNo("T20260306001");
+        row.setRefundPrice(10000);
+        row.setSettledCommissionAmount(1500);
+        row.setReversalCommissionAmountAbs(0);
+        row.setActiveCommissionAmount(1500);
+        when(queryMapper.selectRefundCommissionAuditCandidates(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(Collections.singletonList(row));
+
+        PageResult<FourAccountRefundCommissionAuditRespVO> page = service.getRefundCommissionAuditPage(reqVO);
+
+        assertEquals(1L, page.getTotal());
+        assertEquals(1001L, page.getList().get(0).getOrderId());
+        assertEquals("REFUND_WITHOUT_REVERSAL", page.getList().get(0).getMismatchType());
+        assertEquals(1500, page.getList().get(0).getExpectedReversalAmount());
+    }
+
+    @Test
+    void getRefundCommissionAuditPage_shouldFilterByMismatchType() {
+        FourAccountRefundCommissionAuditPageReqVO reqVO = new FourAccountRefundCommissionAuditPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setMismatchType("REVERSAL_WITHOUT_REFUND");
+        FourAccountRefundCommissionAuditRow refundWithoutReversal = new FourAccountRefundCommissionAuditRow();
+        refundWithoutReversal.setOrderId(1002L);
+        refundWithoutReversal.setTradeOrderNo("A001");
+        refundWithoutReversal.setRefundPrice(9000);
+        refundWithoutReversal.setSettledCommissionAmount(1000);
+        refundWithoutReversal.setReversalCommissionAmountAbs(0);
+        FourAccountRefundCommissionAuditRow reversalWithoutRefund = new FourAccountRefundCommissionAuditRow();
+        reversalWithoutRefund.setOrderId(1003L);
+        reversalWithoutRefund.setTradeOrderNo("A002");
+        reversalWithoutRefund.setRefundPrice(0);
+        reversalWithoutRefund.setSettledCommissionAmount(0);
+        reversalWithoutRefund.setReversalCommissionAmountAbs(1200);
+        reversalWithoutRefund.setActiveCommissionAmount(-1200);
+        when(queryMapper.selectRefundCommissionAuditCandidates(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(Arrays.asList(refundWithoutReversal, reversalWithoutRefund));
+
+        PageResult<FourAccountRefundCommissionAuditRespVO> page = service.getRefundCommissionAuditPage(reqVO);
+
+        assertEquals(1L, page.getTotal());
+        assertEquals(1003L, page.getList().get(0).getOrderId());
+        assertEquals("REVERSAL_WITHOUT_REFUND", page.getList().get(0).getMismatchType());
     }
 }

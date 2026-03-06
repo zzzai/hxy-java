@@ -9,6 +9,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -178,5 +180,26 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertEquals(3L, result.getData().getWarnCount());
         assertEquals(2L, result.getData().getUnresolvedTicketCount());
         verify(reconcileService).getReconcileSummary(eq(reqVO));
+    }
+
+    @Test
+    void refundCommissionAuditPage_shouldDelegateService() {
+        FourAccountRefundCommissionAuditPageReqVO reqVO = new FourAccountRefundCommissionAuditPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        FourAccountRefundCommissionAuditRespVO row = new FourAccountRefundCommissionAuditRespVO();
+        row.setOrderId(99L);
+        row.setMismatchType("REFUND_WITHOUT_REVERSAL");
+        when(reconcileService.getRefundCommissionAuditPage(eq(reqVO)))
+                .thenReturn(new PageResult<>(Collections.singletonList(row), 1L));
+
+        CommonResult<PageResult<FourAccountRefundCommissionAuditRespVO>> result =
+                controller.refundCommissionAuditPage(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals(99L, result.getData().getList().get(0).getOrderId());
+        assertEquals("REFUND_WITHOUT_REVERSAL", result.getData().getList().get(0).getMismatchType());
+        verify(reconcileService).getRefundCommissionAuditPage(eq(reqVO));
     }
 }
