@@ -86,7 +86,7 @@ public class AppAfterSaleRespVO {
     @Schema(description = "退款金额，单位：分", example = "100")
     private Integer refundPrice;
 
-    @Schema(description = "退款上限来源", example = "SERVICE_ORDER_SNAPSHOT")
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
     private String refundLimitSource;
 
     @Schema(description = "退款上限审计明细快照（JSON）", example = "{\"upperBound\":2600}")

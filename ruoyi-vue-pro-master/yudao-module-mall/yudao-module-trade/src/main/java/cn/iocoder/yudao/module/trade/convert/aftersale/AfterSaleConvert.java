@@ -99,6 +99,10 @@ public interface AfterSaleConvert {
             return null;
         }
         switch (afterSale.getRefundLimitSource()) {
+            case "CHILD_LEDGER":
+                return "套餐子项台账口径";
+            case "FALLBACK_SNAPSHOT":
+                return "快照回退口径";
             case "SERVICE_ORDER_SNAPSHOT":
                 return "服务履约快照口径";
             case "ORDER_ITEM_PRICE_SOURCE":
@@ -115,6 +119,10 @@ public interface AfterSaleConvert {
             return null;
         }
         switch (afterSale.getRefundLimitSource()) {
+            case "CHILD_LEDGER":
+                return "按套餐子项台账（含履约状态与已退款）计算退款上限";
+            case "FALLBACK_SNAPSHOT":
+                return "按快照/实付回退策略计算退款上限";
             case "SERVICE_ORDER_SNAPSHOT":
                 return "按服务履约快照中的可退上限执行退款校验";
             case "ORDER_ITEM_PRICE_SOURCE":

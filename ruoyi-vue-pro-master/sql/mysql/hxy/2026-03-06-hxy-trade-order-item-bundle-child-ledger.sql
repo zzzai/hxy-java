@@ -1,0 +1,26 @@
+-- 套餐子项交易台账：用于履约/退款可追溯与可复核
+CREATE TABLE IF NOT EXISTS `hxy_trade_order_item_bundle_child` (
+    `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `order_id` bigint NOT NULL COMMENT '交易订单ID',
+    `order_item_id` bigint NOT NULL COMMENT '交易订单项ID',
+    `spu_id` bigint DEFAULT NULL COMMENT 'SPU ID',
+    `sku_id` bigint DEFAULT NULL COMMENT 'SKU ID',
+    `child_code` varchar(64) NOT NULL DEFAULT '' COMMENT '子项标识',
+    `sku_name` varchar(128) NOT NULL DEFAULT '' COMMENT '子项名称',
+    `quantity` int NOT NULL DEFAULT '1' COMMENT '子项数量',
+    `pay_price` int NOT NULL DEFAULT '0' COMMENT '子项可退基准金额（分）',
+    `refunded_price` int NOT NULL DEFAULT '0' COMMENT '子项已退款金额（分）',
+    `fulfillment_status` tinyint NOT NULL DEFAULT '0' COMMENT '子项履约状态（对齐服务履约状态）',
+    `snapshot_json` text COMMENT '子项快照JSON',
+    `creator` varchar(64) DEFAULT '' COMMENT '创建者',
+    `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater` varchar(64) DEFAULT '' COMMENT '更新者',
+    `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    `tenant_id` bigint NOT NULL DEFAULT '0' COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_order_item_child_code` (`order_item_id`, `child_code`, `deleted`),
+    KEY `idx_order_item_id` (`order_item_id`),
+    KEY `idx_order_id` (`order_id`),
+    KEY `idx_sku_id` (`sku_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易订单套餐子项台账表';

@@ -162,7 +162,7 @@ public class AfterSaleDO extends BaseDO {
     /**
      * 退款上限来源
      *
-     * 例如：SERVICE_ORDER_SNAPSHOT / ORDER_ITEM_PRICE_SOURCE / ORDER_ITEM_PAY_PRICE
+     * 例如：CHILD_LEDGER / FALLBACK_SNAPSHOT
      */
     private String refundLimitSource;
     /**

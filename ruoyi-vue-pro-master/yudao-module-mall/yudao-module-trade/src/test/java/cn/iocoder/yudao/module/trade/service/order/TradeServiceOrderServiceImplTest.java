@@ -7,8 +7,10 @@ import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.trade.controller.admin.order.vo.serviceorder.TradeServiceOrderPageReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemBundleChildDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemBundleChildMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.enums.order.TradeServiceOrderStatusEnum;
 import cn.iocoder.yudao.module.trade.service.order.booking.TradeServiceBookingGateway;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -41,6 +44,8 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
     private TradeServiceOrderMapper tradeServiceOrderMapper;
     @Mock
     private TradeServiceBookingGateway tradeServiceBookingGateway;
+    @Mock
+    private TradeOrderItemBundleChildMapper tradeOrderItemBundleChildMapper;
 
     @Test
     void shouldCreateServiceOrderForServiceItem() {
@@ -205,10 +210,16 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
         TradeServiceOrderDO existed = new TradeServiceOrderDO();
         existed.setId(4L);
         existed.setStatus(TradeServiceOrderStatusEnum.SERVING.getStatus());
+        existed.setOrderItemId(4001L);
+        existed.setSkuId(24001L);
         when(tradeServiceOrderMapper.selectById(4L)).thenReturn(existed);
         when(tradeServiceOrderMapper.updateByIdAndStatus(eq(4L),
                 eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), any()))
                 .thenReturn(1);
+        when(tradeOrderItemBundleChildMapper.selectListByOrderItemId(4001L)).thenReturn(Arrays.asList(
+                buildBundleChild(1L, 4001L, "24001", TradeServiceOrderStatusEnum.BOOKED.getStatus()),
+                buildBundleChild(2L, 4001L, "24002", TradeServiceOrderStatusEnum.BOOKED.getStatus())
+        ));
 
         service.finishServing(4L, "done");
 
@@ -216,6 +227,10 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
         verify(tradeServiceOrderMapper).updateByIdAndStatus(eq(4L),
                 eq(TradeServiceOrderStatusEnum.SERVING.getStatus()), captor.capture());
         assertEquals(TradeServiceOrderStatusEnum.FINISHED.getStatus(), captor.getValue().getStatus());
+        verify(tradeOrderItemBundleChildMapper).updateById(
+                org.mockito.ArgumentMatchers.<TradeOrderItemBundleChildDO>argThat(updated ->
+                updated != null && updated.getId().equals(1L)
+                        && updated.getFulfillmentStatus().equals(TradeServiceOrderStatusEnum.FINISHED.getStatus())));
     }
 
     @Test
@@ -358,6 +373,20 @@ class TradeServiceOrderServiceImplTest extends BaseMockitoUnitTest {
         item.setSkuId(2000L + id);
         item.setProductType(productType);
         return item;
+    }
+
+    private static TradeOrderItemBundleChildDO buildBundleChild(Long id, Long orderItemId, String childCode, Integer status) {
+        return TradeOrderItemBundleChildDO.builder()
+                .id(id)
+                .orderId(990000L + orderItemId)
+                .orderItemId(orderItemId)
+                .childCode(childCode)
+                .skuName("子项-" + childCode)
+                .quantity(1)
+                .payPrice(1000)
+                .refundedPrice(0)
+                .fulfillmentStatus(status)
+                .build();
     }
 
 }

@@ -7,9 +7,11 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.product.enums.spu.ProductTypeEnum;
 import cn.iocoder.yudao.module.trade.controller.admin.order.vo.serviceorder.TradeServiceOrderPageReqVO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemBundleChildDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemBundleChildMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.enums.order.TradeServiceOrderStatusEnum;
 import cn.iocoder.yudao.module.trade.service.order.bo.TradeBundleItemSnapshotBO;
@@ -54,6 +56,8 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
 
     @Resource
     private TradeServiceOrderMapper tradeServiceOrderMapper;
+    @Resource
+    private TradeOrderItemBundleChildMapper tradeOrderItemBundleChildMapper;
     @Resource
     private TradeServiceBookingGateway tradeServiceBookingGateway;
 
@@ -134,6 +138,7 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         if (updateCount == 0) {
             throw exception(SERVICE_ORDER_UPDATE_STATUS_FAIL);
         }
+        syncBundleChildFulfillmentStatus(serviceOrder, TradeServiceOrderStatusEnum.BOOKED.getStatus());
         log.info("[markBooked][serviceOrderId({}) status {} -> {} bookingNo({})]", serviceOrderId,
                 TradeServiceOrderStatusEnum.WAIT_BOOKING.getName(),
                 TradeServiceOrderStatusEnum.BOOKED.getName(), normalizedBookingNo);
@@ -170,6 +175,7 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         if (updateCount == 0) {
             throw exception(SERVICE_ORDER_UPDATE_STATUS_FAIL);
         }
+        syncBundleChildFulfillmentStatus(serviceOrder, TradeServiceOrderStatusEnum.CANCELLED.getStatus());
         log.info("[cancelServiceOrder][serviceOrderId({}) status {} -> {}]", serviceOrderId,
                 TradeServiceOrderStatusEnum.getNameByStatus(serviceOrder.getStatus()),
                 TradeServiceOrderStatusEnum.CANCELLED.getName());
@@ -233,8 +239,54 @@ public class TradeServiceOrderServiceImpl implements TradeServiceOrderService {
         if (updateCount == 0) {
             throw exception(SERVICE_ORDER_UPDATE_STATUS_FAIL);
         }
+        syncBundleChildFulfillmentStatus(serviceOrder, target.getStatus());
         log.info("[transitionStatus][serviceOrderId({}) status {} -> {}]", serviceOrderId,
                 expected.getName(), target.getName());
+    }
+
+    private void syncBundleChildFulfillmentStatus(TradeServiceOrderDO serviceOrder, Integer targetStatus) {
+        if (serviceOrder == null || serviceOrder.getOrderItemId() == null || targetStatus == null) {
+            return;
+        }
+        List<TradeOrderItemBundleChildDO> ledgerRows = tradeOrderItemBundleChildMapper
+                .selectListByOrderItemId(serviceOrder.getOrderItemId());
+        if (CollUtil.isEmpty(ledgerRows)) {
+            return;
+        }
+        Set<String> matchCandidates = buildMatchCandidates(serviceOrder);
+        List<TradeOrderItemBundleChildDO> targetRows = new ArrayList<>();
+        for (TradeOrderItemBundleChildDO row : ledgerRows) {
+            if (row == null) {
+                continue;
+            }
+            if (matchLedgerChild(row, matchCandidates)) {
+                targetRows.add(row);
+            }
+        }
+        if (CollUtil.isEmpty(targetRows)) {
+            if (ledgerRows.size() == 1) {
+                targetRows.add(ledgerRows.get(0));
+            } else {
+                targetRows.addAll(ledgerRows);
+            }
+        }
+        for (TradeOrderItemBundleChildDO row : targetRows) {
+            if (ObjUtil.equal(row.getFulfillmentStatus(), targetStatus)) {
+                continue;
+            }
+            tradeOrderItemBundleChildMapper.updateById(TradeOrderItemBundleChildDO.builder()
+                    .id(row.getId())
+                    .fulfillmentStatus(targetStatus)
+                    .build());
+        }
+    }
+
+    private boolean matchLedgerChild(TradeOrderItemBundleChildDO row, Set<String> matchCandidates) {
+        if (row == null || CollUtil.isEmpty(matchCandidates)) {
+            return false;
+        }
+        String childCode = StrUtil.trimToNull(row.getChildCode());
+        return StrUtil.isNotBlank(childCode) && matchCandidates.contains(childCode);
     }
 
     private String freezeBundleRefundSnapshotIfNeeded(TradeServiceOrderDO serviceOrder, TradeServiceOrderStatusEnum target) {

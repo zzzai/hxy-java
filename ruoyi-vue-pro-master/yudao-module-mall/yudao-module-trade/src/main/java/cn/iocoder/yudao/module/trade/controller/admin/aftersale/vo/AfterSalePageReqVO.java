@@ -45,7 +45,7 @@ public class AfterSalePageReqVO extends PageParam {
     @Schema(description = "商品 SPU 名称", example = "李四")
     private String spuName;
 
-    @Schema(description = "退款上限来源", example = "SERVICE_ORDER_SNAPSHOT")
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
     private String refundLimitSource;
 
     @Schema(description = "创建时间")

@@ -93,7 +93,7 @@ public class AfterSaleBaseVO {
     @NotNull(message = "退款金额，单位：分不能为空")
     private Integer refundPrice;
 
-    @Schema(description = "退款上限来源", example = "SERVICE_ORDER_SNAPSHOT")
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
     private String refundLimitSource;
 
     @Schema(description = "退款上限来源标签", example = "服务履约快照口径")

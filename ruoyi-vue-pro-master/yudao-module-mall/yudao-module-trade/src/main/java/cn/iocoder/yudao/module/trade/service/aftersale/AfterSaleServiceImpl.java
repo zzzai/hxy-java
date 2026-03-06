@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.trade.service.aftersale;
 
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -25,10 +26,12 @@ import cn.iocoder.yudao.module.trade.convert.aftersale.AfterSaleConvert;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.delivery.DeliveryExpressDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemBundleChildDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderLogDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleMapper;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemBundleChildMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.dal.redis.no.TradeNoRedisDAO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleOperateTypeEnum;
@@ -76,6 +79,9 @@ import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.*;
 @Validated
 public class AfterSaleServiceImpl implements AfterSaleService {
 
+    private static final String REFUND_LIMIT_SOURCE_CHILD_LEDGER = "CHILD_LEDGER";
+    private static final String REFUND_LIMIT_SOURCE_FALLBACK_SNAPSHOT = "FALLBACK_SNAPSHOT";
+
     @Resource
     @Lazy // 延迟加载，避免循环依赖
     private TradeOrderUpdateService tradeOrderUpdateService;
@@ -86,6 +92,8 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
     @Resource
     private AfterSaleMapper tradeAfterSaleMapper;
+    @Resource
+    private TradeOrderItemBundleChildMapper tradeOrderItemBundleChildMapper;
     @Resource
     private TradeServiceOrderMapper tradeServiceOrderMapper;
     @Resource
@@ -154,6 +162,9 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         // 申请退款金额上限：min(订单项实付金额, 套餐子项可退上限)
         RefundLimitDecision refundLimitDecision = resolveRefundLimitDecision(orderItem);
         if (createReqVO.getRefundPrice() > refundLimitDecision.getUpperBound()) {
+            if (Boolean.TRUE.equals(refundLimitDecision.getBlockedByFinishedChild())) {
+                throw exception(AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED);
+            }
             throw exception(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR);
         }
 
@@ -200,12 +211,19 @@ public class AfterSaleServiceImpl implements AfterSaleService {
         detail.put("orderItemId", orderItem.getId());
         detail.put("payPrice", payPrice);
 
+        RefundLimitDecision childLedgerDecision = resolveRefundLimitDecisionFromChildLedger(orderItem, detail, payPrice);
+        if (childLedgerDecision != null) {
+            return childLedgerDecision;
+        }
+
         TradeServiceOrderDO serviceOrder = tradeServiceOrderMapper.selectByOrderItemId(orderItem.getId());
         Integer serviceOrderCapPrice = resolveServiceOrderSnapshotCap(serviceOrder, detail);
         if (serviceOrderCapPrice != null) {
             int upperBound = Math.min(payPrice, serviceOrderCapPrice);
             detail.put("upperBound", upperBound);
-            return new RefundLimitDecision(upperBound, "SERVICE_ORDER_SNAPSHOT", JsonUtils.toJsonString(detail));
+            detail.put("fallbackMode", "SERVICE_ORDER_SNAPSHOT");
+            return new RefundLimitDecision(upperBound, REFUND_LIMIT_SOURCE_FALLBACK_SNAPSHOT,
+                    JsonUtils.toJsonString(detail), Boolean.TRUE.equals(detail.get("blockedByFinished")));
         }
 
         BundleRefundSnapshotPayload orderItemSnapshotPayload = extractOrderItemBundleSnapshot(orderItem);
@@ -221,11 +239,69 @@ public class AfterSaleServiceImpl implements AfterSaleService {
                 detail.put("bundleChildren", orderItemComputation.getBundleChildren());
             }
             detail.put("upperBound", upperBound);
-            return new RefundLimitDecision(upperBound, "ORDER_ITEM_PRICE_SOURCE", JsonUtils.toJsonString(detail));
+            detail.put("fallbackMode", "ORDER_ITEM_PRICE_SOURCE");
+            return new RefundLimitDecision(upperBound, REFUND_LIMIT_SOURCE_FALLBACK_SNAPSHOT,
+                    JsonUtils.toJsonString(detail), false);
         }
 
         detail.put("upperBound", payPrice);
-        return new RefundLimitDecision(payPrice, "ORDER_ITEM_PAY_PRICE", JsonUtils.toJsonString(detail));
+        detail.put("fallbackMode", "ORDER_ITEM_PAY_PRICE");
+        return new RefundLimitDecision(payPrice, REFUND_LIMIT_SOURCE_FALLBACK_SNAPSHOT,
+                JsonUtils.toJsonString(detail), false);
+    }
+
+    private RefundLimitDecision resolveRefundLimitDecisionFromChildLedger(TradeOrderItemDO orderItem,
+                                                                          Map<String, Object> detail,
+                                                                          Integer payPrice) {
+        if (orderItem == null || orderItem.getId() == null) {
+            return null;
+        }
+        List<TradeOrderItemBundleChildDO> childLedgers = tradeOrderItemBundleChildMapper
+                .selectListByOrderItemId(orderItem.getId());
+        if (CollUtil.isEmpty(childLedgers)) {
+            return null;
+        }
+        detail.put("ledgerRecordCount", childLedgers.size());
+        List<Map<String, Object>> childDetails = new java.util.ArrayList<>();
+        int refundableSum = 0;
+        boolean blockedByFinished = false;
+        for (TradeOrderItemBundleChildDO childLedger : childLedgers) {
+            if (childLedger == null) {
+                continue;
+            }
+            int childPayPrice = Math.max(ObjUtil.defaultIfNull(childLedger.getPayPrice(), 0), 0);
+            int refundedPrice = Math.max(ObjUtil.defaultIfNull(childLedger.getRefundedPrice(), 0), 0);
+            int availablePrice = Math.max(childPayPrice - refundedPrice, 0);
+            boolean finished = ObjUtil.equal(childLedger.getFulfillmentStatus(),
+                    TradeServiceOrderStatusEnum.FINISHED.getStatus());
+            boolean included = !finished && availablePrice > 0;
+            if (finished && availablePrice > 0) {
+                blockedByFinished = true;
+            }
+            if (included) {
+                refundableSum += availablePrice;
+            }
+            Map<String, Object> childDetail = new LinkedHashMap<>();
+            childDetail.put("id", childLedger.getId());
+            childDetail.put("childCode", childLedger.getChildCode());
+            childDetail.put("skuName", childLedger.getSkuName());
+            childDetail.put("spuId", childLedger.getSpuId());
+            childDetail.put("skuId", childLedger.getSkuId());
+            childDetail.put("quantity", childLedger.getQuantity());
+            childDetail.put("payPrice", childPayPrice);
+            childDetail.put("refundedPrice", refundedPrice);
+            childDetail.put("availablePrice", availablePrice);
+            childDetail.put("fulfillmentStatus", childLedger.getFulfillmentStatus());
+            childDetail.put("included", included);
+            childDetails.add(childDetail);
+        }
+        detail.put("bundleChildren", childDetails);
+        detail.put("bundleRefundablePrice", Math.max(refundableSum, 0));
+        detail.put("blockedByFinishedChild", blockedByFinished);
+        int upperBound = Math.min(ObjUtil.defaultIfNull(payPrice, 0), Math.max(refundableSum, 0));
+        detail.put("upperBound", upperBound);
+        return new RefundLimitDecision(upperBound, REFUND_LIMIT_SOURCE_CHILD_LEDGER,
+                JsonUtils.toJsonString(detail), blockedByFinished);
     }
 
     private BundleRefundSnapshotPayload extractOrderItemBundleSnapshot(TradeOrderItemDO orderItem) {
@@ -624,6 +700,19 @@ public class AfterSaleServiceImpl implements AfterSaleService {
                 .setRefundLimitSource(latestDecision.getSource())
                 .setRefundLimitDetailJson(latestDecision.getDetailJson()));
         if (afterSale.getRefundPrice() > latestDecision.getUpperBound()) {
+            if (Boolean.TRUE.equals(latestDecision.getBlockedByFinishedChild())) {
+                AfterSaleRefundDecisionBO manualDecision = AfterSaleRefundDecisionBO.manual(
+                        "BUNDLE_CHILD_FULFILLED",
+                        StrUtil.format("存在已履约子项且可退上限为{}分，当前申请退款{}分",
+                                latestDecision.getUpperBound(), afterSale.getRefundPrice()));
+                afterSaleRefundDecisionService.auditDecision(
+                        TradeOrderLogDO.USER_ID_SYSTEM,
+                        TradeOrderLogDO.USER_TYPE_SYSTEM,
+                        afterSale,
+                        manualDecision,
+                        false);
+                throw exception(AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED);
+            }
             AfterSaleRefundDecisionBO manualDecision = AfterSaleRefundDecisionBO.manual(
                     "REFUND_LIMIT_CHANGED",
                     StrUtil.format("退款上限收紧为{}分，当前申请退款{}分",
@@ -676,6 +765,7 @@ public class AfterSaleServiceImpl implements AfterSaleService {
 
             // 更新交易订单项的售后状态为【已完成】
             tradeOrderUpdateService.updateOrderItemWhenAfterSaleSuccess(afterSale.getOrderItemId(), afterSale.getRefundPrice());
+            applyBundleChildRefundProgress(afterSale);
             // 【情况二：退款失败】
         } else if (PayRefundStatusEnum.isFailure(payRefund.getStatus())) {
             // 记录售后日志
@@ -718,6 +808,45 @@ public class AfterSaleServiceImpl implements AfterSaleService {
             throw exception(AFTER_SALE_REFUND_FAIL_REFUND_ORDER_ID_ERROR);
         }
         return payRefund;
+    }
+
+    private void applyBundleChildRefundProgress(AfterSaleDO afterSale) {
+        if (afterSale == null || afterSale.getOrderItemId() == null) {
+            return;
+        }
+        int remainingRefund = Math.max(ObjUtil.defaultIfNull(afterSale.getRefundPrice(), 0), 0);
+        if (remainingRefund <= 0) {
+            return;
+        }
+        List<TradeOrderItemBundleChildDO> childLedgers = tradeOrderItemBundleChildMapper
+                .selectListByOrderItemId(afterSale.getOrderItemId());
+        if (CollUtil.isEmpty(childLedgers)) {
+            return;
+        }
+        for (TradeOrderItemBundleChildDO childLedger : childLedgers) {
+            if (remainingRefund <= 0 || childLedger == null) {
+                break;
+            }
+            if (ObjUtil.equal(childLedger.getFulfillmentStatus(), TradeServiceOrderStatusEnum.FINISHED.getStatus())) {
+                continue;
+            }
+            int payPrice = Math.max(ObjUtil.defaultIfNull(childLedger.getPayPrice(), 0), 0);
+            int refundedPrice = Math.max(ObjUtil.defaultIfNull(childLedger.getRefundedPrice(), 0), 0);
+            int availablePrice = Math.max(payPrice - refundedPrice, 0);
+            if (availablePrice <= 0) {
+                continue;
+            }
+            int delta = Math.min(availablePrice, remainingRefund);
+            tradeOrderItemBundleChildMapper.updateById(TradeOrderItemBundleChildDO.builder()
+                    .id(childLedger.getId())
+                    .refundedPrice(refundedPrice + delta)
+                    .build());
+            remainingRefund -= delta;
+        }
+        if (remainingRefund > 0) {
+            log.warn("[applyBundleChildRefundProgress][afterSale({}) orderItem({}) remainingRefund({}) 未完全分摊，已按可退上限落账]",
+                    afterSale.getId(), afterSale.getOrderItemId(), remainingRefund);
+        }
     }
 
     @Override
@@ -766,6 +895,10 @@ public class AfterSaleServiceImpl implements AfterSaleService {
          * 审计明细（JSON）
          */
         private final String detailJson;
+        /**
+         * 是否包含已履约子项阻塞
+         */
+        private final Boolean blockedByFinishedChild;
     }
 
     @Data

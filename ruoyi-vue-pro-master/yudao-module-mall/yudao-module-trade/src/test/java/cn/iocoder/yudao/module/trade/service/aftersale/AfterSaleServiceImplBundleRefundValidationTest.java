@@ -2,16 +2,20 @@ package cn.iocoder.yudao.module.trade.service.aftersale;
 
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
+import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundRespDTO;
+import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
 import cn.iocoder.yudao.module.promotion.api.combination.CombinationRecordApi;
 import cn.iocoder.yudao.module.trade.controller.app.aftersale.vo.AppAfterSaleCreateReqVO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemBundleChildDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderLogDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.aftersale.AfterSaleMapper;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemBundleChildMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.dal.redis.no.TradeNoRedisDAO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleWayEnum;
@@ -32,6 +36,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Objects;
 
 import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR;
+import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED;
 import static cn.iocoder.yudao.module.trade.enums.ErrorCodeConstants.AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +71,8 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
     private AfterSaleRefundDecisionService afterSaleRefundDecisionService;
     @Mock
     private TradeServiceOrderMapper tradeServiceOrderMapper;
+    @Mock
+    private TradeOrderItemBundleChildMapper tradeOrderItemBundleChildMapper;
 
     @BeforeEach
     void setUp() {
@@ -164,7 +172,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
                 service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 1)));
 
-        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+        assertEquals(AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED.getCode(), exception.getCode());
     }
 
     @Test
@@ -200,7 +208,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         ServiceException exception = assertThrows(ServiceException.class, () -> ReflectionTestUtils.invokeMethod(
                 service, "validateOrderItemApplicable", userId, buildCreateReq(orderItem.getId(), 1)));
 
-        assertEquals(AFTER_SALE_CREATE_FAIL_REFUND_PRICE_ERROR.getCode(), exception.getCode());
+        assertEquals(AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED.getCode(), exception.getCode());
     }
 
     @Test
@@ -250,7 +258,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         ArgumentCaptor<cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO> captor =
                 ArgumentCaptor.forClass(cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO.class);
         org.mockito.Mockito.verify(tradeAfterSaleMapper).insert(captor.capture());
-        assertEquals("SERVICE_ORDER_SNAPSHOT", captor.getValue().getRefundLimitSource());
+        assertEquals("FALLBACK_SNAPSHOT", captor.getValue().getRefundLimitSource());
         String detailJson = captor.getValue().getRefundLimitDetailJson();
         assertTrue(detailJson.contains("serviceOrderId"));
         assertTrue(detailJson.contains("upperBound"));
@@ -282,7 +290,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         ArgumentCaptor<cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO> captor =
                 ArgumentCaptor.forClass(cn.iocoder.yudao.module.trade.dal.dataobject.aftersale.AfterSaleDO.class);
         verify(tradeAfterSaleMapper).insert(captor.capture());
-        assertEquals("ORDER_ITEM_PRICE_SOURCE", captor.getValue().getRefundLimitSource());
+        assertEquals("FALLBACK_SNAPSHOT", captor.getValue().getRefundLimitSource());
         assertEquals("bundleItemSnapshotJson",
                 JsonUtils.parseTree(captor.getValue().getRefundLimitDetailJson()).path("snapshotField").asText());
         assertEquals(1600, JsonUtils.parseTree(captor.getValue().getRefundLimitDetailJson()).path("upperBound").asInt());
@@ -312,7 +320,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
 
         ServiceException exception = assertThrows(ServiceException.class,
                 () -> service.refundAfterSale(1L, "127.0.0.1", 99001L));
-        assertEquals(AFTER_SALE_REFUND_FAIL_REFUND_LIMIT_CHANGED.getCode(), exception.getCode());
+        assertEquals(AFTER_SALE_REFUND_FAIL_BUNDLE_CHILD_FULFILLED.getCode(), exception.getCode());
         verify(payRefundApi, never()).createRefund(any());
         verify(afterSaleRefundDecisionService).auditDecision(
                 eq(TradeOrderLogDO.USER_ID_SYSTEM),
@@ -320,7 +328,7 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
                 eq(afterSale),
                 argThat(decision -> decision != null
                         && Boolean.FALSE.equals(decision.getAutoPass())
-                        && "REFUND_LIMIT_CHANGED".equals(decision.getRuleCode())),
+                        && "BUNDLE_CHILD_FULFILLED".equals(decision.getRuleCode())),
                 eq(false));
     }
 
@@ -351,9 +359,76 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
 
         verify(tradeAfterSaleMapper).updateById(org.mockito.ArgumentMatchers.<AfterSaleDO>argThat(updated ->
                 Objects.equals(updated.getId(), 99002L)
-                        && "SERVICE_ORDER_SNAPSHOT".equals(updated.getRefundLimitSource())
+                        && "FALLBACK_SNAPSHOT".equals(updated.getRefundLimitSource())
                         && updated.getRefundLimitDetailJson() != null
                         && updated.getRefundLimitDetailJson().contains("upperBound")));
+    }
+
+    @Test
+    void shouldPersistChildLedgerSourceWhenCreateAfterSale() {
+        Long userId = 1042L;
+        TradeOrderItemDO orderItem = buildOrderItem(1142L, 5000,
+                "{\"bundleChildren\":[{\"childCode\":\"A\",\"refundCapPrice\":4800,\"fulfilled\":false}]}");
+        orderItem.setUserId(userId);
+        TradeOrderDO order = buildOrder(userId, orderItem.getOrderId());
+        when(tradeOrderQueryService.getOrderItem(userId, 1142L)).thenReturn(orderItem);
+        when(tradeOrderQueryService.getOrder(userId, orderItem.getOrderId())).thenReturn(order);
+        when(tradeOrderItemBundleChildMapper.selectListByOrderItemId(orderItem.getId())).thenReturn(java.util.Arrays.asList(
+                buildBundleChild(1L, orderItem.getId(), "A", 1800, 200, TradeServiceOrderStatusEnum.BOOKED.getStatus()),
+                buildBundleChild(2L, orderItem.getId(), "B", 1500, 0, TradeServiceOrderStatusEnum.FINISHED.getStatus())
+        ));
+        when(tradeAfterSaleMapper.insert(any(AfterSaleDO.class))).thenAnswer(invocation -> {
+            AfterSaleDO target = invocation.getArgument(0);
+            target.setId(88012L);
+            return 1;
+        });
+
+        Long afterSaleId = service.createAfterSale(userId, buildCreateReq(orderItem.getId(), 1500));
+
+        assertEquals(88012L, afterSaleId);
+        ArgumentCaptor<AfterSaleDO> captor = ArgumentCaptor.forClass(AfterSaleDO.class);
+        verify(tradeAfterSaleMapper).insert(captor.capture());
+        assertEquals("CHILD_LEDGER", captor.getValue().getRefundLimitSource());
+        String detailJson = captor.getValue().getRefundLimitDetailJson();
+        assertTrue(detailJson.contains("ledgerRecordCount"));
+        assertTrue(detailJson.contains("bundleChildren"));
+        assertTrue(detailJson.contains("blockedByFinishedChild"));
+    }
+
+    @Test
+    void shouldDistributeRefundedPriceToChildLedgerWhenRefundSuccess() {
+        AfterSaleDO afterSale = new AfterSaleDO();
+        afterSale.setId(99003L);
+        afterSale.setUserId(101L);
+        afterSale.setOrderItemId(122L);
+        afterSale.setStatus(cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleStatusEnum.WAIT_REFUND.getStatus());
+        afterSale.setRefundPrice(1200);
+        afterSale.setSpuName("测试套餐");
+
+        when(tradeAfterSaleMapper.selectById(99003L)).thenReturn(afterSale);
+        when(tradeAfterSaleMapper.updateByIdAndStatus(eq(99003L),
+                eq(cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleStatusEnum.WAIT_REFUND.getStatus()),
+                any(AfterSaleDO.class))).thenReturn(1);
+        when(payRefundApi.getRefund(556688L)).thenReturn(new PayRefundRespDTO()
+                .setId(556688L)
+                .setStatus(PayRefundStatusEnum.SUCCESS.getStatus())
+                .setRefundPrice(1200)
+                .setMerchantRefundId("99003"));
+        when(tradeOrderItemBundleChildMapper.selectListByOrderItemId(122L)).thenReturn(java.util.Arrays.asList(
+                buildBundleChild(11L, 122L, "A", 1000, 100, TradeServiceOrderStatusEnum.BOOKED.getStatus()),
+                buildBundleChild(12L, 122L, "B", 500, 100, TradeServiceOrderStatusEnum.BOOKED.getStatus())
+        ));
+
+        service.updateAfterSaleRefunded(99003L, 70001L, 556688L);
+
+        verify(tradeOrderItemBundleChildMapper, times(2))
+                .updateById(org.mockito.ArgumentMatchers.<TradeOrderItemBundleChildDO>any());
+        verify(tradeOrderItemBundleChildMapper).updateById(
+                org.mockito.ArgumentMatchers.<TradeOrderItemBundleChildDO>argThat(updated ->
+                Objects.equals(updated.getId(), 11L) && Objects.equals(updated.getRefundedPrice(), 1000)));
+        verify(tradeOrderItemBundleChildMapper).updateById(
+                org.mockito.ArgumentMatchers.<TradeOrderItemBundleChildDO>argThat(updated ->
+                Objects.equals(updated.getId(), 12L) && Objects.equals(updated.getRefundedPrice(), 400)));
     }
 
     private static TradeOrderItemDO buildOrderItem(Long orderItemId, Integer payPrice, String priceSourceSnapshotJson) {
@@ -384,5 +459,21 @@ class AfterSaleServiceImplBundleRefundValidationTest extends BaseMockitoUnitTest
         reqVO.setRefundPrice(refundPrice);
         reqVO.setApplyReason("退款");
         return reqVO;
+    }
+
+    private static TradeOrderItemBundleChildDO buildBundleChild(Long id, Long orderItemId, String childCode,
+                                                                Integer payPrice, Integer refundedPrice,
+                                                                Integer fulfillmentStatus) {
+        return TradeOrderItemBundleChildDO.builder()
+                .id(id)
+                .orderId(8800L + orderItemId)
+                .orderItemId(orderItemId)
+                .childCode(childCode)
+                .skuName("子项" + childCode)
+                .quantity(1)
+                .payPrice(payPrice)
+                .refundedPrice(refundedPrice)
+                .fulfillmentStatus(fulfillmentStatus)
+                .build();
     }
 }

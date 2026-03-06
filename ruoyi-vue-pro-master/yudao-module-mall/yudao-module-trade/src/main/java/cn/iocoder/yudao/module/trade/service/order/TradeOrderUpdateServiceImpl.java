@@ -43,8 +43,10 @@ import cn.iocoder.yudao.module.trade.convert.order.TradeOrderConvert;
 import cn.iocoder.yudao.module.trade.dal.dataobject.cart.CartDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.delivery.DeliveryExpressDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.delivery.DeliveryPickUpStoreDO;
+import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemBundleChildDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderDO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeOrderItemDO;
+import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemBundleChildMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderItemMapper;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeOrderMapper;
 import cn.iocoder.yudao.module.trade.dal.redis.no.TradeNoRedisDAO;
@@ -65,6 +67,8 @@ import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateReqBO;
 import cn.iocoder.yudao.module.trade.service.price.bo.TradePriceCalculateRespBO;
 import cn.iocoder.yudao.module.trade.service.price.calculator.TradePriceCalculatorHelper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -74,6 +78,8 @@ import javax.annotation.Resource;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -100,6 +106,8 @@ public class TradeOrderUpdateServiceImpl implements TradeOrderUpdateService {
     private TradeOrderMapper tradeOrderMapper;
     @Resource
     private TradeOrderItemMapper tradeOrderItemMapper;
+    @Resource
+    private TradeOrderItemBundleChildMapper tradeOrderItemBundleChildMapper;
     @Resource
     private TradeNoRedisDAO tradeNoRedisDAO;
 
@@ -200,6 +208,7 @@ public class TradeOrderUpdateServiceImpl implements TradeOrderUpdateService {
         tradeOrderMapper.insert(order);
         orderItems.forEach(orderItem -> orderItem.setOrderId(order.getId()));
         tradeOrderItemMapper.insertBatch(orderItems);
+        persistBundleChildLedger(orderItems);
 
         // 4. 订单创建后的逻辑
         afterCreateTradeOrder(order, orderItems, createReqVO);
@@ -255,6 +264,144 @@ public class TradeOrderUpdateServiceImpl implements TradeOrderUpdateService {
             return null;
         }
         return JsonUtils.toJsonString(bundleSnapshot);
+    }
+
+    private void persistBundleChildLedger(List<TradeOrderItemDO> orderItems) {
+        if (CollUtil.isEmpty(orderItems)) {
+            return;
+        }
+        List<TradeOrderItemBundleChildDO> createRows = new ArrayList<>();
+        for (TradeOrderItemDO orderItem : orderItems) {
+            if (orderItem == null || orderItem.getId() == null || orderItem.getOrderId() == null) {
+                continue;
+            }
+            if (tradeOrderItemBundleChildMapper.existsByOrderItemId(orderItem.getId())) {
+                continue;
+            }
+            createRows.addAll(buildBundleChildLedgerRows(orderItem));
+        }
+        if (CollUtil.isNotEmpty(createRows)) {
+            tradeOrderItemBundleChildMapper.insertBatch(createRows);
+        }
+    }
+
+    private List<TradeOrderItemBundleChildDO> buildBundleChildLedgerRows(TradeOrderItemDO orderItem) {
+        String bundleSnapshotJson = ObjUtil.defaultIfNull(orderItem.getBundleItemSnapshotJson(),
+                extractBundleItemSnapshotJson(orderItem.getPriceSourceSnapshotJson()));
+        if (StrUtil.isBlank(bundleSnapshotJson)) {
+            return Collections.emptyList();
+        }
+        JsonNode root = JsonUtils.parseTree(bundleSnapshotJson);
+        if (root == null || root.isMissingNode()) {
+            return Collections.emptyList();
+        }
+        JsonNode childrenNode = root.get("bundleChildren");
+        if (!(childrenNode instanceof ArrayNode)) {
+            childrenNode = root.get("children");
+        }
+        if (!(childrenNode instanceof ArrayNode)) {
+            childrenNode = root.get("items");
+        }
+        if (!(childrenNode instanceof ArrayNode)) {
+            return Collections.emptyList();
+        }
+        ArrayNode children = (ArrayNode) childrenNode;
+        if (children.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<TradeOrderItemBundleChildDO> rows = new ArrayList<>();
+        Set<String> usedChildCodes = new HashSet<>();
+        for (int i = 0; i < children.size(); i++) {
+            JsonNode childNode = children.get(i);
+            String childCode = firstNonBlank(childNode, "childCode", "code", "itemCode",
+                    "skuCode", "skuId", "spuId", "orderItemId");
+            if (StrUtil.isBlank(childCode)) {
+                childCode = "AUTO-" + orderItem.getId() + "-" + i;
+            }
+            String dedupCode = childCode;
+            int suffix = 1;
+            while (usedChildCodes.contains(dedupCode)) {
+                dedupCode = childCode + "-" + suffix;
+                suffix++;
+            }
+            usedChildCodes.add(dedupCode);
+            Integer payPrice = firstNonNegative(childNode, "refundCapPrice", "refundablePrice", "maxRefundPrice");
+            Integer quantity = firstPositiveInt(childNode, "quantity", "count", "num");
+            String skuName = ObjUtil.defaultIfNull(firstNonBlank(childNode, "skuName", "name", "itemName", "childName"),
+                    ObjUtil.defaultIfNull(orderItem.getSpuName(), ""));
+            rows.add(TradeOrderItemBundleChildDO.builder()
+                    .orderId(orderItem.getOrderId())
+                    .orderItemId(orderItem.getId())
+                    .spuId(orderItem.getSpuId())
+                    .skuId(orderItem.getSkuId())
+                    .childCode(dedupCode)
+                    .skuName(skuName)
+                    .quantity(ObjUtil.defaultIfNull(quantity, 1))
+                    .payPrice(ObjUtil.defaultIfNull(payPrice, 0))
+                    .refundedPrice(0)
+                    .fulfillmentStatus(TradeServiceOrderStatusEnum.WAIT_BOOKING.getStatus())
+                    .snapshotJson(childNode == null || childNode.isNull() ? null : childNode.toString())
+                    .build());
+        }
+        return rows;
+    }
+
+    private String firstNonBlank(JsonNode node, String... keys) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        for (String key : keys) {
+            JsonNode valueNode = node.get(key);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            if (valueNode.isNumber()) {
+                return String.valueOf(valueNode.longValue());
+            }
+            String value = StrUtil.trim(valueNode.asText());
+            if (StrUtil.isNotBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Integer firstNonNegative(JsonNode node, String... keys) {
+        Integer value = firstInt(node, keys);
+        return value == null ? null : Math.max(value, 0);
+    }
+
+    private Integer firstPositiveInt(JsonNode node, String... keys) {
+        Integer value = firstInt(node, keys);
+        if (value == null) {
+            return null;
+        }
+        return value > 0 ? value : 1;
+    }
+
+    private Integer firstInt(JsonNode node, String... keys) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        for (String key : keys) {
+            JsonNode valueNode = node.get(key);
+            if (valueNode == null || valueNode.isNull()) {
+                continue;
+            }
+            if (valueNode.isNumber()) {
+                return valueNode.intValue();
+            }
+            String text = StrUtil.trim(valueNode.asText());
+            if (StrUtil.isBlank(text)) {
+                continue;
+            }
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignore) {
+                // ignore invalid number
+            }
+        }
+        return null;
     }
 
     /**
