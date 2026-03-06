@@ -4,6 +4,7 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import com.hxy.module.booking.service.BookingOrderService;
+import com.hxy.module.booking.service.BookingRefundNotifyLogService;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -17,6 +18,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 
 class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
 
@@ -25,6 +28,8 @@ class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
 
     @Mock
     private BookingOrderService bookingOrderService;
+    @Mock
+    private BookingRefundNotifyLogService refundNotifyLogService;
 
     @Test
     void updateOrderRefunded_shouldParseOrderIdWithSuffix() {
@@ -37,6 +42,7 @@ class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
 
         assertTrue(result.isSuccess());
         verify(bookingOrderService).updateOrderRefunded(eq(1001L), eq(3001L));
+        verify(refundNotifyLogService).recordNotifySuccess(eq(1001L), eq(reqDTO));
     }
 
     @Test
@@ -50,6 +56,7 @@ class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
 
         assertTrue(result.isSuccess());
         verify(bookingOrderService).updateOrderRefunded(eq(1002L), eq(3002L));
+        verify(refundNotifyLogService).recordNotifySuccess(eq(1002L), eq(reqDTO));
     }
 
     @Test
@@ -62,6 +69,7 @@ class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
         assertServiceException(() -> controller.updateOrderRefunded(reqDTO),
                 BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID);
         verify(bookingOrderService, never()).updateOrderRefunded(eq(1003L), eq(3003L));
+        verify(refundNotifyLogService).recordNotifyFailure(isNull(), eq(reqDTO), any(Throwable.class));
     }
 
     @Test
@@ -76,6 +84,6 @@ class AppBookingOrderControllerTest extends BaseMockitoUnitTest {
         assertServiceException(() -> controller.updateOrderRefunded(reqDTO),
                 BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT);
         verify(bookingOrderService).updateOrderRefunded(eq(1004L), eq(3004L));
+        verify(refundNotifyLogService).recordNotifyFailure(eq(1004L), eq(reqDTO), any(Throwable.class));
     }
 }
-

@@ -882,3 +882,16 @@
 - 备选方案：继续只用 `refund-commission-audit-page` 明细接口，不在四账主台账固化审计快照。
 - 否决原因：运营筛选维度分散，无法在同一台账完成“筛选-汇总-追溯”闭环。
 - 回滚条件：若快照字段带来写入压力，可临时只保留汇总与明细动态查询；不回退 JSON 降级与 fail-open 原则。
+
+## ADR-092：booking 退款回调采用“全量台账 + 失败重放 + 自动补偿修复”闭环
+
+- 背景：`/booking/order/update-refunded` 已具备强校验与幂等，但在跨系统抖动、通知丢失、回调失败时缺少统一补偿入口与可追溯台账，运营只能依赖日志排障，修复效率低且易漏单。
+- 决策：
+  1) 新增台账表 `hxy_booking_refund_notify_log`，对退款回调成功/失败全量落账，固化 `orderId/merchantRefundId/payRefundId/status/errorCode/errorMsg/rawPayload/retryCount/nextRetryTime`；
+  2) 管理端新增 `GET /booking/refund-notify-log/page` 与 `POST /booking/refund-notify-log/replay`，仅允许失败记录重放，重放成功后将台账状态更新为 `success` 并清空下次重试时间；
+  3) 新增定时补偿任务 `BookingRefundReconcileRepairJob`：按 `pay_refund.SUCCESS` 扫描“支付已退款但 booking 未退款”场景，逐单调用 `updateOrderRefunded` 修复；
+  4) 补偿任务采用 fail-open：单条修复失败只落失败台账并继续后续处理，不阻断整批执行。
+- 影响范围：booking 退款回调链路、运营重放入口、支付退款与预约订单一致性修复、审计可追溯能力。
+- 备选方案：仅在应用日志记录失败回调，不引入独立台账与自动补偿任务。
+- 否决原因：日志无法作为结构化运营台账，且不具备失败重放与批量自动修复能力，无法满足 P1 收口目标。
+- 回滚条件：若补偿扫描压力上升，可先下调任务批量上限或暂停 Job，仅保留人工 replay；不回退台账落库能力。

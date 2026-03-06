@@ -6,6 +6,7 @@ import com.hxy.module.booking.controller.app.vo.*;
 import com.hxy.module.booking.convert.BookingOrderConvert;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.service.BookingOrderService;
+import com.hxy.module.booking.service.BookingRefundNotifyLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,7 @@ public class AppBookingOrderController {
     private static final Pattern REFUND_BIZ_NO_PATTERN = Pattern.compile("^(\\d+)(?:-refund)?$");
 
     private final BookingOrderService bookingOrderService;
+    private final BookingRefundNotifyLogService refundNotifyLogService;
 
     @PostMapping("/create")
     @Operation(summary = "创建预约订单")
@@ -95,9 +97,16 @@ public class AppBookingOrderController {
     @Operation(summary = "更新预约订单为已退款")
     @PermitAll
     public CommonResult<Boolean> updateOrderRefunded(@Valid @RequestBody PayRefundNotifyReqDTO notifyReqDTO) {
-        Long orderId = parseOrderId(notifyReqDTO.getMerchantRefundId());
-        bookingOrderService.updateOrderRefunded(orderId, notifyReqDTO.getPayRefundId());
-        return success(true);
+        Long orderId = null;
+        try {
+            orderId = parseOrderId(notifyReqDTO.getMerchantRefundId());
+            bookingOrderService.updateOrderRefunded(orderId, notifyReqDTO.getPayRefundId());
+            refundNotifyLogService.recordNotifySuccess(orderId, notifyReqDTO);
+            return success(true);
+        } catch (Exception ex) {
+            refundNotifyLogService.recordNotifyFailure(orderId, notifyReqDTO, ex);
+            throw ex;
+        }
     }
 
     private Long parseOrderId(String merchantRefundId) {
