@@ -307,7 +307,8 @@ else
   echo "[github-required-checks] profile=base-only"
 fi
 if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
-  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,four-account-audit-regression"
+  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,four-account-audit-regression"
+  echo "[github-required-checks] stageb_guard_context_unchanged=hxy-ops-stageb-p1-guard / ops-stageb-p1-guard"
 fi
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do

@@ -12,9 +12,10 @@
 3. 脚本与 workflow 已在仓库
    - `ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh`
    - `ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh`
-   - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
-   - `ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh`
-   - `.github/workflows/ops-stageb-p1-guard.yml`
+  - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
+  - `ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh`
+  - `ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh`
+  - `.github/workflows/ops-stageb-p1-guard.yml`
 
 ## 2. 启用（Dry Run + Apply）
 
@@ -124,7 +125,7 @@ gh api /repos/<owner>/<repo>/branches/main
 1. 安装 GitHub CLI 后重试；或
 2. 在 `setup_github_required_checks.sh --apply` 场景使用 `GITHUB_TOKEN` 走 `curl` 回退路径。
 
-### 4.5 StageB 本地门禁脚本报错（退款回调与四账审计）
+### 4.5 StageB 本地门禁脚本报错（退款回调补偿 + 退款审计汇总）
 
 若 `check_booking_refund_notify_gate.sh` 返回 `BLOCK`，优先检查以下锚点文件是否存在并包含预期片段：
 - `sql/mysql/hxy/2026-03-06-hxy-booking-order-refund-notify-audit.sql`
@@ -138,18 +139,31 @@ gh api /repos/<owner>/<repo>/branches/main
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh
 ```
 
+若 `check_booking_refund_audit_gate.sh` 返回 `BLOCK`，优先检查以下锚点是否存在：
+- `BookingRefundNotifyLogController` 中 `/booking/refund-notify-log/page` 与 `/booking/refund-notify-log/replay`
+- `FourAccountReconcileController` 中 `/booking/four-account-reconcile/refund-audit-summary`
+- `ErrorCodeConstants` 中 `1030004011 / 1030004013 / 1030004014`
+
+可单独执行：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
+```
+
 ## 5. 快速检查命令
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --help
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run --enable-ops-stageb-p1
+bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
 ```
 
 ## 6. 巡检接口回归测试（退款-提成联调）
 
 ### 6.1 本地执行
 
-`run_ops_stageb_p1_local_ci.sh` 默认已纳入巡检接口关键回归用例：
+`run_ops_stageb_p1_local_ci.sh` 默认已纳入退款审计门禁与巡检接口关键回归用例：
+- `check_booking_refund_audit_gate.sh`（退款回调补偿 + 退款审计汇总锚点检查）
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
 - `BookingOrderServiceImplTest`（退款回调一致性）
@@ -159,6 +173,14 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run -
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+```
+
+如需临时降级退款审计门禁（不建议长期使用）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-booking-refund-audit-gate
 ```
 
 如需临时覆盖回归测试集合，可通过环境变量：
