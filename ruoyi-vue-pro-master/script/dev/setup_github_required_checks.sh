@@ -299,6 +299,13 @@ echo "[github-required-checks] enforce_admins=${ENFORCE_ADMINS}"
 echo "[github-required-checks] include_stagea_checks=${INCLUDE_STAGEA_CHECKS}"
 echo "[github-required-checks] include_ops_stageb_checks=${INCLUDE_OPS_STAGEB_CHECKS}"
 echo "[github-required-checks] enable_ops_stageb_p1=${ENABLE_OPS_STAGEB_P1}"
+if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" && "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
+  echo "[github-required-checks] profile=stagea+stageb"
+elif [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
+  echo "[github-required-checks] profile=stagea-only"
+else
+  echo "[github-required-checks] profile=base-only"
+fi
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
   echo "[github-required-checks] context=${ctx}"
@@ -312,6 +319,8 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   echo "[github-required-checks] dry-run=1 (skip request)"
   echo "[github-required-checks] payload:"
   cat "${payload_file}"
+  echo "[github-required-checks] manual apply command:"
+  echo "  ${gh_apply_cmd}"
   exit 0
 fi
 
