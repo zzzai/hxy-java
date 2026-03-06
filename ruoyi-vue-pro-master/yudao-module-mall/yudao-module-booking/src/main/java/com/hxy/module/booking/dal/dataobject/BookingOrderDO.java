@@ -130,9 +130,19 @@ public class BookingOrderDO extends BaseDO {
     private Long payOrderId;
 
     /**
+     * 退款单编号
+     */
+    private Long payRefundId;
+
+    /**
      * 支付时间
      */
     private LocalDateTime payTime;
+
+    /**
+     * 退款时间
+     */
+    private LocalDateTime refundTime;
 
     /**
      * 服务开始时间

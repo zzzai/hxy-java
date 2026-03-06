@@ -323,6 +323,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         order.setPayOrderId(888L);
         order.setPayTime(LocalDateTime.now());
         bookingOrderMapper.insert(order);
+        when(payRefundApi.createRefund(any())).thenReturn(5555L);
 
         // 调用
         bookingOrderService.refundOrder(order.getId());
@@ -330,6 +331,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         // 断言
         BookingOrderDO updatedOrder = bookingOrderMapper.selectById(order.getId());
         assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updatedOrder.getStatus());
+        assertEquals(5555L, updatedOrder.getPayRefundId());
 
         // 验证时间槽取消
         verify(timeSlotService).cancelBooking(eq(order.getTimeSlotId()));
@@ -352,6 +354,8 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
 
         BookingOrderDO updated = bookingOrderMapper.selectById(order.getId());
         assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updated.getStatus());
+        assertEquals(12345L, updated.getPayRefundId());
+        assertNotNull(updated.getRefundTime());
         verify(timeSlotService).cancelBooking(eq(order.getTimeSlotId()));
         verify(technicianCommissionService).cancelCommission(eq(order.getId()));
         verify(tradeServiceOrderApi).cancelByPayOrderId(eq(999L), eq("SYNC_FROM_BOOKING_REFUNDED"));
@@ -362,6 +366,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     public void testUpdateOrderRefunded_idempotentWhenAlreadyRefunded() {
         BookingOrderDO order = createOrder(BookingOrderStatusEnum.REFUNDED.getStatus());
         order.setPayOrderId(777L);
+        order.setPayRefundId(8888L);
         bookingOrderMapper.insert(order);
 
         bookingOrderService.updateOrderRefunded(order.getId(), 8888L);
@@ -370,6 +375,38 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         verify(technicianCommissionService, never()).cancelCommission(any());
         verify(tradeServiceOrderApi, never()).cancelByPayOrderId(any(), any());
         verify(payRefundApi, never()).getRefund(any());
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_conflictWhenAlreadyRefundedWithDifferentPayRefundId() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.REFUNDED.getStatus());
+        order.setPayOrderId(778L);
+        order.setPayRefundId(9998L);
+        bookingOrderMapper.insert(order);
+
+        assertServiceException(() -> bookingOrderService.updateOrderRefunded(order.getId(), 9999L),
+                BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT);
+        verify(payRefundApi, never()).getRefund(any());
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_backfillAuditWhenAlreadyRefundedWithoutPayRefundId() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.REFUNDED.getStatus());
+        order.setPayOrderId(779L);
+        order.setPayRefundId(null);
+        order.setRefundTime(null);
+        bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 9001L);
+        when(payRefundApi.getRefund(eq(9001L))).thenReturn(payRefund);
+
+        bookingOrderService.updateOrderRefunded(order.getId(), 9001L);
+
+        BookingOrderDO updated = bookingOrderMapper.selectById(order.getId());
+        assertEquals(9001L, updated.getPayRefundId());
+        assertNotNull(updated.getRefundTime());
+        verify(timeSlotService, never()).cancelBooking(any());
+        verify(technicianCommissionService, never()).cancelCommission(any());
+        verify(tradeServiceOrderApi, never()).cancelByPayOrderId(any(), any());
     }
 
     @Test

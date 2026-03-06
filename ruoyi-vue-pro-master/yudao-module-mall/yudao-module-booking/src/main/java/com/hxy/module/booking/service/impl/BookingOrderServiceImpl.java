@@ -375,12 +375,15 @@ public class BookingOrderServiceImpl implements BookingOrderService {
 
         // 创建退款单
         if (order.getPayOrderId() != null && order.getPayPrice() != null && order.getPayPrice() > 0) {
-            payRefundApi.createRefund(new PayRefundCreateReqDTO()
+            Long payRefundId = payRefundApi.createRefund(new PayRefundCreateReqDTO()
                     .setAppKey(PAY_APP_KEY).setUserIp("127.0.0.1")
                     .setUserId(order.getUserId()).setUserType(UserTypeEnum.MEMBER.getValue())
                     .setMerchantOrderId(order.getId().toString())
                     .setMerchantRefundId(buildBookingRefundMerchantRefundId(order.getId()))
                     .setReason("预约订单退款").setPrice(order.getPayPrice()));
+            bookingOrderMapper.updateById(new BookingOrderDO()
+                    .setId(order.getId())
+                    .setPayRefundId(payRefundId));
         }
 
         log.info("退款预约订单，orderId={}", orderId);
@@ -415,9 +418,26 @@ public class BookingOrderServiceImpl implements BookingOrderService {
     @Transactional(rollbackFor = Exception.class)
     public void updateOrderRefunded(Long id, Long payRefundId) {
         BookingOrderDO order = validateOrderExists(id);
-        // 已退款则幂等返回
+        // 已退款：命中同退款单号幂等成功；不同退款单号判定冲突，防止串单
         if (BookingOrderStatusEnum.REFUNDED.getStatus().equals(order.getStatus())) {
-            log.warn("[updateOrderRefunded][order({}) 已退款，直接返回]", id);
+            if (order.getPayRefundId() != null && order.getPayRefundId().equals(payRefundId)) {
+                if (order.getRefundTime() == null) {
+                    bookingOrderMapper.updateById(new BookingOrderDO()
+                            .setId(order.getId())
+                            .setRefundTime(LocalDateTime.now()));
+                }
+                log.warn("[updateOrderRefunded][order({}) 已退款且回调退款单一致({})，幂等返回]", id, payRefundId);
+                return;
+            }
+            if (order.getPayRefundId() != null) {
+                throw exception(BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT);
+            }
+            validatePayRefund(order, payRefundId);
+            bookingOrderMapper.updateById(new BookingOrderDO()
+                    .setId(order.getId())
+                    .setPayRefundId(payRefundId)
+                    .setRefundTime(order.getRefundTime() != null ? order.getRefundTime() : LocalDateTime.now()));
+            log.info("退款回调补录成功，orderId={}, payRefundId={}", id, payRefundId);
             return;
         }
         if (!BookingOrderStatusEnum.PAID.getStatus().equals(order.getStatus())) {
@@ -426,7 +446,10 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             return;
         }
         validatePayRefund(order, payRefundId);
-        bookingOrderMapper.updateById(buildStatusUpdate(id, BookingOrderStatusEnum.REFUNDED));
+        BookingOrderDO update = buildStatusUpdate(id, BookingOrderStatusEnum.REFUNDED);
+        update.setPayRefundId(payRefundId);
+        update.setRefundTime(LocalDateTime.now());
+        bookingOrderMapper.updateById(update);
         timeSlotService.cancelBooking(order.getTimeSlotId());
         technicianCommissionService.cancelCommission(order.getId());
         syncTradeServiceOrderSafely("refundCallback", order.getPayOrderId(), () ->
