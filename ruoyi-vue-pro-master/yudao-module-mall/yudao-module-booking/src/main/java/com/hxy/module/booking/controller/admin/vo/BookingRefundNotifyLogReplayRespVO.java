@@ -3,7 +3,6 @@ package com.hxy.module.booking.controller.admin.vo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Schema(description = "管理后台 - booking退款回调台账重放 Response VO")
@@ -11,16 +10,16 @@ import java.util.List;
 public class BookingRefundNotifyLogReplayRespVO {
 
     @Schema(description = "成功数", example = "2")
-    private Integer successCount = 0;
+    private Integer successCount;
 
     @Schema(description = "跳过数", example = "1")
-    private Integer skipCount = 0;
+    private Integer skipCount;
 
     @Schema(description = "失败数", example = "1")
-    private Integer failCount = 0;
+    private Integer failCount;
 
     @Schema(description = "逐条结果")
-    private List<ReplayDetail> details = new ArrayList<>();
+    private List<ReplayDetail> details;
 
     @Schema(description = "单条重放结果")
     @Data
