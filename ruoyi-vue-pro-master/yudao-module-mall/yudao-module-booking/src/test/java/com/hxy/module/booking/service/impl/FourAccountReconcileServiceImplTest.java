@@ -4,8 +4,12 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketResolveReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryQueryReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
@@ -17,6 +21,7 @@ import org.mockito.Mock;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -118,5 +123,67 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
 
         assertEquals(0L, page.getTotal());
         verify(reconcileMapper).selectPage(eq(reqVO));
+    }
+
+    @Test
+    void getReconcileSummary_shouldAggregateAndFilterByTicketLinked() {
+        FourAccountReconcileSummaryReqVO reqVO = new FourAccountReconcileSummaryReqVO();
+        reqVO.setRelatedTicketLinked(true);
+
+        FourAccountReconcileDO warnRow = FourAccountReconcileDO.builder()
+                .id(11L)
+                .bizDate(LocalDate.of(2026, 3, 5))
+                .status(FourAccountReconcileStatusEnum.WARN.getStatus())
+                .tradeMinusFulfillment(120)
+                .tradeMinusCommissionSplit(330)
+                .build();
+        FourAccountReconcileDO passRow = FourAccountReconcileDO.builder()
+                .id(12L)
+                .bizDate(LocalDate.of(2026, 3, 4))
+                .status(FourAccountReconcileStatusEnum.PASS.getStatus())
+                .tradeMinusFulfillment(30)
+                .tradeMinusCommissionSplit(80)
+                .build();
+        when(reconcileMapper.selectSummaryList(eq(reqVO))).thenReturn(Arrays.asList(warnRow, passRow));
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenReturn(Collections.singletonList(new TradeReviewTicketSummaryRespDTO()
+                        .setId(1001L)
+                        .setTicketType(40)
+                        .setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-05")
+                        .setStatus(0)
+                        .setSeverity("P1")));
+
+        FourAccountReconcileSummaryRespVO respVO = service.getReconcileSummary(reqVO);
+
+        assertEquals(1L, respVO.getTotalCount());
+        assertEquals(0L, respVO.getPassCount());
+        assertEquals(1L, respVO.getWarnCount());
+        assertEquals(120L, respVO.getTradeMinusFulfillmentSum());
+        assertEquals(330L, respVO.getTradeMinusCommissionSplitSum());
+        assertEquals(1L, respVO.getUnresolvedTicketCount());
+        assertEquals(false, respVO.getTicketSummaryDegraded());
+    }
+
+    @Test
+    void getReconcileSummary_shouldDegradeWhenTradeSummaryFails() {
+        FourAccountReconcileSummaryReqVO reqVO = new FourAccountReconcileSummaryReqVO();
+        reqVO.setRelatedTicketLinked(true);
+        FourAccountReconcileDO row = FourAccountReconcileDO.builder()
+                .id(21L)
+                .bizDate(LocalDate.of(2026, 3, 6))
+                .status(FourAccountReconcileStatusEnum.WARN.getStatus())
+                .tradeMinusFulfillment(200)
+                .tradeMinusCommissionSplit(260)
+                .build();
+        when(reconcileMapper.selectSummaryList(eq(reqVO))).thenReturn(Collections.singletonList(row));
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenThrow(new RuntimeException("trade timeout"));
+
+        FourAccountReconcileSummaryRespVO respVO = service.getReconcileSummary(reqVO);
+
+        assertEquals(1L, respVO.getTotalCount());
+        assertEquals(1L, respVO.getWarnCount());
+        assertEquals(0L, respVO.getUnresolvedTicketCount());
+        assertEquals(true, respVO.getTicketSummaryDegraded());
     }
 }

@@ -6,8 +6,13 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketResolveReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryQueryReqDTO;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
+import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
@@ -25,10 +30,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Validated
@@ -155,6 +164,46 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         return reconcileMapper.selectById(id);
     }
 
+    @Override
+    public FourAccountReconcileSummaryRespVO getReconcileSummary(FourAccountReconcileSummaryReqVO reqVO) {
+        FourAccountReconcileSummaryReqVO safeReq = reqVO == null ? new FourAccountReconcileSummaryReqVO() : reqVO;
+        List<FourAccountReconcileDO> allRows = reconcileMapper.selectSummaryList(safeReq);
+        if (allRows == null || allRows.isEmpty()) {
+            return emptySummary(false);
+        }
+
+        TicketSummaryLoadResult ticketLoadResult = loadTicketSummaryMap(allRows);
+        List<FourAccountReconcileDO> filteredRows = filterSummaryRowsByTicketLinked(allRows, safeReq.getRelatedTicketLinked(),
+                ticketLoadResult.ticketMap, ticketLoadResult.degraded);
+
+        long totalCount = filteredRows.size();
+        long passCount = filteredRows.stream()
+                .filter(row -> Objects.equals(row.getStatus(), FourAccountReconcileStatusEnum.PASS.getStatus()))
+                .count();
+        long warnCount = filteredRows.stream()
+                .filter(row -> Objects.equals(row.getStatus(), FourAccountReconcileStatusEnum.WARN.getStatus()))
+                .count();
+        long tradeMinusFulfillmentSum = filteredRows.stream()
+                .map(FourAccountReconcileDO::getTradeMinusFulfillment)
+                .mapToLong(this::defaultZeroLong)
+                .sum();
+        long tradeMinusCommissionSplitSum = filteredRows.stream()
+                .map(FourAccountReconcileDO::getTradeMinusCommissionSplit)
+                .mapToLong(this::defaultZeroLong)
+                .sum();
+        long unresolvedTicketCount = countUnresolvedTickets(filteredRows, ticketLoadResult.ticketMap);
+
+        FourAccountReconcileSummaryRespVO respVO = new FourAccountReconcileSummaryRespVO();
+        respVO.setTotalCount(totalCount);
+        respVO.setPassCount(passCount);
+        respVO.setWarnCount(warnCount);
+        respVO.setTradeMinusFulfillmentSum(tradeMinusFulfillmentSum);
+        respVO.setTradeMinusCommissionSplitSum(tradeMinusCommissionSplitSum);
+        respVO.setUnresolvedTicketCount(unresolvedTicketCount);
+        respVO.setTicketSummaryDegraded(ticketLoadResult.degraded);
+        return respVO;
+    }
+
     private void normalizePageReq(FourAccountReconcilePageReqVO reqVO) {
         if (reqVO == null) {
             return;
@@ -165,6 +214,84 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         if (StringUtils.hasText(reqVO.getIssueCode())) {
             reqVO.setIssueCode(reqVO.getIssueCode().trim().toUpperCase(Locale.ROOT));
         }
+    }
+
+    private TicketSummaryLoadResult loadTicketSummaryMap(List<FourAccountReconcileDO> reconcileRows) {
+        List<String> sourceBizNos = reconcileRows.stream()
+                .filter(Objects::nonNull)
+                .map(FourAccountReconcileDO::getBizDate)
+                .filter(Objects::nonNull)
+                .map(this::buildReviewTicketSourceBizNo)
+                .distinct()
+                .collect(Collectors.toList());
+        if (sourceBizNos.isEmpty()) {
+            return new TicketSummaryLoadResult(Collections.emptyMap(), false);
+        }
+        try {
+            List<TradeReviewTicketSummaryRespDTO> summaryList = tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(
+                    new TradeReviewTicketSummaryQueryReqDTO()
+                            .setTicketType(REVIEW_TICKET_TYPE)
+                            .setSourceBizNos(sourceBizNos));
+            Map<String, TradeReviewTicketSummaryRespDTO> ticketMap = summaryList == null ? Collections.emptyMap()
+                    : summaryList.stream()
+                    .filter(Objects::nonNull)
+                    .filter(item -> StrUtil.isNotBlank(item.getSourceBizNo()))
+                    .collect(Collectors.toMap(TradeReviewTicketSummaryRespDTO::getSourceBizNo, Function.identity(),
+                            (left, right) -> left));
+            return new TicketSummaryLoadResult(ticketMap, false);
+        } catch (Exception ex) {
+            log.warn("[getReconcileSummary][load ticket summary degrade]", ex);
+            return new TicketSummaryLoadResult(Collections.emptyMap(), true);
+        }
+    }
+
+    private List<FourAccountReconcileDO> filterSummaryRowsByTicketLinked(List<FourAccountReconcileDO> rows,
+                                                                          Boolean relatedTicketLinked,
+                                                                          Map<String, TradeReviewTicketSummaryRespDTO> ticketMap,
+                                                                          boolean ticketSummaryDegraded) {
+        if (relatedTicketLinked == null || ticketSummaryDegraded) {
+            return rows;
+        }
+        return rows.stream().filter(row -> {
+            String sourceBizNo = buildReviewTicketSourceBizNo(row.getBizDate());
+            boolean linked = sourceBizNo != null && ticketMap.containsKey(sourceBizNo);
+            return Objects.equals(linked, relatedTicketLinked);
+        }).collect(Collectors.toList());
+    }
+
+    private long countUnresolvedTickets(List<FourAccountReconcileDO> rows,
+                                        Map<String, TradeReviewTicketSummaryRespDTO> ticketMap) {
+        if (rows == null || rows.isEmpty() || ticketMap == null || ticketMap.isEmpty()) {
+            return 0L;
+        }
+        return rows.stream()
+                .map(FourAccountReconcileDO::getBizDate)
+                .filter(Objects::nonNull)
+                .map(this::buildReviewTicketSourceBizNo)
+                .map(ticketMap::get)
+                .filter(Objects::nonNull)
+                .filter(ticket -> AfterSaleReviewTicketStatusEnum.isPending(ticket.getStatus()))
+                .count();
+    }
+
+    private long defaultZeroLong(Integer value) {
+        return value == null ? 0L : value;
+    }
+
+    private String buildReviewTicketSourceBizNo(LocalDate bizDate) {
+        return bizDate == null ? null : REVIEW_TICKET_SOURCE_PREFIX + bizDate;
+    }
+
+    private FourAccountReconcileSummaryRespVO emptySummary(boolean degraded) {
+        FourAccountReconcileSummaryRespVO respVO = new FourAccountReconcileSummaryRespVO();
+        respVO.setTotalCount(0L);
+        respVO.setPassCount(0L);
+        respVO.setWarnCount(0L);
+        respVO.setTradeMinusFulfillmentSum(0L);
+        respVO.setTradeMinusCommissionSplitSum(0L);
+        respVO.setUnresolvedTicketCount(0L);
+        respVO.setTicketSummaryDegraded(degraded);
+        return respVO;
     }
 
     private List<String> evaluateIssueCodes(int tradeAmount, int fulfillmentAmount, int commissionAmount, int splitAmount) {
@@ -264,6 +391,16 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         } catch (Exception ex) {
             log.warn("[resolvePassReviewTicket][bizDate({}) sourceBizNo({}) failed]",
                     bizDate, sourceBizNo, ex);
+        }
+    }
+
+    private static final class TicketSummaryLoadResult {
+        private final Map<String, TradeReviewTicketSummaryRespDTO> ticketMap;
+        private final boolean degraded;
+
+        private TicketSummaryLoadResult(Map<String, TradeReviewTicketSummaryRespDTO> ticketMap, boolean degraded) {
+            this.ticketMap = ticketMap;
+            this.degraded = degraded;
         }
     }
 }

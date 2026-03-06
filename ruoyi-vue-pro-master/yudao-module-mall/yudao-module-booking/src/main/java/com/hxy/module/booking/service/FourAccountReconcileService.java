@@ -2,6 +2,8 @@ package com.hxy.module.booking.service;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 
 import java.time.LocalDate;
@@ -33,4 +35,9 @@ public interface FourAccountReconcileService {
      * @return 对账记录，未命中返回 null
      */
     FourAccountReconcileDO getReconcile(Long id);
+
+    /**
+     * 汇总四账对账台账
+     */
+    FourAccountReconcileSummaryRespVO getReconcileSummary(FourAccountReconcileSummaryReqVO reqVO);
 }

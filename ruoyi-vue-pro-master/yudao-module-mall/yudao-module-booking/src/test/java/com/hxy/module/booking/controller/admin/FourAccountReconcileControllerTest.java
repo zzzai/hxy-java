@@ -9,6 +9,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import com.hxy.module.booking.service.FourAccountReconcileService;
 import org.junit.jupiter.api.Test;
@@ -156,5 +158,25 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertTrue(result.isSuccess());
         assertEquals(9L, result.getData());
         verify(reconcileService).runReconcile(eq(LocalDate.of(2026, 3, 4)), eq("MANUAL"), isNull());
+    }
+
+    @Test
+    void summary_shouldDelegateService() {
+        FourAccountReconcileSummaryReqVO reqVO = new FourAccountReconcileSummaryReqVO();
+        reqVO.setStatus(20);
+        reqVO.setRelatedTicketLinked(true);
+        FourAccountReconcileSummaryRespVO summary = new FourAccountReconcileSummaryRespVO();
+        summary.setTotalCount(8L);
+        summary.setWarnCount(3L);
+        summary.setUnresolvedTicketCount(2L);
+        when(reconcileService.getReconcileSummary(any(FourAccountReconcileSummaryReqVO.class))).thenReturn(summary);
+
+        CommonResult<FourAccountReconcileSummaryRespVO> result = controller.summary(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(8L, result.getData().getTotalCount());
+        assertEquals(3L, result.getData().getWarnCount());
+        assertEquals(2L, result.getData().getUnresolvedTicketCount());
+        verify(reconcileService).getReconcileSummary(eq(reqVO));
     }
 }

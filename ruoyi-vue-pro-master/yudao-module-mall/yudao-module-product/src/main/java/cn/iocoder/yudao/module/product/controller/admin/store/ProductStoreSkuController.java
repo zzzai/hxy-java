@@ -16,6 +16,10 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderRespVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowPageReqVO;
@@ -26,6 +30,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuTransferOrderDO;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreMappingService;
@@ -157,6 +162,68 @@ public class ProductStoreSkuController {
             @Valid ProductStoreSkuStockAdjustOrderPageReqVO reqVO) {
         return success(BeanUtils.toBean(storeMappingService.getStockAdjustOrderPage(reqVO),
                 ProductStoreSkuStockAdjustOrderRespVO.class));
+    }
+
+    @PostMapping("/transfer-order/create")
+    @Operation(summary = "创建门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Long> createTransferOrder(
+            @Valid @RequestBody ProductStoreSkuTransferOrderCreateReqVO reqVO) {
+        return success(storeMappingService.createTransferOrder(reqVO));
+    }
+
+    @PostMapping("/transfer-order/submit")
+    @Operation(summary = "提交门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> submitTransferOrder(
+            @Valid @RequestBody ProductStoreSkuTransferOrderActionReqVO reqVO) {
+        storeMappingService.submitTransferOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/transfer-order/approve")
+    @Operation(summary = "审批通过门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> approveTransferOrder(
+            @Valid @RequestBody ProductStoreSkuTransferOrderActionReqVO reqVO) {
+        storeMappingService.approveTransferOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/transfer-order/reject")
+    @Operation(summary = "驳回门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> rejectTransferOrder(
+            @Valid @RequestBody ProductStoreSkuTransferOrderActionReqVO reqVO) {
+        storeMappingService.rejectTransferOrder(reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/transfer-order/cancel")
+    @Operation(summary = "取消门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:update')")
+    public CommonResult<Boolean> cancelTransferOrder(
+            @Valid @RequestBody ProductStoreSkuTransferOrderActionReqVO reqVO) {
+        storeMappingService.cancelTransferOrder(reqVO);
+        return success(true);
+    }
+
+    @GetMapping("/transfer-order/get")
+    @Operation(summary = "获得门店 SKU 跨店调拨单")
+    @Parameter(name = "id", description = "编号", required = true, example = "1001")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:query')")
+    public CommonResult<ProductStoreSkuTransferOrderRespVO> getTransferOrder(@RequestParam("id") Long id) {
+        ProductStoreSkuTransferOrderDO order = storeMappingService.getTransferOrder(id);
+        return success(BeanUtils.toBean(order, ProductStoreSkuTransferOrderRespVO.class));
+    }
+
+    @GetMapping("/transfer-order/page")
+    @Operation(summary = "分页查询门店 SKU 跨店调拨单")
+    @PreAuthorize("@ss.hasPermission('product:store-sku:query')")
+    public CommonResult<PageResult<ProductStoreSkuTransferOrderRespVO>> pageTransferOrder(
+            @Valid ProductStoreSkuTransferOrderPageReqVO reqVO) {
+        return success(BeanUtils.toBean(storeMappingService.getTransferOrderPage(reqVO),
+                ProductStoreSkuTransferOrderRespVO.class));
     }
 
     @DeleteMapping("/delete")

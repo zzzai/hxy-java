@@ -6,6 +6,10 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderRespVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderRespVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockFlowBatchRetryRespVO;
@@ -15,6 +19,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.spu.ProductSpuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuTransferOrderDO;
 import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 import cn.iocoder.yudao.module.product.service.sku.ProductSkuService;
 import cn.iocoder.yudao.module.product.service.spu.ProductSpuService;
@@ -177,5 +182,55 @@ class ProductStoreSkuControllerTest {
 
         assertEquals(1L, result.getData().getTotal());
         assertEquals("SAO-20260305123000-ABCD1234", result.getData().getList().get(0).getOrderNo());
+    }
+
+    @Test
+    void createTransferOrder_shouldReturnId() {
+        ProductStoreSkuTransferOrderCreateReqVO reqVO = new ProductStoreSkuTransferOrderCreateReqVO();
+        reqVO.setFromStoreId(1001L);
+        reqVO.setToStoreId(1002L);
+        reqVO.setReason("跨店补货");
+        reqVO.setApplySource("ADMIN_UI");
+        ProductStoreSkuTransferOrderCreateReqVO.Item item = new ProductStoreSkuTransferOrderCreateReqVO.Item();
+        item.setSkuId(2001L);
+        item.setQuantity(10);
+        reqVO.setItems(Collections.singletonList(item));
+        when(storeMappingService.createTransferOrder(any(ProductStoreSkuTransferOrderCreateReqVO.class)))
+                .thenReturn(20001L);
+
+        CommonResult<Long> result = controller.createTransferOrder(reqVO);
+
+        assertEquals(20001L, result.getData());
+    }
+
+    @Test
+    void approveTransferOrder_shouldInvokeService() {
+        ProductStoreSkuTransferOrderActionReqVO reqVO = new ProductStoreSkuTransferOrderActionReqVO();
+        reqVO.setId(20001L);
+        reqVO.setRemark("审批通过");
+
+        CommonResult<Boolean> result = controller.approveTransferOrder(reqVO);
+
+        assertEquals(true, result.getData());
+    }
+
+    @Test
+    void pageTransferOrder_shouldMapResponse() {
+        ProductStoreSkuTransferOrderPageReqVO reqVO = new ProductStoreSkuTransferOrderPageReqVO();
+        reqVO.setOrderNo("STO-20260306");
+        ProductStoreSkuTransferOrderDO order = ProductStoreSkuTransferOrderDO.builder()
+                .id(20001L)
+                .orderNo("STO-20260306123000-ABCD1234")
+                .fromStoreId(1001L)
+                .toStoreId(1002L)
+                .status(10)
+                .build();
+        when(storeMappingService.getTransferOrderPage(any(ProductStoreSkuTransferOrderPageReqVO.class)))
+                .thenReturn(new PageResult<>(Collections.singletonList(order), 1L));
+
+        CommonResult<PageResult<ProductStoreSkuTransferOrderRespVO>> result = controller.pageTransferOrder(reqVO);
+
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals("STO-20260306123000-ABCD1234", result.getData().getList().get(0).getOrderNo());
     }
 }

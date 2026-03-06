@@ -6,10 +6,12 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLif
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleChangeOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreLifecycleRecheckLogPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderPageReqVO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleBatchLogDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleChangeOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreLifecycleRecheckLogDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuTransferOrderDO;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
@@ -314,6 +316,65 @@ class ProductStoreLifecycleBatchLogMapperTest {
         assertTrue(params.values().contains(end));
         assertTrue(params.values().contains("SUBMIT"));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("SAO-20260305")));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("运营同学")));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("审批同学")));
+    }
+
+    @Test
+    void transferOrderSelectPage_shouldBuildFiltersWhenReqFieldsPresent() {
+        TableInfo tableInfo = TableInfoHelper.initTableInfo(
+                new MybatisMapperBuilderAssistant(new MybatisConfiguration(), ""),
+                ProductStoreSkuTransferOrderDO.class);
+        LambdaUtils.installCache(tableInfo);
+
+        ProductStoreSkuTransferOrderMapper mapper =
+                mock(ProductStoreSkuTransferOrderMapper.class, CALLS_REAL_METHODS);
+        AtomicReference<Wrapper<ProductStoreSkuTransferOrderDO>> wrapperRef = new AtomicReference<>();
+        PageResult<ProductStoreSkuTransferOrderDO> expected = new PageResult<>(Collections.emptyList(), 0L);
+        doAnswer(invocation -> {
+            wrapperRef.set(invocation.getArgument(1));
+            return expected;
+        }).when(mapper).selectPage(any(PageParam.class),
+                org.mockito.ArgumentMatchers.<Wrapper<ProductStoreSkuTransferOrderDO>>any());
+
+        LocalDateTime begin = LocalDateTime.of(2026, 3, 6, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 3, 6, 23, 59, 59);
+        ProductStoreSkuTransferOrderPageReqVO reqVO = new ProductStoreSkuTransferOrderPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setOrderNo("STO-20260306");
+        reqVO.setFromStoreId(2001L);
+        reqVO.setToStoreId(2002L);
+        reqVO.setStatus(10);
+        reqVO.setApplyOperator("运营同学");
+        reqVO.setLastActionCode("SUBMIT");
+        reqVO.setLastActionOperator("审批同学");
+        reqVO.setCreateTime(new LocalDateTime[]{begin, end});
+
+        PageResult<ProductStoreSkuTransferOrderDO> actual = mapper.selectPage(reqVO);
+
+        assertSame(expected, actual);
+        Wrapper<ProductStoreSkuTransferOrderDO> wrapper = wrapperRef.get();
+        assertNotNull(wrapper);
+        String sqlSegment = wrapper.getSqlSegment();
+        assertTrue(sqlSegment.contains("order_no"));
+        assertTrue(sqlSegment.contains("from_store_id"));
+        assertTrue(sqlSegment.contains("to_store_id"));
+        assertTrue(sqlSegment.contains("status"));
+        assertTrue(sqlSegment.contains("apply_operator"));
+        assertTrue(sqlSegment.contains("last_action_code"));
+        assertTrue(sqlSegment.contains("last_action_operator"));
+        assertTrue(sqlSegment.contains("create_time"));
+
+        AbstractWrapper<?, ?, ?> abstractWrapper = (AbstractWrapper<?, ?, ?>) wrapper;
+        Map<String, Object> params = abstractWrapper.getParamNameValuePairs();
+        assertTrue(params.values().contains(2001L));
+        assertTrue(params.values().contains(2002L));
+        assertTrue(params.values().contains(10));
+        assertTrue(params.values().contains("SUBMIT"));
+        assertTrue(params.values().contains(begin));
+        assertTrue(params.values().contains(end));
+        assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("STO-20260306")));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("运营同学")));
         assertTrue(params.values().stream().anyMatch(v -> String.valueOf(v).contains("审批同学")));
     }

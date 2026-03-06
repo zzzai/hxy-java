@@ -75,6 +75,10 @@ public interface ErrorCodeConstants {
     ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_NOT_EXISTS = new ErrorCode(1_008_009_012, "门店库存调整单不存在");
     ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_STATUS_INVALID = new ErrorCode(1_008_009_013, "门店库存调整单状态非法：当前 {}，期望 {}");
     ErrorCode STORE_SKU_STOCK_ADJUST_ORDER_DETAIL_INVALID = new ErrorCode(1_008_009_014, "门店库存调整单明细非法，无法执行审批");
+    ErrorCode STORE_SKU_TRANSFER_ORDER_NOT_EXISTS = new ErrorCode(1_008_009_015, "门店跨店调拨单不存在");
+    ErrorCode STORE_SKU_TRANSFER_ORDER_STATUS_INVALID = new ErrorCode(1_008_009_016, "门店跨店调拨单状态非法：当前 {}，期望 {}");
+    ErrorCode STORE_SKU_TRANSFER_ORDER_DETAIL_INVALID = new ErrorCode(1_008_009_017, "门店跨店调拨单明细非法，无法执行审批");
+    ErrorCode STORE_SKU_TRANSFER_ORDER_STORE_INVALID = new ErrorCode(1_008_009_018, "门店跨店调拨单源门店和目标门店不能相同");
 
     // ========== 门店主数据 1-008-010-000 ==========
     ErrorCode STORE_NOT_EXISTS = new ErrorCode(1_008_010_000, "门店不存在");

@@ -5,10 +5,12 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Mapper
 public interface FourAccountReconcileMapper extends BaseMapperX<FourAccountReconcileDO> {
@@ -32,5 +34,12 @@ public interface FourAccountReconcileMapper extends BaseMapperX<FourAccountRecon
         }
         return selectPage(reqVO, queryWrapper);
     }
-}
 
+    default List<FourAccountReconcileDO> selectSummaryList(FourAccountReconcileSummaryReqVO reqVO) {
+        return selectList(new LambdaQueryWrapperX<FourAccountReconcileDO>()
+                .betweenIfPresent(FourAccountReconcileDO::getBizDate, reqVO.getBizDate())
+                .eqIfPresent(FourAccountReconcileDO::getStatus, reqVO.getStatus())
+                .orderByDesc(FourAccountReconcileDO::getBizDate)
+                .orderByDesc(FourAccountReconcileDO::getId));
+    }
+}

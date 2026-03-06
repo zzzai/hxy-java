@@ -10,6 +10,9 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSku
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderActionReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderCreateReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuStockAdjustOrderPageReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderActionReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderCreateReqVO;
+import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuTransferOrderPageReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuManualStockAdjustReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuBatchSaveReqVO;
 import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSkuSaveReqVO;
@@ -21,6 +24,7 @@ import cn.iocoder.yudao.module.product.controller.admin.store.vo.ProductStoreSpu
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockAdjustOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuStockFlowDO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSkuTransferOrderDO;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreSpuDO;
 import cn.iocoder.yudao.module.product.service.store.dto.ProductStoreSkuStockFlowBatchRetryResult;
 
@@ -83,6 +87,20 @@ public interface ProductStoreMappingService {
     ProductStoreSkuStockAdjustOrderDO getStockAdjustOrder(Long id);
 
     PageResult<ProductStoreSkuStockAdjustOrderDO> getStockAdjustOrderPage(ProductStoreSkuStockAdjustOrderPageReqVO reqVO);
+
+    Long createTransferOrder(@Valid ProductStoreSkuTransferOrderCreateReqVO reqVO);
+
+    void submitTransferOrder(@Valid ProductStoreSkuTransferOrderActionReqVO reqVO);
+
+    void approveTransferOrder(@Valid ProductStoreSkuTransferOrderActionReqVO reqVO);
+
+    void rejectTransferOrder(@Valid ProductStoreSkuTransferOrderActionReqVO reqVO);
+
+    void cancelTransferOrder(@Valid ProductStoreSkuTransferOrderActionReqVO reqVO);
+
+    ProductStoreSkuTransferOrderDO getTransferOrder(Long id);
+
+    PageResult<ProductStoreSkuTransferOrderDO> getTransferOrderPage(ProductStoreSkuTransferOrderPageReqVO reqVO);
 
     int retryStoreSkuStockFlow(Integer limit);
 
