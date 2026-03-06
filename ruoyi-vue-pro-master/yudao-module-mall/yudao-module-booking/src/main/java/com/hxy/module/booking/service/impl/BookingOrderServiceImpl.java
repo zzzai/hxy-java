@@ -20,7 +20,9 @@ import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderCreateReqDTO;
 import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderRespDTO;
 import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
 import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundCreateReqDTO;
+import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundRespDTO;
 import cn.iocoder.yudao.module.pay.enums.order.PayOrderStatusEnum;
+import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
 import cn.iocoder.yudao.module.product.api.sku.ProductSkuApi;
 import cn.iocoder.yudao.module.product.api.sku.dto.ProductSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.spu.ProductSpuApi;
@@ -63,6 +65,7 @@ public class BookingOrderServiceImpl implements BookingOrderService {
     private static final String SYNC_REMARK_FINISH_SERVING = "SYNC_FROM_BOOKING_FINISH_SERVICE";
     private static final String SYNC_REMARK_CANCELLED = "SYNC_FROM_BOOKING_CANCELLED";
     private static final String SYNC_REMARK_REFUNDED = "SYNC_FROM_BOOKING_REFUNDED";
+    private static final String BOOKING_REFUND_BIZ_NO_SUFFIX = "-refund";
 
     public BookingOrderServiceImpl(
             BookingOrderMapper bookingOrderMapper,
@@ -376,7 +379,7 @@ public class BookingOrderServiceImpl implements BookingOrderService {
                     .setAppKey(PAY_APP_KEY).setUserIp("127.0.0.1")
                     .setUserId(order.getUserId()).setUserType(UserTypeEnum.MEMBER.getValue())
                     .setMerchantOrderId(order.getId().toString())
-                    .setMerchantRefundId(order.getId() + "-refund")
+                    .setMerchantRefundId(buildBookingRefundMerchantRefundId(order.getId()))
                     .setReason("预约订单退款").setPrice(order.getPayPrice()));
         }
 
@@ -422,6 +425,7 @@ public class BookingOrderServiceImpl implements BookingOrderService {
                     id, order.getStatus());
             return;
         }
+        validatePayRefund(order, payRefundId);
         bookingOrderMapper.updateById(buildStatusUpdate(id, BookingOrderStatusEnum.REFUNDED));
         timeSlotService.cancelBooking(order.getTimeSlotId());
         technicianCommissionService.cancelCommission(order.getId());
@@ -532,6 +536,33 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         update.setId(orderId);
         update.setStatus(status.getStatus());
         return update;
+    }
+
+    private void validatePayRefund(BookingOrderDO order, Long payRefundId) {
+        PayRefundRespDTO payRefund = payRefundApi.getRefund(payRefundId);
+        if (payRefund == null) {
+            throw exception(BOOKING_ORDER_REFUND_NOT_FOUND);
+        }
+        if (!PayRefundStatusEnum.isSuccess(payRefund.getStatus())) {
+            throw exception(BOOKING_ORDER_REFUND_STATUS_INVALID);
+        }
+        int expectedRefundPrice = order.getPayPrice() == null ? 0 : order.getPayPrice();
+        int actualRefundPrice = payRefund.getRefundPrice() == null ? 0 : payRefund.getRefundPrice();
+        if (expectedRefundPrice != actualRefundPrice) {
+            throw exception(BOOKING_ORDER_REFUND_PRICE_MISMATCH);
+        }
+        String expectedMerchantOrderId = String.valueOf(order.getId());
+        String expectedMerchantRefundId = buildBookingRefundMerchantRefundId(order.getId());
+        boolean merchantOrderMatched = expectedMerchantOrderId.equals(payRefund.getMerchantOrderId());
+        boolean merchantRefundMatched = expectedMerchantRefundId.equals(payRefund.getMerchantRefundId())
+                || expectedMerchantOrderId.equals(payRefund.getMerchantRefundId());
+        if (!merchantOrderMatched || !merchantRefundMatched) {
+            throw exception(BOOKING_ORDER_REFUND_BIZ_NO_MISMATCH);
+        }
+    }
+
+    private String buildBookingRefundMerchantRefundId(Long orderId) {
+        return orderId + BOOKING_REFUND_BIZ_NO_SUFFIX;
     }
 
     private void syncTradeServiceOrderSafely(String action, Long payOrderId, Runnable runnable) {

@@ -33,6 +33,10 @@ public interface ErrorCodeConstants {
     ErrorCode BOOKING_ORDER_NOT_IN_SERVICE = new ErrorCode(1_030_004_004, "服务未开始");
     ErrorCode BOOKING_ORDER_CANNOT_CANCEL = new ErrorCode(1_030_004_005, "预约订单无法取消");
     ErrorCode BOOKING_ORDER_NOT_OWNER = new ErrorCode(1_030_004_006, "非订单所有者，无权操作");
+    ErrorCode BOOKING_ORDER_REFUND_NOT_FOUND = new ErrorCode(1_030_004_007, "预约订单退款单不存在");
+    ErrorCode BOOKING_ORDER_REFUND_STATUS_INVALID = new ErrorCode(1_030_004_008, "预约订单退款状态非法");
+    ErrorCode BOOKING_ORDER_REFUND_PRICE_MISMATCH = new ErrorCode(1_030_004_009, "预约订单退款金额不匹配");
+    ErrorCode BOOKING_ORDER_REFUND_BIZ_NO_MISMATCH = new ErrorCode(1_030_004_010, "预约订单退款单号不匹配");
 
     // ========== 时间槽生成相关 1-030-003-100 ==========
     ErrorCode TIME_SLOT_ALREADY_GENERATED = new ErrorCode(1_030_003_100, "该排班时间槽已生成，请勿重复操作");

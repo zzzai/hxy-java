@@ -15,6 +15,8 @@ import com.hxy.module.booking.service.TimeSlotService;
 import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.PayOrderApi;
 import cn.iocoder.yudao.module.pay.api.refund.PayRefundApi;
+import cn.iocoder.yudao.module.pay.api.refund.dto.PayRefundRespDTO;
+import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
 import cn.iocoder.yudao.module.product.api.sku.ProductSkuApi;
 import cn.iocoder.yudao.module.product.api.sku.dto.ProductSkuRespDTO;
 import cn.iocoder.yudao.module.product.api.spu.ProductSpuApi;
@@ -343,6 +345,8 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
         order.setPayOrderId(999L);
         bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 12345L);
+        when(payRefundApi.getRefund(eq(12345L))).thenReturn(payRefund);
 
         bookingOrderService.updateOrderRefunded(order.getId(), 12345L);
 
@@ -351,6 +355,7 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         verify(timeSlotService).cancelBooking(eq(order.getTimeSlotId()));
         verify(technicianCommissionService).cancelCommission(eq(order.getId()));
         verify(tradeServiceOrderApi).cancelByPayOrderId(eq(999L), eq("SYNC_FROM_BOOKING_REFUNDED"));
+        verify(payRefundApi).getRefund(eq(12345L));
     }
 
     @Test
@@ -364,6 +369,44 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         verify(timeSlotService, never()).cancelBooking(any());
         verify(technicianCommissionService, never()).cancelCommission(any());
         verify(tradeServiceOrderApi, never()).cancelByPayOrderId(any(), any());
+        verify(payRefundApi, never()).getRefund(any());
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_refundNotFound() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(888L);
+        bookingOrderMapper.insert(order);
+        when(payRefundApi.getRefund(eq(2222L))).thenReturn(null);
+
+        assertServiceException(() -> bookingOrderService.updateOrderRefunded(order.getId(), 2222L),
+                BOOKING_ORDER_REFUND_NOT_FOUND);
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_refundPriceMismatch() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(889L);
+        bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 3333L);
+        payRefund.setRefundPrice(1);
+        when(payRefundApi.getRefund(eq(3333L))).thenReturn(payRefund);
+
+        assertServiceException(() -> bookingOrderService.updateOrderRefunded(order.getId(), 3333L),
+                BOOKING_ORDER_REFUND_PRICE_MISMATCH);
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_refundBizNoMismatch() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(890L);
+        bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 4444L);
+        payRefund.setMerchantRefundId("invalid");
+        when(payRefundApi.getRefund(eq(4444L))).thenReturn(payRefund);
+
+        assertServiceException(() -> bookingOrderService.updateOrderRefunded(order.getId(), 4444L),
+                BOOKING_ORDER_REFUND_BIZ_NO_MISMATCH);
     }
 
     @Test
@@ -561,6 +604,16 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
                 .isOffpeak(false)
                 .status(status)
                 .build();
+    }
+
+    private PayRefundRespDTO createSuccessRefundResp(BookingOrderDO order, Long payRefundId) {
+        PayRefundRespDTO respDTO = new PayRefundRespDTO();
+        respDTO.setId(payRefundId);
+        respDTO.setStatus(PayRefundStatusEnum.SUCCESS.getStatus());
+        respDTO.setRefundPrice(order.getPayPrice());
+        respDTO.setMerchantOrderId(String.valueOf(order.getId()));
+        respDTO.setMerchantRefundId(order.getId() + "-refund");
+        return respDTO;
     }
 
     /**
