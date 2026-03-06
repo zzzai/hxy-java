@@ -116,6 +116,131 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div class="mb-10px flex items-center gap-8px">
+      <span class="text-13px text-[var(--el-text-color-secondary)]">退款-提成巡检</span>
+    </div>
+    <el-form :inline="true" :model="auditQueryParams" class="-mb-15px" label-width="96px">
+      <el-form-item label="业务日期" prop="bizDateRange">
+        <el-date-picker
+          v-model="auditBizDateRange"
+          class="!w-260px"
+          end-placeholder="结束日期"
+          range-separator="至"
+          start-placeholder="开始日期"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+        />
+      </el-form-item>
+      <el-form-item label="异常类型" prop="mismatchType">
+        <el-select v-model="auditQueryParams.mismatchType" class="!w-240px" clearable placeholder="请选择异常类型">
+          <el-option
+            v-for="item in refundCommissionMismatchTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="订单号关键词" prop="keyword">
+        <el-input
+          v-model="auditQueryParams.keyword"
+          class="!w-240px"
+          clearable
+          placeholder="请输入关键词"
+          @keyup.enter="handleAuditQuery"
+        />
+      </el-form-item>
+      <el-form-item label="订单ID" prop="orderId">
+        <el-input-number v-model="auditQueryParams.orderId" :controls="false" :min="1" class="!w-180px" />
+      </el-form-item>
+      <el-form-item>
+        <el-button :loading="auditLoading" @click="handleAuditQuery">
+          <Icon class="mr-5px" icon="ep:search" />
+          查询巡检
+        </el-button>
+        <el-button @click="resetAuditQuery">
+          <Icon class="mr-5px" icon="ep:refresh" />
+          重置
+        </el-button>
+      </el-form-item>
+    </el-form>
+
+    <el-table v-loading="auditLoading" :data="auditList">
+      <el-table-column label="订单ID" min-width="120">
+        <template #default="{ row }">
+          {{ numberOrDash(row.orderId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="订单号" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.tradeOrderNo) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="退款金额(元)" min-width="130">
+        <template #default="{ row }">
+          <el-tooltip :disabled="!isValidNumber(row.refundPrice)" :content="`分值：${numberOrDash(row.refundPrice)}`" placement="top">
+            <span>{{ fenToYuanOrDash(row.refundPrice) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="已结算提成(元)" min-width="140">
+        <template #default="{ row }">
+          <el-tooltip
+            :disabled="!isValidNumber(row.settledCommissionAmount)"
+            :content="`分值：${numberOrDash(row.settledCommissionAmount)}`"
+            placement="top"
+          >
+            <span>{{ fenToYuanOrDash(row.settledCommissionAmount) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="冲正金额(元)" min-width="130">
+        <template #default="{ row }">
+          <el-tooltip
+            :disabled="!isValidNumber(row.reversalCommissionAmountAbs)"
+            :content="`分值：${numberOrDash(row.reversalCommissionAmountAbs)}`"
+            placement="top"
+          >
+            <span>{{ fenToYuanOrDash(row.reversalCommissionAmountAbs) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="期望冲正(元)" min-width="130">
+        <template #default="{ row }">
+          <el-tooltip
+            :disabled="!isValidNumber(row.expectedReversalAmount)"
+            :content="`分值：${numberOrDash(row.expectedReversalAmount)}`"
+            placement="top"
+          >
+            <span>{{ fenToYuanOrDash(row.expectedReversalAmount) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="异常类型" min-width="170">
+        <template #default="{ row }">
+          {{ mismatchTypeText(row.mismatchType) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="异常原因" min-width="260" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.mismatchReason) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="支付时间" min-width="180">
+        <template #default="{ row }">
+          {{ textOrDash(row.payTime) }}
+        </template>
+      </el-table-column>
+    </el-table>
+    <Pagination
+      v-model:limit="auditQueryParams.pageSize"
+      v-model:page="auditQueryParams.pageNo"
+      :total="auditTotal"
+      @pagination="getAuditList"
+    />
+  </ContentWrap>
+
+  <ContentWrap>
     <el-table v-loading="loading" :data="list">
       <el-table-column label="业务日期" width="120">
         <template #default="{ row }">
@@ -375,6 +500,24 @@ const summaryData = ref<FourAccountReconcileApi.FourAccountReconcileSummaryVO>({
   ticketSummaryDegraded: false
 })
 const relatedTicketLinked = ref<boolean>()
+const refundCommissionMismatchTypeOptions = [
+  { label: '退款未冲正', value: 'REFUND_WITHOUT_REVERSAL' },
+  { label: '冲正未退款', value: 'REVERSAL_WITHOUT_REFUND' },
+  { label: '冲正金额不一致', value: 'REVERSAL_AMOUNT_MISMATCH' }
+]
+const auditLoading = ref(false)
+const auditTotal = ref(0)
+const auditList = ref<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]>([])
+const auditBizDateRange = ref<string[]>()
+const auditQueryParams = reactive<FourAccountReconcileApi.FourAccountRefundCommissionAuditPageReq>({
+  pageNo: 1,
+  pageSize: 10,
+  beginBizDate: undefined,
+  endBizDate: undefined,
+  mismatchType: undefined,
+  keyword: undefined,
+  orderId: undefined
+})
 
 const queryParams = reactive<FourAccountReconcileApi.FourAccountReconcilePageReq>({
   pageNo: 1,
@@ -429,6 +572,14 @@ const textOrDash = (value: any) => {
   return text ? text : EMPTY_TEXT
 }
 
+const numberOrDash = (value: any) => {
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_TEXT
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? String(parsed) : EMPTY_TEXT
+}
+
 const formatDate = (date: Date): string => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -457,6 +608,13 @@ const statusTagType = (status?: number) => {
   if (status === 10) return 'success'
   if (status === 20) return 'warning'
   return 'info'
+}
+
+const mismatchTypeText = (type?: FourAccountReconcileApi.FourAccountRefundCommissionMismatchType) => {
+  if (type === 'REFUND_WITHOUT_REVERSAL') return '退款未冲正'
+  if (type === 'REVERSAL_WITHOUT_REFUND') return '冲正未退款'
+  if (type === 'REVERSAL_AMOUNT_MISMATCH') return '冲正金额不一致'
+  return textOrDash(type)
 }
 
 const ticketStatusText = (status?: number) => {
@@ -691,6 +849,59 @@ const resetQuery = () => {
   getList()
 }
 
+const normalizeAuditQuery = () => {
+  auditQueryParams.keyword = String(auditQueryParams.keyword || '').trim() || undefined
+  auditQueryParams.mismatchType = String(auditQueryParams.mismatchType || '').trim().toUpperCase() || undefined
+  if (Array.isArray(auditBizDateRange.value) && auditBizDateRange.value.length === 2) {
+    auditQueryParams.beginBizDate = auditBizDateRange.value[0]
+    auditQueryParams.endBizDate = auditBizDateRange.value[1]
+  } else {
+    auditQueryParams.beginBizDate = undefined
+    auditQueryParams.endBizDate = undefined
+  }
+}
+
+const getAuditList = async () => {
+  auditLoading.value = true
+  try {
+    normalizeAuditQuery()
+    const data = await FourAccountReconcileApi.getFourAccountRefundCommissionAuditPage({
+      pageNo: auditQueryParams.pageNo,
+      pageSize: auditQueryParams.pageSize,
+      beginBizDate: auditQueryParams.beginBizDate,
+      endBizDate: auditQueryParams.endBizDate,
+      mismatchType: auditQueryParams.mismatchType,
+      keyword: auditQueryParams.keyword,
+      orderId: parseNumber(auditQueryParams.orderId)
+    })
+    auditList.value = data.list || []
+    auditTotal.value = data.total || 0
+  } catch (error: any) {
+    auditList.value = []
+    auditTotal.value = 0
+    message.error(error?.msg || '退款-提成巡检查询失败，请稍后重试')
+  } finally {
+    auditLoading.value = false
+  }
+}
+
+const handleAuditQuery = () => {
+  auditQueryParams.pageNo = 1
+  getAuditList()
+}
+
+const resetAuditQuery = () => {
+  auditQueryParams.pageNo = 1
+  auditQueryParams.pageSize = 10
+  auditBizDateRange.value = undefined
+  auditQueryParams.beginBizDate = undefined
+  auditQueryParams.endBizDate = undefined
+  auditQueryParams.mismatchType = undefined
+  auditQueryParams.keyword = undefined
+  auditQueryParams.orderId = undefined
+  getAuditList()
+}
+
 const openRunDialog = () => {
   runForm.bizDate = getYesterday()
   runForm.source = 'MANUAL'
@@ -759,5 +970,6 @@ const openRelatedTicket = (row: FourAccountReconcileApi.FourAccountReconcileVO) 
 
 onMounted(() => {
   getList()
+  getAuditList()
 })
 </script>
