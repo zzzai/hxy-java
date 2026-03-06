@@ -815,3 +815,17 @@
 - 备选方案：继续仅依赖 `priceSourceSnapshotJson` 并补更多解析容错。
 - 否决原因：无法根治跨阶段口径漂移，也无法直接解释“哪个子项阻塞退款”。
 - 回滚条件：若台账写入出现性能压力，可临时关闭“创建阶段优先台账”但保留执行阶段二次复核与快照回退，避免放开退款风险。
+
+## ADR-087：StageB required checks 采用“单脚本编排 + 启用/回滚封装”发布机制
+
+- 背景：StageB/P1 门禁已具备脚本与 workflow，但缺少可直接运维执行的“启用/回滚”入口与统一审计输出，容易出现“会写脚本但不敢启用、启用后回滚不标准”的交付断层。
+- 决策：
+  1) 升级 `setup_github_required_checks.sh` 为统一编排入口，新增 `--repo-owner`、`--repo-name`、`--enable-ops-stageb-p1`、`--dry-run`、`--apply`；
+  2) owner/repo 未显式传入时，自动从 `git remote origin` 解析；
+  3) 统一输出 `gh api` dry-run/apply 命令与 payload 文件路径，确保“执行前可审计、执行后可复现”；
+  4) required checks 检查集支持 `base-only/stagea-only/stagea+stageb`，并做 context 去重保证幂等；
+  5) 新增运维脚本 `apply_ops_stageb_required_checks.sh` 与 `rollback_ops_stageb_required_checks.sh`，分别封装“启用 StageB”与“仅移除 StageB（保留 StageA）”，执行后统一打印分支保护摘要。
+- 影响范围：发布门禁启用效率、运维可回滚能力、分支保护变更审计一致性。
+- 备选方案：继续仅保留底层 setup 脚本，由运维手工拼装参数执行。
+- 否决原因：人工拼参易错，且缺少标准化回滚路径，不利于多窗口并行阶段的稳定发布。
+- 回滚条件：若脚本化封装引入兼容问题，可临时回退到直接调用 `setup_github_required_checks.sh`；保留 `--dry-run` 输出进行人工执行。

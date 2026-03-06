@@ -1,133 +1,129 @@
 # Ops StageB/P1 Required Checks Rollout
 
-## 1. 启用前检查
+## 1. 前置条件
 
-1. 本地确认 workflow 已在默认分支：
-```bash
-git checkout main
-git pull --ff-only
-ls .github/workflows/ops-stageb-p1-guard.yml
-```
+1. 仓库与分支
+   - 目标仓库可见且可访问（如 `zzzai/hxy-java`）。
+   - 目标分支存在（默认 `main`）。
+2. GitHub CLI 与认证
+   - 本机可执行 `gh`。
+   - `gh auth status` 可见有效账号。
+   - Token 至少具备 `repo`，组织仓库建议补 `read:org`。
+3. 脚本与 workflow 已在仓库
+   - `ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh`
+   - `ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh`
+   - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
+   - `.github/workflows/ops-stageb-p1-guard.yml`
 
-2. 确认 required checks 脚本参数可用：
-```bash
-bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --help
-```
+## 2. 启用（Dry Run + Apply）
 
-3. 确认 `gh` 登录状态与仓库权限：
-```bash
-gh auth status
-gh repo view <owner>/<repo> --json nameWithOwner,defaultBranchRef
-```
-
-4. 建议先看当前分支保护：
-```bash
-gh api /repos/<owner>/<repo>/branches/main/protection -H "Accept: application/vnd.github+json"
-```
-
-## 2. 启用命令
-
-### 2.1 预演（Dry Run，不写入）
+### 2.1 Dry Run（只打印，不写入）
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
-  --repo-owner <owner> \
-  --repo-name <repo> \
-  --branch main \
-  --enable-ops-stageb-p1 \
+  --dry-run \
   --include-stagea-checks 1 \
-  --dry-run 1
+  --enable-ops-stageb-p1
 ```
 
 说明：
-- 该命令会输出：
-  - `payload_cmd_file`（可复用 payload 文件）
-  - `gh_dry_run_cmd`（读取当前保护配置）
-  - `gh_apply_cmd`（可直接执行的写入命令）
+- 未传 `--repo-owner/--repo-name` 时自动从 `git remote origin` 解析。
+- 会输出可审计信息：`gh_dry_run_cmd`、`gh_apply_cmd`、payload 文件路径。
+- 检查集会显示 profile：
+  - `base-only`
+  - `stagea-only`
+  - `stagea+stageb`
 
-### 2.2 正式启用（Apply）
+### 2.2 Apply（正式写入）
 
-方式 A：直接用脚本写入
 ```bash
-GITHUB_TOKEN=<token> \
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
+  --apply \
+  --include-stagea-checks 1 \
+  --enable-ops-stageb-p1
+```
+
+或使用一键脚本（先 dry-run 再 apply，再打印分支保护摘要）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh
+```
+
+显式仓库：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh \
   --repo-owner <owner> \
   --repo-name <repo> \
-  --branch main \
-  --enable-ops-stageb-p1 \
-  --include-stagea-checks 1 \
-  --dry-run 0
+  --branch main
 ```
 
-方式 B：复制脚本输出的 `gh_apply_cmd` 直接执行
+## 3. 回滚（仅移除 StageB，保留 StageA）
+
 ```bash
-# 示例（以脚本实际输出为准）
-gh api --method PUT "/repos/<owner>/<repo>/branches/main/protection" \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  --input "/tmp/github_required_checks_<owner>_<repo>_main.json"
+bash ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh
 ```
 
-## 3. 回滚命令
-
-目标：仅撤销 ops-stageb-p1 required check，保留现有 stageA 检查。
+显式仓库：
 
 ```bash
-GITHUB_TOKEN=<token> \
-bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
+bash ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh \
   --repo-owner <owner> \
   --repo-name <repo> \
-  --branch main \
-  --include-stagea-checks 1 \
-  --include-ops-stageb-checks 0 \
-  --dry-run 0
+  --branch main
 ```
 
-如需完全回到默认 checks（不包含 stageA/ops-stageb），去掉 `--include-stagea-checks 1` 即可。
+说明：
+- 回滚脚本会保留基础 checks + stageA checks，仅移除 `hxy-ops-stageb-p1-guard / ops-stageb-p1-guard`。
+- 执行后会打印当前分支保护 required contexts 摘要。
 
-## 4. 常见失败与处理
+## 4. 常见错误与处理
 
-### 4.1 `Resource not accessible by integration` / 403
-
-原因：
-- Token 无分支保护写权限，或并非仓库管理员角色。
-
-处理：
-1. 检查 Token 绑定身份是否对仓库有 admin 权限。
-2. 重新生成 PAT 并授予 `repo`（私有仓库）或对应管理权限。
-3. 重新执行 dry-run，再执行 apply。
-
-### 4.2 `read:org` 相关错误（组织资源不可读）
+### 4.1 `gh auth status` 提示缺少 `read:org`
 
 原因：
-- 使用 SSO/组织策略时，当前 token 未授权组织读取，`gh auth status` 会报组织访问不足。
+- 组织仓库或 SSO 场景下，token 未授权组织读取。
 
 处理：
-1. 在 GitHub 组织 SSO 页面授权该 token。
-2. 对 classic token 补齐组织读取权限（常见为 `read:org`）。
-3. 重新登录并校验：
+1. 执行 `gh auth refresh -h github.com -s read:org`。
+2. 若启用 SSO，到组织授权页面完成授权。
+3. 复核：
+
 ```bash
 gh auth status
 gh api /user/orgs
 ```
 
-### 4.3 `gh: not found`
+### 4.2 `Resource not accessible by integration` / 403
 
 原因：
-- 运行机未安装 GitHub CLI。
+- 当前账号或 token 没有分支保护写权限。
 
 处理：
-1. 安装 `gh` 后重试；或
-2. 使用脚本内置 `curl + GITHUB_TOKEN` 回退路径执行 apply。
+1. 确认操作者对目标仓库有 admin 级权限。
+2. 重新认证并重跑 dry-run 后再 apply。
 
-### 4.4 分支保护接口 404
+### 4.3 `404 Not Found`（分支保护 API）
 
 原因：
-- 仓库、分支名错误，或 token 无访问目标仓库权限。
+- owner/repo/branch 填写错误，或仓库可见性权限不足。
 
 处理：
+
 ```bash
-gh repo view <owner>/<repo>
+gh repo view <owner>/<repo> --json nameWithOwner,visibility,defaultBranchRef
 gh api /repos/<owner>/<repo>/branches/main
 ```
 
+### 4.4 运行环境缺少 `gh`
+
+处理：
+1. 安装 GitHub CLI 后重试；或
+2. 在 `setup_github_required_checks.sh --apply` 场景使用 `GITHUB_TOKEN` 走 `curl` 回退路径。
+
+## 5. 快速检查命令
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --help
+bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run --enable-ops-stageb-p1
+```

@@ -11,7 +11,6 @@ GITHUB_API="${GITHUB_API:-https://api.github.com}"
 INCLUDE_STAGEA_CHECKS="${INCLUDE_STAGEA_CHECKS:-0}"
 INCLUDE_OPS_STAGEB_CHECKS="${INCLUDE_OPS_STAGEB_CHECKS:-0}"
 ENABLE_OPS_STAGEB_P1="${ENABLE_OPS_STAGEB_P1:-0}"
-APPLY_MODE="${APPLY_MODE:-0}"
 
 CONTEXTS=()
 
@@ -29,7 +28,7 @@ Options:
   --context <name>           Required check context（可重复）
   --strict <0|1>             是否要求分支与目标分支保持最新（默认 1）
   --enforce-admins <0|1>     是否对管理员也生效（默认 0）
-  --dry-run [0|1]            仅打印 payload 与 gh 命令（默认 1）
+  --dry-run [0|1]            仅打印 payload 与 gh 命令（默认 1；支持仅写 --dry-run）
   --apply                    真正提交分支保护（等价 --dry-run 0）
   --github-api <url>         GitHub API 地址（默认 https://api.github.com）
   --include-stagea-checks <0|1> 是否附加 stageA #17/#18、#19/#20、P0-23（默认 0）
@@ -132,7 +131,6 @@ while [[ $# -gt 0 ]]; do
       fi
       ;;
     --apply)
-      APPLY_MODE=1
       DRY_RUN=0
       shift
       ;;
@@ -194,11 +192,6 @@ if ! [[ "${ENABLE_OPS_STAGEB_P1}" =~ ^[01]$ ]]; then
   echo "Invalid --enable-ops-stageb-p1/ENABLE_OPS_STAGEB_P1: ${ENABLE_OPS_STAGEB_P1}" >&2
   exit 1
 fi
-if ! [[ "${APPLY_MODE}" =~ ^[01]$ ]]; then
-  echo "Invalid APPLY_MODE: ${APPLY_MODE}" >&2
-  exit 1
-fi
-
 if [[ "${ENABLE_OPS_STAGEB_P1}" == "1" ]]; then
   INCLUDE_OPS_STAGEB_CHECKS=1
 fi
@@ -303,6 +296,8 @@ if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" && "${INCLUDE_OPS_STAGEB_CHECKS}" == "1"
   echo "[github-required-checks] profile=stagea+stageb"
 elif [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
   echo "[github-required-checks] profile=stagea-only"
+elif [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
+  echo "[github-required-checks] profile=stageb-only"
 else
   echo "[github-required-checks] profile=base-only"
 fi
