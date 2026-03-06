@@ -1,6 +1,6 @@
 version: 1
 owner: hxy-core
-last_updated: 2026-03-05
+last_updated: 2026-03-06
 purpose: >
   HXY 项目长记忆索引。所有核心领域变更必须回写到对应记忆文档，并通过
   check_hxy_memory_guard.sh 做强制门禁。
@@ -51,7 +51,7 @@ domains:
       - hxy/00_governance/HXY-架构决策记录-ADR-v1.md
       - hxy/06_roadmap/HXY-执行状态看板-v1-2026-03-01.md
       - hxy/05_engineering/HXY-多窗口协作与CTO总控机制-v1-2026-03-05.md
-    notes: 多窗口协作、分支治理、角色职责与交接规则。
+    notes: 多窗口协作、分支治理、角色职责、交接规则与“最佳实践优先/第一性原理/真实透明”执行基线。
 handoff:
   root: hxy/07_memory_archive/handoffs
   required_sections:
