@@ -868,3 +868,17 @@
 - 备选方案：仅在日志中记录 `payRefundId`，不落业务表字段。
 - 否决原因：日志不可作为稳定查询主入口，无法满足运维对账与运营复核。
 - 回滚条件：若出现兼容风险，可暂时关闭回调入口解析拦截并保留服务层一致性校验；不回退审计字段落库能力。
+
+## ADR-091：四账退款审计采用“日账快照字段 + 聚合汇总接口 + JSON 降级解析”策略
+
+- 背景：四账台账已可联查工单与巡检异常，但运营仍缺少统一入口按退款审计维度（状态/异常类型/来源/退款单号/退款时间）筛选与汇总，且证据 JSON 在脏数据场景会导致前端解析不稳定。
+- 决策：
+  1) 在 `hxy_four_account_reconcile` 增加退款审计快照字段（`pay_refund_id/refund_time/refund_limit_source/refund_exception_type/refund_audit_status/refund_audit_remark/refund_evidence_json`）；
+  2) `runReconcile` 同步固化退款巡检快照（无异常写 `PASS`，有异常写 `WARN` 并记录证据）；
+  3) `/booking/four-account-reconcile/page|get` 暴露上述字段并支持对应筛选；
+  4) 新增 `/booking/four-account-reconcile/refund-audit-summary` 返回总量、差异金额聚合、状态/异常类型聚合及未收口工单数；
+  5) `refundEvidenceJson` 解析统一 fail-open：解析失败仅标记 `refundEvidenceJsonParseError` 并保留原文，不抛 500。
+- 影响范围：booking 四账运营检索、退款佣金异常复盘效率、跨域工单联查降级可用性。
+- 备选方案：继续只用 `refund-commission-audit-page` 明细接口，不在四账主台账固化审计快照。
+- 否决原因：运营筛选维度分散，无法在同一台账完成“筛选-汇总-追溯”闭环。
+- 回滚条件：若快照字段带来写入压力，可临时只保留汇总与明细动态查询；不回退 JSON 降级与 fail-open 原则。

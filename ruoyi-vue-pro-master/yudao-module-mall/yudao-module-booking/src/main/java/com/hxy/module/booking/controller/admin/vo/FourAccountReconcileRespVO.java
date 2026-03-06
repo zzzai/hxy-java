@@ -52,6 +52,33 @@ public class FourAccountReconcileRespVO {
     @Schema(description = "问题明细 JSON")
     private String issueDetailJson;
 
+    @Schema(description = "退款单编号", example = "10001")
+    private Long payRefundId;
+
+    @Schema(description = "退款时间")
+    private LocalDateTime refundTime;
+
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
+    private String refundLimitSource;
+
+    @Schema(description = "退款异常类型", example = "REFUND_WITHOUT_REVERSAL")
+    private String refundExceptionType;
+
+    @Schema(description = "退款审计状态（PASS/WARN）", example = "WARN")
+    private String refundAuditStatus;
+
+    @Schema(description = "退款审计备注")
+    private String refundAuditRemark;
+
+    @Schema(description = "退款审计证据 JSON 原文")
+    private String refundEvidenceJson;
+
+    @Schema(description = "退款审计证据（结构化）")
+    private Object refundEvidence;
+
+    @Schema(description = "退款审计证据是否解析失败", example = "false")
+    private Boolean refundEvidenceJsonParseError;
+
     @Schema(description = "触发来源", example = "JOB_DAILY")
     private String source;
 

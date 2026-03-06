@@ -8,6 +8,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
@@ -30,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -74,6 +77,7 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(0, captor.getValue().getIssueCount());
         assertEquals(200, captor.getValue().getTradeMinusFulfillment());
         assertEquals(7300, captor.getValue().getTradeMinusCommissionSplit());
+        assertEquals("PASS", captor.getValue().getRefundAuditStatus());
         verify(tradeReviewTicketApi, never()).upsertReviewTicket(any(TradeReviewTicketUpsertReqDTO.class));
         ArgumentCaptor<TradeReviewTicketResolveReqDTO> resolveCaptor =
                 ArgumentCaptor.forClass(TradeReviewTicketResolveReqDTO.class);
@@ -85,10 +89,21 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
     @Test
     void runReconcile_shouldMarkWarnWhenCoreRulesBroken() {
         LocalDate bizDate = LocalDate.of(2026, 3, 3);
+        FourAccountRefundCommissionAuditRow auditRow = new FourAccountRefundCommissionAuditRow();
+        auditRow.setOrderId(9001L);
+        auditRow.setTradeOrderNo("T20260303001");
+        auditRow.setRefundPrice(10000);
+        auditRow.setSettledCommissionAmount(1200);
+        auditRow.setReversalCommissionAmountAbs(0);
+        auditRow.setPayRefundId(88001L);
+        auditRow.setRefundTime(LocalDateTime.of(2026, 3, 3, 18, 30, 0));
+        auditRow.setRefundLimitSource("child_ledger");
         when(queryMapper.selectTradeNetAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(10000);
         when(queryMapper.selectFulfillmentAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(12000);
         when(queryMapper.selectCommissionAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(13000);
         when(queryMapper.selectSplitAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(11000);
+        when(queryMapper.selectRefundCommissionAuditCandidates(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(Collections.singletonList(auditRow));
         when(reconcileMapper.selectByBizDate(bizDate)).thenReturn(null);
         when(reconcileMapper.insert(any(FourAccountReconcileDO.class))).thenAnswer(invocation -> {
             FourAccountReconcileDO data = invocation.getArgument(0);
@@ -107,6 +122,11 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertTrue(captor.getValue().getIssueCodes().contains("COMMISSION_GT_FULFILLMENT"));
         assertTrue(captor.getValue().getIssueCodes().contains("SPLIT_GT_TRADE"));
         assertTrue(captor.getValue().getIssueCodes().contains("COMMISSION_SPLIT_GT_TRADE"));
+        assertEquals("WARN", captor.getValue().getRefundAuditStatus());
+        assertEquals("REFUND_WITHOUT_REVERSAL", captor.getValue().getRefundExceptionType());
+        assertEquals("CHILD_LEDGER", captor.getValue().getRefundLimitSource());
+        assertEquals(88001L, captor.getValue().getPayRefundId());
+        assertNotNull(captor.getValue().getRefundEvidenceJson());
         ArgumentCaptor<TradeReviewTicketUpsertReqDTO> ticketCaptor =
                 ArgumentCaptor.forClass(TradeReviewTicketUpsertReqDTO.class);
         verify(tradeReviewTicketApi).upsertReviewTicket(ticketCaptor.capture());
@@ -128,6 +148,29 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         PageResult<FourAccountReconcileDO> page = service.getReconcilePage(reqVO);
 
         assertEquals(0L, page.getTotal());
+        verify(reconcileMapper).selectPage(eq(reqVO));
+    }
+
+    @Test
+    void getReconcilePage_shouldNormalizeRefundFilters() {
+        FourAccountReconcilePageReqVO reqVO = new FourAccountReconcilePageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setSource(" manual ");
+        reqVO.setIssueCode(" fulfillment_gt_trade ");
+        reqVO.setRefundAuditStatus(" warn ");
+        reqVO.setRefundExceptionType(" refund_without_reversal ");
+        reqVO.setRefundLimitSource(" child_ledger ");
+        when(reconcileMapper.selectPage(reqVO))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
+
+        service.getReconcilePage(reqVO);
+
+        assertEquals("MANUAL", reqVO.getSource());
+        assertEquals("FULFILLMENT_GT_TRADE", reqVO.getIssueCode());
+        assertEquals("WARN", reqVO.getRefundAuditStatus());
+        assertEquals("REFUND_WITHOUT_REVERSAL", reqVO.getRefundExceptionType());
+        assertEquals("CHILD_LEDGER", reqVO.getRefundLimitSource());
         verify(reconcileMapper).selectPage(eq(reqVO));
     }
 
@@ -189,6 +232,72 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
 
         assertEquals(1L, respVO.getTotalCount());
         assertEquals(1L, respVO.getWarnCount());
+        assertEquals(0L, respVO.getUnresolvedTicketCount());
+        assertEquals(true, respVO.getTicketSummaryDegraded());
+    }
+
+    @Test
+    void getRefundAuditSummary_shouldAggregate() {
+        FourAccountRefundAuditSummaryReqVO reqVO = new FourAccountRefundAuditSummaryReqVO();
+        reqVO.setRefundAuditStatus(" warn ");
+        reqVO.setRelatedTicketLinked(true);
+        FourAccountReconcileDO warnA = FourAccountReconcileDO.builder()
+                .id(31L)
+                .bizDate(LocalDate.of(2026, 3, 6))
+                .status(FourAccountReconcileStatusEnum.WARN.getStatus())
+                .tradeMinusCommissionSplit(-330)
+                .refundAuditStatus("WARN")
+                .refundExceptionType("REFUND_WITHOUT_REVERSAL")
+                .build();
+        FourAccountReconcileDO warnB = FourAccountReconcileDO.builder()
+                .id(32L)
+                .bizDate(LocalDate.of(2026, 3, 5))
+                .status(FourAccountReconcileStatusEnum.WARN.getStatus())
+                .tradeMinusCommissionSplit(220)
+                .refundAuditStatus("WARN")
+                .refundExceptionType("REVERSAL_AMOUNT_MISMATCH")
+                .build();
+        when(reconcileMapper.selectRefundAuditSummaryList(eq(reqVO))).thenReturn(Arrays.asList(warnA, warnB));
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenReturn(Collections.singletonList(new TradeReviewTicketSummaryRespDTO()
+                        .setId(8001L)
+                        .setTicketType(40)
+                        .setSourceBizNo("FOUR_ACCOUNT_RECONCILE:2026-03-06")
+                        .setStatus(0)
+                        .setSeverity("P1")));
+
+        FourAccountRefundAuditSummaryRespVO respVO = service.getRefundAuditSummary(reqVO);
+
+        assertEquals("WARN", reqVO.getRefundAuditStatus());
+        assertEquals(1L, respVO.getTotalCount());
+        assertEquals(330L, respVO.getDifferenceAmountSum());
+        assertEquals(1L, respVO.getUnresolvedTicketCount());
+        assertEquals(false, respVO.getTicketSummaryDegraded());
+        assertNotNull(respVO.getStatusAgg());
+        assertNotNull(respVO.getExceptionTypeAgg());
+        assertEquals("WARN", respVO.getStatusAgg().get(0).getKey());
+        assertEquals(1L, respVO.getStatusAgg().get(0).getCount());
+        verify(reconcileMapper).selectRefundAuditSummaryList(eq(reqVO));
+    }
+
+    @Test
+    void getRefundAuditSummary_shouldDegradeWhenTradeFails() {
+        FourAccountRefundAuditSummaryReqVO reqVO = new FourAccountRefundAuditSummaryReqVO();
+        FourAccountReconcileDO row = FourAccountReconcileDO.builder()
+                .id(41L)
+                .bizDate(LocalDate.of(2026, 3, 6))
+                .tradeMinusCommissionSplit(150)
+                .refundAuditStatus("WARN")
+                .refundExceptionType("REFUND_WITHOUT_REVERSAL")
+                .build();
+        when(reconcileMapper.selectRefundAuditSummaryList(eq(reqVO))).thenReturn(Collections.singletonList(row));
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenThrow(new RuntimeException("trade timeout"));
+
+        FourAccountRefundAuditSummaryRespVO respVO = service.getRefundAuditSummary(reqVO);
+
+        assertEquals(1L, respVO.getTotalCount());
+        assertEquals(150L, respVO.getDifferenceAmountSum());
         assertEquals(0L, respVO.getUnresolvedTicketCount());
         assertEquals(true, respVO.getTicketSummaryDegraded());
     }

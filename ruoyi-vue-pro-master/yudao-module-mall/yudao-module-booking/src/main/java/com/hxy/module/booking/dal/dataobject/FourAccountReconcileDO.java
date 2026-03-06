@@ -79,6 +79,34 @@ public class FourAccountReconcileDO extends BaseDO {
      */
     private String issueDetailJson;
     /**
+     * 退款单编号（巡检快照）
+     */
+    private Long payRefundId;
+    /**
+     * 退款时间（巡检快照）
+     */
+    private LocalDateTime refundTime;
+    /**
+     * 退款上限来源（巡检快照）
+     */
+    private String refundLimitSource;
+    /**
+     * 退款异常类型（巡检快照）
+     */
+    private String refundExceptionType;
+    /**
+     * 退款审计状态（PASS/WARN）
+     */
+    private String refundAuditStatus;
+    /**
+     * 退款审计备注
+     */
+    private String refundAuditRemark;
+    /**
+     * 退款审计证据快照 JSON
+     */
+    private String refundEvidenceJson;
+    /**
      * 触发来源
      */
     private String source;
@@ -91,4 +119,3 @@ public class FourAccountReconcileDO extends BaseDO {
      */
     private LocalDateTime reconciledAt;
 }
-

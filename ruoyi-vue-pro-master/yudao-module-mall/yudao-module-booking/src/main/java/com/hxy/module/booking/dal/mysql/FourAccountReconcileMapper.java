@@ -5,6 +5,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.mybatis.core.mapper.BaseMapperX;
 import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
 import org.apache.ibatis.annotations.Mapper;
@@ -27,6 +28,11 @@ public interface FourAccountReconcileMapper extends BaseMapperX<FourAccountRecon
                 .betweenIfPresent(FourAccountReconcileDO::getBizDate, reqVO.getBizDate())
                 .eqIfPresent(FourAccountReconcileDO::getStatus, reqVO.getStatus())
                 .eqIfPresent(FourAccountReconcileDO::getSource, reqVO.getSource())
+                .eqIfPresent(FourAccountReconcileDO::getRefundAuditStatus, reqVO.getRefundAuditStatus())
+                .eqIfPresent(FourAccountReconcileDO::getRefundExceptionType, reqVO.getRefundExceptionType())
+                .eqIfPresent(FourAccountReconcileDO::getRefundLimitSource, reqVO.getRefundLimitSource())
+                .eqIfPresent(FourAccountReconcileDO::getPayRefundId, reqVO.getPayRefundId())
+                .betweenIfPresent(FourAccountReconcileDO::getRefundTime, reqVO.getRefundTimeRange())
                 .orderByDesc(FourAccountReconcileDO::getBizDate)
                 .orderByDesc(FourAccountReconcileDO::getId);
         if (StrUtil.isNotBlank(reqVO.getIssueCode())) {
@@ -39,6 +45,16 @@ public interface FourAccountReconcileMapper extends BaseMapperX<FourAccountRecon
         return selectList(new LambdaQueryWrapperX<FourAccountReconcileDO>()
                 .betweenIfPresent(FourAccountReconcileDO::getBizDate, reqVO.getBizDate())
                 .eqIfPresent(FourAccountReconcileDO::getStatus, reqVO.getStatus())
+                .orderByDesc(FourAccountReconcileDO::getBizDate)
+                .orderByDesc(FourAccountReconcileDO::getId));
+    }
+
+    default List<FourAccountReconcileDO> selectRefundAuditSummaryList(FourAccountRefundAuditSummaryReqVO reqVO) {
+        return selectList(new LambdaQueryWrapperX<FourAccountReconcileDO>()
+                .betweenIfPresent(FourAccountReconcileDO::getBizDate, reqVO.getBizDate())
+                .eqIfPresent(FourAccountReconcileDO::getStatus, reqVO.getStatus())
+                .eqIfPresent(FourAccountReconcileDO::getRefundAuditStatus, reqVO.getRefundAuditStatus())
+                .eqIfPresent(FourAccountReconcileDO::getRefundExceptionType, reqVO.getRefundExceptionType())
                 .orderByDesc(FourAccountReconcileDO::getBizDate)
                 .orderByDesc(FourAccountReconcileDO::getId));
     }

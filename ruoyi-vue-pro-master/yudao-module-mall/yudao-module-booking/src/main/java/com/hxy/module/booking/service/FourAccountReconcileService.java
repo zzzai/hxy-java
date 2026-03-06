@@ -6,6 +6,8 @@ import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAud
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncRespVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -44,6 +46,11 @@ public interface FourAccountReconcileService {
      * 汇总四账对账台账
      */
     FourAccountReconcileSummaryRespVO getReconcileSummary(FourAccountReconcileSummaryReqVO reqVO);
+
+    /**
+     * 退款审计汇总
+     */
+    FourAccountRefundAuditSummaryRespVO getRefundAuditSummary(FourAccountRefundAuditSummaryReqVO reqVO);
 
     /**
      * 退款-提成联调巡检分页

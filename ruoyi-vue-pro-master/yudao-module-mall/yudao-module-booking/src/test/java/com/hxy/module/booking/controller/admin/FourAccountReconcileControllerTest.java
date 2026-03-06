@@ -9,6 +9,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
@@ -55,6 +57,7 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
                 .splitAmount(500)
                 .status(10)
                 .issueCount(0)
+                .refundEvidenceJson("{\"sample\":1}")
                 .build();
         FourAccountReconcilePageReqVO reqVO = new FourAccountReconcilePageReqVO();
         reqVO.setPageNo(1);
@@ -78,6 +81,7 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertEquals(101L, result.getData().getList().get(0).getRelatedTicketId());
         assertEquals(10, result.getData().getList().get(0).getRelatedTicketStatus());
         assertEquals("P1", result.getData().getList().get(0).getRelatedTicketSeverity());
+        assertEquals(false, result.getData().getList().get(0).getRefundEvidenceJsonParseError());
         verify(reconcileService).getReconcilePage(reqVO);
         verify(tradeReviewTicketApi).listLatestTicketSummaryBySourceBizNos(
                 argThat(param -> param != null
@@ -151,6 +155,26 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void get_shouldDegradeWhenRefundEvidenceJsonInvalid() {
+        FourAccountReconcileDO row = FourAccountReconcileDO.builder()
+                .id(4L)
+                .bizDate(LocalDate.of(2026, 3, 7))
+                .status(20)
+                .refundEvidenceJson("{bad-json")
+                .build();
+        when(reconcileService.getReconcile(4L)).thenReturn(row);
+        when(tradeReviewTicketApi.listLatestTicketSummaryBySourceBizNos(any(TradeReviewTicketSummaryQueryReqDTO.class)))
+                .thenReturn(Collections.emptyList());
+
+        CommonResult<FourAccountReconcileRespVO> result = controller.get(4L);
+
+        assertTrue(result.isSuccess());
+        assertEquals(4L, result.getData().getId());
+        assertEquals(true, result.getData().getRefundEvidenceJsonParseError());
+        assertEquals("{bad-json", result.getData().getRefundEvidenceJson());
+    }
+
+    @Test
     void run_shouldTriggerService() {
         FourAccountReconcileRunReqVO reqVO = new FourAccountReconcileRunReqVO();
         reqVO.setBizDate(LocalDate.of(2026, 3, 4));
@@ -182,6 +206,25 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertEquals(3L, result.getData().getWarnCount());
         assertEquals(2L, result.getData().getUnresolvedTicketCount());
         verify(reconcileService).getReconcileSummary(eq(reqVO));
+    }
+
+    @Test
+    void refundAuditSummary_shouldDelegateService() {
+        FourAccountRefundAuditSummaryReqVO reqVO = new FourAccountRefundAuditSummaryReqVO();
+        reqVO.setRefundAuditStatus("WARN");
+        FourAccountRefundAuditSummaryRespVO summary = new FourAccountRefundAuditSummaryRespVO();
+        summary.setTotalCount(5L);
+        summary.setDifferenceAmountSum(3600L);
+        summary.setUnresolvedTicketCount(1L);
+        when(reconcileService.getRefundAuditSummary(any(FourAccountRefundAuditSummaryReqVO.class))).thenReturn(summary);
+
+        CommonResult<FourAccountRefundAuditSummaryRespVO> result = controller.refundAuditSummary(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(5L, result.getData().getTotalCount());
+        assertEquals(3600L, result.getData().getDifferenceAmountSum());
+        assertEquals(1L, result.getData().getUnresolvedTicketCount());
+        verify(reconcileService).getRefundAuditSummary(eq(reqVO));
     }
 
     @Test

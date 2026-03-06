@@ -18,5 +18,9 @@ public class FourAccountRefundCommissionAuditRow {
     private Integer settledCommissionAmount;
     private Integer reversalCommissionAmountAbs;
     private Integer activeCommissionAmount;
+    private Long payRefundId;
+    private LocalDateTime refundTime;
+    private String refundLimitSource;
+    private String refundLimitDetailJson;
 
 }

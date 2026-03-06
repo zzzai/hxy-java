@@ -2,13 +2,17 @@ package com.hxy.module.booking.controller.admin;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryQueryReqDTO;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSummaryRespDTO;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
@@ -22,6 +26,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,6 +75,7 @@ public class FourAccountReconcileController {
                 ? Collections.emptyList() : pageResult.getList();
         List<FourAccountReconcileRespVO> records = BeanUtils.toBean(pageList, FourAccountReconcileRespVO.class);
         bindRelatedTicketSummary(records);
+        bindRefundEvidence(records);
         return success(new PageResult<>(records, pageResult.getTotal()));
     }
 
@@ -84,6 +90,7 @@ public class FourAccountReconcileController {
         }
         FourAccountReconcileRespVO respVO = BeanUtils.toBean(reconcile, FourAccountReconcileRespVO.class);
         bindRelatedTicketSummary(Collections.singletonList(respVO));
+        bindRefundEvidence(Collections.singletonList(respVO));
         return success(respVO);
     }
 
@@ -99,6 +106,14 @@ public class FourAccountReconcileController {
     @PreAuthorize("@ss.hasPermission('booking:commission:query')")
     public CommonResult<FourAccountReconcileSummaryRespVO> summary(@Valid FourAccountReconcileSummaryReqVO reqVO) {
         return success(reconcileService.getReconcileSummary(reqVO));
+    }
+
+    @GetMapping("/refund-audit-summary")
+    @Operation(summary = "四账退款审计汇总")
+    @PreAuthorize("@ss.hasPermission('booking:commission:query')")
+    public CommonResult<FourAccountRefundAuditSummaryRespVO> refundAuditSummary(
+            @Valid FourAccountRefundAuditSummaryReqVO reqVO) {
+        return success(reconcileService.getRefundAuditSummary(reqVO));
     }
 
     @GetMapping("/refund-commission-audit-page")
@@ -169,6 +184,26 @@ public class FourAccountReconcileController {
             return;
         }
         record.setSourceBizNo(buildReviewTicketSourceBizNo(record.getBizDate()));
+    }
+
+    private void bindRefundEvidence(List<FourAccountReconcileRespVO> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        records.forEach(record -> {
+            if (record == null || !StringUtils.hasText(record.getRefundEvidenceJson())) {
+                return;
+            }
+            Object parsed = JsonUtils.parseObjectQuietly(record.getRefundEvidenceJson(), new TypeReference<Object>() {
+            });
+            if (parsed == null && !"null".equalsIgnoreCase(record.getRefundEvidenceJson().trim())) {
+                record.setRefundEvidenceJsonParseError(Boolean.TRUE);
+                record.setRefundEvidence(null);
+                return;
+            }
+            record.setRefundEvidence(parsed);
+            record.setRefundEvidenceJsonParseError(Boolean.FALSE);
+        });
     }
 
     private String buildReviewTicketSourceBizNo(LocalDate bizDate) {

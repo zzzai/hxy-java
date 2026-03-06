@@ -8,8 +8,10 @@ import lombok.ToString;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static cn.iocoder.yudao.framework.common.util.date.DateUtils.FORMAT_YEAR_MONTH_DAY;
+import static cn.iocoder.yudao.framework.common.util.date.DateUtils.FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND;
 
 @Schema(description = "管理后台 - 四账对账分页 Request VO")
 @Data
@@ -32,5 +34,20 @@ public class FourAccountReconcilePageReqVO extends PageParam {
 
     @Schema(description = "问题编码（模糊匹配）", example = "FULFILLMENT_GT_TRADE")
     private String issueCode;
-}
 
+    @Schema(description = "退款审计状态（PASS/WARN）", example = "WARN")
+    private String refundAuditStatus;
+
+    @Schema(description = "退款异常类型", example = "REFUND_WITHOUT_REVERSAL")
+    private String refundExceptionType;
+
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
+    private String refundLimitSource;
+
+    @Schema(description = "退款单编号", example = "10001")
+    private Long payRefundId;
+
+    @Schema(description = "退款时间范围")
+    @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
+    private LocalDateTime[] refundTimeRange;
+}

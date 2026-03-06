@@ -36,6 +36,18 @@ public class FourAccountRefundCommissionAuditRespVO {
     @Schema(description = "期望冲正金额（分）", example = "1200")
     private Integer expectedReversalAmount;
 
+    @Schema(description = "退款单编号", example = "90001")
+    private Long payRefundId;
+
+    @Schema(description = "退款时间")
+    private LocalDateTime refundTime;
+
+    @Schema(description = "退款上限来源", example = "CHILD_LEDGER")
+    private String refundLimitSource;
+
+    @Schema(description = "退款证据 JSON")
+    private String refundEvidenceJson;
+
     @Schema(description = "异常类型", example = "REVERSAL_AMOUNT_MISMATCH")
     private String mismatchType;
 

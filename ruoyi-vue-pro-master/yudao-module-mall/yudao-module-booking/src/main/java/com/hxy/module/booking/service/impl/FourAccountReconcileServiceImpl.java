@@ -11,6 +11,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketSumma
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import cn.iocoder.yudao.module.trade.enums.aftersale.AfterSaleReviewTicketStatusEnum;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcilePageReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundAuditSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
@@ -23,6 +25,8 @@ import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
 import com.hxy.module.booking.enums.FourAccountReconcileStatusEnum;
 import com.hxy.module.booking.service.FourAccountReconcileService;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -35,6 +39,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -63,6 +68,11 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
     private static final String MISMATCH_REFUND_WITHOUT_REVERSAL = "REFUND_WITHOUT_REVERSAL";
     private static final String MISMATCH_REVERSAL_WITHOUT_REFUND = "REVERSAL_WITHOUT_REFUND";
     private static final String MISMATCH_REVERSAL_AMOUNT_MISMATCH = "REVERSAL_AMOUNT_MISMATCH";
+    private static final List<String> MISMATCH_TYPE_PRIORITY = Arrays.asList(
+            MISMATCH_REFUND_WITHOUT_REVERSAL, MISMATCH_REVERSAL_WITHOUT_REFUND, MISMATCH_REVERSAL_AMOUNT_MISMATCH);
+    private static final String REFUND_AUDIT_STATUS_PASS = "PASS";
+    private static final String REFUND_AUDIT_STATUS_WARN = "WARN";
+    private static final String REFUND_AUDIT_EXCEPTION_NONE = "NONE";
     private static final String REFUND_COMMISSION_TICKET_SOURCE_PREFIX = "REFUND_COMMISSION_AUDIT:";
     private static final String REFUND_COMMISSION_RULE_CODE_PREFIX = "REFUND_COMMISSION_AUDIT_";
     private static final String REFUND_COMMISSION_TICKET_ACTION_CODE_PREFIX = "REFUND_COMMISSION_AUDIT_";
@@ -99,6 +109,7 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         String issueCodeText = issueCodes.isEmpty() ? "" : String.join(",", issueCodes);
         String issueDetailJson = buildIssueDetailJson(tradeAmount, fulfillmentAmount, commissionAmount, splitAmount,
                 tradeMinusFulfillment, tradeMinusCommissionSplit, issueCodes);
+        RefundAuditSnapshot refundAuditSnapshot = buildRefundAuditSnapshot(beginTime, endTime);
 
         Long reconcileId;
         FourAccountReconcileDO existing = reconcileMapper.selectByBizDate(targetDate);
@@ -116,6 +127,13 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
                     .issueCount(issueCodes.size())
                     .issueCodes(issueCodeText)
                     .issueDetailJson(issueDetailJson)
+                    .payRefundId(refundAuditSnapshot.getPayRefundId())
+                    .refundTime(refundAuditSnapshot.getRefundTime())
+                    .refundLimitSource(refundAuditSnapshot.getRefundLimitSource())
+                    .refundExceptionType(refundAuditSnapshot.getRefundExceptionType())
+                    .refundAuditStatus(refundAuditSnapshot.getRefundAuditStatus())
+                    .refundAuditRemark(refundAuditSnapshot.getRefundAuditRemark())
+                    .refundEvidenceJson(refundAuditSnapshot.getRefundEvidenceJson())
                     .source(normalizedSource)
                     .operator(normalizedOperator)
                     .reconciledAt(LocalDateTime.now())
@@ -144,6 +162,13 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
                     .issueCount(issueCodes.size())
                     .issueCodes(issueCodeText)
                     .issueDetailJson(issueDetailJson)
+                    .payRefundId(refundAuditSnapshot.getPayRefundId())
+                    .refundTime(refundAuditSnapshot.getRefundTime())
+                    .refundLimitSource(refundAuditSnapshot.getRefundLimitSource())
+                    .refundExceptionType(refundAuditSnapshot.getRefundExceptionType())
+                    .refundAuditStatus(refundAuditSnapshot.getRefundAuditStatus())
+                    .refundAuditRemark(refundAuditSnapshot.getRefundAuditRemark())
+                    .refundEvidenceJson(refundAuditSnapshot.getRefundEvidenceJson())
                     .source(normalizedSource)
                     .operator(normalizedOperator)
                     .reconciledAt(LocalDateTime.now())
@@ -216,6 +241,44 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         respVO.setTradeMinusCommissionSplitSum(tradeMinusCommissionSplitSum);
         respVO.setUnresolvedTicketCount(unresolvedTicketCount);
         respVO.setTicketSummaryDegraded(ticketLoadResult.degraded);
+        return respVO;
+    }
+
+    @Override
+    public FourAccountRefundAuditSummaryRespVO getRefundAuditSummary(FourAccountRefundAuditSummaryReqVO reqVO) {
+        FourAccountRefundAuditSummaryReqVO safeReq = reqVO == null ? new FourAccountRefundAuditSummaryReqVO() : reqVO;
+        normalizeRefundAuditSummaryReq(safeReq);
+        List<FourAccountReconcileDO> allRows = reconcileMapper.selectRefundAuditSummaryList(safeReq);
+        if (allRows == null || allRows.isEmpty()) {
+            return emptyRefundAuditSummary(false);
+        }
+        TicketSummaryLoadResult ticketLoadResult = loadTicketSummaryMap(allRows);
+        List<FourAccountReconcileDO> filteredRows = filterSummaryRowsByTicketLinked(allRows, safeReq.getRelatedTicketLinked(),
+                ticketLoadResult.ticketMap, ticketLoadResult.degraded);
+        if (filteredRows.isEmpty()) {
+            return emptyRefundAuditSummary(ticketLoadResult.degraded);
+        }
+
+        long totalCount = filteredRows.size();
+        long differenceAmountSum = filteredRows.stream()
+                .map(FourAccountReconcileDO::getTradeMinusCommissionSplit)
+                .mapToLong(this::absoluteZeroLong)
+                .sum();
+        long unresolvedTicketCount = countUnresolvedTickets(filteredRows, ticketLoadResult.ticketMap);
+        List<FourAccountRefundAuditSummaryRespVO.CountItem> statusAgg = toCountItems(filteredRows.stream()
+                .collect(Collectors.groupingBy(this::resolveRefundAuditStatus, LinkedHashMap::new, Collectors.counting())));
+        List<FourAccountRefundAuditSummaryRespVO.CountItem> exceptionTypeAgg = toCountItems(filteredRows.stream()
+                .map(this::resolveRefundExceptionTypeKeys)
+                .flatMap(List::stream)
+                .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting())));
+
+        FourAccountRefundAuditSummaryRespVO respVO = new FourAccountRefundAuditSummaryRespVO();
+        respVO.setTotalCount(totalCount);
+        respVO.setDifferenceAmountSum(differenceAmountSum);
+        respVO.setUnresolvedTicketCount(unresolvedTicketCount);
+        respVO.setTicketSummaryDegraded(ticketLoadResult.degraded);
+        respVO.setStatusAgg(statusAgg);
+        respVO.setExceptionTypeAgg(exceptionTypeAgg);
         return respVO;
     }
 
@@ -314,6 +377,27 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         if (StringUtils.hasText(reqVO.getIssueCode())) {
             reqVO.setIssueCode(reqVO.getIssueCode().trim().toUpperCase(Locale.ROOT));
         }
+        if (StringUtils.hasText(reqVO.getRefundAuditStatus())) {
+            reqVO.setRefundAuditStatus(reqVO.getRefundAuditStatus().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StringUtils.hasText(reqVO.getRefundExceptionType())) {
+            reqVO.setRefundExceptionType(reqVO.getRefundExceptionType().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StringUtils.hasText(reqVO.getRefundLimitSource())) {
+            reqVO.setRefundLimitSource(reqVO.getRefundLimitSource().trim().toUpperCase(Locale.ROOT));
+        }
+    }
+
+    private void normalizeRefundAuditSummaryReq(FourAccountRefundAuditSummaryReqVO reqVO) {
+        if (reqVO == null) {
+            return;
+        }
+        if (StringUtils.hasText(reqVO.getRefundAuditStatus())) {
+            reqVO.setRefundAuditStatus(reqVO.getRefundAuditStatus().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StringUtils.hasText(reqVO.getRefundExceptionType())) {
+            reqVO.setRefundExceptionType(reqVO.getRefundExceptionType().trim().toUpperCase(Locale.ROOT));
+        }
     }
 
     private void normalizeRefundCommissionAuditReq(FourAccountRefundCommissionAuditPageReqVO reqVO) {
@@ -393,6 +477,10 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         respVO.setReversalCommissionAmountAbs(reversalAmount);
         respVO.setActiveCommissionAmount(defaultZero(row.getActiveCommissionAmount()));
         respVO.setExpectedReversalAmount(refunded ? settledAmount : 0);
+        respVO.setPayRefundId(row.getPayRefundId());
+        respVO.setRefundTime(row.getRefundTime());
+        respVO.setRefundLimitSource(normalizeUpper(row.getRefundLimitSource()));
+        respVO.setRefundEvidenceJson(row.getRefundLimitDetailJson());
         respVO.setMismatchType(mismatchType);
         respVO.setMismatchReason(mismatchReason);
         return respVO;
@@ -566,6 +654,138 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         return respVO;
     }
 
+    private FourAccountRefundAuditSummaryRespVO emptyRefundAuditSummary(boolean degraded) {
+        FourAccountRefundAuditSummaryRespVO respVO = new FourAccountRefundAuditSummaryRespVO();
+        respVO.setTotalCount(0L);
+        respVO.setDifferenceAmountSum(0L);
+        respVO.setUnresolvedTicketCount(0L);
+        respVO.setTicketSummaryDegraded(degraded);
+        respVO.setStatusAgg(Collections.emptyList());
+        respVO.setExceptionTypeAgg(Collections.emptyList());
+        return respVO;
+    }
+
+    private RefundAuditSnapshot buildRefundAuditSnapshot(LocalDateTime beginTime, LocalDateTime endTime) {
+        List<FourAccountRefundCommissionAuditRow> candidateRows =
+                queryMapper.selectRefundCommissionAuditCandidates(beginTime, endTime);
+        if (candidateRows == null || candidateRows.isEmpty()) {
+            return RefundAuditSnapshot.pass("refund-audit mismatch=0", buildRefundEvidence(0, Collections.emptyList(), null));
+        }
+        List<FourAccountRefundCommissionAuditRespVO> mismatchRows = candidateRows.stream()
+                .map(this::buildAuditMismatchRow)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (mismatchRows.isEmpty()) {
+            return RefundAuditSnapshot.pass("refund-audit mismatch=0",
+                    buildRefundEvidence(candidateRows.size(), Collections.emptyList(), null));
+        }
+        FourAccountRefundCommissionAuditRespVO topMismatch = mismatchRows.stream()
+                .sorted(Comparator.comparingInt((FourAccountRefundCommissionAuditRespVO item) ->
+                                mismatchTypePriority(item.getMismatchType()))
+                        .thenComparing(FourAccountRefundCommissionAuditRespVO::getPayTime,
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(FourAccountRefundCommissionAuditRespVO::getOrderId,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
+                .findFirst()
+                .orElse(null);
+        String remark = String.format(Locale.ROOT, "refund-audit mismatch=%d", mismatchRows.size());
+        return RefundAuditSnapshot.warn(topMismatch == null ? null : topMismatch.getPayRefundId(),
+                topMismatch == null ? null : topMismatch.getRefundTime(),
+                topMismatch == null ? null : topMismatch.getRefundLimitSource(),
+                topMismatch == null ? null : topMismatch.getMismatchType(),
+                remark,
+                buildRefundEvidence(candidateRows.size(), mismatchRows, topMismatch));
+    }
+
+    private String buildRefundEvidence(int candidateCount,
+                                       List<FourAccountRefundCommissionAuditRespVO> mismatchRows,
+                                       FourAccountRefundCommissionAuditRespVO topMismatch) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("candidateCount", candidateCount);
+        payload.put("mismatchCount", mismatchRows == null ? 0 : mismatchRows.size());
+        Map<String, Long> mismatchTypeAgg = mismatchRows == null ? Collections.emptyMap()
+                : mismatchRows.stream()
+                .map(FourAccountRefundCommissionAuditRespVO::getMismatchType)
+                .map(this::normalizeUpper)
+                .map(value -> value == null ? REFUND_AUDIT_EXCEPTION_NONE : value)
+                .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()));
+        payload.put("mismatchTypeAgg", mismatchTypeAgg);
+        payload.put("sampleOrderIds", mismatchRows == null ? Collections.emptyList() : mismatchRows.stream()
+                .map(FourAccountRefundCommissionAuditRespVO::getOrderId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList()));
+        if (topMismatch != null) {
+            Map<String, Object> top = new LinkedHashMap<>();
+            top.put("orderId", topMismatch.getOrderId());
+            top.put("tradeOrderNo", topMismatch.getTradeOrderNo());
+            top.put("mismatchType", topMismatch.getMismatchType());
+            top.put("mismatchReason", topMismatch.getMismatchReason());
+            top.put("refundPrice", topMismatch.getRefundPrice());
+            top.put("settledCommissionAmount", topMismatch.getSettledCommissionAmount());
+            top.put("reversalCommissionAmountAbs", topMismatch.getReversalCommissionAmountAbs());
+            top.put("expectedReversalAmount", topMismatch.getExpectedReversalAmount());
+            top.put("payRefundId", topMismatch.getPayRefundId());
+            top.put("refundTime", topMismatch.getRefundTime());
+            top.put("refundLimitSource", topMismatch.getRefundLimitSource());
+            top.put("refundEvidenceJson", topMismatch.getRefundEvidenceJson());
+            payload.put("topMismatch", top);
+        }
+        return JsonUtils.toJsonString(payload);
+    }
+
+    private int mismatchTypePriority(String mismatchType) {
+        String normalized = normalizeUpper(mismatchType);
+        int index = MISMATCH_TYPE_PRIORITY.indexOf(normalized);
+        return index >= 0 ? index : MISMATCH_TYPE_PRIORITY.size();
+    }
+
+    private long absoluteZeroLong(Integer value) {
+        return value == null ? 0L : Math.abs((long) value);
+    }
+
+    private List<FourAccountRefundAuditSummaryRespVO.CountItem> toCountItems(Map<String, Long> data) {
+        if (data == null || data.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return data.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue(Comparator.reverseOrder())
+                        .thenComparing(Map.Entry::getKey))
+                .map(entry -> new FourAccountRefundAuditSummaryRespVO.CountItem(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    private String resolveRefundAuditStatus(FourAccountReconcileDO row) {
+        if (row == null) {
+            return REFUND_AUDIT_STATUS_PASS;
+        }
+        String status = normalizeUpper(row.getRefundAuditStatus());
+        if (status != null) {
+            return status;
+        }
+        return StringUtils.hasText(row.getRefundExceptionType()) ? REFUND_AUDIT_STATUS_WARN : REFUND_AUDIT_STATUS_PASS;
+    }
+
+    private List<String> resolveRefundExceptionTypeKeys(FourAccountReconcileDO row) {
+        if (row == null || !StringUtils.hasText(row.getRefundExceptionType())) {
+            return Collections.singletonList(REFUND_AUDIT_EXCEPTION_NONE);
+        }
+        return Arrays.stream(row.getRefundExceptionType().split(","))
+                .map(this::normalizeUpper)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .collect(Collectors.collectingAndThen(Collectors.toList(),
+                        list -> list.isEmpty() ? Collections.singletonList(REFUND_AUDIT_EXCEPTION_NONE) : list));
+    }
+
+    private String normalizeUpper(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
+    }
+
     private List<String> evaluateIssueCodes(int tradeAmount, int fulfillmentAmount, int commissionAmount, int splitAmount) {
         List<String> issueCodes = new ArrayList<>();
         if (fulfillmentAmount > tradeAmount) {
@@ -617,6 +837,28 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
 
     private int defaultZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class RefundAuditSnapshot {
+        private Long payRefundId;
+        private LocalDateTime refundTime;
+        private String refundLimitSource;
+        private String refundExceptionType;
+        private String refundAuditStatus;
+        private String refundAuditRemark;
+        private String refundEvidenceJson;
+
+        private static RefundAuditSnapshot pass(String remark, String evidenceJson) {
+            return new RefundAuditSnapshot(null, null, null, null, REFUND_AUDIT_STATUS_PASS, remark, evidenceJson);
+        }
+
+        private static RefundAuditSnapshot warn(Long payRefundId, LocalDateTime refundTime, String refundLimitSource,
+                                                String refundExceptionType, String remark, String evidenceJson) {
+            return new RefundAuditSnapshot(payRefundId, refundTime, refundLimitSource, refundExceptionType,
+                    REFUND_AUDIT_STATUS_WARN, remark, evidenceJson);
+        }
     }
 
     private void upsertWarnReviewTicket(LocalDate bizDate, String issueCodeText, String issueDetailJson) {
