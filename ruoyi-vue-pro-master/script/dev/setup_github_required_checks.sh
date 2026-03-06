@@ -9,6 +9,7 @@ ENFORCE_ADMINS="${ENFORCE_ADMINS:-0}"
 DRY_RUN="${DRY_RUN:-1}"
 GITHUB_API="${GITHUB_API:-https://api.github.com}"
 INCLUDE_STAGEA_CHECKS="${INCLUDE_STAGEA_CHECKS:-0}"
+INCLUDE_OPS_STAGEB_CHECKS="${INCLUDE_OPS_STAGEB_CHECKS:-0}"
 
 CONTEXTS=()
 
@@ -27,6 +28,7 @@ Options:
   --dry-run <0|1>            是否仅打印 payload 不提交（默认 1）
   --github-api <url>         GitHub API 地址（默认 https://api.github.com）
   --include-stagea-checks <0|1> 是否附加 stageA #17/#18、#19/#20、P0-23（默认 0）
+  --include-ops-stageb-checks <0|1> 是否附加 ops-stageb-p1 门禁（默认 0）
   -h, --help                 Show help
 
 Env:
@@ -104,6 +106,10 @@ while [[ $# -gt 0 ]]; do
       INCLUDE_STAGEA_CHECKS="$2"
       shift 2
       ;;
+    --include-ops-stageb-checks)
+      INCLUDE_OPS_STAGEB_CHECKS="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -138,6 +144,10 @@ if ! [[ "${INCLUDE_STAGEA_CHECKS}" =~ ^[01]$ ]]; then
   echo "Invalid --include-stagea-checks: ${INCLUDE_STAGEA_CHECKS}" >&2
   exit 1
 fi
+if ! [[ "${INCLUDE_OPS_STAGEB_CHECKS}" =~ ^[01]$ ]]; then
+  echo "Invalid --include-ops-stageb-checks: ${INCLUDE_OPS_STAGEB_CHECKS}" >&2
+  exit 1
+fi
 
 if [[ ${#CONTEXTS[@]} -eq 0 ]]; then
   CONTEXTS=(
@@ -154,6 +164,12 @@ if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
     "hxy-payment-stagea-p0-17-18 / stagea-p0-17-18"
     "hxy-payment-stagea-p0-19-20 / stagea-p0-19-20"
     "hxy-payment-stagea-p0-23 / stagea-p0-23"
+  )
+fi
+
+if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
+  CONTEXTS+=(
+    "hxy-ops-stageb-p1-guard / ops-stageb-p1-guard"
   )
 fi
 
@@ -206,6 +222,7 @@ echo "[github-required-checks] branch=${BRANCH}"
 echo "[github-required-checks] strict=${STRICT}"
 echo "[github-required-checks] enforce_admins=${ENFORCE_ADMINS}"
 echo "[github-required-checks] include_stagea_checks=${INCLUDE_STAGEA_CHECKS}"
+echo "[github-required-checks] include_ops_stageb_checks=${INCLUDE_OPS_STAGEB_CHECKS}"
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
   echo "[github-required-checks] context=${ctx}"
