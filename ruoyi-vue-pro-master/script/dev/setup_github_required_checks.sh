@@ -10,6 +10,8 @@ DRY_RUN="${DRY_RUN:-1}"
 GITHUB_API="${GITHUB_API:-https://api.github.com}"
 INCLUDE_STAGEA_CHECKS="${INCLUDE_STAGEA_CHECKS:-0}"
 INCLUDE_OPS_STAGEB_CHECKS="${INCLUDE_OPS_STAGEB_CHECKS:-0}"
+ENABLE_OPS_STAGEB_P1="${ENABLE_OPS_STAGEB_P1:-0}"
+APPLY_MODE="${APPLY_MODE:-0}"
 
 CONTEXTS=()
 
@@ -19,16 +21,20 @@ Usage:
   script/dev/setup_github_required_checks.sh [options]
 
 Options:
-  --owner <owner>            GitHub owner（可用 OWNER 环境变量）
-  --repo <repo>              GitHub repo（可用 REPO 环境变量）
+  --repo-owner <owner>       GitHub owner（推荐；可用 OWNER 环境变量）
+  --repo-name <repo>         GitHub repo（推荐；可用 REPO 环境变量）
+  --owner <owner>            GitHub owner（兼容旧参数）
+  --repo <repo>              GitHub repo（兼容旧参数）
   --branch <branch>          分支名（默认 main）
   --context <name>           Required check context（可重复）
   --strict <0|1>             是否要求分支与目标分支保持最新（默认 1）
   --enforce-admins <0|1>     是否对管理员也生效（默认 0）
-  --dry-run <0|1>            是否仅打印 payload 不提交（默认 1）
+  --dry-run [0|1]            仅打印 payload 与 gh 命令（默认 1）
+  --apply                    真正提交分支保护（等价 --dry-run 0）
   --github-api <url>         GitHub API 地址（默认 https://api.github.com）
   --include-stagea-checks <0|1> 是否附加 stageA #17/#18、#19/#20、P0-23（默认 0）
   --include-ops-stageb-checks <0|1> 是否附加 ops-stageb-p1 门禁（默认 0）
+  --enable-ops-stageb-p1     快捷开关：等价 include ops-stageb-p1 checks
   -h, --help                 Show help
 
 Env:
@@ -68,8 +74,30 @@ infer_owner_repo_from_origin() {
   return 1
 }
 
+dedupe_contexts() {
+  declare -A seen=()
+  local dedup=()
+  local ctx
+  for ctx in "${CONTEXTS[@]}"; do
+    if [[ -n "${seen["${ctx}"]+x}" ]]; then
+      continue
+    fi
+    seen["${ctx}"]=1
+    dedup+=("${ctx}")
+  done
+  CONTEXTS=("${dedup[@]}")
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --repo-owner)
+      OWNER="$2"
+      shift 2
+      ;;
+    --repo-name)
+      REPO="$2"
+      shift 2
+      ;;
     --owner)
       OWNER="$2"
       shift 2
@@ -95,8 +123,18 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --dry-run)
-      DRY_RUN="$2"
-      shift 2
+      if [[ $# -ge 2 && "${2}" != --* ]]; then
+        DRY_RUN="$2"
+        shift 2
+      else
+        DRY_RUN=1
+        shift
+      fi
+      ;;
+    --apply)
+      APPLY_MODE=1
+      DRY_RUN=0
+      shift
       ;;
     --github-api)
       GITHUB_API="$2"
@@ -109,6 +147,10 @@ while [[ $# -gt 0 ]]; do
     --include-ops-stageb-checks)
       INCLUDE_OPS_STAGEB_CHECKS="$2"
       shift 2
+      ;;
+    --enable-ops-stageb-p1)
+      ENABLE_OPS_STAGEB_P1=1
+      shift
       ;;
     -h|--help)
       usage
@@ -148,6 +190,18 @@ if ! [[ "${INCLUDE_OPS_STAGEB_CHECKS}" =~ ^[01]$ ]]; then
   echo "Invalid --include-ops-stageb-checks: ${INCLUDE_OPS_STAGEB_CHECKS}" >&2
   exit 1
 fi
+if ! [[ "${ENABLE_OPS_STAGEB_P1}" =~ ^[01]$ ]]; then
+  echo "Invalid --enable-ops-stageb-p1/ENABLE_OPS_STAGEB_P1: ${ENABLE_OPS_STAGEB_P1}" >&2
+  exit 1
+fi
+if ! [[ "${APPLY_MODE}" =~ ^[01]$ ]]; then
+  echo "Invalid APPLY_MODE: ${APPLY_MODE}" >&2
+  exit 1
+fi
+
+if [[ "${ENABLE_OPS_STAGEB_P1}" == "1" ]]; then
+  INCLUDE_OPS_STAGEB_CHECKS=1
+fi
 
 if [[ ${#CONTEXTS[@]} -eq 0 ]]; then
   CONTEXTS=(
@@ -173,6 +227,8 @@ if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
   )
 fi
 
+dedupe_contexts
+
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
@@ -197,8 +253,11 @@ if [[ "${ENFORCE_ADMINS}" == "1" ]]; then
 fi
 
 payload_file="$(mktemp)"
+payload_cmd_file=""
+gh_out_file=""
+gh_err_file=""
 cleanup() {
-  rm -f "${payload_file}" 2>/dev/null || true
+  rm -f "${payload_file}" "${gh_out_file}" "${gh_err_file}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -215,6 +274,22 @@ cat > "${payload_file}" <<EOF
 EOF
 
 api_url="${GITHUB_API}/repos/${OWNER}/${REPO}/branches/${BRANCH}/protection"
+api_path="/repos/${OWNER}/${REPO}/branches/${BRANCH}/protection"
+github_api_host="$(printf '%s' "${GITHUB_API}" | sed -E 's#https?://([^/]+)/?.*#\1#')"
+gh_host="${GH_HOST:-}"
+if [[ -z "${gh_host}" && "${github_api_host}" != "api.github.com" ]]; then
+  gh_host="${github_api_host}"
+fi
+payload_cmd_file="/tmp/github_required_checks_${OWNER}_${REPO}_${BRANCH//\//_}.json"
+cp "${payload_file}" "${payload_cmd_file}"
+
+if [[ -n "${gh_host}" ]]; then
+  gh_dry_run_cmd="GH_HOST=${gh_host} gh api --method GET \"${api_path}\" -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2022-11-28\""
+  gh_apply_cmd="GH_HOST=${gh_host} gh api --method PUT \"${api_path}\" -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2022-11-28\" --input \"${payload_cmd_file}\""
+else
+  gh_dry_run_cmd="gh api --method GET \"${api_path}\" -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2022-11-28\""
+  gh_apply_cmd="gh api --method PUT \"${api_path}\" -H \"Accept: application/vnd.github+json\" -H \"X-GitHub-Api-Version: 2022-11-28\" --input \"${payload_cmd_file}\""
+fi
 
 echo "[github-required-checks] owner=${OWNER}"
 echo "[github-required-checks] repo=${REPO}"
@@ -223,11 +298,15 @@ echo "[github-required-checks] strict=${STRICT}"
 echo "[github-required-checks] enforce_admins=${ENFORCE_ADMINS}"
 echo "[github-required-checks] include_stagea_checks=${INCLUDE_STAGEA_CHECKS}"
 echo "[github-required-checks] include_ops_stageb_checks=${INCLUDE_OPS_STAGEB_CHECKS}"
+echo "[github-required-checks] enable_ops_stageb_p1=${ENABLE_OPS_STAGEB_P1}"
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
   echo "[github-required-checks] context=${ctx}"
 done
 echo "[github-required-checks] api_url=${api_url}"
+echo "[github-required-checks] payload_cmd_file=${payload_cmd_file}"
+echo "[github-required-checks] gh_dry_run_cmd=${gh_dry_run_cmd}"
+echo "[github-required-checks] gh_apply_cmd=${gh_apply_cmd}"
 
 if [[ "${DRY_RUN}" == "1" ]]; then
   echo "[github-required-checks] dry-run=1 (skip request)"
@@ -236,8 +315,27 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   exit 0
 fi
 
+if command -v gh >/dev/null 2>&1; then
+  if [[ -n "${GITHUB_TOKEN:-}" && -z "${GH_TOKEN:-}" ]]; then
+    export GH_TOKEN="${GITHUB_TOKEN}"
+  fi
+  gh_out_file="$(mktemp)"
+  gh_err_file="$(mktemp)"
+  set +e
+  eval "${gh_apply_cmd}" >"${gh_out_file}" 2>"${gh_err_file}"
+  gh_rc=$?
+  set -e
+  if [[ "${gh_rc}" == "0" ]]; then
+    echo "[github-required-checks] success via gh api"
+    exit 0
+  fi
+  echo "[github-required-checks] failed via gh api, rc=${gh_rc}" >&2
+  cat "${gh_err_file}" >&2 || true
+  exit 1
+fi
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  echo "Missing GITHUB_TOKEN (required when --dry-run=0)" >&2
+  echo "Missing GITHUB_TOKEN (required when --dry-run=0 and gh is unavailable)" >&2
   exit 1
 fi
 
