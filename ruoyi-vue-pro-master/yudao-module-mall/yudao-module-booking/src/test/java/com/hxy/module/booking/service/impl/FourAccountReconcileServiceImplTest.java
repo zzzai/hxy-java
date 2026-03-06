@@ -138,6 +138,29 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    void runReconcile_shouldDegradeWhenResolveTicketFails() {
+        LocalDate bizDate = LocalDate.of(2026, 3, 2);
+        when(queryMapper.selectTradeNetAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(9000);
+        when(queryMapper.selectFulfillmentAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(8500);
+        when(queryMapper.selectCommissionAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(2000);
+        when(queryMapper.selectSplitAmount(any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(300);
+        when(reconcileMapper.selectByBizDate(bizDate)).thenReturn(null);
+        when(reconcileMapper.insert(any(FourAccountReconcileDO.class))).thenAnswer(invocation -> {
+            FourAccountReconcileDO data = invocation.getArgument(0);
+            data.setId(3L);
+            return 1;
+        });
+        doThrow(new RuntimeException("trade resolve timeout"))
+                .when(tradeReviewTicketApi).resolveReviewTicketBySourceBizNo(any(TradeReviewTicketResolveReqDTO.class));
+
+        Long id = service.runReconcile(bizDate, "REFUND_NOTIFY_REPLAY", "SYSTEM");
+
+        assertEquals(3L, id);
+        verify(tradeReviewTicketApi).resolveReviewTicketBySourceBizNo(any(TradeReviewTicketResolveReqDTO.class));
+        verify(tradeReviewTicketApi, never()).upsertReviewTicket(any(TradeReviewTicketUpsertReqDTO.class));
+    }
+
+    @Test
     void getReconcilePage_shouldDelegateMapper() {
         FourAccountReconcilePageReqVO reqVO = new FourAccountReconcilePageReqVO();
         reqVO.setPageNo(1);

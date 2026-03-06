@@ -39,6 +39,18 @@ public class BookingRefundNotifyLogRespVO {
     @Schema(description = "下次重试时间")
     private LocalDateTime nextRetryTime;
 
+    @Schema(description = "最近重放操作人")
+    private String lastReplayOperator;
+
+    @Schema(description = "最近重放时间")
+    private LocalDateTime lastReplayTime;
+
+    @Schema(description = "最近重放结果", example = "SUCCESS")
+    private String lastReplayResult;
+
+    @Schema(description = "最近重放备注")
+    private String lastReplayRemark;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 

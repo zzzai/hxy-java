@@ -69,4 +69,24 @@ public class BookingRefundNotifyLogDO extends BaseDO {
      * 下次重试时间
      */
     private LocalDateTime nextRetryTime;
+
+    /**
+     * 最近重放操作人
+     */
+    private String lastReplayOperator;
+
+    /**
+     * 最近重放时间
+     */
+    private LocalDateTime lastReplayTime;
+
+    /**
+     * 最近重放结果：SUCCESS / SKIP / FAIL
+     */
+    private String lastReplayResult;
+
+    /**
+     * 最近重放备注
+     */
+    private String lastReplayRemark;
 }

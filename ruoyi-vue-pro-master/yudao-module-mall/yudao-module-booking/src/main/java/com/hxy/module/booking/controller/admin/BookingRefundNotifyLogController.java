@@ -5,6 +5,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
 import com.hxy.module.booking.service.BookingRefundNotifyLogService;
@@ -23,6 +24,7 @@ import javax.validation.Valid;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
 import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserNickname;
 
 @Tag(name = "管理后台 - booking退款回调台账")
 @RestController
@@ -44,8 +46,10 @@ public class BookingRefundNotifyLogController {
     @PostMapping("/replay")
     @Operation(summary = "重放失败退款回调台账")
     @PreAuthorize("@ss.hasPermission('booking:refund-notify-log:replay')")
-    public CommonResult<Boolean> replay(@Valid @RequestBody BookingRefundNotifyLogReplayReqVO reqVO) {
-        refundNotifyLogService.replayFailedLog(reqVO.getId(), getLoginUserId());
-        return success(true);
+    public CommonResult<BookingRefundNotifyLogReplayRespVO> replay(@Valid @RequestBody BookingRefundNotifyLogReplayReqVO reqVO) {
+        BookingRefundNotifyLogReplayRespVO respVO = refundNotifyLogService.replayFailedLogs(
+                reqVO.resolveReplayIds(), reqVO.dryRunEnabled(),
+                getLoginUserId(), getLoginUserNickname());
+        return success(respVO);
     }
 }

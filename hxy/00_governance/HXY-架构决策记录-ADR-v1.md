@@ -908,3 +908,18 @@
 - 备选方案：继续按窗口各自经验或临时口径执行。
 - 否决原因：难以保证跨窗口一致性，且会放大集成风险与回归成本。
 - 回滚条件：无（治理基线）；仅可在新增流程文档中细化，不应逆向放宽。
+
+## ADR-094：booking 退款回调补偿采用“批量重放 + dry-run 预演 + 自动重放审计”闭环
+
+- 背景：退款回调台账与人工 replay 已落地，但缺少批量预演能力、逐条结果回执和自动重放审计，运营批量补偿仍依赖手工串行执行，且缺少“谁在何时重放、结果如何”的结构化追溯。
+- 决策：
+  1) 管理端重放接口升级为批量模型：`POST /booking/refund-notify-log/replay` 支持 `id + ids` 混合入参（向后兼容），可选 `dryRun` 默认 `false`；
+  2) 重放响应统一结构：`successCount/skipCount/failCount + details[id,resultCode,resultMsg,payRefundId,orderId]`，单条失败不阻断整批；
+  3) 台账新增 `lastReplayOperator/lastReplayTime/lastReplayResult/lastReplayRemark`，无论实际重放还是 dry-run 预演都写审计轨迹；
+  4) 幂等口径固化：已成功台账重放返回 `SKIP`，失败台账重放成功后转 `success` 并更新 `retryCount`；
+  5) 新增自动补偿任务 `BookingRefundNotifyReplayJob`，扫描 `status=fail && nextRetryTime<=now` 执行批量重放，任务输出 `runId + 扫描/成功/跳过/失败` 可审计摘要；
+  6) 重放成功后触发四账刷新（按退款业务日），下游异常 fail-open，仅写 warning 审计备注，不回滚退款主链路。
+- 影响范围：booking 退款补偿运营效率、退款回调台账审计完备性、四账联动的一致性与可观测性。
+- 备选方案：保持单条 replay 并由运营脚本循环调用。
+- 否决原因：缺少原子批处理结果与统一审计字段，操作成本高且不可稳定复盘。
+- 回滚条件：若批量重放引发压力，可临时降级为 `dryRun=true` + 人工确认后分批执行；保留自动重放任务但下调 `limit`。
