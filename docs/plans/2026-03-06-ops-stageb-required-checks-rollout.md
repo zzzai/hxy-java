@@ -13,6 +13,7 @@
    - `ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh`
    - `ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh`
    - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh`
    - `.github/workflows/ops-stageb-p1-guard.yml`
 
 ## 2. 启用（Dry Run + Apply）
@@ -29,6 +30,7 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
 说明：
 - 未传 `--repo-owner/--repo-name` 时自动从 `git remote origin` 解析。
 - 会输出可审计信息：`gh_dry_run_cmd`、`gh_apply_cmd`、payload 文件路径。
+- 会输出运维辅助命令：`helper_setup_dry_run_cmd`、`helper_setup_apply_cmd`、`helper_rollback_cmd`。
 - 检查集会显示 profile：
   - `base-only`
   - `stagea-only`
@@ -76,6 +78,7 @@ bash ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh \
 说明：
 - 回滚脚本会保留基础 checks + stageA checks，仅移除 `hxy-ops-stageb-p1-guard / ops-stageb-p1-guard`。
 - 执行后会打印当前分支保护 required contexts 摘要。
+- 建议回滚后立即执行 dry-run 再对比 contexts，确认 StageB checks 已移除。
 
 ## 4. 常见错误与处理
 
@@ -121,6 +124,20 @@ gh api /repos/<owner>/<repo>/branches/main
 1. 安装 GitHub CLI 后重试；或
 2. 在 `setup_github_required_checks.sh --apply` 场景使用 `GITHUB_TOKEN` 走 `curl` 回退路径。
 
+### 4.5 StageB 本地门禁脚本报错（退款回调与四账审计）
+
+若 `check_booking_refund_notify_gate.sh` 返回 `BLOCK`，优先检查以下锚点文件是否存在并包含预期片段：
+- `sql/mysql/hxy/2026-03-06-hxy-booking-order-refund-notify-audit.sql`
+- `ErrorCodeConstants` 中退款回调非法 ID / 幂等冲突错误码
+- `AppBookingOrderController` 中 `/booking/order/update-refunded`
+- `BookingOrderServiceImpl` 中退款回调幂等冲突分支
+
+可单独执行：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh
+```
+
 ## 5. 快速检查命令
 
 ```bash
@@ -136,6 +153,7 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run -
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
 - `BookingOrderServiceImplTest`（退款回调一致性）
+- `AppBookingOrderControllerTest`（退款回调入口与参数校验）
 
 执行命令：
 
@@ -146,7 +164,7 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-
 如需临时覆盖回归测试集合，可通过环境变量：
 
 ```bash
-REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
+REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,AppBookingOrderControllerTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
 ```
 
@@ -171,6 +189,6 @@ mvn -f ruoyi-vue-pro-master/pom.xml \
 CI 复现示例（与 workflow 一致的回归集合）：
 
 ```bash
-REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
+REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,AppBookingOrderControllerTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
 ```

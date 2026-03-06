@@ -5,6 +5,7 @@ on:
     branches: [ main, master ]
     paths:
       - "ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh"
+      - "ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_sku_stock_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_lifecycle_change_order_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh"
@@ -155,7 +156,7 @@ jobs:
             test_flag=""
           fi
 
-          regression_test_classes="ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest"
+          regression_test_classes="ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,AppBookingOrderControllerTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest"
 
           set +e
           RUN_ID="${run_id}" \
@@ -212,6 +213,7 @@ jobs:
             echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
             echo "| naming_guard_rc | $(kv "${summary_file}" naming_guard_rc) |"
             echo "| memory_guard_rc | $(kv "${summary_file}" memory_guard_rc) |"
+            echo "| booking_refund_notify_gate_rc | $(kv "${summary_file}" booking_refund_notify_gate_rc) |"
             echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
             echo "| store_lifecycle_change_order_gate_rc | $(kv "${summary_file}" store_lifecycle_change_order_gate_rc) |"
             echo "| tests_rc | $(kv "${summary_file}" tests_rc) |"

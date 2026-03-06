@@ -292,6 +292,11 @@ echo "[github-required-checks] enforce_admins=${ENFORCE_ADMINS}"
 echo "[github-required-checks] include_stagea_checks=${INCLUDE_STAGEA_CHECKS}"
 echo "[github-required-checks] include_ops_stageb_checks=${INCLUDE_OPS_STAGEB_CHECKS}"
 echo "[github-required-checks] enable_ops_stageb_p1=${ENABLE_OPS_STAGEB_P1}"
+if [[ "${DRY_RUN}" == "1" ]]; then
+  echo "[github-required-checks] mode=dry-run"
+else
+  echo "[github-required-checks] mode=apply"
+fi
 if [[ "${INCLUDE_STAGEA_CHECKS}" == "1" && "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
   echo "[github-required-checks] profile=stagea+stageb"
 elif [[ "${INCLUDE_STAGEA_CHECKS}" == "1" ]]; then
@@ -301,6 +306,9 @@ elif [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
 else
   echo "[github-required-checks] profile=base-only"
 fi
+if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
+  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,four-account-audit-regression"
+fi
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
   echo "[github-required-checks] context=${ctx}"
@@ -309,6 +317,9 @@ echo "[github-required-checks] api_url=${api_url}"
 echo "[github-required-checks] payload_cmd_file=${payload_cmd_file}"
 echo "[github-required-checks] gh_dry_run_cmd=${gh_dry_run_cmd}"
 echo "[github-required-checks] gh_apply_cmd=${gh_apply_cmd}"
+echo "[github-required-checks] helper_setup_dry_run_cmd=bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --repo-owner ${OWNER} --repo-name ${REPO} --branch ${BRANCH} --include-stagea-checks ${INCLUDE_STAGEA_CHECKS} --include-ops-stageb-checks ${INCLUDE_OPS_STAGEB_CHECKS} --dry-run 1"
+echo "[github-required-checks] helper_setup_apply_cmd=bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --repo-owner ${OWNER} --repo-name ${REPO} --branch ${BRANCH} --include-stagea-checks ${INCLUDE_STAGEA_CHECKS} --include-ops-stageb-checks ${INCLUDE_OPS_STAGEB_CHECKS} --apply"
+echo "[github-required-checks] helper_rollback_cmd=bash ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh --repo-owner ${OWNER} --repo-name ${REPO} --branch ${BRANCH}"
 
 if [[ "${DRY_RUN}" == "1" ]]; then
   echo "[github-required-checks] dry-run=1 (skip request)"
