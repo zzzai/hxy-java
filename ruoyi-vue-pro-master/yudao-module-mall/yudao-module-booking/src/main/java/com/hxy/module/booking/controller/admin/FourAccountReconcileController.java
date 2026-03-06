@@ -11,6 +11,8 @@ import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -105,6 +107,14 @@ public class FourAccountReconcileController {
     public CommonResult<PageResult<FourAccountRefundCommissionAuditRespVO>> refundCommissionAuditPage(
             @Valid FourAccountRefundCommissionAuditPageReqVO reqVO) {
         return success(reconcileService.getRefundCommissionAuditPage(reqVO));
+    }
+
+    @PostMapping("/refund-commission-audit/sync-tickets")
+    @Operation(summary = "退款-提成巡检异常同步统一工单")
+    @PreAuthorize("@ss.hasPermission('booking:commission:settlement')")
+    public CommonResult<FourAccountRefundCommissionAuditSyncRespVO> syncRefundCommissionAuditTickets(
+            @Valid @RequestBody FourAccountRefundCommissionAuditSyncReqVO reqVO) {
+        return success(reconcileService.syncRefundCommissionAuditTickets(reqVO));
     }
 
     private String resolveOperator() {

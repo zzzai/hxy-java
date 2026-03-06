@@ -11,6 +11,8 @@ import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileRunReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditRespVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncReqVO;
+import com.hxy.module.booking.controller.admin.vo.FourAccountRefundCommissionAuditSyncRespVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryReqVO;
 import com.hxy.module.booking.controller.admin.vo.FourAccountReconcileSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.FourAccountReconcileDO;
@@ -201,5 +203,25 @@ class FourAccountReconcileControllerTest extends BaseMockitoUnitTest {
         assertEquals(99L, result.getData().getList().get(0).getOrderId());
         assertEquals("REFUND_WITHOUT_REVERSAL", result.getData().getList().get(0).getMismatchType());
         verify(reconcileService).getRefundCommissionAuditPage(eq(reqVO));
+    }
+
+    @Test
+    void syncRefundCommissionAuditTickets_shouldDelegateService() {
+        FourAccountRefundCommissionAuditSyncReqVO reqVO = new FourAccountRefundCommissionAuditSyncReqVO();
+        reqVO.setLimit(20);
+        FourAccountRefundCommissionAuditSyncRespVO respVO = new FourAccountRefundCommissionAuditSyncRespVO();
+        respVO.setTotalMismatchCount(12);
+        respVO.setAttemptedCount(12);
+        respVO.setSuccessCount(11);
+        respVO.setFailedCount(1);
+        when(reconcileService.syncRefundCommissionAuditTickets(eq(reqVO))).thenReturn(respVO);
+
+        CommonResult<FourAccountRefundCommissionAuditSyncRespVO> result =
+                controller.syncRefundCommissionAuditTickets(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(12, result.getData().getTotalMismatchCount());
+        assertEquals(11, result.getData().getSuccessCount());
+        verify(reconcileService).syncRefundCommissionAuditTickets(eq(reqVO));
     }
 }
