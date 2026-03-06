@@ -18,6 +18,12 @@
           <el-option :value="20" label="告警" />
         </el-select>
       </el-form-item>
+      <el-form-item label="工单关联" prop="relatedTicketLinked">
+        <el-select v-model="relatedTicketLinked" class="!w-140px" clearable placeholder="全部">
+          <el-option :value="true" label="已关联" />
+          <el-option :value="false" label="未关联" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="来源" prop="source">
         <el-select v-model="queryParams.source" class="!w-160px" clearable placeholder="请选择来源">
           <el-option label="JOB_DAILY" value="JOB_DAILY" />
@@ -65,29 +71,45 @@
       type="warning"
       class="mb-12px"
     />
+    <div class="mb-10px flex items-center gap-8px">
+      <span class="text-13px text-[var(--el-text-color-secondary)]">四账汇总</span>
+      <el-tag v-if="summaryData.ticketSummaryDegraded" type="warning">ticket summary degraded</el-tag>
+    </div>
     <el-row v-loading="summaryLoading" :gutter="12">
-      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
         <el-card shadow="never">
           <div class="text-12px text-[var(--el-text-color-secondary)]">总笔数</div>
           <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.totalCount) }}</div>
         </el-card>
       </el-col>
-      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
         <el-card shadow="never">
-          <div class="text-12px text-[var(--el-text-color-secondary)]">PASS / WARN</div>
-          <div class="mt-8px text-20px font-600">{{ summaryPassWarnText }}</div>
+          <div class="text-12px text-[var(--el-text-color-secondary)]">通过数（PASS）</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.passCount) }}</div>
         </el-card>
       </el-col>
-      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
         <el-card shadow="never">
-          <div class="text-12px text-[var(--el-text-color-secondary)]">差异金额(元)</div>
-          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(summaryData.diffAmount) }}</div>
+          <div class="text-12px text-[var(--el-text-color-secondary)]">告警数（WARN）</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.warnCount) }}</div>
         </el-card>
       </el-col>
-      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">tradeMinusFulfillmentSum(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(summaryData.tradeMinusFulfillmentSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">tradeMinusCommissionSplitSum(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(summaryData.tradeMinusCommissionSplitSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
         <el-card shadow="never">
           <div class="text-12px text-[var(--el-text-color-secondary)]">未收口工单数</div>
-          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.openTicketCount) }}</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.unresolvedTicketCount) }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -347,9 +369,12 @@ const summaryData = ref<FourAccountReconcileApi.FourAccountReconcileSummaryVO>({
   totalCount: undefined,
   passCount: undefined,
   warnCount: undefined,
-  diffAmount: undefined,
-  openTicketCount: undefined
+  tradeMinusFulfillmentSum: undefined,
+  tradeMinusCommissionSplitSum: undefined,
+  unresolvedTicketCount: undefined,
+  ticketSummaryDegraded: false
 })
+const relatedTicketLinked = ref<boolean>()
 
 const queryParams = reactive<FourAccountReconcileApi.FourAccountReconcilePageReq>({
   pageNo: 1,
@@ -370,8 +395,10 @@ const createEmptySummaryData = (): FourAccountReconcileApi.FourAccountReconcileS
     totalCount: undefined,
     passCount: undefined,
     warnCount: undefined,
-    diffAmount: undefined,
-    openTicketCount: undefined
+    tradeMinusFulfillmentSum: undefined,
+    tradeMinusCommissionSplitSum: undefined,
+    unresolvedTicketCount: undefined,
+    ticketSummaryDegraded: false
   }
 }
 
@@ -455,10 +482,6 @@ const ticketSeverityTagType = (severity?: string) => {
   if (normalized === 'P2') return 'info'
   return ''
 }
-
-const summaryPassWarnText = computed(() => {
-  return `${countOrDash(summaryData.value.passCount)} / ${countOrDash(summaryData.value.warnCount)}`
-})
 
 const diffTagType = (amount?: number) => {
   if (!isValidNumber(amount)) return 'info'
@@ -579,29 +602,34 @@ const buildSummaryReq = (): FourAccountReconcileApi.FourAccountReconcileSummaryR
   return {
     bizDate: queryParams.bizDate,
     status: queryParams.status,
-    source: queryParams.source,
-    issueCode: queryParams.issueCode
+    relatedTicketLinked: relatedTicketLinked.value
   }
 }
 
-const calculateFallbackDiffAmount = (rows: FourAccountReconcileApi.FourAccountReconcileVO[]) => {
+const calculateFallbackTradeMinusFulfillmentSum = (rows: FourAccountReconcileApi.FourAccountReconcileVO[]) => {
   return rows.reduce((totalAmount, row) => {
-    const left = parseNumber(row.tradeMinusFulfillment) || 0
-    const right = parseNumber(row.tradeMinusCommissionSplit) || 0
-    return totalAmount + Math.max(Math.abs(left), Math.abs(right))
+    return totalAmount + (parseNumber(row.tradeMinusFulfillment) || 0)
+  }, 0)
+}
+
+const calculateFallbackTradeMinusCommissionSplitSum = (rows: FourAccountReconcileApi.FourAccountReconcileVO[]) => {
+  return rows.reduce((totalAmount, row) => {
+    return totalAmount + (parseNumber(row.tradeMinusCommissionSplit) || 0)
   }, 0)
 }
 
 const calculateFallbackSummary = () => {
   const passCount = list.value.filter((item) => item.status === 10).length
   const warnCount = list.value.filter((item) => item.status === 20).length
-  const openTicketCount = list.value.filter((item) => item.relatedTicketId && item.relatedTicketStatus !== 20).length
+  const unresolvedTicketCount = list.value.filter((item) => item.relatedTicketId && item.relatedTicketStatus !== 20).length
   return {
     totalCount: total.value,
     passCount,
     warnCount,
-    diffAmount: calculateFallbackDiffAmount(list.value),
-    openTicketCount
+    tradeMinusFulfillmentSum: calculateFallbackTradeMinusFulfillmentSum(list.value),
+    tradeMinusCommissionSplitSum: calculateFallbackTradeMinusCommissionSplitSum(list.value),
+    unresolvedTicketCount,
+    ticketSummaryDegraded: true
   } as FourAccountReconcileApi.FourAccountReconcileSummaryVO
 }
 
@@ -619,7 +647,7 @@ const loadSummary = async () => {
     summaryData.value = calculateFallbackSummary()
     summaryFallback.value = true
     const msg = String(error?.msg || '').toLowerCase()
-    summaryFallbackReason.value = msg.includes('404')
+    summaryFallbackReason.value = msg.includes('404') || msg.includes('not found')
       ? 'summary 接口未就绪，当前展示列表近似统计。'
       : 'summary 查询失败，当前展示列表近似统计。'
   } finally {
@@ -657,6 +685,7 @@ const resetQuery = () => {
   queryParams.pageSize = 10
   queryParams.bizDate = undefined
   queryParams.status = undefined
+  relatedTicketLinked.value = undefined
   queryParams.source = undefined
   queryParams.issueCode = undefined
   getList()

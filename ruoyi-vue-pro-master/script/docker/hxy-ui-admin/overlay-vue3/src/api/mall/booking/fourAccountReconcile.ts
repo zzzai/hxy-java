@@ -60,16 +60,17 @@ export interface FourAccountReconcileRunReq {
 export interface FourAccountReconcileSummaryReq {
   bizDate?: string[]
   status?: number
-  source?: string
-  issueCode?: string
+  relatedTicketLinked?: boolean
 }
 
 export interface FourAccountReconcileSummaryVO {
   totalCount?: number
   passCount?: number
   warnCount?: number
-  diffAmount?: number
-  openTicketCount?: number
+  tradeMinusFulfillmentSum?: number
+  tradeMinusCommissionSplitSum?: number
+  unresolvedTicketCount?: number
+  ticketSummaryDegraded?: boolean
 }
 
 export const getFourAccountReconcilePage = (params: FourAccountReconcilePageReq) => {

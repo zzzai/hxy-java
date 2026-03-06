@@ -69,22 +69,7 @@ SET name = '库存调整单审批',
 WHERE id = @stock_adjust_menu_id
   AND deleted = 0;
 
-INSERT INTO system_menu (name, permission, type, sort, parent_id, path, icon, component, component_name,
-                         status, visible, keep_alive, always_show, creator, updater, deleted)
-SELECT seed.name, seed.permission, 3, seed.sort, @stock_adjust_menu_id, '', '', '', '',
-       0, b'1', b'1', b'1', '1', '1', b'0'
-FROM (
-         SELECT '库存调整单查询' AS name, 'product:store-sku:query' AS permission, 1 AS sort
-         UNION ALL
-         SELECT '库存调整单操作', 'product:store-sku:update', 2
-     ) seed
-WHERE @stock_adjust_menu_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM system_menu sm
-    WHERE sm.parent_id = @stock_adjust_menu_id
-      AND sm.permission = seed.permission
-      AND sm.deleted = 0
-);
+-- 库存调整单复用既有 product:store-sku:query / product:store-sku:update 权限，不重复创建按钮权限菜单
 
 INSERT INTO system_menu (name, permission, type, sort, parent_id, path, icon, component, component_name,
                          status, visible, keep_alive, always_show, creator, updater, deleted)
@@ -139,22 +124,7 @@ SET name = '跨店调拨审批',
 WHERE id = @transfer_menu_id
   AND deleted = 0;
 
-INSERT INTO system_menu (name, permission, type, sort, parent_id, path, icon, component, component_name,
-                         status, visible, keep_alive, always_show, creator, updater, deleted)
-SELECT seed.name, seed.permission, 3, seed.sort, @transfer_menu_id, '', '', '', '',
-       0, b'1', b'1', b'1', '1', '1', b'0'
-FROM (
-         SELECT '调拨单查询' AS name, 'product:store-sku:query' AS permission, 1 AS sort
-         UNION ALL
-         SELECT '调拨单操作', 'product:store-sku:update', 2
-     ) seed
-WHERE @transfer_menu_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM system_menu sm
-    WHERE sm.parent_id = @transfer_menu_id
-      AND sm.permission = seed.permission
-      AND sm.deleted = 0
-);
+-- 跨店调拨单复用既有 product:store-sku:query / product:store-sku:update 权限，不重复创建按钮权限菜单
 
 INSERT INTO system_role_menu (role_id, menu_id, creator, updater, deleted, tenant_id)
 SELECT role_seed.role_id, menu_seed.menu_id, '1', '1', b'0', @tenant_id
@@ -174,26 +144,6 @@ WHERE NOT EXISTS (
     FROM system_role_menu srm
     WHERE srm.role_id = role_seed.role_id
       AND srm.menu_id = menu_seed.menu_id
-      AND srm.tenant_id = @tenant_id
-      AND srm.deleted = 0
-);
-
-INSERT INTO system_role_menu (role_id, menu_id, creator, updater, deleted, tenant_id)
-SELECT role_seed.role_id, menu_seed.id, '1', '1', b'0', @tenant_id
-FROM (
-         SELECT @admin_role_id AS role_id
-         UNION ALL
-         SELECT @operator_role_id
-     ) role_seed
-         JOIN system_menu menu_seed
-              ON menu_seed.parent_id IN (@stock_adjust_menu_id, @transfer_menu_id)
-                  AND menu_seed.type = 3
-                  AND menu_seed.deleted = 0
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM system_role_menu srm
-    WHERE srm.role_id = role_seed.role_id
-      AND srm.menu_id = menu_seed.id
       AND srm.tenant_id = @tenant_id
       AND srm.deleted = 0
 );

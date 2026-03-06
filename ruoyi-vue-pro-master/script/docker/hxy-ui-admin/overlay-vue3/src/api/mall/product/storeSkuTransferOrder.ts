@@ -5,11 +5,10 @@ export type StoreSkuTransferOrderStatus = 0 | 10 | 20 | 30 | 40 | number
 export interface StoreSkuTransferOrderItem {
   id: number
   orderNo?: string
-  outStoreId?: number
-  outStoreName?: string
-  inStoreId?: number
-  inStoreName?: string
-  bizType?: string
+  fromStoreId?: number
+  fromStoreName?: string
+  toStoreId?: number
+  toStoreName?: string
   reason?: string
   remark?: string
   status?: StoreSkuTransferOrderStatus
@@ -27,28 +26,41 @@ export interface StoreSkuTransferOrderItem {
 
 export interface StoreSkuTransferOrderDetailItem {
   skuId?: number
-  transferCount?: number
-  outSkuId?: number
-  inSkuId?: number
-  incrCount?: number
+  quantity?: number
 }
 
 export interface StoreSkuTransferOrderPageReq extends PageParam {
   orderNo?: string
-  outStoreId?: number
-  inStoreId?: number
-  skuId?: number
+  fromStoreId?: number
+  toStoreId?: number
   status?: StoreSkuTransferOrderStatus
-  bizType?: string
   applyOperator?: string
   lastActionCode?: string
   lastActionOperator?: string
   createTime?: string[]
 }
 
+export interface StoreSkuTransferOrderCreateItem {
+  skuId: number
+  quantity: number
+}
+
+export interface StoreSkuTransferOrderCreateReq {
+  fromStoreId: number
+  toStoreId: number
+  reason: string
+  remark?: string
+  applySource?: string
+  items: StoreSkuTransferOrderCreateItem[]
+}
+
 export interface StoreSkuTransferOrderActionReq {
   id: number
   remark?: string
+}
+
+export const createStoreSkuTransferOrder = (data: StoreSkuTransferOrderCreateReq) => {
+  return request.post<number>({ url: '/product/store-sku/transfer-order/create', data })
 }
 
 export const getStoreSkuTransferOrderPage = (params: StoreSkuTransferOrderPageReq) => {

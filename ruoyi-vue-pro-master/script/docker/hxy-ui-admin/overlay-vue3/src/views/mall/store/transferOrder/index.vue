@@ -1,6 +1,6 @@
 <template>
   <ContentWrap>
-    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="104px">
+    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="116px">
       <el-form-item label="调拨单号" prop="orderNo">
         <el-input
           v-model="queryParams.orderNo"
@@ -10,35 +10,26 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="调出门店ID" prop="outStoreId">
+      <el-form-item label="源门店ID" prop="fromStoreId">
         <el-input-number
-          v-model="queryParams.outStoreId"
+          v-model="queryParams.fromStoreId"
           :controls="false"
           :min="1"
-          class="!w-170px"
-          placeholder="请输入调出门店ID"
+          class="!w-180px"
+          placeholder="请输入源门店ID"
         />
       </el-form-item>
-      <el-form-item label="调入门店ID" prop="inStoreId">
+      <el-form-item label="目标门店ID" prop="toStoreId">
         <el-input-number
-          v-model="queryParams.inStoreId"
+          v-model="queryParams.toStoreId"
           :controls="false"
           :min="1"
-          class="!w-170px"
-          placeholder="请输入调入门店ID"
-        />
-      </el-form-item>
-      <el-form-item label="SKU ID" prop="skuId">
-        <el-input-number
-          v-model="queryParams.skuId"
-          :controls="false"
-          :min="1"
-          class="!w-160px"
-          placeholder="请输入SKU ID"
+          class="!w-180px"
+          placeholder="请输入目标门店ID"
         />
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" class="!w-150px" clearable placeholder="请选择状态">
+        <el-select v-model="queryParams.status" class="!w-170px" clearable placeholder="请选择状态">
           <el-option :value="0" label="草稿" />
           <el-option :value="10" label="待审批" />
           <el-option :value="20" label="已通过" />
@@ -46,21 +37,30 @@
           <el-option :value="40" label="已取消" />
         </el-select>
       </el-form-item>
-      <el-form-item label="业务类型" prop="bizType">
-        <el-input
-          v-model="queryParams.bizType"
-          class="!w-170px"
-          clearable
-          placeholder="例如 STORE_TRANSFER"
-          @keyup.enter="handleQuery"
-        />
-      </el-form-item>
       <el-form-item label="申请人" prop="applyOperator">
         <el-input
           v-model="queryParams.applyOperator"
-          class="!w-170px"
+          class="!w-180px"
           clearable
           placeholder="请输入申请人"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最近动作编码" prop="lastActionCode">
+        <el-input
+          v-model="queryParams.lastActionCode"
+          class="!w-190px"
+          clearable
+          placeholder="请输入动作编码"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最近动作人" prop="lastActionOperator">
+        <el-input
+          v-model="queryParams.lastActionOperator"
+          class="!w-180px"
+          clearable
+          placeholder="请输入动作人"
           @keyup.enter="handleQuery"
         />
       </el-form-item>
@@ -84,20 +84,15 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+        <el-button plain type="primary" @click="openCreateDialog">
+          <Icon class="mr-5px" icon="ep:plus" />
+          新建调拨单
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
 
   <ContentWrap>
-    <el-alert
-      v-if="!transferApiReady"
-      :closable="false"
-      :description="transferApiNotReadyReason || '当前环境未发布 transfer-order 接口，请等待窗口A联调完成。'"
-      title="调拨审批接口未就绪"
-      type="warning"
-      class="mb-12px"
-    />
-
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="88" />
       <el-table-column label="调拨单号" min-width="220" show-overflow-tooltip>
@@ -105,14 +100,9 @@
           {{ textOrDash(row.orderNo) }}
         </template>
       </el-table-column>
-      <el-table-column label="调拨方向" min-width="260" show-overflow-tooltip>
+      <el-table-column label="调拨方向" min-width="280" show-overflow-tooltip>
         <template #default="{ row }">
           {{ transferStoreDisplay(row) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="业务类型" min-width="150">
-        <template #default="{ row }">
-          {{ textOrDash(row.bizType) }}
         </template>
       </el-table-column>
       <el-table-column label="状态" width="110">
@@ -132,61 +122,30 @@
           {{ textOrDash(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="最近动作" min-width="230" show-overflow-tooltip>
+      <el-table-column label="最近动作" min-width="260" show-overflow-tooltip>
         <template #default="{ row }">
           {{ lastActionSummary(row) }}
         </template>
       </el-table-column>
-      <el-table-column align="center" fixed="right" label="操作" width="340">
+      <el-table-column align="center" fixed="right" label="操作" width="320">
         <template #default="{ row }">
-          <el-button
-            :disabled="!transferApiReady"
-            :title="!transferApiReady ? '接口未就绪' : ''"
-            link
-            type="primary"
-            @click="openDetailDrawer(row)"
-          >
-            查看详情
-          </el-button>
+          <el-button link type="primary" @click="openDetailDrawer(row)">查看详情</el-button>
           <el-button
             v-if="canSubmit(row.status)"
-            :disabled="!transferApiReady"
             :loading="isActionLoading(row.id, 'submit')"
-            :title="!transferApiReady ? '接口未就绪' : ''"
             link
             type="success"
             @click="handleSubmit(row)"
           >
             提交
           </el-button>
-          <el-button
-            v-if="canApprove(row.status)"
-            :disabled="!transferApiReady"
-            :title="!transferApiReady ? '接口未就绪' : ''"
-            link
-            type="success"
-            @click="openActionDialog(row, 'approve')"
-          >
+          <el-button v-if="canApprove(row.status)" link type="success" @click="openActionDialog(row, 'approve')">
             审批通过
           </el-button>
-          <el-button
-            v-if="canReject(row.status)"
-            :disabled="!transferApiReady"
-            :title="!transferApiReady ? '接口未就绪' : ''"
-            link
-            type="danger"
-            @click="openActionDialog(row, 'reject')"
-          >
+          <el-button v-if="canReject(row.status)" link type="danger" @click="openActionDialog(row, 'reject')">
             驳回
           </el-button>
-          <el-button
-            v-if="canCancel(row.status)"
-            :disabled="!transferApiReady"
-            :title="!transferApiReady ? '接口未就绪' : ''"
-            link
-            type="info"
-            @click="openActionDialog(row, 'cancel')"
-          >
+          <el-button v-if="canCancel(row.status)" link type="info" @click="openActionDialog(row, 'cancel')">
             取消
           </el-button>
         </template>
@@ -200,6 +159,63 @@
       @pagination="getList"
     />
   </ContentWrap>
+
+  <el-dialog v-model="createDialogVisible" title="新建跨店调拨单" width="760px">
+    <el-form :model="createForm" label-width="110px">
+      <el-row :gutter="12">
+        <el-col :span="12">
+          <el-form-item label="源门店ID" required>
+            <el-input-number v-model="createForm.fromStoreId" :controls="false" :min="1" class="!w-full" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="目标门店ID" required>
+            <el-input-number v-model="createForm.toStoreId" :controls="false" :min="1" class="!w-full" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-form-item label="原因" required>
+        <el-input v-model="createForm.reason" :rows="2" maxlength="255" show-word-limit type="textarea" />
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input v-model="createForm.remark" :rows="2" maxlength="255" show-word-limit type="textarea" />
+      </el-form-item>
+      <el-form-item label="来源">
+        <el-input v-model="createForm.applySource" maxlength="32" />
+      </el-form-item>
+      <el-form-item label="调拨明细" required>
+        <div class="w-full">
+          <div class="mb-8px flex items-center justify-between">
+            <div class="text-[var(--el-text-color-secondary)]">SKU ID + 调拨数量（正整数）</div>
+            <el-button link type="primary" @click="addCreateItem">新增一行</el-button>
+          </div>
+          <el-table :data="createForm.items" border>
+            <el-table-column label="SKU ID" min-width="220">
+              <template #default="{ row }">
+                <el-input-number v-model="row.skuId" :controls="false" :min="1" class="!w-full" />
+              </template>
+            </el-table-column>
+            <el-table-column label="调拨数量" min-width="220">
+              <template #default="{ row }">
+                <el-input-number v-model="row.quantity" :controls="false" :min="1" class="!w-full" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90" align="center">
+              <template #default="{ $index }">
+                <el-button :disabled="createForm.items.length <= 1" link type="danger" @click="removeCreateItem($index)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="createDialogVisible = false">取消</el-button>
+      <el-button :loading="createLoading" type="primary" @click="handleCreate">创建</el-button>
+    </template>
+  </el-dialog>
 
   <el-dialog v-model="actionDialogVisible" :title="actionDialogTitle" width="520px">
     <el-form :model="actionForm" label-width="110px">
@@ -219,9 +235,7 @@
     </el-form>
     <template #footer>
       <el-button @click="actionDialogVisible = false">取消</el-button>
-      <el-button :disabled="!transferApiReady" :loading="actionLoading" type="primary" @click="handleAction">
-        确认
-      </el-button>
+      <el-button :loading="actionLoading" type="primary" @click="handleAction">确认</el-button>
     </template>
   </el-dialog>
 
@@ -230,9 +244,8 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="ID">{{ numberOrDash(detailData.id) }}</el-descriptions-item>
         <el-descriptions-item label="调拨单号">{{ textOrDash(detailData.orderNo) }}</el-descriptions-item>
-        <el-descriptions-item label="调出门店">{{ storeDisplay(detailData.outStoreName, detailData.outStoreId) }}</el-descriptions-item>
-        <el-descriptions-item label="调入门店">{{ storeDisplay(detailData.inStoreName, detailData.inStoreId) }}</el-descriptions-item>
-        <el-descriptions-item label="业务类型">{{ textOrDash(detailData.bizType) }}</el-descriptions-item>
+        <el-descriptions-item label="源门店">{{ storeDisplay(detailData.fromStoreName, detailData.fromStoreId) }}</el-descriptions-item>
+        <el-descriptions-item label="目标门店">{{ storeDisplay(detailData.toStoreName, detailData.toStoreId) }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="statusTagType(detailData.status)">
             {{ statusText(detailData.status) }}
@@ -243,9 +256,9 @@
         <el-descriptions-item label="申请时间">{{ textOrDash(detailData.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ textOrDash(detailData.approveOperator) }}</el-descriptions-item>
         <el-descriptions-item label="审批时间">{{ textOrDash(detailData.approveTime) }}</el-descriptions-item>
-        <el-descriptions-item label="审批备注" :span="2">{{ textOrDash(detailData.approveRemark) }}</el-descriptions-item>
-        <el-descriptions-item label="原因" :span="2">{{ textOrDash(detailData.reason) }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ textOrDash(detailData.remark) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="审批备注">{{ textOrDash(detailData.approveRemark) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="原因">{{ textOrDash(detailData.reason) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="备注">{{ textOrDash(detailData.remark) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作编码">{{ textOrDash(detailData.lastActionCode) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作人">{{ textOrDash(detailData.lastActionOperator) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作时间">{{ textOrDash(detailData.lastActionTime) }}</el-descriptions-item>
@@ -256,24 +269,14 @@
         <el-alert v-if="detailParseFailed" :closable="false" title="明细解析失败（原文保留）" type="warning" />
         <el-empty v-else-if="!detailRows.length" description="无可用明细" />
         <el-table v-else :data="detailRows" border max-height="340">
-          <el-table-column label="SKU ID" min-width="150">
+          <el-table-column label="SKU ID" min-width="180">
             <template #default="{ row }">
               {{ numberOrDash(row.skuId) }}
             </template>
           </el-table-column>
-          <el-table-column label="调出SKU ID" min-width="150">
+          <el-table-column label="调拨数量" min-width="140">
             <template #default="{ row }">
-              {{ numberOrDash(row.outSkuId) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="调入SKU ID" min-width="150">
-            <template #default="{ row }">
-              {{ numberOrDash(row.inSkuId) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="调拨数量" min-width="120">
-            <template #default="{ row }">
-              {{ transferCountText(row) }}
+              {{ numberOrDash(row.quantity) }}
             </template>
           </el-table-column>
         </el-table>
@@ -298,20 +301,28 @@ const loading = ref(false)
 const total = ref(0)
 const list = ref<StoreSkuTransferOrderApi.StoreSkuTransferOrderItem[]>([])
 
-const transferApiReady = ref(true)
-const transferApiNotReadyReason = ref('')
-
 const queryParams = reactive<StoreSkuTransferOrderApi.StoreSkuTransferOrderPageReq>({
   pageNo: 1,
   pageSize: 10,
   orderNo: undefined,
-  outStoreId: undefined,
-  inStoreId: undefined,
-  skuId: undefined,
+  fromStoreId: undefined,
+  toStoreId: undefined,
   status: undefined,
-  bizType: undefined,
   applyOperator: undefined,
+  lastActionCode: undefined,
+  lastActionOperator: undefined,
   createTime: undefined
+})
+
+const createDialogVisible = ref(false)
+const createLoading = ref(false)
+const createForm = reactive<StoreSkuTransferOrderApi.StoreSkuTransferOrderCreateReq>({
+  fromStoreId: undefined as unknown as number,
+  toStoreId: undefined as unknown as number,
+  reason: '',
+  remark: '',
+  applySource: 'ADMIN_UI',
+  items: [{ skuId: undefined as unknown as number, quantity: undefined as unknown as number }]
 })
 
 const detailDrawerVisible = ref(false)
@@ -372,11 +383,6 @@ const numberOrDash = (value: any) => {
   return Number.isFinite(parsed) ? String(parsed) : EMPTY_TEXT
 }
 
-const parseStatus = (status: any): number | undefined => {
-  const parsed = Number(status)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
 const parseNumber = (value: any): number | undefined => {
   if (value === undefined || value === null || value === '') {
     return undefined
@@ -385,8 +391,9 @@ const parseNumber = (value: any): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-const normalizeText = (text?: string) => {
-  return String(text || '').trim()
+const parseStatus = (status: any): number | undefined => {
+  const parsed = Number(status)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 const statusText = (status?: number) => {
@@ -417,7 +424,7 @@ const storeDisplay = (name?: string, id?: number) => {
 }
 
 const transferStoreDisplay = (row: Partial<StoreSkuTransferOrderApi.StoreSkuTransferOrderItem>) => {
-  return `${storeDisplay(row.outStoreName, row.outStoreId)} → ${storeDisplay(row.inStoreName, row.inStoreId)}`
+  return `${storeDisplay(row.fromStoreName, row.fromStoreId)} → ${storeDisplay(row.toStoreName, row.toStoreId)}`
 }
 
 const lastActionSummary = (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderItem) => {
@@ -431,11 +438,8 @@ const lastActionSummary = (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderIt
 }
 
 const canSubmit = (status?: number) => parseStatus(status) === 0
-
 const canApprove = (status?: number) => parseStatus(status) === 10
-
 const canReject = (status?: number) => parseStatus(status) === 10
-
 const canCancel = (status?: number) => {
   const normalized = parseStatus(status)
   return normalized === 0 || normalized === 10
@@ -445,51 +449,27 @@ const isActionLoading = (id?: number, type?: ActionType) => {
   return rowActionLoadingId.value === id && rowActionLoadingType.value === type
 }
 
-const transferCountText = (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderDetailItem) => {
-  const transferCount = parseNumber(row.transferCount)
-  if (transferCount !== undefined) {
-    return String(transferCount)
+const resetCreateForm = () => {
+  createForm.fromStoreId = undefined as unknown as number
+  createForm.toStoreId = undefined as unknown as number
+  createForm.reason = ''
+  createForm.remark = ''
+  createForm.applySource = 'ADMIN_UI'
+  createForm.items = [{ skuId: undefined as unknown as number, quantity: undefined as unknown as number }]
+}
+
+const addCreateItem = () => {
+  createForm.items.push({ skuId: undefined as unknown as number, quantity: undefined as unknown as number })
+}
+
+const removeCreateItem = (index: number) => {
+  if (createForm.items.length <= 1) {
+    return
   }
-  const incrCount = parseNumber(row.incrCount)
-  if (incrCount !== undefined) {
-    return String(incrCount)
-  }
-  return EMPTY_TEXT
+  createForm.items.splice(index, 1)
 }
 
-const isApiNotReadyError = (error: any) => {
-  const text = `${error?.msg || ''} ${error?.message || ''}`.toLowerCase()
-  const code = Number(error?.code ?? error?.status)
-  if (code === 404) {
-    return true
-  }
-  return (
-    text.includes('transfer-order') &&
-    (text.includes('404') || text.includes('not found') || text.includes('不存在') || text.includes('未找到'))
-  )
-}
-
-const markTransferApiNotReady = (reason?: string) => {
-  transferApiReady.value = false
-  transferApiNotReadyReason.value = reason || '接口未就绪'
-}
-
-const clearTransferApiNotReady = () => {
-  transferApiReady.value = true
-  transferApiNotReadyReason.value = ''
-}
-
-const normalizeDetailRow = (item: Record<string, any>) => {
-  return {
-    skuId: parseNumber(item.skuId ?? item.storeSkuId ?? item.targetSkuId),
-    outSkuId: parseNumber(item.outSkuId ?? item.fromSkuId),
-    inSkuId: parseNumber(item.inSkuId ?? item.toSkuId),
-    transferCount: parseNumber(item.transferCount ?? item.count ?? item.qty),
-    incrCount: parseNumber(item.incrCount ?? item.delta)
-  }
-}
-
-const resolveDetailArray = (payload: any): Array<Record<string, any>> => {
+const normalizeDetailRows = (payload: any) => {
   if (Array.isArray(payload)) {
     return payload.filter((item) => item && typeof item === 'object')
   }
@@ -517,16 +497,20 @@ const parseDetailJson = (rawJson?: string) => {
   }
   try {
     const parsed = JSON.parse(raw)
-    detailRows.value = resolveDetailArray(parsed).map((item) => normalizeDetailRow(item))
+    detailRows.value = normalizeDetailRows(parsed).map((item: Record<string, any>) => ({
+      skuId: parseNumber(item.skuId),
+      quantity: parseNumber(item.quantity)
+    }))
   } catch {
     detailParseFailed.value = true
   }
 }
 
 const normalizeQuery = () => {
-  queryParams.orderNo = normalizeText(queryParams.orderNo) || undefined
-  queryParams.bizType = normalizeText(queryParams.bizType).toUpperCase() || undefined
-  queryParams.applyOperator = normalizeText(queryParams.applyOperator) || undefined
+  queryParams.orderNo = String(queryParams.orderNo || '').trim() || undefined
+  queryParams.applyOperator = String(queryParams.applyOperator || '').trim() || undefined
+  queryParams.lastActionCode = String(queryParams.lastActionCode || '').trim().toUpperCase() || undefined
+  queryParams.lastActionOperator = String(queryParams.lastActionOperator || '').trim() || undefined
 }
 
 const getList = async () => {
@@ -536,14 +520,9 @@ const getList = async () => {
     const data = await StoreSkuTransferOrderApi.getStoreSkuTransferOrderPage(queryParams)
     list.value = data.list || []
     total.value = data.total || 0
-    clearTransferApiNotReady()
   } catch (error: any) {
     list.value = []
     total.value = 0
-    if (isApiNotReadyError(error)) {
-      markTransferApiNotReady(error?.msg || '接口未就绪')
-      return
-    }
     message.error(error?.msg || '调拨单列表加载失败')
   } finally {
     loading.value = false
@@ -559,28 +538,72 @@ const resetQuery = async () => {
   queryParams.pageNo = 1
   queryParams.pageSize = 10
   queryParams.orderNo = undefined
-  queryParams.outStoreId = undefined
-  queryParams.inStoreId = undefined
-  queryParams.skuId = undefined
+  queryParams.fromStoreId = undefined
+  queryParams.toStoreId = undefined
   queryParams.status = undefined
-  queryParams.bizType = undefined
   queryParams.applyOperator = undefined
+  queryParams.lastActionCode = undefined
+  queryParams.lastActionOperator = undefined
   queryParams.createTime = undefined
   await getList()
 }
 
-const ensureTransferApiReady = () => {
-  if (transferApiReady.value) {
-    return true
+const openCreateDialog = () => {
+  resetCreateForm()
+  createDialogVisible.value = true
+}
+
+const handleCreate = async () => {
+  if (!createForm.fromStoreId) {
+    message.warning('请输入源门店ID')
+    return
   }
-  message.warning('调拨单接口未就绪，暂不可操作')
-  return false
+  if (!createForm.toStoreId) {
+    message.warning('请输入目标门店ID')
+    return
+  }
+  if (Number(createForm.fromStoreId) === Number(createForm.toStoreId)) {
+    message.warning('源门店与目标门店不能相同')
+    return
+  }
+  const reason = String(createForm.reason || '').trim()
+  if (!reason) {
+    message.warning('请输入原因')
+    return
+  }
+  const normalizedItems = (createForm.items || [])
+    .map((item) => ({ skuId: parseNumber(item.skuId), quantity: parseNumber(item.quantity) }))
+    .filter((item) => item.skuId !== undefined && item.quantity !== undefined)
+  if (!normalizedItems.length) {
+    message.warning('请至少填写一条有效明细')
+    return
+  }
+  if (normalizedItems.some((item) => (item.quantity || 0) <= 0)) {
+    message.warning('调拨数量必须大于 0')
+    return
+  }
+
+  createLoading.value = true
+  try {
+    const id = await StoreSkuTransferOrderApi.createStoreSkuTransferOrder({
+      fromStoreId: Number(createForm.fromStoreId),
+      toStoreId: Number(createForm.toStoreId),
+      reason,
+      remark: String(createForm.remark || '').trim() || undefined,
+      applySource: String(createForm.applySource || '').trim() || 'ADMIN_UI',
+      items: normalizedItems as StoreSkuTransferOrderApi.StoreSkuTransferOrderCreateItem[]
+    })
+    message.success(`调拨单创建成功，ID：${id || EMPTY_TEXT}`)
+    createDialogVisible.value = false
+    await getList()
+  } catch (error: any) {
+    message.error(error?.msg || '调拨单创建失败')
+  } finally {
+    createLoading.value = false
+  }
 }
 
 const openDetailDrawer = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderItem) => {
-  if (!ensureTransferApiReady()) {
-    return
-  }
   detailDrawerVisible.value = true
   detailLoading.value = true
   detailData.value = {}
@@ -590,23 +613,16 @@ const openDetailDrawer = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOr
     const data = await StoreSkuTransferOrderApi.getStoreSkuTransferOrder(row.id)
     detailData.value = data || {}
     parseDetailJson(data?.detailJson)
-    clearTransferApiNotReady()
   } catch (error: any) {
-    if (isApiNotReadyError(error)) {
-      markTransferApiNotReady(error?.msg || '接口未就绪')
-      detailDrawerVisible.value = false
-      return
-    }
     detailData.value = {
       id: row.id,
       orderNo: row.orderNo,
-      outStoreId: row.outStoreId,
-      outStoreName: row.outStoreName,
-      inStoreId: row.inStoreId,
-      inStoreName: row.inStoreName,
+      fromStoreId: row.fromStoreId,
+      fromStoreName: row.fromStoreName,
+      toStoreId: row.toStoreId,
+      toStoreName: row.toStoreName,
       status: row.status
     }
-    parseDetailJson(undefined)
     message.error(error?.msg || '调拨单详情加载失败')
   } finally {
     detailLoading.value = false
@@ -614,9 +630,6 @@ const openDetailDrawer = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOr
 }
 
 const handleSubmit = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderItem) => {
-  if (!ensureTransferApiReady()) {
-    return
-  }
   if (!row?.id) {
     message.warning('调拨单ID为空，无法提交')
     return
@@ -631,14 +644,9 @@ const handleSubmit = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderI
   rowActionLoadingType.value = 'submit'
   try {
     await StoreSkuTransferOrderApi.submitStoreSkuTransferOrder({ id: row.id })
-    clearTransferApiNotReady()
     message.success('调拨单提交成功')
     await getList()
   } catch (error: any) {
-    if (isApiNotReadyError(error)) {
-      markTransferApiNotReady(error?.msg || '接口未就绪')
-      return
-    }
     message.error(error?.msg || '调拨单提交失败，请稍后重试')
   } finally {
     rowActionLoadingId.value = undefined
@@ -647,9 +655,6 @@ const handleSubmit = async (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderI
 }
 
 const openActionDialog = (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderItem, type: ActionType) => {
-  if (!ensureTransferApiReady()) {
-    return
-  }
   actionType.value = type
   actionTarget.value = row
   actionForm.remark = ''
@@ -657,15 +662,12 @@ const openActionDialog = (row: StoreSkuTransferOrderApi.StoreSkuTransferOrderIte
 }
 
 const handleAction = async () => {
-  if (!ensureTransferApiReady()) {
-    return
-  }
   const target = actionTarget.value
   if (!target?.id) {
     message.warning('调拨单ID为空，无法执行操作')
     return
   }
-  const remark = normalizeText(actionForm.remark)
+  const remark = String(actionForm.remark || '').trim()
   if (actionType.value === 'reject' && !remark) {
     message.warning('请输入驳回原因')
     return
@@ -696,15 +698,10 @@ const handleAction = async () => {
     } else if (actionType.value === 'cancel') {
       await StoreSkuTransferOrderApi.cancelStoreSkuTransferOrder({ id: target.id, remark })
     }
-    clearTransferApiNotReady()
     message.success(`${actionName}成功`)
     actionDialogVisible.value = false
     await getList()
   } catch (error: any) {
-    if (isApiNotReadyError(error)) {
-      markTransferApiNotReady(error?.msg || '接口未就绪')
-      return
-    }
     message.error(error?.msg || `${actionName}失败，请稍后重试`)
   } finally {
     actionLoading.value = false

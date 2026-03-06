@@ -31,7 +31,6 @@ export interface StoreSkuStockAdjustOrderDetailItem {
 export interface StoreSkuStockAdjustOrderPageReq extends PageParam {
   orderNo?: string
   storeId?: number
-  skuId?: number
   status?: StoreSkuStockAdjustOrderStatus
   bizType?: string
   applyOperator?: string
@@ -40,9 +39,27 @@ export interface StoreSkuStockAdjustOrderPageReq extends PageParam {
   createTime?: string[]
 }
 
+export interface StoreSkuStockAdjustOrderCreateItem {
+  skuId: number
+  incrCount: number
+}
+
+export interface StoreSkuStockAdjustOrderCreateReq {
+  storeId: number
+  bizType: string
+  reason: string
+  remark?: string
+  applySource?: string
+  items: StoreSkuStockAdjustOrderCreateItem[]
+}
+
 export interface StoreSkuStockAdjustOrderActionReq {
   id: number
   remark?: string
+}
+
+export const createStoreSkuStockAdjustOrder = (data: StoreSkuStockAdjustOrderCreateReq) => {
+  return request.post<number>({ url: '/product/store-sku/stock-adjust-order/create', data })
 }
 
 export const getStoreSkuStockAdjustOrderPage = (params: StoreSkuStockAdjustOrderPageReq) => {

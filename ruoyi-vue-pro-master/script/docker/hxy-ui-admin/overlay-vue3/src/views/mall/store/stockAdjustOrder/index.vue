@@ -1,6 +1,6 @@
 <template>
   <ContentWrap>
-    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="100px">
+    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="110px">
       <el-form-item label="调整单号" prop="orderNo">
         <el-input
           v-model="queryParams.orderNo"
@@ -15,21 +15,12 @@
           v-model="queryParams.storeId"
           :controls="false"
           :min="1"
-          class="!w-170px"
+          class="!w-180px"
           placeholder="请输入门店ID"
         />
       </el-form-item>
-      <el-form-item label="SKU ID" prop="skuId">
-        <el-input-number
-          v-model="queryParams.skuId"
-          :controls="false"
-          :min="1"
-          class="!w-170px"
-          placeholder="请输入SKU ID"
-        />
-      </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" class="!w-160px" clearable placeholder="请选择状态">
+        <el-select v-model="queryParams.status" class="!w-170px" clearable placeholder="请选择状态">
           <el-option :value="0" label="草稿" />
           <el-option :value="10" label="待审批" />
           <el-option :value="20" label="已通过" />
@@ -38,16 +29,34 @@
         </el-select>
       </el-form-item>
       <el-form-item label="业务类型" prop="bizType">
-        <el-select v-model="queryParams.bizType" class="!w-190px" clearable placeholder="请选择业务类型">
+        <el-select v-model="queryParams.bizType" class="!w-210px" clearable placeholder="请选择业务类型">
           <el-option v-for="item in bizTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="申请人" prop="applyOperator">
         <el-input
           v-model="queryParams.applyOperator"
-          class="!w-170px"
+          class="!w-180px"
           clearable
           placeholder="请输入申请人"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最近动作编码" prop="lastActionCode">
+        <el-input
+          v-model="queryParams.lastActionCode"
+          class="!w-190px"
+          clearable
+          placeholder="请输入动作编码"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最近动作人" prop="lastActionOperator">
+        <el-input
+          v-model="queryParams.lastActionOperator"
+          class="!w-180px"
+          clearable
+          placeholder="请输入动作人"
           @keyup.enter="handleQuery"
         />
       </el-form-item>
@@ -71,6 +80,10 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+        <el-button plain type="primary" @click="openCreateDialog">
+          <Icon class="mr-5px" icon="ep:plus" />
+          新建调整单
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -78,7 +91,7 @@
   <ContentWrap>
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="88" />
-      <el-table-column label="调整单号" min-width="230" show-overflow-tooltip>
+      <el-table-column label="调整单号" min-width="240" show-overflow-tooltip>
         <template #default="{ row }">
           {{ textOrDash(row.orderNo) }}
         </template>
@@ -105,12 +118,12 @@
           {{ textOrDash(row.applyOperator) }}
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" min-width="180">
+      <el-table-column label="申请时间" width="180">
         <template #default="{ row }">
           {{ textOrDash(row.createTime) }}
         </template>
       </el-table-column>
-      <el-table-column label="最近动作" min-width="230" show-overflow-tooltip>
+      <el-table-column label="最近动作" min-width="260" show-overflow-tooltip>
         <template #default="{ row }">
           {{ lastActionSummary(row) }}
         </template>
@@ -147,6 +160,65 @@
       @pagination="getList"
     />
   </ContentWrap>
+
+  <el-dialog v-model="createDialogVisible" title="新建库存调整单" width="760px">
+    <el-form :model="createForm" label-width="110px">
+      <el-row :gutter="12">
+        <el-col :span="12">
+          <el-form-item label="门店ID" required>
+            <el-input-number v-model="createForm.storeId" :controls="false" :min="1" class="!w-full" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="业务类型" required>
+            <el-select v-model="createForm.bizType" class="!w-full" placeholder="请选择业务类型">
+              <el-option v-for="item in bizTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-form-item label="原因" required>
+        <el-input v-model="createForm.reason" :rows="2" maxlength="255" show-word-limit type="textarea" />
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input v-model="createForm.remark" :rows="2" maxlength="255" show-word-limit type="textarea" />
+      </el-form-item>
+      <el-form-item label="来源">
+        <el-input v-model="createForm.applySource" maxlength="32" />
+      </el-form-item>
+      <el-form-item label="调整明细" required>
+        <div class="w-full">
+          <div class="mb-8px flex items-center justify-between">
+            <div class="text-[var(--el-text-color-secondary)]">SKU ID + 库存变化值（正增负减，禁止 0）</div>
+            <el-button link type="primary" @click="addCreateItem">新增一行</el-button>
+          </div>
+          <el-table :data="createForm.items" border>
+            <el-table-column label="SKU ID" min-width="220">
+              <template #default="{ row }">
+                <el-input-number v-model="row.skuId" :controls="false" :min="1" class="!w-full" />
+              </template>
+            </el-table-column>
+            <el-table-column label="库存变化" min-width="220">
+              <template #default="{ row }">
+                <el-input-number v-model="row.incrCount" :controls="false" class="!w-full" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="90" align="center">
+              <template #default="{ $index }">
+                <el-button :disabled="createForm.items.length <= 1" link type="danger" @click="removeCreateItem($index)">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="createDialogVisible = false">取消</el-button>
+      <el-button :loading="createLoading" type="primary" @click="handleCreate">创建</el-button>
+    </template>
+  </el-dialog>
 
   <el-dialog v-model="actionDialogVisible" :title="actionDialogTitle" width="520px">
     <el-form :model="actionForm" label-width="110px">
@@ -187,9 +259,9 @@
         <el-descriptions-item label="申请时间">{{ textOrDash(detailData.createTime) }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ textOrDash(detailData.approveOperator) }}</el-descriptions-item>
         <el-descriptions-item label="审批时间">{{ textOrDash(detailData.approveTime) }}</el-descriptions-item>
-        <el-descriptions-item label="审批备注" :span="2">{{ textOrDash(detailData.approveRemark) }}</el-descriptions-item>
-        <el-descriptions-item label="原因" :span="2">{{ textOrDash(detailData.reason) }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ textOrDash(detailData.remark) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="审批备注">{{ textOrDash(detailData.approveRemark) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="原因">{{ textOrDash(detailData.reason) }}</el-descriptions-item>
+        <el-descriptions-item :span="2" label="备注">{{ textOrDash(detailData.remark) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作编码">{{ textOrDash(detailData.lastActionCode) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作人">{{ textOrDash(detailData.lastActionOperator) }}</el-descriptions-item>
         <el-descriptions-item label="最近动作时间">{{ textOrDash(detailData.lastActionTime) }}</el-descriptions-item>
@@ -237,11 +309,23 @@ const queryParams = reactive<StoreSkuStockAdjustOrderApi.StoreSkuStockAdjustOrde
   pageSize: 10,
   orderNo: undefined,
   storeId: undefined,
-  skuId: undefined,
   status: undefined,
   bizType: undefined,
   applyOperator: undefined,
+  lastActionCode: undefined,
+  lastActionOperator: undefined,
   createTime: undefined
+})
+
+const createDialogVisible = ref(false)
+const createLoading = ref(false)
+const createForm = reactive<StoreSkuStockAdjustOrderApi.StoreSkuStockAdjustOrderCreateReq>({
+  storeId: undefined as unknown as number,
+  bizType: '',
+  reason: '',
+  remark: '',
+  applySource: 'ADMIN_UI',
+  items: [{ skuId: undefined as unknown as number, incrCount: undefined as unknown as number }]
 })
 
 const detailDrawerVisible = ref(false)
@@ -311,11 +395,6 @@ const numberOrDash = (value: any) => {
   return Number.isFinite(parsed) ? String(parsed) : EMPTY_TEXT
 }
 
-const parseStatus = (status: any): number | undefined => {
-  const parsed = Number(status)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
 const parseNumber = (value: any): number | undefined => {
   if (value === undefined || value === null || value === '') {
     return undefined
@@ -326,6 +405,11 @@ const parseNumber = (value: any): number | undefined => {
 
 const normalizeBizType = (bizType?: string) => {
   return String(bizType || '').trim().toUpperCase()
+}
+
+const parseStatus = (status: any): number | undefined => {
+  const parsed = Number(status)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 const statusText = (status?: number) => {
@@ -375,11 +459,8 @@ const lastActionSummary = (row: StoreSkuStockAdjustOrderApi.StoreSkuStockAdjustO
 }
 
 const canSubmit = (status?: number) => parseStatus(status) === 0
-
 const canApprove = (status?: number) => parseStatus(status) === 10
-
 const canReject = (status?: number) => parseStatus(status) === 10
-
 const canCancel = (status?: number) => {
   const normalized = parseStatus(status)
   return normalized === 0 || normalized === 10
@@ -399,26 +480,33 @@ const incrText = (incrCount?: number) => {
 
 const incrTagType = (incrCount?: number) => {
   const normalized = parseNumber(incrCount)
-  if (normalized === undefined) {
-    return 'info'
-  }
-  if (normalized > 0) {
-    return 'success'
-  }
-  if (normalized < 0) {
-    return 'danger'
-  }
+  if (normalized === undefined) return 'info'
+  if (normalized > 0) return 'success'
+  if (normalized < 0) return 'danger'
   return 'warning'
 }
 
-const normalizeDetailRow = (item: Record<string, any>) => {
-  return {
-    skuId: parseNumber(item.skuId ?? item.storeSkuId ?? item.targetSkuId),
-    incrCount: parseNumber(item.incrCount ?? item.delta ?? item.changeCount ?? item.count)
-  }
+const resetCreateForm = () => {
+  createForm.storeId = undefined as unknown as number
+  createForm.bizType = ''
+  createForm.reason = ''
+  createForm.remark = ''
+  createForm.applySource = 'ADMIN_UI'
+  createForm.items = [{ skuId: undefined as unknown as number, incrCount: undefined as unknown as number }]
 }
 
-const resolveDetailArray = (payload: any): Array<Record<string, any>> => {
+const addCreateItem = () => {
+  createForm.items.push({ skuId: undefined as unknown as number, incrCount: undefined as unknown as number })
+}
+
+const removeCreateItem = (index: number) => {
+  if (createForm.items.length <= 1) {
+    return
+  }
+  createForm.items.splice(index, 1)
+}
+
+const normalizeDetailRows = (payload: any) => {
   if (Array.isArray(payload)) {
     return payload.filter((item) => item && typeof item === 'object')
   }
@@ -446,8 +534,10 @@ const parseDetailJson = (rawJson?: string) => {
   }
   try {
     const parsed = JSON.parse(raw)
-    const rows = resolveDetailArray(parsed).map((item) => normalizeDetailRow(item))
-    detailRows.value = rows
+    detailRows.value = normalizeDetailRows(parsed).map((item: Record<string, any>) => ({
+      skuId: parseNumber(item.skuId),
+      incrCount: parseNumber(item.incrCount)
+    }))
   } catch {
     detailParseFailed.value = true
   }
@@ -457,6 +547,8 @@ const normalizeQuery = () => {
   queryParams.orderNo = String(queryParams.orderNo || '').trim() || undefined
   queryParams.bizType = normalizeBizType(queryParams.bizType) || undefined
   queryParams.applyOperator = String(queryParams.applyOperator || '').trim() || undefined
+  queryParams.lastActionCode = String(queryParams.lastActionCode || '').trim().toUpperCase() || undefined
+  queryParams.lastActionOperator = String(queryParams.lastActionOperator || '').trim() || undefined
 }
 
 const getList = async () => {
@@ -485,12 +577,65 @@ const resetQuery = async () => {
   queryParams.pageSize = 10
   queryParams.orderNo = undefined
   queryParams.storeId = undefined
-  queryParams.skuId = undefined
   queryParams.status = undefined
   queryParams.bizType = undefined
   queryParams.applyOperator = undefined
+  queryParams.lastActionCode = undefined
+  queryParams.lastActionOperator = undefined
   queryParams.createTime = undefined
   await getList()
+}
+
+const openCreateDialog = () => {
+  resetCreateForm()
+  createDialogVisible.value = true
+}
+
+const handleCreate = async () => {
+  if (!createForm.storeId) {
+    message.warning('请输入门店ID')
+    return
+  }
+  const bizType = normalizeBizType(createForm.bizType)
+  if (!bizType) {
+    message.warning('请选择业务类型')
+    return
+  }
+  const reason = String(createForm.reason || '').trim()
+  if (!reason) {
+    message.warning('请输入原因')
+    return
+  }
+  const normalizedItems = (createForm.items || [])
+    .map((item) => ({ skuId: parseNumber(item.skuId), incrCount: parseNumber(item.incrCount) }))
+    .filter((item) => item.skuId !== undefined && item.incrCount !== undefined)
+  if (!normalizedItems.length) {
+    message.warning('请至少填写一条有效明细')
+    return
+  }
+  if (normalizedItems.some((item) => item.incrCount === 0)) {
+    message.warning('库存变化值不能为 0')
+    return
+  }
+
+  createLoading.value = true
+  try {
+    const id = await StoreSkuStockAdjustOrderApi.createStoreSkuStockAdjustOrder({
+      storeId: Number(createForm.storeId),
+      bizType,
+      reason,
+      remark: String(createForm.remark || '').trim() || undefined,
+      applySource: String(createForm.applySource || '').trim() || 'ADMIN_UI',
+      items: normalizedItems as StoreSkuStockAdjustOrderApi.StoreSkuStockAdjustOrderCreateItem[]
+    })
+    message.success(`调整单创建成功，ID：${id || EMPTY_TEXT}`)
+    createDialogVisible.value = false
+    await getList()
+  } catch (error: any) {
+    message.error(error?.msg || '调整单创建失败')
+  } finally {
+    createLoading.value = false
+  }
 }
 
 const openDetailDrawer = async (row: StoreSkuStockAdjustOrderApi.StoreSkuStockAdjustOrderItem) => {
@@ -509,11 +654,8 @@ const openDetailDrawer = async (row: StoreSkuStockAdjustOrderApi.StoreSkuStockAd
       orderNo: row.orderNo,
       storeId: row.storeId,
       storeName: row.storeName,
-      status: row.status,
-      bizType: row.bizType,
-      applyOperator: row.applyOperator
+      status: row.status
     }
-    parseDetailJson(undefined)
     message.error(error?.msg || '库存调整单详情加载失败')
   } finally {
     detailLoading.value = false
