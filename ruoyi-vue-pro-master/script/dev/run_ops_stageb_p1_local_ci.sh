@@ -25,6 +25,7 @@ RUN_NAMING_GUARD="${RUN_NAMING_GUARD:-1}"
 RUN_MEMORY_GUARD="${RUN_MEMORY_GUARD:-1}"
 RUN_BOOKING_REFUND_NOTIFY_GATE="${RUN_BOOKING_REFUND_NOTIFY_GATE:-1}"
 RUN_BOOKING_REFUND_AUDIT_GATE="${RUN_BOOKING_REFUND_AUDIT_GATE:-1}"
+RUN_BOOKING_REFUND_REPLAY_V2_GATE="${RUN_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
 RUN_STORE_SKU_STOCK_GATE="${RUN_STORE_SKU_STOCK_GATE:-1}"
 RUN_STORE_LIFECYCLE_GATE="${RUN_STORE_LIFECYCLE_GATE:-1}"
 RUN_TESTS="${RUN_TESTS:-1}"
@@ -34,6 +35,7 @@ REQUIRE_NAMING_GUARD="${REQUIRE_NAMING_GUARD:-1}"
 REQUIRE_MEMORY_GUARD="${REQUIRE_MEMORY_GUARD:-1}"
 REQUIRE_BOOKING_REFUND_NOTIFY_GATE="${REQUIRE_BOOKING_REFUND_NOTIFY_GATE:-1}"
 REQUIRE_BOOKING_REFUND_AUDIT_GATE="${REQUIRE_BOOKING_REFUND_AUDIT_GATE:-1}"
+REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
 REQUIRE_STORE_SKU_STOCK_GATE="${REQUIRE_STORE_SKU_STOCK_GATE:-0}"
 REQUIRE_STORE_LIFECYCLE_GATE="${REQUIRE_STORE_LIFECYCLE_GATE:-0}"
 
@@ -68,6 +70,7 @@ Options:
   --skip-memory-guard                        跳过记忆门禁
   --skip-booking-refund-notify-gate          跳过 booking 退款回调门禁
   --skip-booking-refund-audit-gate           skip booking refund audit summary gate
+  --skip-booking-refund-replay-v2-gate       skip booking refund replay v2 gate
   --skip-stock-gate                          跳过库存门禁
   --skip-lifecycle-gate                      跳过生命周期审批门禁
   --skip-tests                               跳过回归测试（product/trade/booking）
@@ -77,6 +80,7 @@ Options:
   --require-memory-guard <0|1>               记忆门禁失败是否阻断（默认 1）
   --require-booking-refund-notify-gate <0|1> booking 退款回调门禁失败是否阻断（默认 1）
   --require-booking-refund-audit-gate <0|1>  block on booking refund audit summary gate failure (default 1)
+  --require-booking-refund-replay-v2-gate <0|1> block on booking refund replay v2 gate failure (default 1)
   --require-store-sku-stock-gate <0|1>       库存门禁失败是否阻断（默认 0）
   --require-store-lifecycle-gate <0|1>       生命周期门禁失败是否阻断（默认 0）
 
@@ -152,6 +156,10 @@ while [[ $# -gt 0 ]]; do
       RUN_BOOKING_REFUND_AUDIT_GATE=0
       shift
       ;;
+    --skip-booking-refund-replay-v2-gate)
+      RUN_BOOKING_REFUND_REPLAY_V2_GATE=0
+      shift
+      ;;
     --skip-stock-gate)
       RUN_STORE_SKU_STOCK_GATE=0
       shift
@@ -182,6 +190,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-booking-refund-audit-gate)
       REQUIRE_BOOKING_REFUND_AUDIT_GATE="$2"
+      shift 2
+      ;;
+    --require-booking-refund-replay-v2-gate)
+      REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="$2"
       shift 2
       ;;
     --require-store-sku-stock-gate)
@@ -223,6 +235,7 @@ for flag in \
   "${RUN_MEMORY_GUARD}" \
   "${RUN_BOOKING_REFUND_NOTIFY_GATE}" \
   "${RUN_BOOKING_REFUND_AUDIT_GATE}" \
+  "${RUN_BOOKING_REFUND_REPLAY_V2_GATE}" \
   "${RUN_STORE_SKU_STOCK_GATE}" \
   "${RUN_STORE_LIFECYCLE_GATE}" \
   "${RUN_TESTS}" \
@@ -231,6 +244,7 @@ for flag in \
   "${REQUIRE_MEMORY_GUARD}" \
   "${REQUIRE_BOOKING_REFUND_NOTIFY_GATE}" \
   "${REQUIRE_BOOKING_REFUND_AUDIT_GATE}" \
+  "${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}" \
   "${REQUIRE_STORE_SKU_STOCK_GATE}" \
   "${REQUIRE_STORE_LIFECYCLE_GATE}" \
   "${STOCK_REQUIRE_OVERDUE_ZERO}" \
@@ -255,6 +269,7 @@ NAMING_GUARD_LOG="${LOG_DIR}/naming_guard.log"
 MEMORY_GUARD_LOG="${LOG_DIR}/memory_guard.log"
 BOOKING_REFUND_NOTIFY_GATE_LOG="${LOG_DIR}/booking_refund_notify_gate.log"
 BOOKING_REFUND_AUDIT_GATE_LOG="${LOG_DIR}/booking_refund_audit_gate.log"
+BOOKING_REFUND_REPLAY_V2_GATE_LOG="${LOG_DIR}/booking_refund_replay_v2_gate.log"
 STORE_SKU_STOCK_GATE_LOG="${LOG_DIR}/store_sku_stock_gate.log"
 STORE_LIFECYCLE_GATE_LOG="${LOG_DIR}/store_lifecycle_change_order_gate.log"
 TEST_LOG="${LOG_DIR}/regression_tests.log"
@@ -267,6 +282,10 @@ BOOKING_REFUND_AUDIT_GATE_DIR="${ARTIFACT_DIR}/booking_refund_audit_gate"
 BOOKING_REFUND_AUDIT_GATE_SUMMARY="${BOOKING_REFUND_AUDIT_GATE_DIR}/summary.txt"
 BOOKING_REFUND_AUDIT_GATE_TSV="${BOOKING_REFUND_AUDIT_GATE_DIR}/result.tsv"
 
+BOOKING_REFUND_REPLAY_V2_GATE_DIR="${ARTIFACT_DIR}/booking_refund_replay_v2_gate"
+BOOKING_REFUND_REPLAY_V2_GATE_SUMMARY="${BOOKING_REFUND_REPLAY_V2_GATE_DIR}/summary.txt"
+BOOKING_REFUND_REPLAY_V2_GATE_TSV="${BOOKING_REFUND_REPLAY_V2_GATE_DIR}/result.tsv"
+
 STORE_SKU_STOCK_GATE_DIR="${ARTIFACT_DIR}/store_sku_stock_gate"
 STORE_SKU_STOCK_GATE_SUMMARY="${STORE_SKU_STOCK_GATE_DIR}/summary.txt"
 STORE_SKU_STOCK_GATE_TSV="${STORE_SKU_STOCK_GATE_DIR}/result.tsv"
@@ -275,7 +294,7 @@ STORE_LIFECYCLE_GATE_DIR="${ARTIFACT_DIR}/store_lifecycle_change_order_gate"
 STORE_LIFECYCLE_GATE_SUMMARY="${STORE_LIFECYCLE_GATE_DIR}/summary.txt"
 STORE_LIFECYCLE_GATE_TSV="${STORE_LIFECYCLE_GATE_DIR}/result.tsv"
 
-mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
+mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
 echo -e "stage\tseverity\tcode\tdetail" > "${RESULT_TSV}"
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
@@ -284,6 +303,7 @@ naming_guard_rc="SKIP"
 memory_guard_rc="SKIP"
 booking_refund_notify_gate_rc="SKIP"
 booking_refund_audit_gate_rc="SKIP"
+booking_refund_replay_v2_gate_rc="SKIP"
 store_sku_stock_gate_rc="SKIP"
 store_lifecycle_gate_rc="SKIP"
 tests_rc="SKIP"
@@ -320,6 +340,7 @@ finalize() {
     echo "run_memory_guard=${RUN_MEMORY_GUARD}"
     echo "run_booking_refund_notify_gate=${RUN_BOOKING_REFUND_NOTIFY_GATE}"
     echo "run_booking_refund_audit_gate=${RUN_BOOKING_REFUND_AUDIT_GATE}"
+    echo "run_booking_refund_replay_v2_gate=${RUN_BOOKING_REFUND_REPLAY_V2_GATE}"
     echo "run_store_sku_stock_gate=${RUN_STORE_SKU_STOCK_GATE}"
     echo "run_store_lifecycle_gate=${RUN_STORE_LIFECYCLE_GATE}"
     echo "run_tests=${RUN_TESTS}"
@@ -329,6 +350,7 @@ finalize() {
     echo "require_memory_guard=${REQUIRE_MEMORY_GUARD}"
     echo "require_booking_refund_notify_gate=${REQUIRE_BOOKING_REFUND_NOTIFY_GATE}"
     echo "require_booking_refund_audit_gate=${REQUIRE_BOOKING_REFUND_AUDIT_GATE}"
+    echo "require_booking_refund_replay_v2_gate=${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}"
     echo "require_store_sku_stock_gate=${REQUIRE_STORE_SKU_STOCK_GATE}"
     echo "require_store_lifecycle_gate=${REQUIRE_STORE_LIFECYCLE_GATE}"
     echo "mysql_init_rc=${mysql_init_rc}"
@@ -336,6 +358,7 @@ finalize() {
     echo "memory_guard_rc=${memory_guard_rc}"
     echo "booking_refund_notify_gate_rc=${booking_refund_notify_gate_rc}"
     echo "booking_refund_audit_gate_rc=${booking_refund_audit_gate_rc}"
+    echo "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
     echo "store_sku_stock_gate_rc=${store_sku_stock_gate_rc}"
     echo "store_lifecycle_change_order_gate_rc=${store_lifecycle_gate_rc}"
     echo "tests_rc=${tests_rc}"
@@ -347,12 +370,15 @@ finalize() {
     echo "memory_guard_log=${MEMORY_GUARD_LOG}"
     echo "booking_refund_notify_gate_log=${BOOKING_REFUND_NOTIFY_GATE_LOG}"
     echo "booking_refund_audit_gate_log=${BOOKING_REFUND_AUDIT_GATE_LOG}"
+    echo "booking_refund_replay_v2_gate_log=${BOOKING_REFUND_REPLAY_V2_GATE_LOG}"
     echo "store_sku_stock_gate_log=${STORE_SKU_STOCK_GATE_LOG}"
     echo "store_lifecycle_change_order_gate_log=${STORE_LIFECYCLE_GATE_LOG}"
     echo "booking_refund_notify_gate_summary=${BOOKING_REFUND_NOTIFY_GATE_SUMMARY}"
     echo "booking_refund_notify_gate_tsv=${BOOKING_REFUND_NOTIFY_GATE_TSV}"
     echo "booking_refund_audit_gate_summary=${BOOKING_REFUND_AUDIT_GATE_SUMMARY}"
     echo "booking_refund_audit_gate_tsv=${BOOKING_REFUND_AUDIT_GATE_TSV}"
+    echo "booking_refund_replay_v2_gate_summary=${BOOKING_REFUND_REPLAY_V2_GATE_SUMMARY}"
+    echo "booking_refund_replay_v2_gate_tsv=${BOOKING_REFUND_REPLAY_V2_GATE_TSV}"
     echo "store_sku_stock_gate_summary=${STORE_SKU_STOCK_GATE_SUMMARY}"
     echo "store_sku_stock_gate_tsv=${STORE_SKU_STOCK_GATE_TSV}"
     echo "store_lifecycle_change_order_gate_summary=${STORE_LIFECYCLE_GATE_SUMMARY}"
@@ -517,6 +543,31 @@ if [[ "${RUN_BOOKING_REFUND_AUDIT_GATE}" == "1" ]]; then
     exit 2
   elif [[ "${booking_refund_audit_gate_rc}" == "2" ]]; then
     add_issue "booking-refund-audit-gate" "WARN" "OPS10_BOOKING_REFUND_AUDIT_GATE_BLOCK_AS_WARN" "booking_refund_audit_gate_rc=${booking_refund_audit_gate_rc}"
+  fi
+fi
+
+if [[ "${RUN_BOOKING_REFUND_REPLAY_V2_GATE}" == "1" ]]; then
+  echo "[ops-stageb-p1-local-ci] step=booking-refund-replay-v2-gate"
+  set +e
+  bash script/dev/check_booking_refund_replay_v2_gate.sh \
+    --summary-file "${BOOKING_REFUND_REPLAY_V2_GATE_SUMMARY}" \
+    --output-tsv "${BOOKING_REFUND_REPLAY_V2_GATE_TSV}" > "${BOOKING_REFUND_REPLAY_V2_GATE_LOG}" 2>&1
+  booking_refund_replay_v2_gate_rc=$?
+  set -e
+  append_gate_tsv "booking-refund-replay-v2-gate" "${BOOKING_REFUND_REPLAY_V2_GATE_TSV}"
+
+  if [[ "${booking_refund_replay_v2_gate_rc}" != "0" && "${booking_refund_replay_v2_gate_rc}" != "2" ]]; then
+    if [[ "${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}" == "1" ]]; then
+      add_issue "booking-refund-replay-v2-gate" "BLOCK" "OPS11_BOOKING_REFUND_REPLAY_V2_GATE_EXEC_FAIL" "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
+      PIPELINE_EXIT_CODE=2
+      exit 2
+    fi
+    add_issue "booking-refund-replay-v2-gate" "WARN" "OPS11_BOOKING_REFUND_REPLAY_V2_GATE_EXEC_FAIL" "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
+  elif [[ "${booking_refund_replay_v2_gate_rc}" == "2" && "${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}" == "1" ]]; then
+    PIPELINE_EXIT_CODE=2
+    exit 2
+  elif [[ "${booking_refund_replay_v2_gate_rc}" == "2" ]]; then
+    add_issue "booking-refund-replay-v2-gate" "WARN" "OPS12_BOOKING_REFUND_REPLAY_V2_GATE_BLOCK_AS_WARN" "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
   fi
 fi
 

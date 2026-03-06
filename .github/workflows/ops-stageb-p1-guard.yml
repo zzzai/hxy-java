@@ -7,6 +7,7 @@ on:
       - "ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh"
+      - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_sku_stock_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_lifecycle_change_order_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh"
@@ -38,6 +39,11 @@ on:
         required: true
         default: true
         type: boolean
+      require_booking_refund_replay_v2_gate:
+        description: "退款回调补偿V2门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
       require_store_sku_stock_gate:
         description: "库存门禁失败是否阻断"
         required: true
@@ -52,6 +58,11 @@ on:
         description: "是否执行 product/trade/booking 回归测试"
         required: true
         default: true
+        type: boolean
+      clean_before_tests:
+        description: "回归测试前是否执行 Maven clean"
+        required: true
+        default: false
         type: boolean
       pending_approval_timeout_minutes:
         description: "库存审批待审超时阈值（分钟）"
@@ -123,31 +134,39 @@ jobs:
           require_naming_input="${{ github.event.inputs.require_naming_guard }}"
           require_memory_input="${{ github.event.inputs.require_memory_guard }}"
           require_refund_audit_input="${{ github.event.inputs.require_booking_refund_audit_gate }}"
+          require_refund_replay_v2_input="${{ github.event.inputs.require_booking_refund_replay_v2_gate }}"
           require_stock_input="${{ github.event.inputs.require_store_sku_stock_gate }}"
           require_lifecycle_input="${{ github.event.inputs.require_store_lifecycle_gate }}"
           run_tests_input="${{ github.event.inputs.run_tests }}"
+          clean_before_tests_input="${{ github.event.inputs.clean_before_tests }}"
           pending_timeout_input="${{ github.event.inputs.pending_approval_timeout_minutes }}"
 
           [[ -z "${require_naming_input}" ]] && require_naming_input="true"
           [[ -z "${require_memory_input}" ]] && require_memory_input="true"
           [[ -z "${require_refund_audit_input}" ]] && require_refund_audit_input="true"
+          [[ -z "${require_refund_replay_v2_input}" ]] && require_refund_replay_v2_input="true"
           [[ -z "${require_stock_input}" ]] && require_stock_input="true"
           [[ -z "${require_lifecycle_input}" ]] && require_lifecycle_input="true"
           [[ -z "${run_tests_input}" ]] && run_tests_input="true"
+          [[ -z "${clean_before_tests_input}" ]] && clean_before_tests_input="false"
           [[ -z "${pending_timeout_input}" ]] && pending_timeout_input="120"
 
           require_naming=0
           require_memory=0
           require_refund_audit=0
+          require_refund_replay_v2=0
           require_stock=0
           require_lifecycle=0
           run_tests=0
+          clean_before_tests=0
           [[ "${require_naming_input}" == "true" ]] && require_naming=1
           [[ "${require_memory_input}" == "true" ]] && require_memory=1
           [[ "${require_refund_audit_input}" == "true" ]] && require_refund_audit=1
+          [[ "${require_refund_replay_v2_input}" == "true" ]] && require_refund_replay_v2=1
           [[ "${require_stock_input}" == "true" ]] && require_stock=1
           [[ "${require_lifecycle_input}" == "true" ]] && require_lifecycle=1
           [[ "${run_tests_input}" == "true" ]] && run_tests=1
+          [[ "${clean_before_tests_input}" == "true" ]] && clean_before_tests=1
 
           run_id="gha_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}_${GITHUB_JOB}"
           run_id="${run_id//[^a-zA-Z0-9._-]/_}"
@@ -166,6 +185,11 @@ jobs:
             test_flag=""
           fi
 
+          clean_before_tests_flag=""
+          if [[ "${clean_before_tests}" == "1" ]]; then
+            clean_before_tests_flag="--clean-before-tests"
+          fi
+
           regression_test_classes="ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,AppBookingOrderControllerTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest"
 
           set +e
@@ -181,11 +205,13 @@ jobs:
           REQUIRE_NAMING_GUARD="${require_naming}" \
           REQUIRE_MEMORY_GUARD="${require_memory}" \
           REQUIRE_BOOKING_REFUND_AUDIT_GATE="${require_refund_audit}" \
+          REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${require_refund_replay_v2}" \
           REQUIRE_STORE_SKU_STOCK_GATE="${require_stock}" \
           REQUIRE_STORE_LIFECYCLE_GATE="${require_lifecycle}" \
           REGRESSION_TEST_CLASSES="${regression_test_classes}" \
           bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
             --pending-approval-timeout-minutes "${pending_timeout_input}" \
+            ${clean_before_tests_flag} \
             ${test_flag}
           rc=$?
           set -e
@@ -226,9 +252,11 @@ jobs:
             echo "| memory_guard_rc | $(kv "${summary_file}" memory_guard_rc) |"
             echo "| booking_refund_notify_gate_rc | $(kv "${summary_file}" booking_refund_notify_gate_rc) |"
             echo "| booking_refund_audit_gate_rc | $(kv "${summary_file}" booking_refund_audit_gate_rc) |"
+            echo "| booking_refund_replay_v2_gate_rc | $(kv "${summary_file}" booking_refund_replay_v2_gate_rc) |"
             echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
             echo "| store_lifecycle_change_order_gate_rc | $(kv "${summary_file}" store_lifecycle_change_order_gate_rc) |"
             echo "| tests_rc | $(kv "${summary_file}" tests_rc) |"
+            echo "| clean_before_tests | $(kv "${summary_file}" clean_before_tests) |"
             echo "| result_tsv | \`$(kv "${summary_file}" result_tsv)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 

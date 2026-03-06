@@ -12,10 +12,11 @@
 3. 脚本与 workflow 已在仓库
    - `ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh`
    - `ruoyi-vue-pro-master/script/dev/apply_ops_stageb_required_checks.sh`
-  - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
-  - `ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh`
-  - `ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh`
-  - `.github/workflows/ops-stageb-p1-guard.yml`
+   - `ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh`
+   - `.github/workflows/ops-stageb-p1-guard.yml`
 
 ## 2. 启用（Dry Run + Apply）
 
@@ -150,12 +151,25 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
 ```
 
+若 `check_booking_refund_replay_v2_gate.sh` 返回 `BLOCK`，优先检查以下锚点：
+- replay request 支持 `ids + dryRun`（`BookingRefundNotifyLogReplayReqVO`）
+- replay v2 返回体存在 `success/skip/fail` 汇总和 `details` 明细（`BookingRefundNotifyLogReplayRespVO`）
+- `booking_refund_notify_log` 审计字段锚点可在 SQL/DO/Mapper 定位（如 `retry_count` / `next_retry_time`）
+- `ErrorCodeConstants` 存在非法参数/状态冲突类锚点（`1030004011` / `1030004014`）
+
+可单独执行：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh
+```
+
 ## 5. 快速检查命令
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --help
 bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run --enable-ops-stageb-p1
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
+bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh
 ```
 
 ## 6. 巡检接口回归测试（退款-提成联调）
@@ -164,6 +178,7 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
 
 `run_ops_stageb_p1_local_ci.sh` 默认已纳入退款审计门禁与巡检接口关键回归用例：
 - `check_booking_refund_audit_gate.sh`（退款回调补偿 + 退款审计汇总锚点检查）
+- `check_booking_refund_replay_v2_gate.sh`（退款回调补偿 V2 结构锚点检查）
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
 - `BookingOrderServiceImplTest`（退款回调一致性）
@@ -183,12 +198,25 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
   --clean-before-tests
 ```
 
+推荐组合：
+- 默认回归：`--skip-mysql-init`
+- 疑似增量污染：`--skip-mysql-init --clean-before-tests`
+- 紧急降级 replay-v2 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-v2-gate`
+
 如需临时降级退款审计门禁（不建议长期使用）：
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
   --skip-mysql-init \
   --skip-booking-refund-audit-gate
+```
+
+如需临时降级 replay-v2 门禁（不建议长期使用）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-booking-refund-replay-v2-gate
 ```
 
 如需临时覆盖回归测试集合，可通过环境变量：
@@ -201,6 +229,7 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-
 ### 6.2 CI 执行
 
 `hxy-ops-stageb-p1-guard` workflow 在 `regression-tests` 步骤调用同一脚本与默认测试集合，确保本地与 CI 口径一致。
+workflow summary 会输出 `clean_before_tests` 与 `booking_refund_replay_v2_gate_rc`，用于排查 clean 口径和 replay-v2 门禁状态。
 
 ## 7. 退款回调一致性回归用例
 
