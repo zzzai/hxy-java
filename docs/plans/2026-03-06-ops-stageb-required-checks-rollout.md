@@ -175,6 +175,14 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
 ```
 
+若怀疑本地增量编译产物污染（例如偶发 `NoClassDefFoundError`、`Unresolved compilation problem`），可启用 clean 回归：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --clean-before-tests
+```
+
 如需临时降级退款审计门禁（不建议长期使用）：
 
 ```bash

@@ -28,6 +28,7 @@ RUN_BOOKING_REFUND_AUDIT_GATE="${RUN_BOOKING_REFUND_AUDIT_GATE:-1}"
 RUN_STORE_SKU_STOCK_GATE="${RUN_STORE_SKU_STOCK_GATE:-1}"
 RUN_STORE_LIFECYCLE_GATE="${RUN_STORE_LIFECYCLE_GATE:-1}"
 RUN_TESTS="${RUN_TESTS:-1}"
+CLEAN_BEFORE_TESTS="${CLEAN_BEFORE_TESTS:-0}"
 
 REQUIRE_NAMING_GUARD="${REQUIRE_NAMING_GUARD:-1}"
 REQUIRE_MEMORY_GUARD="${REQUIRE_MEMORY_GUARD:-1}"
@@ -70,6 +71,7 @@ Options:
   --skip-stock-gate                          跳过库存门禁
   --skip-lifecycle-gate                      跳过生命周期审批门禁
   --skip-tests                               跳过回归测试（product/trade/booking）
+  --clean-before-tests                       回归测试前执行 Maven clean（默认关闭）
 
   --require-naming-guard <0|1>               命名门禁失败是否阻断（默认 1）
   --require-memory-guard <0|1>               记忆门禁失败是否阻断（默认 1）
@@ -82,6 +84,7 @@ Options:
   -h, --help                                 显示帮助
 
 Env:
+  CLEAN_BEFORE_TESTS                         置为 1 时等价于 --clean-before-tests
   REGRESSION_TEST_CLASSES                    覆盖默认回归测试集合（逗号分隔）
 
 Exit Code:
@@ -161,6 +164,10 @@ while [[ $# -gt 0 ]]; do
       RUN_TESTS=0
       shift
       ;;
+    --clean-before-tests)
+      CLEAN_BEFORE_TESTS=1
+      shift
+      ;;
     --require-naming-guard)
       REQUIRE_NAMING_GUARD="$2"
       shift 2
@@ -219,6 +226,7 @@ for flag in \
   "${RUN_STORE_SKU_STOCK_GATE}" \
   "${RUN_STORE_LIFECYCLE_GATE}" \
   "${RUN_TESTS}" \
+  "${CLEAN_BEFORE_TESTS}" \
   "${REQUIRE_NAMING_GUARD}" \
   "${REQUIRE_MEMORY_GUARD}" \
   "${REQUIRE_BOOKING_REFUND_NOTIFY_GATE}" \
@@ -315,6 +323,7 @@ finalize() {
     echo "run_store_sku_stock_gate=${RUN_STORE_SKU_STOCK_GATE}"
     echo "run_store_lifecycle_gate=${RUN_STORE_LIFECYCLE_GATE}"
     echo "run_tests=${RUN_TESTS}"
+    echo "clean_before_tests=${CLEAN_BEFORE_TESTS}"
     echo "regression_test_classes=${REGRESSION_TEST_CLASSES}"
     echo "require_naming_guard=${REQUIRE_NAMING_GUARD}"
     echo "require_memory_guard=${REQUIRE_MEMORY_GUARD}"
@@ -577,10 +586,17 @@ fi
 if [[ "${RUN_TESTS}" == "1" ]]; then
   echo "[ops-stageb-p1-local-ci] step=regression-tests"
   set +e
-  mvn -f pom.xml \
-    -pl yudao-module-mall/yudao-module-product,yudao-module-mall/yudao-module-booking,yudao-module-mall/yudao-module-trade -am \
-    -Dtest="${REGRESSION_TEST_CLASSES}" \
-    -Dsurefire.failIfNoSpecifiedTests=false test > "${TEST_LOG}" 2>&1
+  if [[ "${CLEAN_BEFORE_TESTS}" == "1" ]]; then
+    mvn -f pom.xml \
+      -pl yudao-module-mall/yudao-module-product,yudao-module-mall/yudao-module-booking,yudao-module-mall/yudao-module-trade -am \
+      -Dtest="${REGRESSION_TEST_CLASSES}" \
+      -Dsurefire.failIfNoSpecifiedTests=false clean test > "${TEST_LOG}" 2>&1
+  else
+    mvn -f pom.xml \
+      -pl yudao-module-mall/yudao-module-product,yudao-module-mall/yudao-module-booking,yudao-module-mall/yudao-module-trade -am \
+      -Dtest="${REGRESSION_TEST_CLASSES}" \
+      -Dsurefire.failIfNoSpecifiedTests=false test > "${TEST_LOG}" 2>&1
+  fi
   tests_rc=$?
   set -e
   if [[ "${tests_rc}" != "0" ]]; then
