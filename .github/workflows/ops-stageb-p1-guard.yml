@@ -155,6 +155,8 @@ jobs:
             test_flag=""
           fi
 
+          regression_test_classes="ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest"
+
           set +e
           RUN_ID="${run_id}" \
           ARTIFACT_BASE_DIR="${artifact_base}" \
@@ -169,6 +171,7 @@ jobs:
           REQUIRE_MEMORY_GUARD="${require_memory}" \
           REQUIRE_STORE_SKU_STOCK_GATE="${require_stock}" \
           REQUIRE_STORE_LIFECYCLE_GATE="${require_lifecycle}" \
+          REGRESSION_TEST_CLASSES="${regression_test_classes}" \
           bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
             --pending-approval-timeout-minutes "${pending_timeout_input}" \
             ${test_flag}

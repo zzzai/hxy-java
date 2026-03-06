@@ -135,6 +135,7 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh --dry-run -
 `run_ops_stageb_p1_local_ci.sh` 默认已纳入巡检接口关键回归用例：
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
+- `BookingOrderServiceImplTest`（退款回调一致性）
 
 执行命令：
 
@@ -145,10 +146,31 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-
 如需临时覆盖回归测试集合，可通过环境变量：
 
 ```bash
-REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
+REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
 ```
 
 ### 6.2 CI 执行
 
 `hxy-ops-stageb-p1-guard` workflow 在 `regression-tests` 步骤调用同一脚本与默认测试集合，确保本地与 CI 口径一致。
+
+## 7. 退款回调一致性回归用例
+
+- 用例：`BookingOrderServiceImplTest`
+- 目标：覆盖 booking 退款回调后的履约/状态一致性回归，避免“回调成功但状态未对齐”进入 StageB 发布路径。
+
+本地单独执行示例：
+
+```bash
+mvn -f ruoyi-vue-pro-master/pom.xml \
+  -pl yudao-module-mall/yudao-module-booking -am \
+  -Dtest=BookingOrderServiceImplTest \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+CI 复现示例（与 workflow 一致的回归集合）：
+
+```bash
+REGRESSION_TEST_CLASSES=ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest \
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+```

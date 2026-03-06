@@ -40,7 +40,7 @@ LIFECYCLE_REQUIRE_OVERDUE_ZERO="${LIFECYCLE_REQUIRE_OVERDUE_ZERO:-${REQUIRE_STOR
 LIFECYCLE_REQUIRE_EXPIRE_ABNORMAL_ZERO="${LIFECYCLE_REQUIRE_EXPIRE_ABNORMAL_ZERO:-${REQUIRE_STORE_LIFECYCLE_GATE}}"
 LIFECYCLE_EXPIRE_ACTION_CODE="${LIFECYCLE_EXPIRE_ACTION_CODE:-EXPIRE}"
 LIFECYCLE_EXPIRE_REMARK="${LIFECYCLE_EXPIRE_REMARK:-SYSTEM_SLA_EXPIRED}"
-REGRESSION_TEST_CLASSES="${REGRESSION_TEST_CLASSES:-ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest}"
+REGRESSION_TEST_CLASSES="${REGRESSION_TEST_CLASSES:-ProductStoreSkuControllerTest,ProductStoreServiceImplTest,AfterSaleReviewTicketServiceImplTest,BookingOrderServiceImplTest,FourAccountReconcileServiceImplTest,FourAccountReconcileControllerTest}"
 
 usage() {
   cat <<'USAGE'
