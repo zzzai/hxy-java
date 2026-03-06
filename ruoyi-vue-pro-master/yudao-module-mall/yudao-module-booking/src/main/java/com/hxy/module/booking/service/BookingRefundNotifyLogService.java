@@ -4,7 +4,9 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
 
 import java.util.List;
 
@@ -19,7 +21,17 @@ public interface BookingRefundNotifyLogService {
     BookingRefundNotifyLogReplayRespVO replayFailedLogs(List<Long> ids, boolean dryRun,
                                                         Long operatorId, String operatorNickname);
 
-    BookingRefundNotifyLogReplayRespVO replayDueFailedLogs(Integer limit, String operator);
+    BookingRefundNotifyLogReplayRespVO replayDueFailedLogs(Integer limit, boolean dryRun,
+                                                           Long operatorId, String operatorNickname,
+                                                           String triggerSource);
+
+    default BookingRefundNotifyLogReplayRespVO replayDueFailedLogs(Integer limit, String operator) {
+        return replayDueFailedLogs(limit, false, null, operator, "JOB");
+    }
+
+    PageResult<BookingRefundReplayRunLogDO> getReplayRunLogPage(BookingRefundReplayRunLogPageReqVO reqVO);
+
+    BookingRefundReplayRunLogDO getReplayRunLog(Long id);
 
     int reconcileRefundedOrders(Integer limit);
 }

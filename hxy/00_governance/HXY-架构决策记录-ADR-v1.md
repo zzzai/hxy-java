@@ -923,3 +923,17 @@
 - 备选方案：保持单条 replay 并由运营脚本循环调用。
 - 否决原因：缺少原子批处理结果与统一审计字段，操作成本高且不可稳定复盘。
 - 回滚条件：若批量重放引发压力，可临时降级为 `dryRun=true` + 人工确认后分批执行；保留自动重放任务但下调 `limit`。
+
+## ADR-095：booking 退款补偿 V3 采用“批次运行台账 + 手工触发到期重放 + Job 同口径审计”收口
+
+- 背景：V2 已具备批量 replay 与 dry-run，但运营仍缺少“按批次查看执行历史、手工触发 due-fail 扫描、与 Job 共用同一 runId 审计口径”的能力，导致补偿链路可追踪性不足。
+- 决策：
+  1) 新增批次运行台账 `hxy_booking_refund_replay_run_log`，固化 `runId/triggerSource/operator/dryRun/limit/scanned/success/skip/fail/status/errorMsg/startTime/endTime`；
+  2) 管理端新增 `POST /booking/refund-notify-log/replay-due`，复用既有 due-fail 扫描逻辑并返回 `runId + success/skip/fail + details`；
+  3) 管理端新增 `GET /booking/refund-notify-log/replay-run-log/page|get`，支持按批次分页检索与详情回查；
+  4) `BookingRefundNotifyReplayJob` 强制落批次台账，手工触发与定时任务统一 run-log 结构和状态判定（`started/success/partial_fail/fail`）；
+  5) 维持 fail-open：单条失败不阻断整批；四账刷新异常写 warning 到 replay detail 与 run-log `errorMsg`，不回滚退款主链路。
+- 影响范围：booking 退款补偿运营可追溯性、手工与自动补偿一致性、跨域降级可观测性。
+- 备选方案：继续仅依赖 V2 台账的逐条 `lastReplay*` 字段，不新增批次级运行台账。
+- 否决原因：无法回答“本次批量重放整体效果如何、由谁触发、何时结束、失败比例多少”，运营复盘成本高。
+- 回滚条件：若批次台账写入异常，可保留 replay 主流程并降级为仅日志输出 run 摘要；待表结构恢复后重新开启 run-log 写入。

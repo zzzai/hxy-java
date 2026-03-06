@@ -41,6 +41,7 @@ public interface ErrorCodeConstants {
     ErrorCode BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT = new ErrorCode(1_030_004_012, "预约订单退款回调幂等冲突：订单已绑定其他退款单");
     ErrorCode BOOKING_ORDER_REFUND_NOTIFY_LOG_NOT_EXISTS = new ErrorCode(1_030_004_013, "预约订单退款回调日志不存在");
     ErrorCode BOOKING_ORDER_REFUND_NOTIFY_LOG_STATUS_INVALID = new ErrorCode(1_030_004_014, "预约订单退款回调日志状态非法，仅允许失败记录重放");
+    ErrorCode BOOKING_ORDER_REFUND_REPLAY_RUN_LOG_NOT_EXISTS = new ErrorCode(1_030_004_015, "预约订单退款重放批次日志不存在");
 
     // ========== 时间槽生成相关 1-030-003-100 ==========
     ErrorCode TIME_SLOT_ALREADY_GENERATED = new ErrorCode(1_030_003_100, "该排班时间槽已生成，请勿重复操作");

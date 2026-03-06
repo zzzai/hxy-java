@@ -9,7 +9,6 @@ import com.hxy.module.booking.service.BookingRefundNotifyLogService;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
-import java.util.UUID;
 
 /**
  * booking 退款回调失败台账自动重放任务
@@ -25,13 +24,12 @@ public class BookingRefundNotifyReplayJob implements JobHandler {
     @Override
     @TenantJob
     public String execute(String param) {
-        String runId = UUID.randomUUID().toString().replace("-", "");
         Integer limit = parseLimit(param);
         BookingRefundNotifyLogReplayRespVO respVO =
-                refundNotifyLogService.replayDueFailedLogs(limit, "SYSTEM_JOB");
+                refundNotifyLogService.replayDueFailedLogs(limit, false, null, "SYSTEM_JOB", "JOB");
         int scanned = respVO.getSuccessCount() + respVO.getSkipCount() + respVO.getFailCount();
         return String.format("booking退款失败回调自动重放完成 runId=%s scanned=%d success=%d skip=%d fail=%d limit=%d",
-                runId, scanned, respVO.getSuccessCount(), respVO.getSkipCount(), respVO.getFailCount(), limit);
+                respVO.getRunId(), scanned, respVO.getSuccessCount(), respVO.getSkipCount(), respVO.getFailCount(), limit);
     }
 
     private Integer parseLimit(String param) {

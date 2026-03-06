@@ -9,6 +9,9 @@ import java.util.List;
 @Data
 public class BookingRefundNotifyLogReplayRespVO {
 
+    @Schema(description = "重放批次号", example = "RR202603061800001234")
+    private String runId;
+
     @Schema(description = "成功数", example = "2")
     private Integer successCount;
 

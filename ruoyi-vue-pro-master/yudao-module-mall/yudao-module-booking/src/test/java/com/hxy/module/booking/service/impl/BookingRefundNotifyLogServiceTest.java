@@ -1,13 +1,16 @@
 package com.hxy.module.booking.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundRepairCandidateDO;
 import com.hxy.module.booking.dal.mysql.BookingRefundNotifyLogMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReconcileQueryMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunLogMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.FourAccountReconcileService;
@@ -44,6 +47,8 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
     private BookingRefundNotifyLogMapper refundNotifyLogMapper;
     @Mock
     private BookingRefundReconcileQueryMapper refundReconcileQueryMapper;
+    @Mock
+    private BookingRefundReplayRunLogMapper refundReplayRunLogMapper;
     @Mock
     private BookingOrderService bookingOrderService;
     @Mock
@@ -163,6 +168,11 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
 
     @Test
     void replayDueFailedLogs_shouldScanAndReplay() {
+        when(refundReplayRunLogMapper.insert(any(BookingRefundReplayRunLogDO.class))).thenAnswer(invocation -> {
+            BookingRefundReplayRunLogDO runLogDO = invocation.getArgument(0);
+            runLogDO.setId(101L);
+            return 1;
+        });
         when(refundNotifyLogMapper.selectDueFailIds(any(LocalDateTime.class), eq(20), eq("fail")))
                 .thenReturn(Collections.singletonList(6L));
         BookingRefundNotifyLogDO logDO = new BookingRefundNotifyLogDO()
@@ -172,12 +182,63 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
                 .setStatus("success");
         when(refundNotifyLogMapper.selectById(eq(6L))).thenReturn(logDO);
 
-        BookingRefundNotifyLogReplayRespVO respVO = service.replayDueFailedLogs(20, "SYSTEM_JOB");
+        BookingRefundNotifyLogReplayRespVO respVO =
+                service.replayDueFailedLogs(20, false, null, "SYSTEM_JOB", "JOB");
 
         assertEquals(1, respVO.getSkipCount());
+        assertTrue(StrUtil.isNotBlank(respVO.getRunId()));
         verify(refundNotifyLogMapper).selectDueFailIds(any(LocalDateTime.class), eq(20), eq("fail"));
         verify(refundNotifyLogMapper).updateReplayAudit(eq(6L), eq("SYSTEM_JOB"), any(LocalDateTime.class),
                 eq("SKIP"), contains("REPLAY_SKIP_ALREADY_SUCCESS"));
+        verify(refundReplayRunLogMapper).updateRunResult(eq(101L), eq(1), eq(0), eq(1), eq(0),
+                eq("success"), any(), any(LocalDateTime.class));
+    }
+
+    @Test
+    void replayDueFailedLogs_shouldMarkPartialFailOnSkipAndFail() {
+        when(refundReplayRunLogMapper.insert(any(BookingRefundReplayRunLogDO.class))).thenAnswer(invocation -> {
+            BookingRefundReplayRunLogDO runLogDO = invocation.getArgument(0);
+            runLogDO.setId(102L);
+            return 1;
+        });
+        when(refundNotifyLogMapper.selectDueFailIds(any(LocalDateTime.class), eq(20), eq("fail")))
+                .thenReturn(Arrays.asList(7L, 8L));
+        when(refundNotifyLogMapper.selectById(eq(7L))).thenReturn(new BookingRefundNotifyLogDO()
+                .setId(7L).setOrderId(2007L).setPayRefundId(92007L).setStatus("success"));
+        when(refundNotifyLogMapper.selectById(eq(8L))).thenReturn(new BookingRefundNotifyLogDO()
+                .setId(8L).setOrderId(2008L).setPayRefundId(92008L).setStatus("fail"));
+        doThrow(exception(BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT))
+                .when(bookingOrderService).updateOrderRefunded(eq(2008L), eq(92008L));
+
+        BookingRefundNotifyLogReplayRespVO respVO =
+                service.replayDueFailedLogs(20, false, null, "SYSTEM_JOB", "JOB");
+
+        assertEquals(1, respVO.getSkipCount());
+        assertEquals(1, respVO.getFailCount());
+        verify(refundReplayRunLogMapper).updateRunResult(eq(102L), eq(2), eq(0), eq(1), eq(1),
+                eq("partial_fail"), contains("FAIL#id=8"), any(LocalDateTime.class));
+    }
+
+    @Test
+    void replayDueFailedLogs_shouldKeepStatusWhenDryRun() {
+        when(refundReplayRunLogMapper.insert(any(BookingRefundReplayRunLogDO.class))).thenAnswer(invocation -> {
+            BookingRefundReplayRunLogDO runLogDO = invocation.getArgument(0);
+            runLogDO.setId(103L);
+            return 1;
+        });
+        when(refundNotifyLogMapper.selectDueFailIds(any(LocalDateTime.class), eq(20), eq("fail")))
+                .thenReturn(Collections.singletonList(9L));
+        when(refundNotifyLogMapper.selectById(eq(9L))).thenReturn(new BookingRefundNotifyLogDO()
+                .setId(9L).setOrderId(3009L).setPayRefundId(93009L).setStatus("fail"));
+        when(bookingOrderService.getOrder(eq(3009L))).thenReturn(buildPaidOrder(3009L));
+
+        BookingRefundNotifyLogReplayRespVO respVO =
+                service.replayDueFailedLogs(20, true, null, "SYSTEM_JOB", "JOB");
+
+        assertEquals(1, respVO.getSuccessCount());
+        verify(refundNotifyLogMapper, never()).updateReplaySuccess(any(), any(), any(), any(), any(), any(), any());
+        verify(refundReplayRunLogMapper).updateRunResult(eq(103L), eq(1), eq(1), eq(0), eq(0),
+                eq("success"), eq(""), any(LocalDateTime.class));
     }
 
     @Test
