@@ -73,6 +73,35 @@ export interface FourAccountReconcileSummaryVO {
   ticketSummaryDegraded?: boolean
 }
 
+export interface FourAccountRefundAuditSummaryCountItem {
+  key?: string
+  count?: number
+}
+
+export interface FourAccountRefundAuditSummaryReq {
+  bizDate?: string[]
+  status?: number
+  relatedTicketLinked?: boolean
+  beginBizDate?: string
+  endBizDate?: string
+  refundAuditStatus?: FourAccountRefundAuditStatus
+  refundExceptionType?: FourAccountRefundExceptionType
+  refundLimitSource?: string
+  payRefundId?: number
+  refundTimeRange?: string[]
+  keyword?: string
+  orderId?: number
+}
+
+export interface FourAccountRefundAuditSummaryVO {
+  totalCount?: number
+  differenceAmountSum?: number
+  unresolvedTicketCount?: number
+  ticketSummaryDegraded?: boolean
+  statusAgg?: FourAccountRefundAuditSummaryCountItem[]
+  exceptionTypeAgg?: FourAccountRefundAuditSummaryCountItem[]
+}
+
 export type FourAccountRefundCommissionMismatchType =
   | 'REFUND_WITHOUT_REVERSAL'
   | 'REVERSAL_WITHOUT_REFUND'
@@ -154,6 +183,13 @@ export const getFourAccountReconcileSummary = (params: FourAccountReconcileSumma
 export const getFourAccountRefundCommissionAuditPage = (params: FourAccountRefundCommissionAuditPageReq) => {
   return request.get<PageResult<FourAccountRefundCommissionAuditVO>>({
     url: '/booking/four-account-reconcile/refund-commission-audit-page',
+    params
+  })
+}
+
+export const getFourAccountRefundAuditSummary = (params: FourAccountRefundAuditSummaryReq) => {
+  return request.get<FourAccountRefundAuditSummaryVO>({
+    url: '/booking/four-account-reconcile/refund-audit-summary',
     params
   })
 }

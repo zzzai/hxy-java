@@ -119,7 +119,16 @@
     <div class="mb-10px flex items-center gap-8px">
       <span class="text-13px text-[var(--el-text-color-secondary)]">退款佣金审计</span>
       <el-tag v-if="auditSummaryFallback" type="warning">汇总降级</el-tag>
+      <el-tag v-if="auditSummaryData.ticketSummaryDegraded" type="warning">ticket summary degraded</el-tag>
     </div>
+    <el-alert
+      v-if="auditSummaryFallback"
+      :closable="false"
+      :description="auditSummaryFallbackReason || 'refund-audit-summary 接口不可用，当前展示列表近似统计。'"
+      title="退款审计汇总已降级"
+      type="warning"
+      class="mb-12px"
+    />
     <el-form :inline="true" :model="auditQueryParams" class="-mb-15px" label-width="96px">
       <el-form-item label="业务日期" prop="bizDateRange">
         <el-date-picker
@@ -246,7 +255,7 @@
       <el-col :lg="8" :md="12" :sm="12" :xs="24">
         <el-card shadow="never">
           <div class="text-12px text-[var(--el-text-color-secondary)]">差异金额(元)</div>
-          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.diffAmount) }}</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.differenceAmountSum) }}</div>
         </el-card>
       </el-col>
       <el-col :lg="8" :md="12" :sm="12" :xs="24">
@@ -256,6 +265,30 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <div class="mb-8px text-13px text-[var(--el-text-color-secondary)]">状态聚合</div>
+    <div class="mb-12px flex flex-wrap items-center gap-8px">
+      <el-tag
+        v-for="item in auditSummaryData.statusAgg"
+        :key="`status-${item.key}`"
+        :type="refundAuditStatusTagType(item.key)"
+      >
+        {{ refundAuditStatusText(item.key) }}：{{ countOrDash(item.count) }}
+      </el-tag>
+      <span v-if="!auditSummaryData.statusAgg?.length">{{ EMPTY_TEXT }}</span>
+    </div>
+
+    <div class="mb-8px text-13px text-[var(--el-text-color-secondary)]">异常类型聚合</div>
+    <div class="mb-12px flex flex-wrap items-center gap-8px">
+      <el-tag
+        v-for="item in auditSummaryData.exceptionTypeAgg"
+        :key="`exception-${item.key}`"
+        :type="refundExceptionTagType(item.key)"
+      >
+        {{ mismatchTypeText(item.key) }}：{{ countOrDash(item.count) }}
+      </el-tag>
+      <span v-if="!auditSummaryData.exceptionTypeAgg?.length">{{ EMPTY_TEXT }}</span>
+    </div>
 
     <el-table v-loading="auditLoading" :data="auditList">
       <el-table-column label="订单ID" min-width="120">
@@ -327,7 +360,14 @@
       </el-table-column>
       <el-table-column label="异常类型" min-width="170">
         <template #default="{ row }">
-          {{ mismatchTypeText(row.refundExceptionType || row.mismatchType) }}
+          <el-tag :type="refundExceptionTagType(row.refundExceptionType || row.mismatchType)">
+            {{ mismatchTypeText(row.refundExceptionType || row.mismatchType) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="证据链摘要" min-width="280" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ auditEvidenceSummaryText(row.refundEvidenceJson) }}
         </template>
       </el-table-column>
       <el-table-column label="退款上限来源" min-width="140">
@@ -696,8 +736,11 @@ interface IssueDetailData {
 
 interface AuditSummaryData {
   totalCount?: number
-  diffAmount?: number
+  differenceAmountSum?: number
   unresolvedTicketCount?: number
+  ticketSummaryDegraded?: boolean
+  statusAgg?: FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[]
+  exceptionTypeAgg?: FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[]
 }
 
 interface AuditEvidenceEntry {
@@ -760,10 +803,14 @@ const auditSyncLoading = ref(false)
 const auditSyncResultVisible = ref(false)
 const auditSyncCollapseActive = ref<string[]>([])
 const auditSummaryFallback = ref(false)
+const auditSummaryFallbackReason = ref('')
 const auditSummaryData = ref<AuditSummaryData>({
   totalCount: undefined,
-  diffAmount: undefined,
-  unresolvedTicketCount: undefined
+  differenceAmountSum: undefined,
+  unresolvedTicketCount: undefined,
+  ticketSummaryDegraded: false,
+  statusAgg: [],
+  exceptionTypeAgg: []
 })
 const auditDetailDrawerVisible = ref(false)
 const auditDetailData = ref<Partial<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO>>({})
@@ -842,8 +889,11 @@ const createEmptyAuditSyncResult = (): FourAccountReconcileApi.FourAccountRefund
 const createEmptyAuditSummaryData = (): AuditSummaryData => {
   return {
     totalCount: undefined,
-    diffAmount: undefined,
-    unresolvedTicketCount: undefined
+    differenceAmountSum: undefined,
+    unresolvedTicketCount: undefined,
+    ticketSummaryDegraded: false,
+    statusAgg: [],
+    exceptionTypeAgg: []
   }
 }
 
@@ -914,9 +964,63 @@ const mismatchTypeText = (type?: FourAccountReconcileApi.FourAccountRefundCommis
   return textOrDash(type)
 }
 
+const refundExceptionTagType = (type?: FourAccountReconcileApi.FourAccountRefundCommissionMismatchType) => {
+  const normalized = String(type || '').trim().toUpperCase()
+  if (normalized === 'REFUND_WITHOUT_REVERSAL') return 'danger'
+  if (normalized === 'REVERSAL_WITHOUT_REFUND') return 'warning'
+  if (normalized === 'REVERSAL_AMOUNT_MISMATCH') return 'info'
+  return 'info'
+}
+
 const normalizeUpperText = (value: any): string | undefined => {
   const text = String(value || '').trim().toUpperCase()
   return text || undefined
+}
+
+const resolveApiErrorCode = (error: any): number | undefined => {
+  const candidates = [
+    error?.code,
+    error?.data?.code,
+    error?.response?.data?.code,
+    error?.response?.status
+  ]
+  for (const candidate of candidates) {
+    const parsed = Number(candidate)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return undefined
+}
+
+const resolveApiErrorMessage = (error: any): string => {
+  const candidates = [
+    error?.msg,
+    error?.message,
+    error?.data?.msg,
+    error?.data?.message,
+    error?.response?.data?.msg,
+    error?.response?.data?.message
+  ]
+  for (const candidate of candidates) {
+    const text = String(candidate || '').trim()
+    if (text) {
+      return text
+    }
+  }
+  return ''
+}
+
+const buildApiErrorMessage = (error: any, fallback: string) => {
+  const code = resolveApiErrorCode(error)
+  const rawMessage = resolveApiErrorMessage(error)
+  if (code !== undefined && rawMessage) {
+    return `${fallback}（错误码: ${code}）：${rawMessage}`
+  }
+  if (code !== undefined) {
+    return `${fallback}（错误码: ${code}）`
+  }
+  return rawMessage || fallback
 }
 
 const refundAuditStatusText = (status?: FourAccountReconcileApi.FourAccountRefundAuditStatus) => {
@@ -1068,7 +1172,59 @@ const parseAuditEvidenceJson = (rawJson?: string) => {
   }
 }
 
-const calculateFallbackAuditDiffAmount = (rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]) => {
+const compactSummaryText = (text: string, maxLength = 160) => {
+  if (text.length <= maxLength) {
+    return text
+  }
+  return `${text.slice(0, maxLength)}...`
+}
+
+const stringifyEvidenceSummaryValue = (value: any): string => {
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_TEXT
+  }
+  if (typeof value === 'string') {
+    return value.trim() || EMPTY_TEXT
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+const auditEvidenceSummaryText = (rawJson?: string) => {
+  const raw = String(rawJson || '').trim()
+  if (!raw) {
+    return EMPTY_TEXT
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      const summary = parsed
+        .slice(0, 3)
+        .map((item) => stringifyEvidenceSummaryValue(item))
+        .filter((item) => item && item !== EMPTY_TEXT)
+        .join(' | ')
+      return summary ? compactSummaryText(summary) : EMPTY_TEXT
+    }
+    if (parsed && typeof parsed === 'object') {
+      const summary = Object.entries(parsed as Record<string, any>)
+        .slice(0, 3)
+        .map(([key, value]) => `${key}:${stringifyEvidenceSummaryValue(value)}`)
+        .join(' | ')
+      return summary ? compactSummaryText(summary) : EMPTY_TEXT
+    }
+    return compactSummaryText(stringifyEvidenceSummaryValue(parsed))
+  } catch {
+    return compactSummaryText(raw)
+  }
+}
+
+const calculateFallbackAuditDifferenceAmountSum = (rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]) => {
   return rows.reduce((totalAmount, row) => {
     const expected = parseNumber(row.expectedReversalAmount) || 0
     const reversal = parseNumber(row.reversalCommissionAmountAbs) || 0
@@ -1086,41 +1242,107 @@ const calculateFallbackAuditUnresolvedTicketCount = (rows: FourAccountReconcileA
   }).length
 }
 
-const parseAnyAuditSummaryField = (source: Record<string, any> | undefined, keys: string[]) => {
-  if (!source) {
-    return undefined
+const toSummaryCountItems = (source: any): FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[] => {
+  if (!Array.isArray(source)) {
+    return []
   }
-  for (const key of keys) {
-    const parsed = parseNumber(source[key])
-    if (parsed !== undefined) {
-      return parsed
-    }
-  }
-  return undefined
+  return source
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return undefined
+      }
+      const key = normalizeUpperText((item as Record<string, any>).key)
+      const count = parseNumber((item as Record<string, any>).count)
+      if (!key || count === undefined) {
+        return undefined
+      }
+      return {
+        key,
+        count
+      } as FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem
+    })
+    .filter((item): item is FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem => !!item)
 }
 
-const applyAuditSummary = (
-  data: PageResult<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO> | Record<string, any> | undefined
-) => {
-  const source = ((data || {}) as Record<string, any>) || {}
-  const sourceSummary = source.summary && typeof source.summary === 'object'
-    ? (source.summary as Record<string, any>)
-    : undefined
+const createFallbackStatusAgg = (
+  rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]
+): FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[] => {
+  const counter = new Map<string, number>()
+  rows.forEach((row) => {
+    const key = normalizeUpperText(row.refundAuditStatus) || 'PENDING'
+    counter.set(key, (counter.get(key) || 0) + 1)
+  })
+  return Array.from(counter.entries()).map(([key, count]) => ({ key, count }))
+}
 
-  const totalCount = parseAnyAuditSummaryField(sourceSummary, ['totalCount'])
-    ?? parseAnyAuditSummaryField(source, ['totalCount', 'totalMismatchCount', 'total'])
-    ?? auditTotal.value
-  const diffAmount = parseAnyAuditSummaryField(sourceSummary, ['diffAmount', 'differenceAmount', 'mismatchAmount'])
-    ?? parseAnyAuditSummaryField(source, ['diffAmount', 'differenceAmount', 'mismatchAmount'])
-  const unresolvedTicketCount = parseAnyAuditSummaryField(sourceSummary, ['unresolvedTicketCount', 'unresolvedCount'])
-    ?? parseAnyAuditSummaryField(source, ['unresolvedTicketCount', 'unresolvedCount'])
+const createFallbackExceptionTypeAgg = (
+  rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]
+): FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[] => {
+  const counter = new Map<string, number>()
+  rows.forEach((row) => {
+    const key = normalizeUpperText(row.refundExceptionType || row.mismatchType)
+    if (!key) {
+      return
+    }
+    counter.set(key, (counter.get(key) || 0) + 1)
+  })
+  return Array.from(counter.entries()).map(([key, count]) => ({ key, count }))
+}
 
-  const hasServerSummary = diffAmount !== undefined || unresolvedTicketCount !== undefined
-  auditSummaryFallback.value = !hasServerSummary
+const buildAuditSummaryReq = (): FourAccountReconcileApi.FourAccountRefundAuditSummaryReq => {
+  return {
+    bizDate: queryParams.bizDate,
+    status: queryParams.status,
+    relatedTicketLinked: relatedTicketLinked.value,
+    beginBizDate: auditQueryParams.beginBizDate,
+    endBizDate: auditQueryParams.endBizDate,
+    refundAuditStatus: auditQueryParams.refundAuditStatus,
+    refundExceptionType: auditQueryParams.refundExceptionType,
+    refundLimitSource: auditQueryParams.refundLimitSource,
+    payRefundId: parseNumber(auditQueryParams.payRefundId),
+    refundTimeRange: auditQueryParams.refundTimeRange,
+    keyword: auditQueryParams.keyword,
+    orderId: parseNumber(auditQueryParams.orderId)
+  }
+}
+
+const applyFallbackAuditSummary = (fallbackReason = '') => {
+  auditSummaryFallback.value = true
+  auditSummaryFallbackReason.value = fallbackReason
   auditSummaryData.value = {
-    totalCount,
-    diffAmount: diffAmount ?? calculateFallbackAuditDiffAmount(auditList.value),
-    unresolvedTicketCount: unresolvedTicketCount ?? calculateFallbackAuditUnresolvedTicketCount(auditList.value)
+    totalCount: auditTotal.value,
+    differenceAmountSum: calculateFallbackAuditDifferenceAmountSum(auditList.value),
+    unresolvedTicketCount: calculateFallbackAuditUnresolvedTicketCount(auditList.value),
+    ticketSummaryDegraded: false,
+    statusAgg: createFallbackStatusAgg(auditList.value),
+    exceptionTypeAgg: createFallbackExceptionTypeAgg(auditList.value)
+  }
+}
+
+const loadAuditSummary = async () => {
+  try {
+    const data = await FourAccountReconcileApi.getFourAccountRefundAuditSummary(buildAuditSummaryReq())
+    const statusAgg = toSummaryCountItems(data?.statusAgg)
+    const exceptionTypeAgg = toSummaryCountItems(data?.exceptionTypeAgg)
+    auditSummaryData.value = {
+      totalCount: parseNumber(data?.totalCount) ?? auditTotal.value,
+      differenceAmountSum:
+        parseNumber(data?.differenceAmountSum) ?? calculateFallbackAuditDifferenceAmountSum(auditList.value),
+      unresolvedTicketCount:
+        parseNumber(data?.unresolvedTicketCount) ?? calculateFallbackAuditUnresolvedTicketCount(auditList.value),
+      ticketSummaryDegraded: Boolean(data?.ticketSummaryDegraded),
+      statusAgg: statusAgg.length ? statusAgg : createFallbackStatusAgg(auditList.value),
+      exceptionTypeAgg: exceptionTypeAgg.length ? exceptionTypeAgg : createFallbackExceptionTypeAgg(auditList.value)
+    }
+    auditSummaryFallback.value = false
+    auditSummaryFallbackReason.value = ''
+  } catch (error: any) {
+    const msg = String(resolveApiErrorMessage(error) || '').toLowerCase()
+    const fallbackReason =
+      msg.includes('404') || msg.includes('not found')
+        ? 'refund-audit-summary 接口未就绪，当前展示列表近似统计。'
+        : buildApiErrorMessage(error, 'refund-audit-summary 查询失败')
+    applyFallbackAuditSummary(fallbackReason)
   }
 }
 
@@ -1327,13 +1549,14 @@ const getAuditList = async () => {
     })
     auditList.value = data.list || []
     auditTotal.value = data.total || 0
-    applyAuditSummary(data as Record<string, any>)
+    await loadAuditSummary()
   } catch (error: any) {
     auditList.value = []
     auditTotal.value = 0
-    auditSummaryFallback.value = false
     auditSummaryData.value = createEmptyAuditSummaryData()
-    message.error(error?.msg || '退款-提成巡检查询失败，请稍后重试')
+    auditSummaryFallback.value = false
+    auditSummaryFallbackReason.value = ''
+    message.error(buildApiErrorMessage(error, '退款-提成巡检查询失败，请稍后重试'))
   } finally {
     auditLoading.value = false
   }
