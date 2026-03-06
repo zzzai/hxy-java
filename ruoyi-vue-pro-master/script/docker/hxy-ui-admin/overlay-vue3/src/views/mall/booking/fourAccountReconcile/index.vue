@@ -57,6 +57,43 @@
   </ContentWrap>
 
   <ContentWrap>
+    <el-alert
+      v-if="summaryFallback"
+      :closable="false"
+      :description="summaryFallbackReason || 'summary 接口不可用，当前展示列表近似统计。'"
+      title="统计已降级"
+      type="warning"
+      class="mb-12px"
+    />
+    <el-row v-loading="summaryLoading" :gutter="12">
+      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">总笔数</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.totalCount) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">PASS / WARN</div>
+          <div class="mt-8px text-20px font-600">{{ summaryPassWarnText }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">差异金额(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(summaryData.diffAmount) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="6" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">未收口工单数</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(summaryData.openTicketCount) }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
+  </ContentWrap>
+
+  <ContentWrap>
     <el-table v-loading="loading" :data="list">
       <el-table-column label="业务日期" width="120">
         <template #default="{ row }">
@@ -303,6 +340,16 @@ const detailIssueData = ref<IssueDetailData>({})
 const detailIssueTags = ref<string[]>([])
 const detailIssueAvailable = ref(false)
 const detailIssueParseError = ref(false)
+const summaryLoading = ref(false)
+const summaryFallback = ref(false)
+const summaryFallbackReason = ref('')
+const summaryData = ref<FourAccountReconcileApi.FourAccountReconcileSummaryVO>({
+  totalCount: undefined,
+  passCount: undefined,
+  warnCount: undefined,
+  diffAmount: undefined,
+  openTicketCount: undefined
+})
 
 const queryParams = reactive<FourAccountReconcileApi.FourAccountReconcilePageReq>({
   pageNo: 1,
@@ -318,6 +365,16 @@ const runForm = reactive<FourAccountReconcileApi.FourAccountReconcileRunReq>({
   source: 'MANUAL'
 })
 
+const createEmptySummaryData = (): FourAccountReconcileApi.FourAccountReconcileSummaryVO => {
+  return {
+    totalCount: undefined,
+    passCount: undefined,
+    warnCount: undefined,
+    diffAmount: undefined,
+    openTicketCount: undefined
+  }
+}
+
 const createEmptyIssueDetailData = (): IssueDetailData => {
   return {
     tradeAmount: undefined,
@@ -331,6 +388,10 @@ const createEmptyIssueDetailData = (): IssueDetailData => {
 
 const isValidNumber = (value: any): value is number => {
   return typeof value === 'number' && !Number.isNaN(value)
+}
+
+const countOrDash = (value?: number) => {
+  return isValidNumber(value) ? String(value) : EMPTY_TEXT
 }
 
 const textOrDash = (value: any) => {
@@ -394,6 +455,10 @@ const ticketSeverityTagType = (severity?: string) => {
   if (normalized === 'P2') return 'info'
   return ''
 }
+
+const summaryPassWarnText = computed(() => {
+  return `${countOrDash(summaryData.value.passCount)} / ${countOrDash(summaryData.value.warnCount)}`
+})
 
 const diffTagType = (amount?: number) => {
   if (!isValidNumber(amount)) return 'info'
@@ -510,6 +575,58 @@ const parseDetailIssueJson = (rawJson?: string) => {
   }
 }
 
+const buildSummaryReq = (): FourAccountReconcileApi.FourAccountReconcileSummaryReq => {
+  return {
+    bizDate: queryParams.bizDate,
+    status: queryParams.status,
+    source: queryParams.source,
+    issueCode: queryParams.issueCode
+  }
+}
+
+const calculateFallbackDiffAmount = (rows: FourAccountReconcileApi.FourAccountReconcileVO[]) => {
+  return rows.reduce((totalAmount, row) => {
+    const left = parseNumber(row.tradeMinusFulfillment) || 0
+    const right = parseNumber(row.tradeMinusCommissionSplit) || 0
+    return totalAmount + Math.max(Math.abs(left), Math.abs(right))
+  }, 0)
+}
+
+const calculateFallbackSummary = () => {
+  const passCount = list.value.filter((item) => item.status === 10).length
+  const warnCount = list.value.filter((item) => item.status === 20).length
+  const openTicketCount = list.value.filter((item) => item.relatedTicketId && item.relatedTicketStatus !== 20).length
+  return {
+    totalCount: total.value,
+    passCount,
+    warnCount,
+    diffAmount: calculateFallbackDiffAmount(list.value),
+    openTicketCount
+  } as FourAccountReconcileApi.FourAccountReconcileSummaryVO
+}
+
+const loadSummary = async () => {
+  summaryLoading.value = true
+  try {
+    const data = await FourAccountReconcileApi.getFourAccountReconcileSummary(buildSummaryReq())
+    summaryData.value = {
+      ...createEmptySummaryData(),
+      ...(data || {})
+    }
+    summaryFallback.value = false
+    summaryFallbackReason.value = ''
+  } catch (error: any) {
+    summaryData.value = calculateFallbackSummary()
+    summaryFallback.value = true
+    const msg = String(error?.msg || '').toLowerCase()
+    summaryFallbackReason.value = msg.includes('404')
+      ? 'summary 接口未就绪，当前展示列表近似统计。'
+      : 'summary 查询失败，当前展示列表近似统计。'
+  } finally {
+    summaryLoading.value = false
+  }
+}
+
 const getList = async () => {
   loading.value = true
   try {
@@ -517,9 +634,13 @@ const getList = async () => {
     const data = await FourAccountReconcileApi.getFourAccountReconcilePage(queryParams)
     list.value = data.list || []
     total.value = data.total || 0
+    await loadSummary()
   } catch (error: any) {
     list.value = []
     total.value = 0
+    summaryData.value = createEmptySummaryData()
+    summaryFallback.value = false
+    summaryFallbackReason.value = ''
     message.error(error?.msg || '四账对账列表查询失败')
   } finally {
     loading.value = false

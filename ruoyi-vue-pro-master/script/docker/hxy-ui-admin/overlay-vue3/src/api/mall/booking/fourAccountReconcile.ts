@@ -57,12 +57,31 @@ export interface FourAccountReconcileRunReq {
   source?: string
 }
 
+export interface FourAccountReconcileSummaryReq {
+  bizDate?: string[]
+  status?: number
+  source?: string
+  issueCode?: string
+}
+
+export interface FourAccountReconcileSummaryVO {
+  totalCount?: number
+  passCount?: number
+  warnCount?: number
+  diffAmount?: number
+  openTicketCount?: number
+}
+
 export const getFourAccountReconcilePage = (params: FourAccountReconcilePageReq) => {
   return request.get({ url: '/booking/four-account-reconcile/page', params })
 }
 
 export const getFourAccountReconcile = (id: number) => {
   return request.get<FourAccountReconcileVO>({ url: '/booking/four-account-reconcile/get', params: { id } })
+}
+
+export const getFourAccountReconcileSummary = (params: FourAccountReconcileSummaryReq) => {
+  return request.get<FourAccountReconcileSummaryVO>({ url: '/booking/four-account-reconcile/summary', params })
 }
 
 export const runFourAccountReconcile = (data: FourAccountReconcileRunReq) => {
