@@ -28,6 +28,10 @@ export interface TradeAfterSaleVO {
   refundLimitRuleHint?: string // 退款上限命中规则提示
   refundLimitDetailJson?: string // 退款上限审计明细快照（JSON）
   refundLimitDetail?: Record<string, any> // 退款上限审计明细（结构化）
+  refundAuditStatus?: string // 退款审计状态
+  refundExceptionType?: string // 退款异常类型
+  refundEvidenceJson?: string // 退款审计证据 JSON
+  refundAuditRemark?: string // 退款审计备注
   payRefundId?: number | null // 支付退款编号
   refundTime?: Date // 退款时间
   logisticsId?: number | null // 退货物流公司编号
@@ -52,7 +56,11 @@ export interface TradeAfterSalePageReqVO extends PageParam {
   way?: number | null
   orderNo?: string
   spuName?: string
+  refundAuditStatus?: string | null
+  refundExceptionType?: string | null
   refundLimitSource?: string | null
+  payRefundId?: number | null
+  refundTimeRange?: string[]
   createTime?: string[]
 }
 

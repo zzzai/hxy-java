@@ -52,9 +52,24 @@
           {{ formData.refundLimitSource }}
         </el-tag>
       </el-descriptions-item>
+      <el-descriptions-item label="退款审计状态: ">
+        {{ formData.refundAuditStatus || EMPTY_TEXT }}
+      </el-descriptions-item>
+      <el-descriptions-item label="退款异常类型: ">
+        {{ formData.refundExceptionType || EMPTY_TEXT }}
+      </el-descriptions-item>
+      <el-descriptions-item label="支付退款ID: ">
+        {{ formData.payRefundId || EMPTY_TEXT }}
+      </el-descriptions-item>
+      <el-descriptions-item label="退款时间: ">
+        {{ formatDateTimeOrDash(formData.refundTime) }}
+      </el-descriptions-item>
       <el-descriptions-item label="退款原因: ">{{ formData.applyReason }}</el-descriptions-item>
       <el-descriptions-item :span="2" label="规则提示: ">
         {{ formData.refundLimitRuleHint || '-' }}
+      </el-descriptions-item>
+      <el-descriptions-item :span="2" label="退款审计备注: ">
+        {{ formData.refundAuditRemark || EMPTY_TEXT }}
       </el-descriptions-item>
       <el-descriptions-item :span="2" label="上限审计明细: ">
         <div v-if="refundLimitDetailView.parseSuccess && refundLimitDetailView.entries.length" class="refund-limit-detail">
@@ -74,6 +89,25 @@
           />
         </div>
         <span v-else>{{ refundLimitDetailView.rawText || '-' }}</span>
+      </el-descriptions-item>
+      <el-descriptions-item :span="2" label="退款审计证据: ">
+        <div v-if="refundEvidenceView.parseSuccess && refundEvidenceView.entries.length" class="refund-limit-detail">
+          <div v-for="entry in refundEvidenceView.entries" :key="entry.key" class="refund-limit-detail__row">
+            <span class="refund-limit-detail__key">{{ entry.key }}：</span>
+            <span>{{ entry.value }}</span>
+          </div>
+        </div>
+        <div v-else-if="refundEvidenceView.parseFailed">
+          <el-alert :closable="false" title="退款审计证据解析失败，已保留原文" type="warning" />
+          <el-input
+            :model-value="refundEvidenceView.rawText || EMPTY_TEXT"
+            :rows="4"
+            class="mt-8px"
+            readonly
+            type="textarea"
+          />
+        </div>
+        <span v-else>{{ refundEvidenceView.rawText || EMPTY_TEXT }}</span>
       </el-descriptions-item>
       <el-descriptions-item label="补充描述: ">
         {{ formData.applyDescription }}
@@ -197,6 +231,8 @@ const formData = ref({
 })
 const updateAuditReasonFormRef = ref() // 拒绝售后表单 Ref
 const REFUND_LIMIT_BUNDLE_CHILD_FULFILLED_CODE = 1011000125
+const BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID_CODE = 1030004011
+const BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT_CODE = 1030004012
 const EMPTY_TEXT = '-'
 
 interface RefundLimitDetailEntry {
@@ -276,6 +312,17 @@ const parseRefundLimitDetailJson = (rawValue?: string): RefundLimitDetailView =>
   }
 }
 
+const formatDateTimeOrDash = (value: any) => {
+  if (!value) {
+    return EMPTY_TEXT
+  }
+  try {
+    return formatDate(value) || EMPTY_TEXT
+  } catch {
+    return EMPTY_TEXT
+  }
+}
+
 const refundLimitSourceDisplay = computed(() => {
   return formData.value.refundLimitSourceLabel || formData.value.refundLimitSource || EMPTY_TEXT
 })
@@ -284,11 +331,50 @@ const refundLimitDetailView = computed(() => {
   return parseRefundLimitDetailJson(formData.value.refundLimitDetailJson)
 })
 
+const refundEvidenceView = computed(() => {
+  return parseRefundLimitDetailJson(formData.value.refundEvidenceJson)
+})
+
+const resolveRefundErrorCode = (error: any): number | undefined => {
+  const candidates = [
+    error?.code,
+    error?.status,
+    error?.data?.code,
+    error?.response?.data?.code
+  ]
+  for (const candidate of candidates) {
+    const parsed = Number(candidate)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return undefined
+}
+
+const resolveRefundRawMessage = (error: any): string => {
+  const text = String(
+    error?.msg || error?.message || error?.data?.msg || error?.response?.data?.msg || error?.response?.data?.message || ''
+  ).trim()
+  return text
+}
+
 const buildRefundErrorMessage = (error: any) => {
-  const rawMessage = String(error?.msg || error?.message || '').trim()
-  const code = Number(error?.code ?? error?.status)
+  const rawMessage = resolveRefundRawMessage(error)
+  const code = resolveRefundErrorCode(error)
+  const rawMessageUpper = rawMessage.toUpperCase()
   if (code === REFUND_LIMIT_BUNDLE_CHILD_FULFILLED_CODE) {
     const hint = '退款失败：命中子项台账优先校验，存在已履约子项且超出可退上限。'
+    return rawMessage ? `${hint} 原始信息：${rawMessage}` : hint
+  }
+  if (code === BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT_CODE || rawMessageUpper.includes('BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT')) {
+    const hint = '退款失败：检测到退款回调幂等冲突，请核对是否已绑定其它退款单。'
+    return rawMessage ? `${hint} 原始信息：${rawMessage}` : hint
+  }
+  const merchantRefundInvalid = code === BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID_CODE
+    || rawMessageUpper.includes('BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID')
+    || (rawMessageUpper.includes('MERCHANTREFUNDID') && (rawMessageUpper.includes('INVALID') || rawMessage.includes('不合法') || rawMessage.includes('非法')))
+  if (merchantRefundInvalid) {
+    const hint = '退款失败：merchantRefundId 非法，请检查退款单号格式后重试。'
     return rawMessage ? `${hint} 原始信息：${rawMessage}` : hint
   }
   return rawMessage || '退款失败'

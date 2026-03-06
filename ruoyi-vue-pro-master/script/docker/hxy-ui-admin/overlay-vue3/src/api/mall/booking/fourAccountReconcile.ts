@@ -79,10 +79,19 @@ export type FourAccountRefundCommissionMismatchType =
   | 'REVERSAL_AMOUNT_MISMATCH'
   | string
 
+export type FourAccountRefundAuditStatus = 'PENDING' | 'PASS' | 'WARN' | 'CLOSED' | string
+
+export type FourAccountRefundExceptionType = FourAccountRefundCommissionMismatchType | string
+
 export interface FourAccountRefundCommissionAuditPageReq extends PageParam {
   beginBizDate?: string
   endBizDate?: string
   mismatchType?: FourAccountRefundCommissionMismatchType
+  refundAuditStatus?: FourAccountRefundAuditStatus
+  refundExceptionType?: FourAccountRefundExceptionType
+  refundLimitSource?: string
+  payRefundId?: number
+  refundTimeRange?: string[]
   keyword?: string
   orderId?: number
 }
@@ -98,6 +107,13 @@ export interface FourAccountRefundCommissionAuditVO {
   activeCommissionAmount?: number
   expectedReversalAmount?: number
   mismatchType?: FourAccountRefundCommissionMismatchType
+  refundAuditStatus?: FourAccountRefundAuditStatus
+  refundExceptionType?: FourAccountRefundExceptionType
+  refundLimitSource?: string
+  payRefundId?: number
+  refundTime?: string
+  refundEvidenceJson?: string
+  refundAuditRemark?: string
   mismatchReason?: string
 }
 
@@ -105,6 +121,11 @@ export interface FourAccountRefundCommissionAuditSyncReq {
   beginBizDate?: string
   endBizDate?: string
   mismatchType?: FourAccountRefundCommissionMismatchType
+  refundAuditStatus?: FourAccountRefundAuditStatus
+  refundExceptionType?: FourAccountRefundExceptionType
+  refundLimitSource?: string
+  payRefundId?: number
+  refundTimeRange?: string[]
   keyword?: string
   orderId?: number
   limit?: number

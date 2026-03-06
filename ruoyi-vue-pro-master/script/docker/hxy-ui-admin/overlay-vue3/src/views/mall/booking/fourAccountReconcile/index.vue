@@ -117,7 +117,8 @@
 
   <ContentWrap>
     <div class="mb-10px flex items-center gap-8px">
-      <span class="text-13px text-[var(--el-text-color-secondary)]">退款-提成巡检</span>
+      <span class="text-13px text-[var(--el-text-color-secondary)]">退款佣金审计</span>
+      <el-tag v-if="auditSummaryFallback" type="warning">汇总降级</el-tag>
     </div>
     <el-form :inline="true" :model="auditQueryParams" class="-mb-15px" label-width="96px">
       <el-form-item label="业务日期" prop="bizDateRange">
@@ -131,10 +132,57 @@
           value-format="YYYY-MM-DD"
         />
       </el-form-item>
-      <el-form-item label="异常类型" prop="mismatchType">
-        <el-select v-model="auditQueryParams.mismatchType" class="!w-240px" clearable placeholder="请选择异常类型">
+      <el-form-item label="退款时间" prop="refundTimeRange">
+        <el-date-picker
+          v-model="auditRefundTimeRange"
+          class="!w-340px"
+          end-placeholder="结束时间"
+          range-separator="至"
+          start-placeholder="开始时间"
+          type="datetimerange"
+          value-format="YYYY-MM-DD HH:mm:ss"
+        />
+      </el-form-item>
+      <el-form-item label="审计状态" prop="refundAuditStatus">
+        <el-select
+          v-model="auditQueryParams.refundAuditStatus"
+          class="!w-180px"
+          clearable
+          filterable
+          placeholder="请选择状态"
+        >
+          <el-option
+            v-for="item in refundAuditStatusOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="异常类型" prop="refundExceptionType">
+        <el-select
+          v-model="auditQueryParams.refundExceptionType"
+          class="!w-240px"
+          clearable
+          placeholder="请选择异常类型"
+        >
           <el-option
             v-for="item in refundCommissionMismatchTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="上限来源" prop="refundLimitSource">
+        <el-select
+          v-model="auditQueryParams.refundLimitSource"
+          class="!w-180px"
+          clearable
+          placeholder="请选择上限来源"
+        >
+          <el-option
+            v-for="item in refundLimitSourceOptions"
             :key="item.value"
             :label="item.label"
             :value="item.value"
@@ -152,6 +200,9 @@
       </el-form-item>
       <el-form-item label="订单ID" prop="orderId">
         <el-input-number v-model="auditQueryParams.orderId" :controls="false" :min="1" class="!w-180px" />
+      </el-form-item>
+      <el-form-item label="退款单ID" prop="payRefundId">
+        <el-input-number v-model="auditQueryParams.payRefundId" :controls="false" :min="1" class="!w-180px" />
       </el-form-item>
       <el-form-item label="同步条数上限">
         <el-input-number
@@ -184,6 +235,27 @@
         </el-button>
       </el-form-item>
     </el-form>
+
+    <el-row :gutter="12" class="mb-12px">
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">总数</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(auditSummaryData.totalCount) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">差异金额(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.diffAmount) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">未收口工单</div>
+          <div class="mt-8px text-26px font-600">{{ countOrDash(auditSummaryData.unresolvedTicketCount) }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <el-table v-loading="auditLoading" :data="auditList">
       <el-table-column label="订单ID" min-width="120">
@@ -236,9 +308,31 @@
           </el-tooltip>
         </template>
       </el-table-column>
+      <el-table-column label="退款单ID" min-width="120">
+        <template #default="{ row }">
+          {{ numberOrDash(row.payRefundId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="退款时间" min-width="180">
+        <template #default="{ row }">
+          {{ textOrDash(row.refundTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="审计状态" min-width="120">
+        <template #default="{ row }">
+          <el-tag :type="refundAuditStatusTagType(row.refundAuditStatus)">
+            {{ refundAuditStatusText(row.refundAuditStatus) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="异常类型" min-width="170">
         <template #default="{ row }">
-          {{ mismatchTypeText(row.mismatchType) }}
+          {{ mismatchTypeText(row.refundExceptionType || row.mismatchType) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="退款上限来源" min-width="140">
+        <template #default="{ row }">
+          {{ refundLimitSourceText(row.refundLimitSource) }}
         </template>
       </el-table-column>
       <el-table-column label="异常原因" min-width="260" show-overflow-tooltip>
@@ -246,9 +340,19 @@
           {{ textOrDash(row.mismatchReason) }}
         </template>
       </el-table-column>
+      <el-table-column label="审计备注" min-width="220" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.refundAuditRemark) }}
+        </template>
+      </el-table-column>
       <el-table-column label="支付时间" min-width="180">
         <template #default="{ row }">
           {{ textOrDash(row.payTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column align="center" fixed="right" label="操作" width="120">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openAuditDetailDrawer(row)">查看证据</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -434,6 +538,68 @@
     </template>
   </Dialog>
 
+  <el-drawer v-model="auditDetailDrawerVisible" size="48%" title="退款佣金审计详情">
+    <el-descriptions :column="2" border>
+      <el-descriptions-item label="订单ID">{{ numberOrDash(auditDetailData.orderId) }}</el-descriptions-item>
+      <el-descriptions-item label="订单号">{{ textOrDash(auditDetailData.tradeOrderNo) }}</el-descriptions-item>
+      <el-descriptions-item label="退款单ID">{{ numberOrDash(auditDetailData.payRefundId) }}</el-descriptions-item>
+      <el-descriptions-item label="退款时间">{{ textOrDash(auditDetailData.refundTime) }}</el-descriptions-item>
+      <el-descriptions-item label="审计状态">
+        <el-tag :type="refundAuditStatusTagType(auditDetailData.refundAuditStatus)">
+          {{ refundAuditStatusText(auditDetailData.refundAuditStatus) }}
+        </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="异常类型">
+        {{ mismatchTypeText(auditDetailData.refundExceptionType || auditDetailData.mismatchType) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="退款上限来源">
+        {{ refundLimitSourceText(auditDetailData.refundLimitSource) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="支付时间">{{ textOrDash(auditDetailData.payTime) }}</el-descriptions-item>
+      <el-descriptions-item label="异常原因" :span="2">{{ textOrDash(auditDetailData.mismatchReason) }}</el-descriptions-item>
+      <el-descriptions-item label="审计备注" :span="2">{{ textOrDash(auditDetailData.refundAuditRemark) }}</el-descriptions-item>
+    </el-descriptions>
+
+    <el-descriptions :column="2" border class="mt-16px">
+      <el-descriptions-item label="退款金额(元)">{{ fenToYuanOrDash(auditDetailData.refundPrice) }}</el-descriptions-item>
+      <el-descriptions-item label="已结算提成(元)">
+        {{ fenToYuanOrDash(auditDetailData.settledCommissionAmount) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="冲正金额(元)">
+        {{ fenToYuanOrDash(auditDetailData.reversalCommissionAmountAbs) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="期望冲正(元)">
+        {{ fenToYuanOrDash(auditDetailData.expectedReversalAmount) }}
+      </el-descriptions-item>
+    </el-descriptions>
+
+    <div class="mt-16px">
+      <div class="mb-8px font-500">refundEvidenceJson（结构化）</div>
+      <el-alert v-if="auditEvidenceParseError" :closable="false" title="证据解析失败（原文保留）" type="warning" />
+      <el-empty v-else-if="!auditEvidenceAvailable" description="无可用证据" />
+      <el-descriptions v-else :column="2" border>
+        <el-descriptions-item
+          v-for="(entry, index) in auditEvidenceEntries"
+          :key="`${entry.key}-${index}`"
+          :label="entry.key"
+          :span="2"
+        >
+          {{ entry.value }}
+        </el-descriptions-item>
+      </el-descriptions>
+    </div>
+
+    <div class="mt-16px">
+      <div class="mb-8px font-500">refundEvidenceJson 原文</div>
+      <el-input
+        :model-value="auditDetailData.refundEvidenceJson || EMPTY_TEXT"
+        :rows="6"
+        readonly
+        type="textarea"
+      />
+    </div>
+  </el-drawer>
+
   <el-drawer v-model="detailDrawerVisible" size="58%" title="四账对账详情">
     <div v-loading="detailLoading">
       <el-descriptions :column="2" border>
@@ -528,6 +694,17 @@ interface IssueDetailData {
   tradeMinusCommissionSplit?: number
 }
 
+interface AuditSummaryData {
+  totalCount?: number
+  diffAmount?: number
+  unresolvedTicketCount?: number
+}
+
+interface AuditEvidenceEntry {
+  key: string
+  value: string
+}
+
 const EMPTY_TEXT = '--'
 
 const message = useMessage()
@@ -563,14 +740,36 @@ const refundCommissionMismatchTypeOptions = [
   { label: '冲正未退款', value: 'REVERSAL_WITHOUT_REFUND' },
   { label: '冲正金额不一致', value: 'REVERSAL_AMOUNT_MISMATCH' }
 ]
+const refundAuditStatusOptions = [
+  { label: '待处理', value: 'PENDING' },
+  { label: '通过', value: 'PASS' },
+  { label: '告警', value: 'WARN' },
+  { label: '已收口', value: 'CLOSED' }
+]
+const refundLimitSourceOptions = [
+  { label: '子项台账优先', value: 'CHILD_LEDGER' },
+  { label: '快照兜底', value: 'FALLBACK_SNAPSHOT' }
+]
 const auditLoading = ref(false)
 const auditTotal = ref(0)
 const auditList = ref<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]>([])
 const auditBizDateRange = ref<string[]>()
+const auditRefundTimeRange = ref<string[]>()
 const auditSyncLimit = ref(200)
 const auditSyncLoading = ref(false)
 const auditSyncResultVisible = ref(false)
 const auditSyncCollapseActive = ref<string[]>([])
+const auditSummaryFallback = ref(false)
+const auditSummaryData = ref<AuditSummaryData>({
+  totalCount: undefined,
+  diffAmount: undefined,
+  unresolvedTicketCount: undefined
+})
+const auditDetailDrawerVisible = ref(false)
+const auditDetailData = ref<Partial<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO>>({})
+const auditEvidenceEntries = ref<AuditEvidenceEntry[]>([])
+const auditEvidenceAvailable = ref(false)
+const auditEvidenceParseError = ref(false)
 const auditSyncResult = ref<FourAccountReconcileApi.FourAccountRefundCommissionAuditSyncResp>({
   totalMismatchCount: 0,
   attemptedCount: 0,
@@ -583,6 +782,11 @@ const auditQueryParams = reactive<FourAccountReconcileApi.FourAccountRefundCommi
   pageSize: 10,
   beginBizDate: undefined,
   endBizDate: undefined,
+  refundAuditStatus: undefined,
+  refundExceptionType: undefined,
+  refundLimitSource: undefined,
+  payRefundId: undefined,
+  refundTimeRange: undefined,
   mismatchType: undefined,
   keyword: undefined,
   orderId: undefined
@@ -633,6 +837,20 @@ const createEmptyAuditSyncResult = (): FourAccountReconcileApi.FourAccountRefund
     failedCount: 0,
     failedOrderIds: []
   }
+}
+
+const createEmptyAuditSummaryData = (): AuditSummaryData => {
+  return {
+    totalCount: undefined,
+    diffAmount: undefined,
+    unresolvedTicketCount: undefined
+  }
+}
+
+const resetAuditEvidenceView = () => {
+  auditEvidenceEntries.value = []
+  auditEvidenceAvailable.value = false
+  auditEvidenceParseError.value = false
 }
 
 const isValidNumber = (value: any): value is number => {
@@ -694,6 +912,36 @@ const mismatchTypeText = (type?: FourAccountReconcileApi.FourAccountRefundCommis
   if (type === 'REVERSAL_WITHOUT_REFUND') return '冲正未退款'
   if (type === 'REVERSAL_AMOUNT_MISMATCH') return '冲正金额不一致'
   return textOrDash(type)
+}
+
+const normalizeUpperText = (value: any): string | undefined => {
+  const text = String(value || '').trim().toUpperCase()
+  return text || undefined
+}
+
+const refundAuditStatusText = (status?: FourAccountReconcileApi.FourAccountRefundAuditStatus) => {
+  const normalized = normalizeUpperText(status)
+  if (normalized === 'PENDING') return '待处理'
+  if (normalized === 'PASS') return '通过'
+  if (normalized === 'WARN') return '告警'
+  if (normalized === 'CLOSED') return '已收口'
+  return textOrDash(status)
+}
+
+const refundAuditStatusTagType = (status?: FourAccountReconcileApi.FourAccountRefundAuditStatus) => {
+  const normalized = normalizeUpperText(status)
+  if (normalized === 'PASS') return 'success'
+  if (normalized === 'WARN') return 'warning'
+  if (normalized === 'PENDING') return 'info'
+  if (normalized === 'CLOSED') return ''
+  return 'info'
+}
+
+const refundLimitSourceText = (source?: string) => {
+  const normalized = normalizeUpperText(source)
+  if (normalized === 'CHILD_LEDGER') return '子项台账优先'
+  if (normalized === 'FALLBACK_SNAPSHOT') return '快照兜底'
+  return textOrDash(source)
 }
 
 const auditSyncFailedCountText = computed(() => {
@@ -769,6 +1017,111 @@ const parseNumber = (value: any): number | undefined => {
   }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const stringifyEvidenceValue = (value: any): string => {
+  if (value === undefined || value === null || value === '') {
+    return EMPTY_TEXT
+  }
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return text || EMPTY_TEXT
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+const parseAuditEvidenceJson = (rawJson?: string) => {
+  resetAuditEvidenceView()
+  const raw = String(rawJson || '').trim()
+  if (!raw) {
+    return
+  }
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      auditEvidenceEntries.value = parsed.map((item, index) => ({
+        key: `[${index}]`,
+        value: stringifyEvidenceValue(item)
+      }))
+      auditEvidenceAvailable.value = auditEvidenceEntries.value.length > 0
+      return
+    }
+    if (parsed && typeof parsed === 'object') {
+      auditEvidenceEntries.value = Object.entries(parsed).map(([key, value]) => ({
+        key,
+        value: stringifyEvidenceValue(value)
+      }))
+      auditEvidenceAvailable.value = auditEvidenceEntries.value.length > 0
+      return
+    }
+    auditEvidenceEntries.value = [{ key: 'value', value: stringifyEvidenceValue(parsed) }]
+    auditEvidenceAvailable.value = true
+  } catch {
+    auditEvidenceParseError.value = true
+  }
+}
+
+const calculateFallbackAuditDiffAmount = (rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]) => {
+  return rows.reduce((totalAmount, row) => {
+    const expected = parseNumber(row.expectedReversalAmount) || 0
+    const reversal = parseNumber(row.reversalCommissionAmountAbs) || 0
+    return totalAmount + Math.abs(expected - reversal)
+  }, 0)
+}
+
+const calculateFallbackAuditUnresolvedTicketCount = (rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]) => {
+  return rows.filter((row) => {
+    const status = normalizeUpperText(row.refundAuditStatus)
+    if (!status) {
+      return true
+    }
+    return status !== 'PASS' && status !== 'CLOSED'
+  }).length
+}
+
+const parseAnyAuditSummaryField = (source: Record<string, any> | undefined, keys: string[]) => {
+  if (!source) {
+    return undefined
+  }
+  for (const key of keys) {
+    const parsed = parseNumber(source[key])
+    if (parsed !== undefined) {
+      return parsed
+    }
+  }
+  return undefined
+}
+
+const applyAuditSummary = (
+  data: PageResult<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO> | Record<string, any> | undefined
+) => {
+  const source = ((data || {}) as Record<string, any>) || {}
+  const sourceSummary = source.summary && typeof source.summary === 'object'
+    ? (source.summary as Record<string, any>)
+    : undefined
+
+  const totalCount = parseAnyAuditSummaryField(sourceSummary, ['totalCount'])
+    ?? parseAnyAuditSummaryField(source, ['totalCount', 'totalMismatchCount', 'total'])
+    ?? auditTotal.value
+  const diffAmount = parseAnyAuditSummaryField(sourceSummary, ['diffAmount', 'differenceAmount', 'mismatchAmount'])
+    ?? parseAnyAuditSummaryField(source, ['diffAmount', 'differenceAmount', 'mismatchAmount'])
+  const unresolvedTicketCount = parseAnyAuditSummaryField(sourceSummary, ['unresolvedTicketCount', 'unresolvedCount'])
+    ?? parseAnyAuditSummaryField(source, ['unresolvedTicketCount', 'unresolvedCount'])
+
+  const hasServerSummary = diffAmount !== undefined || unresolvedTicketCount !== undefined
+  auditSummaryFallback.value = !hasServerSummary
+  auditSummaryData.value = {
+    totalCount,
+    diffAmount: diffAmount ?? calculateFallbackAuditDiffAmount(auditList.value),
+    unresolvedTicketCount: unresolvedTicketCount ?? calculateFallbackAuditUnresolvedTicketCount(auditList.value)
+  }
 }
 
 const normalizeIssueLabel = (issue: any): string => {
@@ -934,13 +1287,23 @@ const resetQuery = () => {
 
 const normalizeAuditQuery = () => {
   auditQueryParams.keyword = String(auditQueryParams.keyword || '').trim() || undefined
-  auditQueryParams.mismatchType = String(auditQueryParams.mismatchType || '').trim().toUpperCase() || undefined
+  auditQueryParams.refundAuditStatus = normalizeUpperText(auditQueryParams.refundAuditStatus)
+  auditQueryParams.refundExceptionType = normalizeUpperText(
+    auditQueryParams.refundExceptionType || auditQueryParams.mismatchType
+  )
+  auditQueryParams.mismatchType = auditQueryParams.refundExceptionType
+  auditQueryParams.refundLimitSource = normalizeUpperText(auditQueryParams.refundLimitSource)
   if (Array.isArray(auditBizDateRange.value) && auditBizDateRange.value.length === 2) {
     auditQueryParams.beginBizDate = auditBizDateRange.value[0]
     auditQueryParams.endBizDate = auditBizDateRange.value[1]
   } else {
     auditQueryParams.beginBizDate = undefined
     auditQueryParams.endBizDate = undefined
+  }
+  if (Array.isArray(auditRefundTimeRange.value) && auditRefundTimeRange.value.length === 2) {
+    auditQueryParams.refundTimeRange = [auditRefundTimeRange.value[0], auditRefundTimeRange.value[1]]
+  } else {
+    auditQueryParams.refundTimeRange = undefined
   }
 }
 
@@ -953,15 +1316,23 @@ const getAuditList = async () => {
       pageSize: auditQueryParams.pageSize,
       beginBizDate: auditQueryParams.beginBizDate,
       endBizDate: auditQueryParams.endBizDate,
+      refundAuditStatus: auditQueryParams.refundAuditStatus,
+      refundExceptionType: auditQueryParams.refundExceptionType,
+      refundLimitSource: auditQueryParams.refundLimitSource,
+      payRefundId: parseNumber(auditQueryParams.payRefundId),
+      refundTimeRange: auditQueryParams.refundTimeRange,
       mismatchType: auditQueryParams.mismatchType,
       keyword: auditQueryParams.keyword,
       orderId: parseNumber(auditQueryParams.orderId)
     })
     auditList.value = data.list || []
     auditTotal.value = data.total || 0
+    applyAuditSummary(data as Record<string, any>)
   } catch (error: any) {
     auditList.value = []
     auditTotal.value = 0
+    auditSummaryFallback.value = false
+    auditSummaryData.value = createEmptyAuditSummaryData()
     message.error(error?.msg || '退款-提成巡检查询失败，请稍后重试')
   } finally {
     auditLoading.value = false
@@ -977,9 +1348,15 @@ const resetAuditQuery = () => {
   auditQueryParams.pageNo = 1
   auditQueryParams.pageSize = 10
   auditBizDateRange.value = undefined
+  auditRefundTimeRange.value = undefined
   auditSyncLimit.value = 200
   auditQueryParams.beginBizDate = undefined
   auditQueryParams.endBizDate = undefined
+  auditQueryParams.refundAuditStatus = undefined
+  auditQueryParams.refundExceptionType = undefined
+  auditQueryParams.refundLimitSource = undefined
+  auditQueryParams.payRefundId = undefined
+  auditQueryParams.refundTimeRange = undefined
   auditQueryParams.mismatchType = undefined
   auditQueryParams.keyword = undefined
   auditQueryParams.orderId = undefined
@@ -1002,6 +1379,11 @@ const handleSyncAuditTickets = async () => {
   const payload: FourAccountReconcileApi.FourAccountRefundCommissionAuditSyncReq = {
     beginBizDate: auditQueryParams.beginBizDate,
     endBizDate: auditQueryParams.endBizDate,
+    refundAuditStatus: auditQueryParams.refundAuditStatus,
+    refundExceptionType: auditQueryParams.refundExceptionType,
+    refundLimitSource: auditQueryParams.refundLimitSource,
+    payRefundId: parseNumber(auditQueryParams.payRefundId),
+    refundTimeRange: auditQueryParams.refundTimeRange,
     mismatchType: auditQueryParams.mismatchType,
     keyword: auditQueryParams.keyword,
     orderId: parseNumber(auditQueryParams.orderId),
@@ -1052,6 +1434,12 @@ const copyFailedOrderIds = async () => {
   } catch {
     message.error('复制失败，请检查浏览器剪贴板权限')
   }
+}
+
+const openAuditDetailDrawer = (row: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO) => {
+  auditDetailData.value = { ...(row || {}) }
+  parseAuditEvidenceJson(auditDetailData.value.refundEvidenceJson)
+  auditDetailDrawerVisible.value = true
 }
 
 const openRunDialog = () => {
