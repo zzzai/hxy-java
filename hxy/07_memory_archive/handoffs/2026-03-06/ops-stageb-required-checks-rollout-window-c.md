@@ -14,6 +14,9 @@
   - `gh_apply_cmd`（PUT 应用 payload）
 - 输出 `payload_cmd_file`（持久化到 `/tmp/github_required_checks_<owner>_<repo>_<branch>.json`）。
 - `--dry-run 0` 时优先走 `gh api`；未安装 gh 则回退到 `curl + GITHUB_TOKEN`。
+- 增强日志输出：
+  - `profile=stagea+stageb|stagea-only|base-only`
+  - dry-run 下额外打印手工执行 `gh_apply_cmd`。
 
 2. 新增运维文档
 - `docs/plans/2026-03-06-ops-stageb-required-checks-rollout.md`
@@ -22,7 +25,11 @@
 ## Verification
 
 - `git diff --check` => PASS
-- `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 check_hxy_naming_guard.sh` => PASS
-- `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 check_hxy_memory_guard.sh` => PASS
-- `run_ops_stageb_p1_local_ci.sh --skip-mysql-init` => PASS
+- `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 check_hxy_naming_guard.sh` => PASS (`[naming-guard] result=PASS checked_files=209`)
+- `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 check_hxy_memory_guard.sh` => PASS (`[hxy-memory-guard] result=PASS checked_files=209 core_domains=0`)
+- `run_ops_stageb_p1_local_ci.sh --skip-mysql-init` => PASS (`result=PASS`)
 
+## Commits
+
+- `9c93f1c922` feat: improve ops stageb required checks rollout tooling
+- `0fea8f6b6a` chore: refine required checks rollout logging
