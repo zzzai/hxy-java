@@ -153,6 +153,16 @@
       <el-form-item label="订单ID" prop="orderId">
         <el-input-number v-model="auditQueryParams.orderId" :controls="false" :min="1" class="!w-180px" />
       </el-form-item>
+      <el-form-item label="同步条数上限">
+        <el-input-number
+          v-model="auditSyncLimit"
+          :controls="false"
+          :max="1000"
+          :min="1"
+          class="!w-180px"
+          placeholder="1~1000"
+        />
+      </el-form-item>
       <el-form-item>
         <el-button :loading="auditLoading" @click="handleAuditQuery">
           <Icon class="mr-5px" icon="ep:search" />
@@ -161,6 +171,16 @@
         <el-button @click="resetAuditQuery">
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
+        </el-button>
+        <el-button
+          v-hasPermi="['booking:commission:settlement']"
+          :loading="auditSyncLoading"
+          plain
+          type="primary"
+          @click="handleSyncAuditTickets"
+        >
+          <Icon class="mr-5px" icon="ep:upload" />
+          同步工单
         </el-button>
       </el-form-item>
     </el-form>
@@ -376,6 +396,44 @@
     </template>
   </Dialog>
 
+  <Dialog v-model="auditSyncResultVisible" title="退款-提成巡检同步结果" width="700px">
+    <el-descriptions :column="2" border>
+      <el-descriptions-item label="命中异常总数">
+        {{ countOrDash(auditSyncResult.totalMismatchCount) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="本次尝试同步">
+        {{ countOrDash(auditSyncResult.attemptedCount) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="同步成功数">
+        {{ countOrDash(auditSyncResult.successCount) }}
+      </el-descriptions-item>
+      <el-descriptions-item label="同步失败数">
+        {{ countOrDash(auditSyncResult.failedCount) }}
+      </el-descriptions-item>
+    </el-descriptions>
+
+    <el-collapse v-model="auditSyncCollapseActive" class="mt-12px">
+      <el-collapse-item :title="`失败订单ID（${auditSyncFailedCountText}）`" name="failed-order-ids">
+        <div class="mb-8px flex items-center justify-between">
+          <span class="text-[var(--el-text-color-secondary)]">用于二次重试排查</span>
+          <el-button link type="primary" @click="copyFailedOrderIds">复制失败订单ID</el-button>
+        </div>
+        <el-empty v-if="!auditSyncResult.failedOrderIds?.length" description="无失败订单" />
+        <el-input
+          v-else
+          :model-value="auditSyncResult.failedOrderIds.join(',')"
+          :rows="5"
+          readonly
+          type="textarea"
+        />
+      </el-collapse-item>
+    </el-collapse>
+
+    <template #footer>
+      <el-button @click="auditSyncResultVisible = false">关闭</el-button>
+    </template>
+  </Dialog>
+
   <el-drawer v-model="detailDrawerVisible" size="58%" title="四账对账详情">
     <div v-loading="detailLoading">
       <el-descriptions :column="2" border>
@@ -509,6 +567,17 @@ const auditLoading = ref(false)
 const auditTotal = ref(0)
 const auditList = ref<FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]>([])
 const auditBizDateRange = ref<string[]>()
+const auditSyncLimit = ref(200)
+const auditSyncLoading = ref(false)
+const auditSyncResultVisible = ref(false)
+const auditSyncCollapseActive = ref<string[]>([])
+const auditSyncResult = ref<FourAccountReconcileApi.FourAccountRefundCommissionAuditSyncResp>({
+  totalMismatchCount: 0,
+  attemptedCount: 0,
+  successCount: 0,
+  failedCount: 0,
+  failedOrderIds: []
+})
 const auditQueryParams = reactive<FourAccountReconcileApi.FourAccountRefundCommissionAuditPageReq>({
   pageNo: 1,
   pageSize: 10,
@@ -553,6 +622,16 @@ const createEmptyIssueDetailData = (): IssueDetailData => {
     splitAmount: undefined,
     tradeMinusFulfillment: undefined,
     tradeMinusCommissionSplit: undefined
+  }
+}
+
+const createEmptyAuditSyncResult = (): FourAccountReconcileApi.FourAccountRefundCommissionAuditSyncResp => {
+  return {
+    totalMismatchCount: 0,
+    attemptedCount: 0,
+    successCount: 0,
+    failedCount: 0,
+    failedOrderIds: []
   }
 }
 
@@ -616,6 +695,10 @@ const mismatchTypeText = (type?: FourAccountReconcileApi.FourAccountRefundCommis
   if (type === 'REVERSAL_AMOUNT_MISMATCH') return '冲正金额不一致'
   return textOrDash(type)
 }
+
+const auditSyncFailedCountText = computed(() => {
+  return String((auditSyncResult.value.failedOrderIds || []).length)
+})
 
 const ticketStatusText = (status?: number) => {
   if (status === 10) return '待处理'
@@ -894,12 +977,81 @@ const resetAuditQuery = () => {
   auditQueryParams.pageNo = 1
   auditQueryParams.pageSize = 10
   auditBizDateRange.value = undefined
+  auditSyncLimit.value = 200
   auditQueryParams.beginBizDate = undefined
   auditQueryParams.endBizDate = undefined
   auditQueryParams.mismatchType = undefined
   auditQueryParams.keyword = undefined
   auditQueryParams.orderId = undefined
   getAuditList()
+}
+
+const normalizeAuditSyncLimit = () => {
+  const parsed = parseNumber(auditSyncLimit.value)
+  if (parsed === undefined) {
+    return 200
+  }
+  return Math.min(1000, Math.max(1, Math.floor(parsed)))
+}
+
+const handleSyncAuditTickets = async () => {
+  if (auditSyncLoading.value) {
+    return
+  }
+  normalizeAuditQuery()
+  const payload: FourAccountReconcileApi.FourAccountRefundCommissionAuditSyncReq = {
+    beginBizDate: auditQueryParams.beginBizDate,
+    endBizDate: auditQueryParams.endBizDate,
+    mismatchType: auditQueryParams.mismatchType,
+    keyword: auditQueryParams.keyword,
+    orderId: parseNumber(auditQueryParams.orderId),
+    limit: normalizeAuditSyncLimit()
+  }
+  try {
+    await message.confirm(`确认按当前筛选条件同步工单吗？本次最多同步 ${payload.limit} 条。`)
+  } catch {
+    return
+  }
+
+  auditSyncLoading.value = true
+  try {
+    const data = await FourAccountReconcileApi.syncFourAccountRefundCommissionAuditTickets(payload)
+    const failedOrderIds = Array.isArray(data?.failedOrderIds)
+      ? data.failedOrderIds.filter((id): id is number => Number.isFinite(Number(id))).map((id) => Number(id))
+      : []
+    auditSyncResult.value = {
+      ...createEmptyAuditSyncResult(),
+      ...(data || {}),
+      failedOrderIds
+    }
+    auditSyncCollapseActive.value = failedOrderIds.length ? ['failed-order-ids'] : []
+    auditSyncResultVisible.value = true
+    if ((auditSyncResult.value.failedCount || 0) > 0) {
+      message.warning(
+        `同步完成：成功 ${auditSyncResult.value.successCount || 0}，失败 ${auditSyncResult.value.failedCount || 0}`
+      )
+    } else {
+      message.success(`同步完成：成功 ${auditSyncResult.value.successCount || 0}`)
+    }
+  } catch (error: any) {
+    message.error(error?.msg || '同步工单失败，请稍后重试')
+  } finally {
+    auditSyncLoading.value = false
+  }
+}
+
+const copyFailedOrderIds = async () => {
+  const ids = auditSyncResult.value.failedOrderIds || []
+  if (!ids.length) {
+    message.warning('当前无失败订单ID可复制')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(ids.join(','))
+    message.success('失败订单ID已复制')
+  } catch {
+    message.error('复制失败，请检查浏览器剪贴板权限')
+  }
 }
 
 const openRunDialog = () => {

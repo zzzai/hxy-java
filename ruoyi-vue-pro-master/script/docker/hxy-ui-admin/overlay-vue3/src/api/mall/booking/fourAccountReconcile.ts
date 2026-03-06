@@ -101,6 +101,23 @@ export interface FourAccountRefundCommissionAuditVO {
   mismatchReason?: string
 }
 
+export interface FourAccountRefundCommissionAuditSyncReq {
+  beginBizDate?: string
+  endBizDate?: string
+  mismatchType?: FourAccountRefundCommissionMismatchType
+  keyword?: string
+  orderId?: number
+  limit?: number
+}
+
+export interface FourAccountRefundCommissionAuditSyncResp {
+  totalMismatchCount?: number
+  attemptedCount?: number
+  successCount?: number
+  failedCount?: number
+  failedOrderIds?: number[]
+}
+
 export const getFourAccountReconcilePage = (params: FourAccountReconcilePageReq) => {
   return request.get({ url: '/booking/four-account-reconcile/page', params })
 }
@@ -117,6 +134,13 @@ export const getFourAccountRefundCommissionAuditPage = (params: FourAccountRefun
   return request.get<PageResult<FourAccountRefundCommissionAuditVO>>({
     url: '/booking/four-account-reconcile/refund-commission-audit-page',
     params
+  })
+}
+
+export const syncFourAccountRefundCommissionAuditTickets = (data: FourAccountRefundCommissionAuditSyncReq) => {
+  return request.post<FourAccountRefundCommissionAuditSyncResp>({
+    url: '/booking/four-account-reconcile/refund-commission-audit/sync-tickets',
+    data
   })
 }
 

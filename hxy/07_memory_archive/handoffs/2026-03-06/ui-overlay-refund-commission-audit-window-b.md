@@ -47,6 +47,19 @@
   - 仅当前巡检区块提示可读错误
   - 不阻断四账页面其它功能
 
+4. 同步工单收口（本批追加）
+- 新增接口：
+  - `POST /booking/four-account-reconcile/refund-commission-audit/sync-tickets`
+- 同步入参与当前筛选一致：
+  - `beginBizDate/endBizDate/mismatchType/keyword/orderId/limit`
+- `limit` 默认 `200`，可配置区间 `1~1000`。
+- 仅用户二次确认后触发同步，避免误操作。
+- 同步结果弹窗展示：
+  - `totalMismatchCount/attemptedCount/successCount/failedCount`
+  - `failedOrderIds` 可展开查看并支持复制。
+- 同步失败时不清空筛选条件，便于二次重试。
+- 空数据/接口异常/字段缺失统一兜底，不阻断其它区块。
+
 ## 手工验收清单
 1. 筛选
 - 步骤：在“退款-提成巡检”区块设置日期区间、异常类型、关键词、订单ID后查询。
@@ -67,3 +80,19 @@
 5. 查询失败容错
 - 步骤：模拟巡检接口异常（5xx/网络错误）。
 - 预期：仅巡检区块报错提示“退款-提成巡检查询失败...”，四账 summary 与原四账列表可继续使用。
+
+6. 同步确认
+- 步骤：点击“同步工单”。
+- 预期：先弹确认框，确认后才调用同步接口。
+
+7. 同步结果展示
+- 步骤：执行一次同步并查看结果弹窗。
+- 预期：展示 `totalMismatchCount/attemptedCount/successCount/failedCount`，空字段可兜底显示。
+
+8. 失败订单ID展开与复制
+- 步骤：当 `failedOrderIds` 非空时展开折叠面板并点击复制。
+- 预期：可见完整失败订单ID列表，复制成功提示可见。
+
+9. 同步失败重试
+- 步骤：模拟同步接口失败后再次点击同步。
+- 预期：筛选条件保持不变，可直接二次重试。
