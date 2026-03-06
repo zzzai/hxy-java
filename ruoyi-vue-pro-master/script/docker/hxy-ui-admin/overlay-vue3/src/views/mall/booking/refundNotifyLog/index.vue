@@ -25,12 +25,7 @@
           filterable
           placeholder="请选择或输入状态"
         >
-          <el-option
-            v-for="item in statusOptions"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value"
-          />
+          <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="错误码" prop="errorCode">
@@ -62,6 +57,47 @@
           <Icon class="mr-5px" icon="ep:refresh" />
           重置
         </el-button>
+      </el-form-item>
+
+      <el-form-item label="自动重放上限">
+        <el-input-number
+          v-model="replayDueForm.limitSize"
+          :controls="false"
+          :max="1000"
+          :min="1"
+          class="!w-140px"
+          placeholder="1~1000"
+        />
+      </el-form-item>
+      <el-form-item label="自动重放模式">
+        <el-select v-model="replayDueForm.dryRun" class="!w-180px">
+          <el-option :value="true" label="dry-run 预演" />
+          <el-option :value="false" label="执行落库" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button
+          v-hasPermi="['booking:refund-notify-log:replay-due']"
+          :loading="replayDueLoading"
+          plain
+          type="primary"
+          @click="handleReplayDue"
+        >
+          <Icon class="mr-5px" icon="ep:video-play" />
+          自动补偿重放
+        </el-button>
+        <el-button
+          v-hasPermi="['booking:refund-notify-log:replay-run-log:query']"
+          plain
+          type="info"
+          @click="openRunLogDialog"
+        >
+          <Icon class="mr-5px" icon="ep:document" />
+          重放批次历史
+        </el-button>
+      </el-form-item>
+
+      <el-form-item>
         <el-button
           v-hasPermi="['booking:refund-notify-log:replay']"
           :disabled="selectedReplayIds.length === 0"
@@ -85,10 +121,9 @@
           执行重放
         </el-button>
       </el-form-item>
+
       <el-form-item>
-        <span class="text-12px text-[var(--el-text-color-secondary)]">
-          已选可重放 {{ selectedReplayIds.length }} 条
-        </span>
+        <span class="text-12px text-[var(--el-text-color-secondary)]">已选可重放 {{ selectedReplayIds.length }} 条</span>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -170,7 +205,7 @@
     />
   </ContentWrap>
 
-  <el-dialog v-model="replayResultVisible" :title="replayResultTitle" width="1000px">
+  <el-dialog v-model="replayResultVisible" :title="replayResultTitle" width="1080px">
     <el-alert
       v-if="replayResult.fallbackLegacy"
       :closable="false"
@@ -178,12 +213,25 @@
       type="warning"
       class="mb-12px"
     />
-    <el-descriptions :column="5" border class="mb-12px">
-      <el-descriptions-item label="模式">{{ replayResult.dryRun ? 'dry-run 预演' : '执行重放' }}</el-descriptions-item>
-      <el-descriptions-item label="成功数">{{ replayResult.successCount }}</el-descriptions-item>
-      <el-descriptions-item label="跳过数">{{ replayResult.skipCount }}</el-descriptions-item>
-      <el-descriptions-item label="失败数">{{ replayResult.failCount }}</el-descriptions-item>
-      <el-descriptions-item label="明细条数">{{ replayResult.details.length }}</el-descriptions-item>
+    <el-descriptions :column="4" border class="mb-12px">
+      <el-descriptions-item label="模式">{{ replayResult.modeLabel }}</el-descriptions-item>
+      <el-descriptions-item label="runId">{{ textOrDash(replayResult.runId) }}</el-descriptions-item>
+      <el-descriptions-item label="执行状态">
+        <el-tag :type="runLogStatusTagType(replayResult.status)">
+          {{ runLogStatusText(replayResult.status) }}
+        </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="触发人">{{ textOrDash(replayResult.operator) }}</el-descriptions-item>
+      <el-descriptions-item label="触发来源">{{ textOrDash(replayResult.triggerSource) }}</el-descriptions-item>
+      <el-descriptions-item label="dryRun">{{ boolText(replayResult.dryRun) }}</el-descriptions-item>
+      <el-descriptions-item label="limit">{{ numberOrDash(replayResult.limitSize) }}</el-descriptions-item>
+      <el-descriptions-item label="扫描数">{{ numberOrDash(replayResult.scannedCount) }}</el-descriptions-item>
+      <el-descriptions-item label="成功数">{{ numberOrDash(replayResult.successCount) }}</el-descriptions-item>
+      <el-descriptions-item label="跳过数">{{ numberOrDash(replayResult.skipCount) }}</el-descriptions-item>
+      <el-descriptions-item label="失败数">{{ numberOrDash(replayResult.failCount) }}</el-descriptions-item>
+      <el-descriptions-item label="开始时间">{{ textOrDash(replayResult.startTime) }}</el-descriptions-item>
+      <el-descriptions-item label="结束时间">{{ textOrDash(replayResult.endTime) }}</el-descriptions-item>
+      <el-descriptions-item label="错误信息" :span="3">{{ textOrDash(replayResult.errorMsg) }}</el-descriptions-item>
     </el-descriptions>
 
     <el-alert
@@ -197,6 +245,11 @@
     <el-empty v-if="!replayResult.details.length" description="无重放明细" />
 
     <el-table v-else :data="replayResult.details" max-height="460">
+      <el-table-column label="runId" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.runId || replayResult.runId) }}
+        </template>
+      </el-table-column>
       <el-table-column label="日志ID" min-width="90">
         <template #default="{ row }">
           {{ numberOrDash(row.id) }}
@@ -241,6 +294,169 @@
     </template>
   </el-dialog>
 
+  <el-dialog v-model="runLogDialogVisible" title="重放批次历史" width="1180px">
+    <el-alert
+      v-if="runLogFeatureUnavailable"
+      :closable="false"
+      title="后端未升级 V3，当前不可查询重放批次历史"
+      type="warning"
+      class="mb-12px"
+    />
+
+    <el-form :inline="true" :model="runLogQueryParams" class="-mb-10px" label-width="84px">
+      <el-form-item label="runId" prop="runId">
+        <el-input
+          v-model="runLogQueryParams.runId"
+          class="!w-220px"
+          clearable
+          placeholder="请输入 runId"
+          @keyup.enter="handleRunLogQuery"
+        />
+      </el-form-item>
+      <el-form-item label="状态" prop="status">
+        <el-select v-model="runLogQueryParams.status" class="!w-180px" clearable placeholder="请选择状态">
+          <el-option v-for="item in runLogStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="操作人" prop="operator">
+        <el-input
+          v-model="runLogQueryParams.operator"
+          class="!w-180px"
+          clearable
+          placeholder="请输入操作人"
+          @keyup.enter="handleRunLogQuery"
+        />
+      </el-form-item>
+      <el-form-item label="时间范围" prop="timeRange">
+        <el-date-picker
+          v-model="runLogTimeRange"
+          class="!w-340px"
+          end-placeholder="结束时间"
+          range-separator="至"
+          start-placeholder="开始时间"
+          type="datetimerange"
+          value-format="YYYY-MM-DD HH:mm:ss"
+        />
+      </el-form-item>
+      <el-form-item>
+        <el-button :loading="runLogLoading" @click="handleRunLogQuery">
+          <Icon class="mr-5px" icon="ep:search" />
+          查询
+        </el-button>
+        <el-button @click="resetRunLogQuery">
+          <Icon class="mr-5px" icon="ep:refresh" />
+          重置
+        </el-button>
+      </el-form-item>
+    </el-form>
+
+    <el-table v-loading="runLogLoading" :data="runLogList" class="mt-8px">
+      <el-table-column label="runId" min-width="150" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.runId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="触发来源" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.triggerSource) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作人" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.operator) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="dryRun" width="90">
+        <template #default="{ row }">
+          {{ boolText(row.dryRun) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="limit" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.limitSize) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="扫描" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.scannedCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="成功" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.successCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="跳过" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.skipCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="失败" width="90">
+        <template #default="{ row }">
+          {{ numberOrDash(row.failCount) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="130">
+        <template #default="{ row }">
+          <el-tag :type="runLogStatusTagType(row.status)">
+            {{ runLogStatusText(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="错误信息" min-width="220" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.errorMsg) }}
+        </template>
+      </el-table-column>
+      <el-table-column :formatter="dateFormatter" label="开始时间" prop="startTime" width="180" />
+      <el-table-column :formatter="dateFormatter" label="结束时间" prop="endTime" width="180" />
+      <el-table-column align="center" fixed="right" label="操作" width="90">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openRunLogDetail(row)">详情</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <Pagination
+      v-model:limit="runLogQueryParams.pageSize"
+      v-model:page="runLogQueryParams.pageNo"
+      :total="runLogTotal"
+      @pagination="getRunLogList"
+    />
+
+    <template #footer>
+      <el-button @click="runLogDialogVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
+
+  <el-drawer v-model="runLogDetailVisible" size="48%" title="重放批次详情">
+    <div v-loading="runLogDetailLoading">
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="runId">{{ textOrDash(runLogDetailData.runId) }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="runLogStatusTagType(runLogDetailData.status)">
+            {{ runLogStatusText(runLogDetailData.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="触发来源">{{ textOrDash(runLogDetailData.triggerSource) }}</el-descriptions-item>
+        <el-descriptions-item label="操作人">{{ textOrDash(runLogDetailData.operator) }}</el-descriptions-item>
+        <el-descriptions-item label="dryRun">{{ boolText(runLogDetailData.dryRun) }}</el-descriptions-item>
+        <el-descriptions-item label="limit">{{ numberOrDash(runLogDetailData.limitSize) }}</el-descriptions-item>
+        <el-descriptions-item label="扫描数">{{ numberOrDash(runLogDetailData.scannedCount) }}</el-descriptions-item>
+        <el-descriptions-item label="成功数">{{ numberOrDash(runLogDetailData.successCount) }}</el-descriptions-item>
+        <el-descriptions-item label="跳过数">{{ numberOrDash(runLogDetailData.skipCount) }}</el-descriptions-item>
+        <el-descriptions-item label="失败数">{{ numberOrDash(runLogDetailData.failCount) }}</el-descriptions-item>
+        <el-descriptions-item label="开始时间">{{ textOrDash(runLogDetailData.startTime) }}</el-descriptions-item>
+        <el-descriptions-item label="结束时间">{{ textOrDash(runLogDetailData.endTime) }}</el-descriptions-item>
+      </el-descriptions>
+
+      <div class="mt-16px">
+        <div class="mb-8px font-500">错误信息</div>
+        <el-input :model-value="runLogDetailData.errorMsg || EMPTY_TEXT" :rows="5" readonly type="textarea" />
+      </div>
+    </div>
+  </el-drawer>
+
   <el-drawer v-model="detailDrawerVisible" size="48%" title="退款回调日志详情">
     <el-descriptions :column="2" border>
       <el-descriptions-item label="台账ID">{{ numberOrDash(detailRow.id) }}</el-descriptions-item>
@@ -278,12 +494,7 @@
         type="warning"
         class="mb-8px"
       />
-      <el-input
-        :model-value="rawPayloadView"
-        :rows="14"
-        readonly
-        type="textarea"
-      />
+      <el-input :model-value="rawPayloadView" :rows="14" readonly type="textarea" />
     </div>
   </el-drawer>
 </template>
@@ -297,6 +508,7 @@ defineOptions({ name: 'MallBookingRefundNotifyLogIndex' })
 type ReplayStatus = 'SUCCESS' | 'SKIP' | 'FAIL'
 
 interface ReplayDetailView {
+  runId?: string | number
   id?: number
   orderId?: number
   merchantRefundId?: string
@@ -307,16 +519,27 @@ interface ReplayDetailView {
 }
 
 interface ReplayResultView {
+  modeLabel: string
   dryRun: boolean
   fallbackLegacy: boolean
+  runId?: string | number
+  triggerSource?: string
+  operator?: string
+  limitSize?: number
+  scannedCount?: number
   successCount: number
   skipCount: number
   failCount: number
+  status?: string
+  errorMsg?: string
+  startTime?: string
+  endTime?: string
   details: ReplayDetailView[]
 }
 
 const EMPTY_TEXT = '--'
 const DEFAULT_STATUS = 'fail'
+const DEFAULT_REPLAY_DUE_LIMIT = 200
 const RESULT_HINT_BY_CODE: Record<number, string> = {
   1030004011: '商户退款单号不合法，请先核对 merchantRefundId',
   1030004013: '退款回调日志不存在，可能已被清理或 ID 无效',
@@ -327,27 +550,70 @@ const statusOptions = [
   { label: '成功（success）', value: 'success' },
   { label: '待处理（pending）', value: 'pending' }
 ]
+const runLogStatusOptions = [
+  { label: '运行中', value: 'RUNNING' },
+  { label: '成功', value: 'SUCCESS' },
+  { label: '部分失败', value: 'PARTIAL_FAIL' },
+  { label: '失败', value: 'FAIL' }
+]
 
 const message = useMessage()
 
 const loading = ref(false)
 const replayLoading = ref(false)
+const replayDueLoading = ref(false)
 const total = ref(0)
 const list = ref<RefundNotifyLogApi.RefundNotifyLogVO[]>([])
 const selectedRows = ref<RefundNotifyLogApi.RefundNotifyLogVO[]>([])
+
 const detailDrawerVisible = ref(false)
 const detailRow = ref<Partial<RefundNotifyLogApi.RefundNotifyLogVO>>({})
 const rawPayloadView = ref(EMPTY_TEXT)
 const rawPayloadParseFailed = ref(false)
+
 const replayResultVisible = ref(false)
 const replayResult = ref<ReplayResultView>({
+  modeLabel: '手工勾选重放',
   dryRun: true,
   fallbackLegacy: false,
+  runId: undefined,
+  triggerSource: undefined,
+  operator: undefined,
+  limitSize: undefined,
+  scannedCount: 0,
   successCount: 0,
   skipCount: 0,
   failCount: 0,
+  status: undefined,
+  errorMsg: undefined,
+  startTime: undefined,
+  endTime: undefined,
   details: []
 })
+
+const replayDueForm = reactive({
+  dryRun: true,
+  limitSize: DEFAULT_REPLAY_DUE_LIMIT
+})
+
+const runLogDialogVisible = ref(false)
+const runLogLoading = ref(false)
+const runLogFeatureUnavailable = ref(false)
+const runLogTotal = ref(0)
+const runLogList = ref<RefundNotifyLogApi.RefundNotifyReplayRunLogVO[]>([])
+const runLogTimeRange = ref<string[]>()
+const runLogQueryParams = reactive<RefundNotifyLogApi.RefundNotifyReplayRunLogPageReq>({
+  pageNo: 1,
+  pageSize: 10,
+  runId: undefined,
+  status: undefined,
+  operator: undefined,
+  timeRange: undefined
+})
+
+const runLogDetailVisible = ref(false)
+const runLogDetailLoading = ref(false)
+const runLogDetailData = ref<Partial<RefundNotifyLogApi.RefundNotifyReplayRunLogVO>>({})
 
 const queryParams = reactive<RefundNotifyLogApi.RefundNotifyLogPageReq>({
   pageNo: 1,
@@ -380,6 +646,13 @@ const numberOrDash = (value: any) => {
   return Number.isFinite(parsed) ? String(parsed) : EMPTY_TEXT
 }
 
+const boolText = (value?: boolean) => {
+  if (value === undefined || value === null) {
+    return EMPTY_TEXT
+  }
+  return value ? '是' : '否'
+}
+
 const parsePositiveInteger = (value: any): number | undefined => {
   if (value === undefined || value === null || value === '') {
     return undefined
@@ -390,6 +663,18 @@ const parsePositiveInteger = (value: any): number | undefined => {
   }
   const normalized = Math.trunc(parsed)
   return normalized > 0 ? normalized : undefined
+}
+
+const parseNonNegativeInteger = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return undefined
+  }
+  const normalized = Math.trunc(parsed)
+  return normalized >= 0 ? normalized : undefined
 }
 
 const normalizeStatus = (value: any): string | undefined => {
@@ -496,6 +781,24 @@ const replayResultTagType = (status?: any) => {
   return 'danger'
 }
 
+const runLogStatusText = (status?: RefundNotifyLogApi.RefundNotifyReplayRunStatus | string) => {
+  const normalized = normalizeUpperText(status)
+  if (normalized === 'RUNNING') return '运行中'
+  if (normalized === 'SUCCESS') return '成功'
+  if (normalized === 'PARTIAL_FAIL') return '部分失败'
+  if (normalized === 'FAIL' || normalized === 'FAILED') return '失败'
+  return textOrDash(status)
+}
+
+const runLogStatusTagType = (status?: RefundNotifyLogApi.RefundNotifyReplayRunStatus | string) => {
+  const normalized = normalizeUpperText(status)
+  if (normalized === 'RUNNING') return 'info'
+  if (normalized === 'SUCCESS') return 'success'
+  if (normalized === 'PARTIAL_FAIL') return 'warning'
+  if (normalized === 'FAIL' || normalized === 'FAILED') return 'danger'
+  return 'info'
+}
+
 const resolveApiErrorCode = (error: any): number | undefined => {
   const candidates = [
     error?.code,
@@ -542,6 +845,21 @@ const buildApiErrorMessage = (error: any, fallback: string) => {
   return rawMessage || fallback
 }
 
+const isEndpointNotUpgraded = (error: any, pathHint = '') => {
+  const code = resolveApiErrorCode(error)
+  const msg = resolveApiErrorMessage(error).toLowerCase()
+  if (code === 404) {
+    return true
+  }
+  if (msg.includes('not found') || msg.includes('no handler found')) {
+    return true
+  }
+  if (pathHint && msg.includes(pathHint.toLowerCase()) && msg.includes('not found')) {
+    return true
+  }
+  return false
+}
+
 const buildReadableReasonByCode = (code?: string, messageText?: string, status?: ReplayStatus) => {
   const numericCode = Number(code)
   const hint = Number.isFinite(numericCode) ? RESULT_HINT_BY_CODE[numericCode] : ''
@@ -584,6 +902,21 @@ const normalizeQuery = () => {
     Array.isArray(queryParams.createTime) && queryParams.createTime.length === 2
       ? queryParams.createTime
       : undefined
+}
+
+const normalizeRunLogQuery = () => {
+  runLogQueryParams.runId = String(runLogQueryParams.runId || '').trim() || undefined
+  runLogQueryParams.status = normalizeUpperText(runLogQueryParams.status)
+  runLogQueryParams.operator = String(runLogQueryParams.operator || '').trim() || undefined
+  runLogQueryParams.timeRange =
+    Array.isArray(runLogTimeRange.value) && runLogTimeRange.value.length === 2
+      ? [runLogTimeRange.value[0], runLogTimeRange.value[1]]
+      : undefined
+}
+
+const normalizeReplayDueLimit = () => {
+  const parsed = parsePositiveInteger(replayDueForm.limitSize)
+  return parsed ? Math.min(1000, Math.max(1, parsed)) : DEFAULT_REPLAY_DUE_LIMIT
 }
 
 const parseRawPayload = (rawPayload: any) => {
@@ -683,6 +1016,7 @@ const parseReplayDetail = (item: Record<string, any>, index: number): ReplayDeta
   const resultCode = String(item.resultCode ?? item.code ?? item.errorCode ?? '').trim() || undefined
   const rawReason = String(item.resultMessage ?? item.message ?? item.failReason ?? item.errorMsg ?? '').trim() || undefined
   return {
+    runId: item.runId,
     id: parsePositiveInteger(item.id),
     orderId: parsePositiveInteger(item.orderId),
     merchantRefundId: String(item.merchantRefundId || '').trim() || undefined,
@@ -693,22 +1027,55 @@ const parseReplayDetail = (item: Record<string, any>, index: number): ReplayDeta
   }
 }
 
-const buildReplayResultView = (rawResp: any, dryRun: boolean, ids: number[]): ReplayResultView => {
+const createReplayResultView = (): ReplayResultView => {
+  return {
+    modeLabel: '手工勾选重放',
+    dryRun: true,
+    fallbackLegacy: false,
+    runId: undefined,
+    triggerSource: undefined,
+    operator: undefined,
+    limitSize: undefined,
+    scannedCount: 0,
+    successCount: 0,
+    skipCount: 0,
+    failCount: 0,
+    status: undefined,
+    errorMsg: undefined,
+    startTime: undefined,
+    endTime: undefined,
+    details: []
+  }
+}
+
+const buildReplayResultView = (
+  rawResp: any,
+  options: {
+    modeLabel: string
+    dryRun: boolean
+    defaultIds?: number[]
+    fallbackLegacy?: boolean
+  }
+): ReplayResultView => {
   const source = unwrapReplayResponse(rawResp)
   if (typeof source === 'boolean') {
     return {
-      dryRun,
-      fallbackLegacy: false,
-      successCount: source ? ids.length : 0,
+      ...createReplayResultView(),
+      modeLabel: options.modeLabel,
+      dryRun: options.dryRun,
+      fallbackLegacy: Boolean(options.fallbackLegacy),
+      scannedCount: options.defaultIds?.length || 0,
+      successCount: source ? options.defaultIds?.length || 0 : 0,
       skipCount: 0,
-      failCount: source ? 0 : ids.length,
+      failCount: source ? 0 : options.defaultIds?.length || 0,
+      status: source ? 'SUCCESS' : 'FAIL',
       details: source
-        ? ids.map((id) => ({
+        ? (options.defaultIds || []).map((id) => ({
             id,
             resultStatus: 'SUCCESS',
-            resultMessage: dryRun ? '预演通过' : '执行成功'
+            resultMessage: options.dryRun ? '预演通过' : '执行成功'
           }))
-        : ids.map((id) => ({
+        : (options.defaultIds || []).map((id) => ({
             id,
             resultStatus: 'FAIL',
             resultMessage: '执行失败'
@@ -726,20 +1093,35 @@ const buildReplayResultView = (rawResp: any, dryRun: boolean, ids: number[]): Re
     .filter((item) => item && typeof item === 'object')
     .map((item, index) => parseReplayDetail(item as Record<string, any>, index))
 
-  const successCountRaw = parsePositiveInteger(payload.successCount)
-  const skipCountRaw = parsePositiveInteger(payload.skipCount)
-  const failCountRaw = parsePositiveInteger(payload.failCount)
-
-  const successCount = successCountRaw ?? details.filter((item) => item.resultStatus === 'SUCCESS').length
-  const skipCount = skipCountRaw ?? details.filter((item) => item.resultStatus === 'SKIP').length
-  const failCount = failCountRaw ?? details.filter((item) => item.resultStatus === 'FAIL').length
+  const successCount =
+    parseNonNegativeInteger(payload.successCount) ?? details.filter((item) => item.resultStatus === 'SUCCESS').length
+  const skipCount =
+    parseNonNegativeInteger(payload.skipCount) ?? details.filter((item) => item.resultStatus === 'SKIP').length
+  const failCount =
+    parseNonNegativeInteger(payload.failCount) ?? details.filter((item) => item.resultStatus === 'FAIL').length
+  const defaultScanCount = Array.isArray(options.defaultIds) ? options.defaultIds.length : undefined
+  const scannedCount =
+    parseNonNegativeInteger(payload.scannedCount)
+    ?? defaultScanCount
+    ?? successCount + skipCount + failCount
 
   return {
-    dryRun,
-    fallbackLegacy: false,
+    ...createReplayResultView(),
+    modeLabel: options.modeLabel,
+    dryRun: options.dryRun,
+    fallbackLegacy: Boolean(options.fallbackLegacy),
+    runId: payload.runId ?? payload.batchRunId ?? payload.id,
+    triggerSource: payload.triggerSource,
+    operator: payload.operator,
+    limitSize: parsePositiveInteger(payload.limitSize),
+    scannedCount,
     successCount,
     skipCount,
     failCount,
+    status: payload.status,
+    errorMsg: String(payload.errorMsg || '').trim() || undefined,
+    startTime: payload.startTime,
+    endTime: payload.endTime,
     details
   }
 }
@@ -769,11 +1151,15 @@ const replayByLegacyApi = async (ids: number[]): Promise<ReplayResultView> => {
   }
 
   return {
+    ...createReplayResultView(),
+    modeLabel: '手工勾选重放（旧接口降级）',
     dryRun: false,
     fallbackLegacy: true,
+    scannedCount: ids.length,
     successCount: details.filter((item) => item.resultStatus === 'SUCCESS').length,
     skipCount: details.filter((item) => item.resultStatus === 'SKIP').length,
     failCount: details.filter((item) => item.resultStatus === 'FAIL').length,
+    status: details.some((item) => item.resultStatus === 'FAIL') ? 'PARTIAL_FAIL' : 'SUCCESS',
     details
   }
 }
@@ -797,14 +1183,18 @@ const handleDryRunReplay = async () => {
       dryRun: true,
       ids
     })
-    const result = buildReplayResultView(resp, true, ids)
+    const result = buildReplayResultView(resp, {
+      modeLabel: '手工勾选重放',
+      dryRun: true,
+      defaultIds: ids
+    })
     showReplayResult(result)
     message.success(
-      `预演完成：SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+      `预演完成：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
     )
   } catch (error: any) {
     if (isLegacyReplayContractError(error)) {
-      message.warning('当前后端未支持 dry-run 预演能力，请升级至 V2 后端后重试')
+      message.warning('当前后端未支持 dry-run 预演能力，请升级至 V2+ 后端后重试')
       return
     }
     message.error(buildApiErrorMessage(error, '预演重放失败'))
@@ -826,20 +1216,17 @@ const handleExecuteReplay = async () => {
 
   replayLoading.value = true
   try {
-    let result: ReplayResultView = {
-      dryRun: false,
-      fallbackLegacy: false,
-      successCount: 0,
-      skipCount: 0,
-      failCount: 0,
-      details: []
-    }
+    let result: ReplayResultView
     try {
       const resp = await RefundNotifyLogApi.replayRefundNotifyLog({
         dryRun: false,
         ids
       })
-      result = buildReplayResultView(resp, false, ids)
+      result = buildReplayResultView(resp, {
+        modeLabel: '手工勾选重放',
+        dryRun: false,
+        defaultIds: ids
+      })
     } catch (error: any) {
       if (!isLegacyReplayContractError(error)) {
         throw error
@@ -850,13 +1237,126 @@ const handleExecuteReplay = async () => {
 
     showReplayResult(result)
     message.success(
-      `执行完成：SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+      `执行完成：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
     )
     await getList()
   } catch (error: any) {
     message.error(buildApiErrorMessage(error, '执行重放失败'))
   } finally {
     replayLoading.value = false
+  }
+}
+
+const handleReplayDue = async () => {
+  const limitSize = normalizeReplayDueLimit()
+  replayDueForm.limitSize = limitSize
+  const modeText = replayDueForm.dryRun ? 'dry-run 预演' : '执行落库'
+  try {
+    await message.confirm(`确认触发自动补偿重放吗？模式：${modeText}；limit：${limitSize}`)
+  } catch {
+    return
+  }
+
+  replayDueLoading.value = true
+  try {
+    const resp = await RefundNotifyLogApi.replayDue({
+      dryRun: replayDueForm.dryRun,
+      limit: limitSize
+    })
+    const result = buildReplayResultView(resp, {
+      modeLabel: '自动补偿重放',
+      dryRun: replayDueForm.dryRun,
+      defaultIds: []
+    })
+    showReplayResult(result)
+    message.success(
+      `自动重放已触发：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+    )
+    if (!replayDueForm.dryRun) {
+      await getList()
+    }
+    if (runLogDialogVisible.value && !runLogFeatureUnavailable.value) {
+      await getRunLogList()
+    }
+  } catch (error: any) {
+    if (isEndpointNotUpgraded(error, 'replay-due')) {
+      message.warning('后端未升级 V3，暂不支持自动补偿重放入口')
+      return
+    }
+    message.error(buildApiErrorMessage(error, '自动补偿重放触发失败'))
+  } finally {
+    replayDueLoading.value = false
+  }
+}
+
+const getRunLogList = async () => {
+  runLogLoading.value = true
+  try {
+    normalizeRunLogQuery()
+    const data = await RefundNotifyLogApi.getReplayRunLogPage(runLogQueryParams)
+    runLogList.value = data.list || []
+    runLogTotal.value = data.total || 0
+    runLogFeatureUnavailable.value = false
+  } catch (error: any) {
+    runLogList.value = []
+    runLogTotal.value = 0
+    if (isEndpointNotUpgraded(error, 'replay-run-log')) {
+      runLogFeatureUnavailable.value = true
+      message.warning('后端未升级 V3，当前不可查询重放批次历史')
+      return
+    }
+    message.error(buildApiErrorMessage(error, '重放批次历史查询失败'))
+  } finally {
+    runLogLoading.value = false
+  }
+}
+
+const openRunLogDialog = () => {
+  runLogDialogVisible.value = true
+  getRunLogList()
+}
+
+const handleRunLogQuery = () => {
+  runLogQueryParams.pageNo = 1
+  getRunLogList()
+}
+
+const resetRunLogQuery = () => {
+  runLogQueryParams.pageNo = 1
+  runLogQueryParams.pageSize = 10
+  runLogQueryParams.runId = undefined
+  runLogQueryParams.status = undefined
+  runLogQueryParams.operator = undefined
+  runLogQueryParams.timeRange = undefined
+  runLogTimeRange.value = undefined
+  getRunLogList()
+}
+
+const openRunLogDetail = async (row: RefundNotifyLogApi.RefundNotifyReplayRunLogVO) => {
+  runLogDetailVisible.value = true
+  runLogDetailLoading.value = true
+  runLogDetailData.value = { ...(row || {}) }
+
+  const id = parsePositiveInteger(row.id)
+  if (!id) {
+    runLogDetailLoading.value = false
+    return
+  }
+
+  try {
+    const data = await RefundNotifyLogApi.getReplayRunLog(id)
+    runLogDetailData.value = {
+      ...(row || {}),
+      ...(data || {})
+    }
+  } catch (error: any) {
+    if (isEndpointNotUpgraded(error, 'replay-run-log/get')) {
+      message.warning('后端未提供批次详情接口，已降级展示列表快照')
+      return
+    }
+    message.error(buildApiErrorMessage(error, '重放批次详情查询失败'))
+  } finally {
+    runLogDetailLoading.value = false
   }
 }
 

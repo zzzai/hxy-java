@@ -2,6 +2,7 @@ import request from '@/config/axios'
 
 export type RefundNotifyLogStatus = 'success' | 'fail' | 'pending' | string
 export type RefundNotifyReplayResultStatus = 'SUCCESS' | 'SKIP' | 'FAIL' | string
+export type RefundNotifyReplayRunStatus = 'RUNNING' | 'SUCCESS' | 'PARTIAL_FAIL' | 'FAIL' | string
 
 export interface RefundNotifyLogPageReq extends PageParam {
   orderId?: number
@@ -52,10 +53,50 @@ export interface RefundNotifyLogReplayDetail {
 }
 
 export interface RefundNotifyLogReplayResp {
+  runId?: number | string
+  triggerSource?: string
+  operator?: string
+  dryRun?: boolean
+  limitSize?: number
+  scannedCount?: number
   successCount?: number
   skipCount?: number
   failCount?: number
+  status?: RefundNotifyReplayRunStatus
+  errorMsg?: string
+  startTime?: string
+  endTime?: string
   details?: RefundNotifyLogReplayDetail[]
+}
+
+export interface RefundNotifyReplayDueReq {
+  limit?: number
+  dryRun?: boolean
+}
+
+export interface RefundNotifyReplayRunLogPageReq extends PageParam {
+  runId?: string | number
+  status?: RefundNotifyReplayRunStatus
+  operator?: string
+  timeRange?: string[]
+}
+
+export interface RefundNotifyReplayRunLogVO {
+  id?: number
+  runId?: number | string
+  triggerSource?: string
+  operator?: string
+  dryRun?: boolean
+  limitSize?: number
+  scannedCount?: number
+  successCount?: number
+  skipCount?: number
+  failCount?: number
+  status?: RefundNotifyReplayRunStatus
+  errorMsg?: string
+  startTime?: string
+  endTime?: string
+  createTime?: string
 }
 
 export const getRefundNotifyLogPage = (params: RefundNotifyLogPageReq) => {
@@ -64,4 +105,22 @@ export const getRefundNotifyLogPage = (params: RefundNotifyLogPageReq) => {
 
 export const replayRefundNotifyLog = (data: RefundNotifyLogReplayReq) => {
   return request.post<RefundNotifyLogReplayResp | boolean>({ url: '/booking/refund-notify-log/replay', data })
+}
+
+export const replayDue = (data: RefundNotifyReplayDueReq) => {
+  return request.post<RefundNotifyLogReplayResp>({ url: '/booking/refund-notify-log/replay-due', data })
+}
+
+export const getReplayRunLogPage = (params: RefundNotifyReplayRunLogPageReq) => {
+  return request.get<PageResult<RefundNotifyReplayRunLogVO>>({
+    url: '/booking/refund-notify-log/replay-run-log/page',
+    params
+  })
+}
+
+export const getReplayRunLog = (id: number) => {
+  return request.get<RefundNotifyReplayRunLogVO>({
+    url: '/booking/refund-notify-log/replay-run-log/get',
+    params: { id }
+  })
 }
