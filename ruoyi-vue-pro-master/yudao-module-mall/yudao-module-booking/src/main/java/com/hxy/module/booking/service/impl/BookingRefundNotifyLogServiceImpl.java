@@ -88,6 +88,7 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     private static final String RUN_STATUS_FAIL = "fail";
 
     private static final String WARNING_TAG_FOUR_ACCOUNT_REFRESH_WARN = "FOUR_ACCOUNT_REFRESH_WARN";
+    private static final String WARNING_TAG_TICKET_SYNC_DEGRADED = "TICKET_SYNC_DEGRADED";
 
     private static final Integer REVIEW_TICKET_TYPE = 40;
     private static final String REVIEW_TICKET_SOURCE_PREFIX = "REFUND_REPLAY_RUN:";
@@ -293,6 +294,7 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
         }
         String operator = resolveOperator(operatorId, operatorNickname);
         int successCount = 0;
+        boolean ticketSyncDegraded = false;
         List<Long> failedIds = new ArrayList<>();
         for (BookingRefundReplayRunDetailDO detailDO : detailList) {
             Long failedId = detailDO == null ? null : detailDO.getNotifyLogId();
@@ -300,12 +302,17 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                 tradeReviewTicketApi.upsertReviewTicket(buildReplayRunTicketReq(normalizedRunId, detailDO, operator));
                 successCount++;
             } catch (Exception ex) {
+                ticketSyncDegraded = true;
                 if (failedId != null) {
                     failedIds.add(failedId);
                 }
-                log.warn("[syncReplayRunLogTickets][upsert ticket fail, runId={}, notifyLogId={}]",
-                        normalizedRunId, failedId, ex);
+                log.warn("[syncReplayRunLogTickets][{}][upsert ticket fail, runId={}, notifyLogId={}]",
+                        WARNING_TAG_TICKET_SYNC_DEGRADED, normalizedRunId, failedId, ex);
             }
+        }
+        if (ticketSyncDegraded) {
+            log.warn("[syncReplayRunLogTickets][{}][runId={}, attempted={}, success={}, failed={}, fail-open continue]",
+                    WARNING_TAG_TICKET_SYNC_DEGRADED, normalizedRunId, detailList.size(), successCount, failedIds.size());
         }
         return buildSyncTicketResp(normalizedRunId, detailList.size(), successCount, failedIds);
     }

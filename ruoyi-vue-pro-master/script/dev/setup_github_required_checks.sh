@@ -307,8 +307,10 @@ else
   echo "[github-required-checks] profile=base-only"
 fi
 if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
-  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,four-account-audit-regression"
+  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,booking-refund-replay-runlog,booking-refund-replay-run-summary-ticket-sync,four-account-audit-regression"
   echo "[github-required-checks] stageb_guard_context_unchanged=hxy-ops-stageb-p1-guard / ops-stageb-p1-guard"
+  echo "[github-required-checks] stageb_guard_skip_example=RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --skip-booking-refund-replay-run-summary-gate"
+  echo "[github-required-checks] stageb_guard_soft_block_example=REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --require-booking-refund-replay-run-summary-gate 0"
 fi
 echo "[github-required-checks] contexts_count=${#CONTEXTS[@]}"
 for ctx in "${CONTEXTS[@]}"; do
