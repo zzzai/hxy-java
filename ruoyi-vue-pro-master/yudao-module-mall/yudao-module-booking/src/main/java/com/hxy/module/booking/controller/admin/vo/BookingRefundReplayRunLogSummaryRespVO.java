@@ -43,6 +43,15 @@ public class BookingRefundReplayRunLogSummaryRespVO {
     @Schema(description = "失败数", example = "10")
     private Integer failCount;
 
+    @Schema(description = "工单同步成功数", example = "6")
+    private Integer ticketSyncSuccessCount;
+
+    @Schema(description = "工单同步跳过数", example = "2")
+    private Integer ticketSyncSkipCount;
+
+    @Schema(description = "工单同步失败数", example = "2")
+    private Integer ticketSyncFailCount;
+
     @Schema(description = "告警数（四账刷新降级）", example = "3")
     private Integer warningCount;
 

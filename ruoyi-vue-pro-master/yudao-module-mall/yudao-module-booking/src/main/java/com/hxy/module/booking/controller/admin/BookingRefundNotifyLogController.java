@@ -8,6 +8,8 @@ import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayDu
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
@@ -83,6 +85,22 @@ public class BookingRefundNotifyLogController {
         return success(BeanUtils.toBean(pageResult, BookingRefundReplayRunLogRespVO.class));
     }
 
+    @GetMapping("/replay-run-log/detail/page")
+    @Operation(summary = "分页查询退款重放批次明细")
+    @PreAuthorize("@ss.hasPermission('booking:refund-notify-log:query')")
+    public CommonResult<PageResult<BookingRefundReplayRunDetailRespVO>> replayRunDetailPage(
+            @Valid BookingRefundReplayRunDetailPageReqVO reqVO) {
+        return success(refundNotifyLogService.getReplayRunDetailPage(reqVO));
+    }
+
+    @GetMapping("/replay-run-log/detail/get")
+    @Operation(summary = "查询退款重放批次明细")
+    @Parameter(name = "id", required = true, description = "批次明细ID")
+    @PreAuthorize("@ss.hasPermission('booking:refund-notify-log:query')")
+    public CommonResult<BookingRefundReplayRunDetailRespVO> replayRunDetailGet(@RequestParam("id") Long id) {
+        return success(refundNotifyLogService.getReplayRunDetail(id));
+    }
+
     @GetMapping("/replay-run-log/get")
     @Operation(summary = "查询退款重放批次详情")
     @Parameter(name = "id", required = true, description = "批次台账ID")
@@ -107,7 +125,8 @@ public class BookingRefundNotifyLogController {
     public CommonResult<BookingRefundReplayRunLogSyncTicketRespVO> replayRunLogSyncTickets(
             @Valid @RequestBody BookingRefundReplayRunLogSyncTicketReqVO reqVO) {
         BookingRefundReplayRunLogSyncTicketRespVO respVO = refundNotifyLogService.syncReplayRunLogTickets(
-                reqVO.getRunId(), reqVO.onlyFailEnabled(), getLoginUserId(), getLoginUserNickname());
+                reqVO.getRunId(), reqVO.onlyFailEnabled(), reqVO.dryRunEnabled(), reqVO.forceResyncEnabled(),
+                getLoginUserId(), getLoginUserNickname());
         return success(respVO);
     }
 }

@@ -12,6 +12,8 @@ import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
@@ -19,11 +21,14 @@ import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunDetailDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayTicketSyncLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundRepairCandidateDO;
 import com.hxy.module.booking.dal.mysql.BookingRefundNotifyLogMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReconcileQueryMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailQueryMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunLogMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayTicketSyncLogMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.BookingRefundNotifyLogService;
@@ -39,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -57,6 +61,7 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFU
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_LOG_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_LOG_STATUS_INVALID;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_DETAIL_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_LOG_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_STATUS_INVALID;
@@ -89,6 +94,13 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
 
     private static final String WARNING_TAG_FOUR_ACCOUNT_REFRESH_WARN = "FOUR_ACCOUNT_REFRESH_WARN";
     private static final String WARNING_TAG_TICKET_SYNC_DEGRADED = "TICKET_SYNC_DEGRADED";
+    private static final String TICKET_SYNC_STATUS_SUCCESS = "SUCCESS";
+    private static final String TICKET_SYNC_STATUS_SKIP = "SKIP";
+    private static final String TICKET_SYNC_STATUS_FAIL = "FAIL";
+    private static final String TICKET_SYNC_RESULT_CODE_OK = "OK";
+    private static final String TICKET_SYNC_RESULT_CODE_DRY_RUN = "DRY_RUN";
+    private static final String TICKET_SYNC_RESULT_CODE_SKIP_ALREADY_SUCCESS = "SKIP_ALREADY_SUCCESS";
+    private static final String TICKET_SYNC_RESULT_CODE_TRADE_FAIL = "TRADE_UPSERT_FAIL";
 
     private static final Integer REVIEW_TICKET_TYPE = 40;
     private static final String REVIEW_TICKET_SOURCE_PREFIX = "REFUND_REPLAY_RUN:";
@@ -112,7 +124,11 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     @Resource
     private BookingRefundReplayRunDetailMapper refundReplayRunDetailMapper;
     @Resource
+    private BookingRefundReplayRunDetailQueryMapper refundReplayRunDetailQueryMapper;
+    @Resource
     private BookingRefundReplayRunLogMapper refundReplayRunLogMapper;
+    @Resource
+    private BookingRefundReplayTicketSyncLogMapper refundReplayTicketSyncLogMapper;
     @Resource
     private BookingOrderService bookingOrderService;
     @Resource
@@ -230,6 +246,28 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     }
 
     @Override
+    public PageResult<BookingRefundReplayRunDetailRespVO> getReplayRunDetailPage(BookingRefundReplayRunDetailPageReqVO reqVO) {
+        normalizeReplayRunDetailPageReq(reqVO);
+        Long total = refundReplayRunDetailQueryMapper.countDetailPage(reqVO);
+        if (total == null || total <= 0) {
+            return PageResult.empty();
+        }
+        int offset = (reqVO.getPageNo() - 1) * reqVO.getPageSize();
+        List<BookingRefundReplayRunDetailRespVO> list =
+                refundReplayRunDetailQueryMapper.selectDetailPage(reqVO, offset, reqVO.getPageSize());
+        return new PageResult<>(list, total);
+    }
+
+    @Override
+    public BookingRefundReplayRunDetailRespVO getReplayRunDetail(Long id) {
+        BookingRefundReplayRunDetailRespVO detailRespVO = refundReplayRunDetailQueryMapper.selectDetailById(id);
+        if (detailRespVO == null) {
+            throw exception(BOOKING_ORDER_REFUND_REPLAY_RUN_DETAIL_NOT_EXISTS);
+        }
+        return detailRespVO;
+    }
+
+    @Override
     public BookingRefundReplayRunLogSummaryRespVO getReplayRunLogSummary(String runId) {
         String normalizedRunId = normalizeRunId(runId);
         BookingRefundReplayRunLogDO runLogDO = refundReplayRunLogMapper.selectByRunId(normalizedRunId);
@@ -249,6 +287,7 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
         respVO.setSuccessCount(ObjectUtil.defaultIfNull(runLogDO.getSuccessCount(), 0));
         respVO.setSkipCount(ObjectUtil.defaultIfNull(runLogDO.getSkipCount(), 0));
         respVO.setFailCount(ObjectUtil.defaultIfNull(runLogDO.getFailCount(), 0));
+        applyTicketSyncSummary(normalizedRunId, respVO);
         if (CollUtil.isEmpty(detailList)) {
             respVO.setWarningCount(StrUtil.containsIgnoreCase(runLogDO.getErrorMsg(), "WARN#") ? 1 : 0);
             respVO.setTopFailCodes(Collections.emptyList());
@@ -280,6 +319,7 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
 
     @Override
     public BookingRefundReplayRunLogSyncTicketRespVO syncReplayRunLogTickets(String runId, boolean onlyFail,
+                                                                              boolean dryRun, boolean forceResync,
                                                                               Long operatorId, String operatorNickname) {
         String normalizedRunId = normalizeRunId(runId);
         BookingRefundReplayRunLogDO runLogDO = refundReplayRunLogMapper.selectByRunId(normalizedRunId);
@@ -290,22 +330,64 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                 ? refundReplayRunDetailMapper.selectByRunIdAndResultStatus(normalizedRunId, REPLAY_RESULT_FAIL)
                 : refundReplayRunDetailMapper.selectByRunId(normalizedRunId);
         if (CollUtil.isEmpty(detailList)) {
-            return buildSyncTicketResp(normalizedRunId, 0, 0, Collections.emptyList());
+            return buildSyncTicketResp(normalizedRunId, 0, 0, 0, Collections.emptyList(), Collections.emptyList());
         }
+        List<Long> notifyLogIds = detailList.stream().map(BookingRefundReplayRunDetailDO::getNotifyLogId)
+                .filter(Objects::nonNull).collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        Map<Long, BookingRefundReplayTicketSyncLogDO> latestSyncLogMap =
+                buildLatestSyncLogMap(normalizedRunId, notifyLogIds);
         String operator = resolveOperator(operatorId, operatorNickname);
         int successCount = 0;
+        int skipCount = 0;
         boolean ticketSyncDegraded = false;
         List<Long> failedIds = new ArrayList<>();
+        List<BookingRefundReplayRunLogSyncTicketRespVO.SyncDetail> syncDetails = new ArrayList<>();
         for (BookingRefundReplayRunDetailDO detailDO : detailList) {
             Long failedId = detailDO == null ? null : detailDO.getNotifyLogId();
+            Long notifyLogId = detailDO == null ? null : detailDO.getNotifyLogId();
+            if (notifyLogId == null) {
+                skipCount++;
+                syncDetails.add(buildSyncDetail(null, null, TICKET_SYNC_RESULT_CODE_SKIP_ALREADY_SUCCESS, "明细缺少 notifyLogId，跳过同步"));
+                continue;
+            }
+            BookingRefundReplayTicketSyncLogDO latestSyncLog = latestSyncLogMap.get(notifyLogId);
+            if (!forceResync && isTicketAlreadySuccess(latestSyncLog)) {
+                skipCount++;
+                String skipMsg = "工单已同步成功，跳过";
+                persistTicketSyncLogSafely(buildTicketSyncLog(normalizedRunId, notifyLogId,
+                        buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), latestSyncLog.getTicketId(),
+                        TICKET_SYNC_STATUS_SKIP, TICKET_SYNC_RESULT_CODE_SKIP_ALREADY_SUCCESS, skipMsg, operator));
+                syncDetails.add(buildSyncDetail(notifyLogId, latestSyncLog.getTicketId(),
+                        TICKET_SYNC_RESULT_CODE_SKIP_ALREADY_SUCCESS, skipMsg));
+                continue;
+            }
+            if (dryRun) {
+                skipCount++;
+                String dryRunMsg = "预演通过（未执行工单同步）";
+                persistTicketSyncLogSafely(buildTicketSyncLog(normalizedRunId, notifyLogId,
+                        buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), null,
+                        TICKET_SYNC_STATUS_SKIP, TICKET_SYNC_RESULT_CODE_DRY_RUN, dryRunMsg, operator));
+                syncDetails.add(buildSyncDetail(notifyLogId, null, TICKET_SYNC_RESULT_CODE_DRY_RUN, dryRunMsg));
+                continue;
+            }
             try {
-                tradeReviewTicketApi.upsertReviewTicket(buildReplayRunTicketReq(normalizedRunId, detailDO, operator));
+                Long ticketId = tradeReviewTicketApi.upsertReviewTicket(buildReplayRunTicketReq(normalizedRunId, detailDO, operator));
+                persistTicketSyncLogSafely(buildTicketSyncLog(normalizedRunId, notifyLogId,
+                        buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), ticketId,
+                        TICKET_SYNC_STATUS_SUCCESS, TICKET_SYNC_RESULT_CODE_OK, "工单同步成功", operator));
                 successCount++;
+                syncDetails.add(buildSyncDetail(notifyLogId, ticketId, TICKET_SYNC_RESULT_CODE_OK, "工单同步成功"));
             } catch (Exception ex) {
                 ticketSyncDegraded = true;
                 if (failedId != null) {
                     failedIds.add(failedId);
                 }
+                String errorCode = resolveErrorCode(ex);
+                String errorMsg = resolveErrorMsg(ex);
+                persistTicketSyncLogSafely(buildTicketSyncLog(normalizedRunId, notifyLogId,
+                        buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), null,
+                        TICKET_SYNC_STATUS_FAIL, errorCode, errorMsg, operator));
+                syncDetails.add(buildSyncDetail(notifyLogId, null, errorCode, errorMsg));
                 log.warn("[syncReplayRunLogTickets][{}][upsert ticket fail, runId={}, notifyLogId={}]",
                         WARNING_TAG_TICKET_SYNC_DEGRADED, normalizedRunId, failedId, ex);
             }
@@ -314,7 +396,7 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             log.warn("[syncReplayRunLogTickets][{}][runId={}, attempted={}, success={}, failed={}, fail-open continue]",
                     WARNING_TAG_TICKET_SYNC_DEGRADED, normalizedRunId, detailList.size(), successCount, failedIds.size());
         }
-        return buildSyncTicketResp(normalizedRunId, detailList.size(), successCount, failedIds);
+        return buildSyncTicketResp(normalizedRunId, detailList.size(), successCount, skipCount, failedIds, syncDetails);
     }
 
     @Override
@@ -595,6 +677,62 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
         return normalized;
     }
 
+    private void normalizeReplayRunDetailPageReq(BookingRefundReplayRunDetailPageReqVO reqVO) {
+        if (reqVO == null) {
+            return;
+        }
+        if (StrUtil.isNotBlank(reqVO.getRunId())) {
+            reqVO.setRunId(reqVO.getRunId().trim());
+        }
+        if (StrUtil.isNotBlank(reqVO.getResultStatus())) {
+            reqVO.setResultStatus(reqVO.getResultStatus().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StrUtil.isNotBlank(reqVO.getResultCode())) {
+            reqVO.setResultCode(reqVO.getResultCode().trim());
+        }
+        if (StrUtil.isNotBlank(reqVO.getWarningTag())) {
+            reqVO.setWarningTag(reqVO.getWarningTag().trim().toUpperCase(Locale.ROOT));
+        }
+        if (StrUtil.isNotBlank(reqVO.getTicketSyncStatus())) {
+            reqVO.setTicketSyncStatus(reqVO.getTicketSyncStatus().trim().toUpperCase(Locale.ROOT));
+        }
+    }
+
+    private void applyTicketSyncSummary(String runId, BookingRefundReplayRunLogSummaryRespVO respVO) {
+        respVO.setTicketSyncSuccessCount(0);
+        respVO.setTicketSyncSkipCount(0);
+        respVO.setTicketSyncFailCount(0);
+        if (StrUtil.isBlank(runId)) {
+            return;
+        }
+        List<BookingRefundReplayTicketSyncLogDO> latestSyncLogList = refundReplayTicketSyncLogMapper.selectLatestByRunId(runId);
+        if (CollUtil.isEmpty(latestSyncLogList)) {
+            return;
+        }
+        int successCount = 0;
+        int skipCount = 0;
+        int failCount = 0;
+        for (BookingRefundReplayTicketSyncLogDO syncLogDO : latestSyncLogList) {
+            if (syncLogDO == null || StrUtil.isBlank(syncLogDO.getStatus())) {
+                continue;
+            }
+            if (StrUtil.equalsIgnoreCase(TICKET_SYNC_STATUS_SUCCESS, syncLogDO.getStatus())) {
+                successCount++;
+                continue;
+            }
+            if (StrUtil.equalsIgnoreCase(TICKET_SYNC_STATUS_SKIP, syncLogDO.getStatus())) {
+                skipCount++;
+                continue;
+            }
+            if (StrUtil.equalsIgnoreCase(TICKET_SYNC_STATUS_FAIL, syncLogDO.getStatus())) {
+                failCount++;
+            }
+        }
+        respVO.setTicketSyncSuccessCount(successCount);
+        respVO.setTicketSyncSkipCount(skipCount);
+        respVO.setTicketSyncFailCount(failCount);
+    }
+
     private List<BookingRefundReplayRunLogSummaryRespVO.SummaryBucket> buildTopBuckets(Map<String, Integer> counter) {
         if (counter == null || counter.isEmpty()) {
             return Collections.emptyList();
@@ -615,14 +753,85 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     }
 
     private BookingRefundReplayRunLogSyncTicketRespVO buildSyncTicketResp(String runId, int attemptedCount,
-                                                                           int successCount, List<Long> failedIds) {
+                                                                           int successCount, int skipCount,
+                                                                           List<Long> failedIds,
+                                                                           List<BookingRefundReplayRunLogSyncTicketRespVO.SyncDetail> details) {
         BookingRefundReplayRunLogSyncTicketRespVO respVO = new BookingRefundReplayRunLogSyncTicketRespVO();
         respVO.setRunId(runId);
         respVO.setAttemptedCount(attemptedCount);
         respVO.setSuccessCount(successCount);
-        respVO.setFailedCount(Math.max(attemptedCount - successCount, 0));
+        respVO.setSkipCount(skipCount);
+        respVO.setFailedCount(Math.max(attemptedCount - successCount - skipCount, 0));
         respVO.setFailedIds(failedIds == null ? Collections.emptyList() : failedIds);
+        respVO.setDetails(details == null ? Collections.emptyList() : details);
         return respVO;
+    }
+
+    private BookingRefundReplayRunLogSyncTicketRespVO.SyncDetail buildSyncDetail(Long notifyLogId, Long ticketId,
+                                                                                  String resultCode, String resultMsg) {
+        BookingRefundReplayRunLogSyncTicketRespVO.SyncDetail detail =
+                new BookingRefundReplayRunLogSyncTicketRespVO.SyncDetail();
+        detail.setNotifyLogId(notifyLogId);
+        detail.setTicketId(ticketId);
+        detail.setResultCode(StrUtil.blankToDefault(resultCode, ""));
+        detail.setResultMsg(StrUtil.blankToDefault(resultMsg, ""));
+        return detail;
+    }
+
+    private Map<Long, BookingRefundReplayTicketSyncLogDO> buildLatestSyncLogMap(String runId, List<Long> notifyLogIds) {
+        if (StrUtil.isBlank(runId) || CollUtil.isEmpty(notifyLogIds)) {
+            return Collections.emptyMap();
+        }
+        List<BookingRefundReplayTicketSyncLogDO> latestList =
+                refundReplayTicketSyncLogMapper.selectLatestByRunIdAndNotifyLogIds(runId, notifyLogIds);
+        if (CollUtil.isEmpty(latestList)) {
+            return Collections.emptyMap();
+        }
+        Map<Long, BookingRefundReplayTicketSyncLogDO> latestMap = new HashMap<>();
+        for (BookingRefundReplayTicketSyncLogDO syncLogDO : latestList) {
+            if (syncLogDO == null || syncLogDO.getNotifyLogId() == null) {
+                continue;
+            }
+            latestMap.put(syncLogDO.getNotifyLogId(), syncLogDO);
+        }
+        return latestMap;
+    }
+
+    private boolean isTicketAlreadySuccess(BookingRefundReplayTicketSyncLogDO syncLogDO) {
+        return syncLogDO != null && StrUtil.equalsIgnoreCase(TICKET_SYNC_STATUS_SUCCESS, syncLogDO.getStatus());
+    }
+
+    private String buildReplayRunTicketSourceBizNo(String runId, Long notifyLogId) {
+        Long sourceNotifyId = notifyLogId == null ? 0L : notifyLogId;
+        return REVIEW_TICKET_SOURCE_PREFIX + runId + ":" + sourceNotifyId;
+    }
+
+    private BookingRefundReplayTicketSyncLogDO buildTicketSyncLog(String runId, Long notifyLogId, String sourceBizNo,
+                                                                   Long ticketId, String status,
+                                                                   String errorCode, String errorMsg,
+                                                                   String operator) {
+        return new BookingRefundReplayTicketSyncLogDO()
+                .setRunId(runId)
+                .setNotifyLogId(notifyLogId)
+                .setSourceBizNo(StrUtil.blankToDefault(sourceBizNo, ""))
+                .setTicketId(ticketId)
+                .setStatus(StrUtil.blankToDefault(status, TICKET_SYNC_STATUS_FAIL))
+                .setErrorCode(StrUtil.blankToDefault(errorCode, ""))
+                .setErrorMsg(StrUtil.maxLength(StrUtil.blankToDefault(errorMsg, ""), 512))
+                .setOperator(StrUtil.blankToDefault(operator, DEFAULT_OPERATOR))
+                .setSyncTime(LocalDateTime.now());
+    }
+
+    private void persistTicketSyncLogSafely(BookingRefundReplayTicketSyncLogDO syncLogDO) {
+        if (syncLogDO == null) {
+            return;
+        }
+        try {
+            refundReplayTicketSyncLogMapper.insert(syncLogDO);
+        } catch (Exception ex) {
+            log.error("[persistTicketSyncLogSafely][runId={}, notifyLogId={}, status={}]",
+                    syncLogDO.getRunId(), syncLogDO.getNotifyLogId(), syncLogDO.getStatus(), ex);
+        }
     }
 
     private TradeReviewTicketUpsertReqDTO buildReplayRunTicketReq(String runId,

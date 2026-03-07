@@ -6,6 +6,8 @@ import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
 import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
@@ -13,11 +15,14 @@ import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunDetailDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayTicketSyncLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundRepairCandidateDO;
 import com.hxy.module.booking.dal.mysql.BookingRefundNotifyLogMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReconcileQueryMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailQueryMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunLogMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayTicketSyncLogMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.FourAccountReconcileService;
@@ -58,7 +63,11 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
     @Mock
     private BookingRefundReplayRunDetailMapper refundReplayRunDetailMapper;
     @Mock
+    private BookingRefundReplayRunDetailQueryMapper refundReplayRunDetailQueryMapper;
+    @Mock
     private BookingRefundReplayRunLogMapper refundReplayRunLogMapper;
+    @Mock
+    private BookingRefundReplayTicketSyncLogMapper refundReplayTicketSyncLogMapper;
     @Mock
     private BookingOrderService bookingOrderService;
     @Mock
@@ -277,6 +286,11 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
                 new BookingRefundReplayRunDetailDO().setRunId("RR201").setNotifyLogId(4L)
                         .setResultStatus("SUCCESS").setResultCode("OK").setWarningTag("FOUR_ACCOUNT_REFRESH_WARN")
         ));
+        when(refundReplayTicketSyncLogMapper.selectLatestByRunId(eq("RR201"))).thenReturn(Arrays.asList(
+                new BookingRefundReplayTicketSyncLogDO().setRunId("RR201").setNotifyLogId(1L).setStatus("SUCCESS"),
+                new BookingRefundReplayTicketSyncLogDO().setRunId("RR201").setNotifyLogId(2L).setStatus("SKIP"),
+                new BookingRefundReplayTicketSyncLogDO().setRunId("RR201").setNotifyLogId(3L).setStatus("FAIL")
+        ));
 
         BookingRefundReplayRunLogSummaryRespVO summary = service.getReplayRunLogSummary("RR201");
 
@@ -286,6 +300,9 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
         assertEquals("E100", summary.getTopFailCodes().get(0).getKey());
         assertEquals(2, summary.getTopFailCodes().get(0).getCount());
         assertEquals("FOUR_ACCOUNT_REFRESH_WARN", summary.getTopWarningTags().get(0).getKey());
+        assertEquals(1, summary.getTicketSyncSuccessCount());
+        assertEquals(1, summary.getTicketSyncSkipCount());
+        assertEquals(1, summary.getTicketSyncFailCount());
     }
 
     @Test
@@ -298,20 +315,79 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
                 new BookingRefundReplayRunDetailDO().setRunId("RR301").setNotifyLogId(12L)
                         .setOrderId(5002L).setResultStatus("FAIL").setResultCode("E102").setResultMsg("fail two")
         ));
+        when(refundReplayTicketSyncLogMapper.selectLatestByRunIdAndNotifyLogIds(eq("RR301"), any()))
+                .thenReturn(Collections.emptyList());
         when(tradeReviewTicketApi.upsertReviewTicket(any()))
                 .thenReturn(1001L)
                 .thenThrow(new RuntimeException("trade down"));
 
         BookingRefundReplayRunLogSyncTicketRespVO respVO =
-                service.syncReplayRunLogTickets("RR301", true, 99L, "ops-user");
+                service.syncReplayRunLogTickets("RR301", true, false, false, 99L, "ops-user");
 
         assertEquals("RR301", respVO.getRunId());
         assertEquals(2, respVO.getAttemptedCount());
         assertEquals(1, respVO.getSuccessCount());
+        assertEquals(0, respVO.getSkipCount());
         assertEquals(1, respVO.getFailedCount());
         assertEquals(1, respVO.getFailedIds().size());
         assertEquals(12L, respVO.getFailedIds().get(0));
+        assertEquals(2, respVO.getDetails().size());
         verify(tradeReviewTicketApi, times(2)).upsertReviewTicket(any());
+        verify(refundReplayTicketSyncLogMapper, times(2)).insert(any(BookingRefundReplayTicketSyncLogDO.class));
+    }
+
+    @Test
+    void syncReplayRunLogTickets_shouldSkipWhenAlreadySuccessAndNotForceResync() {
+        when(refundReplayRunLogMapper.selectByRunId(eq("RR302"))).thenReturn(
+                new BookingRefundReplayRunLogDO().setId(302L).setRunId("RR302"));
+        when(refundReplayRunDetailMapper.selectByRunIdAndResultStatus(eq("RR302"), eq("FAIL"))).thenReturn(Collections.singletonList(
+                new BookingRefundReplayRunDetailDO().setRunId("RR302").setNotifyLogId(21L)
+                        .setOrderId(6001L).setResultStatus("FAIL").setResultCode("E201").setResultMsg("need sync")
+        ));
+        when(refundReplayTicketSyncLogMapper.selectLatestByRunIdAndNotifyLogIds(eq("RR302"), any()))
+                .thenReturn(Collections.singletonList(
+                        new BookingRefundReplayTicketSyncLogDO().setRunId("RR302").setNotifyLogId(21L)
+                                .setStatus("SUCCESS").setTicketId(3001L)
+                ));
+
+        BookingRefundReplayRunLogSyncTicketRespVO respVO =
+                service.syncReplayRunLogTickets("RR302", true, false, false, 99L, "ops-user");
+
+        assertEquals(1, respVO.getAttemptedCount());
+        assertEquals(0, respVO.getSuccessCount());
+        assertEquals(1, respVO.getSkipCount());
+        assertEquals(0, respVO.getFailedCount());
+        assertEquals("SKIP_ALREADY_SUCCESS", respVO.getDetails().get(0).getResultCode());
+        verify(tradeReviewTicketApi, never()).upsertReviewTicket(any());
+        verify(refundReplayTicketSyncLogMapper).insert(any(BookingRefundReplayTicketSyncLogDO.class));
+    }
+
+    @Test
+    void syncReplayRunLogTickets_shouldSupportDryRunAndForceResync() {
+        when(refundReplayRunLogMapper.selectByRunId(eq("RR303"))).thenReturn(
+                new BookingRefundReplayRunLogDO().setId(303L).setRunId("RR303"));
+        when(refundReplayRunDetailMapper.selectByRunIdAndResultStatus(eq("RR303"), eq("FAIL"))).thenReturn(Collections.singletonList(
+                new BookingRefundReplayRunDetailDO().setRunId("RR303").setNotifyLogId(31L)
+                        .setOrderId(7001L).setResultStatus("FAIL").setResultCode("E301").setResultMsg("need sync")
+        ));
+        when(refundReplayTicketSyncLogMapper.selectLatestByRunIdAndNotifyLogIds(eq("RR303"), any()))
+                .thenReturn(Collections.singletonList(
+                        new BookingRefundReplayTicketSyncLogDO().setRunId("RR303").setNotifyLogId(31L)
+                                .setStatus("SUCCESS").setTicketId(4001L)
+                ));
+
+        BookingRefundReplayRunLogSyncTicketRespVO dryRunResp =
+                service.syncReplayRunLogTickets("RR303", true, true, true, 99L, "ops-user");
+        assertEquals(1, dryRunResp.getSkipCount());
+        assertEquals("DRY_RUN", dryRunResp.getDetails().get(0).getResultCode());
+        verify(tradeReviewTicketApi, never()).upsertReviewTicket(any());
+
+        when(tradeReviewTicketApi.upsertReviewTicket(any())).thenReturn(5001L);
+        BookingRefundReplayRunLogSyncTicketRespVO forceResp =
+                service.syncReplayRunLogTickets("RR303", true, false, true, 99L, "ops-user");
+        assertEquals(1, forceResp.getSuccessCount());
+        assertEquals(0, forceResp.getSkipCount());
+        verify(tradeReviewTicketApi, times(1)).upsertReviewTicket(any());
     }
 
     @Test
@@ -334,6 +410,44 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
         assertEquals("partial_fail", reqVO.getStatus());
         assertEquals(0, reqVO.getMinFailCount());
         verify(refundReplayRunLogMapper).selectPage(eq(reqVO));
+    }
+
+    @Test
+    void getReplayRunDetailPage_shouldNormalizeFiltersAndReturnPage() {
+        BookingRefundReplayRunDetailPageReqVO reqVO = new BookingRefundReplayRunDetailPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        reqVO.setRunId(" RR501 ");
+        reqVO.setResultStatus("fail");
+        reqVO.setWarningTag(" four_account_refresh_warn ");
+        reqVO.setTicketSyncStatus("success");
+        BookingRefundReplayRunDetailRespVO detailRespVO = new BookingRefundReplayRunDetailRespVO();
+        detailRespVO.setId(1L);
+        detailRespVO.setRunId("RR501");
+        when(refundReplayRunDetailQueryMapper.countDetailPage(eq(reqVO))).thenReturn(1L);
+        when(refundReplayRunDetailQueryMapper.selectDetailPage(eq(reqVO), eq(0), eq(10)))
+                .thenReturn(Collections.singletonList(detailRespVO));
+
+        PageResult<BookingRefundReplayRunDetailRespVO> pageResult = service.getReplayRunDetailPage(reqVO);
+
+        assertEquals(1L, pageResult.getTotal());
+        assertEquals("RR501", reqVO.getRunId());
+        assertEquals("FAIL", reqVO.getResultStatus());
+        assertEquals("FOUR_ACCOUNT_REFRESH_WARN", reqVO.getWarningTag());
+        assertEquals("SUCCESS", reqVO.getTicketSyncStatus());
+    }
+
+    @Test
+    void getReplayRunDetail_shouldReturnDetail() {
+        BookingRefundReplayRunDetailRespVO detailRespVO = new BookingRefundReplayRunDetailRespVO();
+        detailRespVO.setId(2L);
+        detailRespVO.setRunId("RR502");
+        when(refundReplayRunDetailQueryMapper.selectDetailById(eq(2L))).thenReturn(detailRespVO);
+
+        BookingRefundReplayRunDetailRespVO result = service.getReplayRunDetail(2L);
+
+        assertEquals("RR502", result.getRunId());
+        verify(refundReplayRunDetailQueryMapper).selectDetailById(eq(2L));
     }
 
     @Test

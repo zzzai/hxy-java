@@ -16,7 +16,21 @@ public class BookingRefundReplayRunLogSyncTicketReqVO {
     @Schema(description = "是否仅同步失败明细，默认 true", example = "true")
     private Boolean onlyFail;
 
+    @Schema(description = "是否仅预演，不执行工单同步", example = "false")
+    private Boolean dryRun;
+
+    @Schema(description = "是否强制重同步，默认 false", example = "false")
+    private Boolean forceResync;
+
     public boolean onlyFailEnabled() {
         return onlyFail == null || Boolean.TRUE.equals(onlyFail);
+    }
+
+    public boolean dryRunEnabled() {
+        return Boolean.TRUE.equals(dryRun);
+    }
+
+    public boolean forceResyncEnabled() {
+        return Boolean.TRUE.equals(forceResync);
     }
 }

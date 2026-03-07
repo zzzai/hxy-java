@@ -951,3 +951,17 @@
 - 备选方案：继续仅提供 run-log 总计数字段和逐条日志，不新增明细聚合与工单批量联动。
 - 否决原因：运营无法直接识别主失败类型与高风险告警标签，且批次级联动需要大量手工操作，收口时效不可控。
 - 回滚条件：若明细台账写入异常，可临时关闭 summary/sync-tickets 入口并退回 run-log 基础查询；主 replay 链路与 run-log 主表保持可用。
+
+## ADR-097：退款补偿 V4 采用“同步审计台账 + 幂等跳过 + 可控重放”策略
+
+- 背景：V2 已支持 runId 级工单同步，但缺少“每条同步行为可追溯”“重复同步可控跳过”和“run 明细可直接按同步状态检索”能力，运营回放与审计链仍存在断点。
+- 决策：
+  1) 新增审计表 `hxy_booking_refund_replay_ticket_sync_log`，每次同步均落审计（`SUCCESS/SKIP/FAIL` + `errorCode/errorMsg/operator/syncTime`）；
+  2) `sync-tickets` 增加 `dryRun/forceResync`，默认遵循“latest=SUCCESS 且非 forceResync -> SKIP”；
+  3) 增加 run 明细接口 `detail/page|get`，按 `result* + warningTag + ticketSyncStatus + notifyLogId/orderId/payRefundId` 检索；
+  4) `summary` 增补 `ticketSyncSuccessCount/ticketSyncSkipCount/ticketSyncFailCount`，形成“重放结果 + 同步结果”双维看板；
+  5) 保持 fail-open：trade 异常不阻断批次，失败明细通过 `failedIds/details` 回传。
+- 影响范围：booking 退款补偿运营看板、跨域工单联动幂等语义、审计追溯能力。
+- 备选方案：继续仅依赖 run_detail 与日志，不新增同步审计表。
+- 否决原因：无法完整回答“哪条明细何时同步、谁操作、为何失败/跳过”，不满足运营审计与复核要求。
+- 回滚条件：若同步审计写入异常，可暂时降级为仅返回接口结果并保留 fail-open 主链路；修复后恢复审计落库。

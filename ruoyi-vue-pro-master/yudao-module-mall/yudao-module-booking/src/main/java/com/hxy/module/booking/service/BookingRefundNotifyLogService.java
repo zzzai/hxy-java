@@ -4,6 +4,8 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunDetailRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
@@ -37,7 +39,12 @@ public interface BookingRefundNotifyLogService {
 
     BookingRefundReplayRunLogSummaryRespVO getReplayRunLogSummary(String runId);
 
+    PageResult<BookingRefundReplayRunDetailRespVO> getReplayRunDetailPage(BookingRefundReplayRunDetailPageReqVO reqVO);
+
+    BookingRefundReplayRunDetailRespVO getReplayRunDetail(Long id);
+
     BookingRefundReplayRunLogSyncTicketRespVO syncReplayRunLogTickets(String runId, boolean onlyFail,
+                                                                      boolean dryRun, boolean forceResync,
                                                                       Long operatorId, String operatorNickname);
 
     int reconcileRefundedOrders(Integer limit);
