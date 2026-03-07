@@ -76,8 +76,11 @@ export interface RefundNotifyReplayDueReq {
 
 export interface RefundNotifyReplayRunLogPageReq extends PageParam {
   runId?: string | number
+  triggerSource?: string
   status?: RefundNotifyReplayRunStatus
   operator?: string
+  hasWarning?: boolean
+  minFailCount?: number
   timeRange?: string[]
 }
 
@@ -97,6 +100,103 @@ export interface RefundNotifyReplayRunLogVO {
   startTime?: string
   endTime?: string
   createTime?: string
+}
+
+export interface RefundNotifyReplayRunLogDetailPageReq extends PageParam {
+  runId?: string | number
+  notifyLogId?: number
+  resultStatus?: string
+  ticketSyncStatus?: string
+  warningTag?: string
+}
+
+export interface RefundNotifyReplayRunLogDetailVO {
+  id?: number
+  runId?: string | number
+  notifyLogId?: number | string
+  orderId?: number
+  merchantRefundId?: string
+  payRefundId?: number
+  resultStatus?: string
+  resultCode?: string | number
+  warningTag?: string
+  ticketSyncStatus?: string
+  ticketId?: string | number
+  ticketSyncTime?: string
+  errorMsg?: string
+  createTime?: string
+  updateTime?: string
+}
+
+export interface RefundNotifyReplayRunLogSummaryItem {
+  key?: string
+  code?: string
+  tag?: string
+  name?: string
+  value?: string | number
+  count?: number
+}
+
+export interface RefundNotifyReplayRunLogSummaryVO {
+  runId?: string | number
+  runStatus?: RefundNotifyReplayRunStatus
+  status?: RefundNotifyReplayRunStatus
+  triggerSource?: string
+  operator?: string
+  dryRun?: boolean
+  start?: string
+  startTime?: string
+  end?: string
+  endTime?: string
+  scanned?: number
+  scannedCount?: number
+  success?: number
+  successCount?: number
+  skip?: number
+  skipCount?: number
+  fail?: number
+  failCount?: number
+  warning?: number
+  warningCount?: number
+  topFailCodes?: Array<string | number | RefundNotifyReplayRunLogSummaryItem>
+  topWarningTags?: Array<string | number | RefundNotifyReplayRunLogSummaryItem>
+  errorMsg?: string
+}
+
+export interface RefundNotifyReplayRunLogSyncTicketsReq {
+  runId?: string | number
+  dryRun?: boolean
+  forceResync?: boolean
+  onlyFail?: boolean
+}
+
+export interface RefundNotifyReplayRunLogSyncTicketsDetailVO {
+  id?: number
+  notifyLogId?: number | string
+  resultStatus?: string
+  resultCode?: string | number
+  warningTag?: string
+  ticketSyncStatus?: string
+  ticketId?: string | number
+  ticketSyncTime?: string
+  errorMsg?: string
+}
+
+export interface RefundNotifyReplayRunLogSyncTicketsResp {
+  runId?: string | number
+  attempted?: number
+  attemptedCount?: number
+  success?: number
+  successCount?: number
+  skip?: number
+  skipCount?: number
+  fail?: number
+  failCount?: number
+  failed?: number
+  failedCount?: number
+  failedIds?: Array<string | number>
+  details?: RefundNotifyReplayRunLogSyncTicketsDetailVO[]
+  errorMsg?: string
 }
 
 export const getRefundNotifyLogPage = (params: RefundNotifyLogPageReq) => {
@@ -122,5 +222,33 @@ export const getReplayRunLog = (id: number) => {
   return request.get<RefundNotifyReplayRunLogVO>({
     url: '/booking/refund-notify-log/replay-run-log/get',
     params: { id }
+  })
+}
+
+export const getReplayRunLogDetailPage = (params: RefundNotifyReplayRunLogDetailPageReq) => {
+  return request.get<PageResult<RefundNotifyReplayRunLogDetailVO>>({
+    url: '/booking/refund-notify-log/replay-run-log/detail/page',
+    params
+  })
+}
+
+export const getReplayRunLogDetail = (id: number | string) => {
+  return request.get<RefundNotifyReplayRunLogDetailVO>({
+    url: '/booking/refund-notify-log/replay-run-log/detail/get',
+    params: { id }
+  })
+}
+
+export const getReplayRunLogSummary = (runId: string | number) => {
+  return request.get<RefundNotifyReplayRunLogSummaryVO>({
+    url: '/booking/refund-notify-log/replay-run-log/summary',
+    params: { runId }
+  })
+}
+
+export const syncReplayRunLogTickets = (data: RefundNotifyReplayRunLogSyncTicketsReq) => {
+  return request.post<RefundNotifyReplayRunLogSyncTicketsResp>({
+    url: '/booking/refund-notify-log/replay-run-log/sync-tickets',
+    data
   })
 }
