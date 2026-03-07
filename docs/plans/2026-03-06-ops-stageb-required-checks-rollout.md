@@ -19,6 +19,7 @@
    - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_runlog_gate.sh`
    - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh`
    - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh`
    - `.github/workflows/ops-stageb-p1-guard.yml`
 
 ## 2. 启用（Dry Run + Apply）
@@ -203,6 +204,18 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gat
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh
 ```
 
+若 `check_finance_partial_closure_gate.sh` 返回 `BLOCK`，优先检查以下锚点：
+- 退款回调幂等冲突错误码：`BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT`（`1030004012`）
+- 提成计提/冲正幂等关键契约：`ensureReversalPayloadConsistent`、`selectByOriginCommissionId`、`selectByBizKey`、`COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT`（`1030007011`）
+- 退款冲正唯一约束/冲突语义：`uk_origin_commission_id`、`DuplicateKeyException` 冲突分支
+- 四账摘要字段与 fail-open 标记：`ticketSummaryDegraded`、`load ticket summary degrade`
+
+可单独执行：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
+```
+
 ## 5. 快速检查命令
 
 ```bash
@@ -213,6 +226,7 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_runlog_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh
+bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
 ```
 
 ## 6. 巡检接口回归测试（退款-提成联调）
@@ -225,6 +239,7 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gat
 - `check_booking_refund_replay_runlog_gate.sh`（退款重放运行台账 V3 锚点检查）
 - `check_booking_refund_replay_run_summary_gate.sh`（退款重放汇总 + 工单同步锚点检查）
 - `check_booking_refund_replay_ticket_sync_gate.sh`（退款重放明细 + 工单同步审计 V4 锚点检查）
+- `check_finance_partial_closure_gate.sh`（财务 Partial 收口锚点检查）
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
 - `BookingOrderServiceImplTest`（退款回调一致性）
@@ -251,14 +266,19 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
 - 紧急降级 replay-runlog 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-runlog-gate`
 - 紧急降级 replay-run-summary 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-run-summary-gate`
 - 紧急降级 replay-ticket-sync 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-ticket-sync-gate`
+- 紧急降级 finance-partial-closure 门禁（仅短期）：`--skip-mysql-init --skip-finance-partial-closure-gate`
 - 临时软阻断 replay-run-summary 门禁（仅短期）：
   - `REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 临时软阻断 replay-ticket-sync 门禁（仅短期）：
   - `REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
+- 临时软阻断 finance-partial-closure 门禁（仅短期）：
+  - `REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 环境变量显式关闭 replay-run-summary 门禁（单次）：
   - `RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 环境变量显式关闭 replay-ticket-sync 门禁（单次）：
   - `RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
+- 环境变量显式关闭 finance-partial-closure 门禁（单次）：
+  - `RUN_FINANCE_PARTIAL_CLOSURE_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 
 如需临时降级退款审计门禁（不建议长期使用）：
 
@@ -300,6 +320,14 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
   --skip-booking-refund-replay-ticket-sync-gate
 ```
 
+如需临时降级 finance-partial-closure 门禁（不建议长期使用）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-finance-partial-closure-gate
+```
+
 如需临时覆盖回归测试集合，可通过环境变量：
 
 ```bash
@@ -310,7 +338,7 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-
 ### 6.2 CI 执行
 
 `hxy-ops-stageb-p1-guard` workflow 在 `regression-tests` 步骤调用同一脚本与默认测试集合，确保本地与 CI 口径一致。
-workflow summary 会输出 `clean_before_tests`、`booking_refund_replay_v2_gate_rc`、`booking_refund_replay_runlog_gate_rc`、`booking_refund_replay_run_summary_gate_rc` 与 `booking_refund_replay_ticket_sync_gate_rc`，用于排查 clean 口径和 replay 门禁状态。
+workflow summary 会输出 `clean_before_tests`、`booking_refund_replay_v2_gate_rc`、`booking_refund_replay_runlog_gate_rc`、`booking_refund_replay_run_summary_gate_rc`、`booking_refund_replay_ticket_sync_gate_rc` 与 `finance_partial_closure_gate_rc`，用于排查 clean 口径和 StageB 门禁状态。
 
 ## 7. 退款回调一致性回归用例
 

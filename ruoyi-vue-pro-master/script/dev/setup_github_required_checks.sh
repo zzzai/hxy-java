@@ -307,10 +307,12 @@ else
   echo "[github-required-checks] profile=base-only"
 fi
 if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
-  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,booking-refund-replay-runlog,booking-refund-replay-run-summary,booking-refund-replay-ticket-sync,four-account-audit-regression"
+  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,booking-refund-replay-runlog,booking-refund-replay-run-summary,booking-refund-replay-ticket-sync,finance-partial-closure,four-account-audit-regression"
   echo "[github-required-checks] stageb_guard_context_unchanged=hxy-ops-stageb-p1-guard / ops-stageb-p1-guard"
   echo "[github-required-checks] stageb_guard_ticket_sync_skip_example=RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 (local-ci env) or --skip-booking-refund-replay-ticket-sync-gate"
   echo "[github-required-checks] stageb_guard_ticket_sync_soft_block_example=REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 (local-ci env) or --require-booking-refund-replay-ticket-sync-gate 0"
+  echo "[github-required-checks] stageb_guard_finance_partial_skip_example=RUN_FINANCE_PARTIAL_CLOSURE_GATE=0 (local-ci env) or --skip-finance-partial-closure-gate"
+  echo "[github-required-checks] stageb_guard_finance_partial_soft_block_example=REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 (local-ci env) or --require-finance-partial-closure-gate 0"
   echo "[github-required-checks] stageb_guard_skip_example=RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --skip-booking-refund-replay-run-summary-gate"
   echo "[github-required-checks] stageb_guard_soft_block_example=REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --require-booking-refund-replay-run-summary-gate 0"
 fi

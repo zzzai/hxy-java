@@ -29,6 +29,7 @@ RUN_BOOKING_REFUND_REPLAY_V2_GATE="${RUN_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE:-1}"
+RUN_FINANCE_PARTIAL_CLOSURE_GATE="${RUN_FINANCE_PARTIAL_CLOSURE_GATE:-1}"
 RUN_STORE_SKU_STOCK_GATE="${RUN_STORE_SKU_STOCK_GATE:-1}"
 RUN_STORE_LIFECYCLE_GATE="${RUN_STORE_LIFECYCLE_GATE:-1}"
 RUN_TESTS="${RUN_TESTS:-1}"
@@ -42,6 +43,7 @@ REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE:-
 REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE:-1}"
+REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE="${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE:-1}"
 REQUIRE_STORE_SKU_STOCK_GATE="${REQUIRE_STORE_SKU_STOCK_GATE:-0}"
 REQUIRE_STORE_LIFECYCLE_GATE="${REQUIRE_STORE_LIFECYCLE_GATE:-0}"
 
@@ -80,6 +82,7 @@ Options:
   --skip-booking-refund-replay-runlog-gate   skip booking refund replay runlog gate
   --skip-booking-refund-replay-run-summary-gate skip booking refund replay run summary gate
   --skip-booking-refund-replay-ticket-sync-gate skip booking refund replay ticket sync audit gate
+  --skip-finance-partial-closure-gate        skip finance partial closure gate
   --skip-stock-gate                          跳过库存门禁
   --skip-lifecycle-gate                      跳过生命周期审批门禁
   --skip-tests                               跳过回归测试（product/trade/booking）
@@ -93,6 +96,7 @@ Options:
   --require-booking-refund-replay-runlog-gate <0|1> block on booking refund replay runlog gate failure (default 1)
   --require-booking-refund-replay-run-summary-gate <0|1> block on booking refund replay run summary gate failure (default 1)
   --require-booking-refund-replay-ticket-sync-gate <0|1> block on booking refund replay ticket sync gate failure (default 1)
+  --require-finance-partial-closure-gate <0|1> block on finance partial closure gate failure (default 1)
   --require-store-sku-stock-gate <0|1>       库存门禁失败是否阻断（默认 0）
   --require-store-lifecycle-gate <0|1>       生命周期门禁失败是否阻断（默认 0）
 
@@ -101,6 +105,8 @@ Options:
 
 Env:
   CLEAN_BEFORE_TESTS                         置为 1 时等价于 --clean-before-tests
+  RUN_FINANCE_PARTIAL_CLOSURE_GATE          置为 0 时跳过 finance partial closure gate
+  REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE      置为 0 时 finance partial closure gate 失败降级为 WARN
   REGRESSION_TEST_CLASSES                    覆盖默认回归测试集合（逗号分隔）
 
 Exit Code:
@@ -184,6 +190,10 @@ while [[ $# -gt 0 ]]; do
       RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0
       shift
       ;;
+    --skip-finance-partial-closure-gate)
+      RUN_FINANCE_PARTIAL_CLOSURE_GATE=0
+      shift
+      ;;
     --skip-stock-gate)
       RUN_STORE_SKU_STOCK_GATE=0
       shift
@@ -232,6 +242,10 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="$2"
       shift 2
       ;;
+    --require-finance-partial-closure-gate)
+      REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE="$2"
+      shift 2
+      ;;
     --require-store-sku-stock-gate)
       REQUIRE_STORE_SKU_STOCK_GATE="$2"
       STOCK_REQUIRE_OVERDUE_ZERO="$2"
@@ -275,6 +289,7 @@ for flag in \
   "${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE}" \
   "${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}" \
   "${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" \
+  "${RUN_FINANCE_PARTIAL_CLOSURE_GATE}" \
   "${RUN_STORE_SKU_STOCK_GATE}" \
   "${RUN_STORE_LIFECYCLE_GATE}" \
   "${RUN_TESTS}" \
@@ -287,6 +302,7 @@ for flag in \
   "${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE}" \
   "${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}" \
   "${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" \
+  "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" \
   "${REQUIRE_STORE_SKU_STOCK_GATE}" \
   "${REQUIRE_STORE_LIFECYCLE_GATE}" \
   "${STOCK_REQUIRE_OVERDUE_ZERO}" \
@@ -315,6 +331,7 @@ BOOKING_REFUND_REPLAY_V2_GATE_LOG="${LOG_DIR}/booking_refund_replay_v2_gate.log"
 BOOKING_REFUND_REPLAY_RUNLOG_GATE_LOG="${LOG_DIR}/booking_refund_replay_runlog_gate.log"
 BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_LOG="${LOG_DIR}/booking_refund_replay_run_summary_gate.log"
 BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_LOG="${LOG_DIR}/booking_refund_replay_ticket_sync_gate.log"
+FINANCE_PARTIAL_CLOSURE_GATE_LOG="${LOG_DIR}/finance_partial_closure_gate.log"
 STORE_SKU_STOCK_GATE_LOG="${LOG_DIR}/store_sku_stock_gate.log"
 STORE_LIFECYCLE_GATE_LOG="${LOG_DIR}/store_lifecycle_change_order_gate.log"
 TEST_LOG="${LOG_DIR}/regression_tests.log"
@@ -343,6 +360,10 @@ BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR="${ARTIFACT_DIR}/booking_refund_repla
 BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_SUMMARY="${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}/summary.txt"
 BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV="${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}/result.tsv"
 
+FINANCE_PARTIAL_CLOSURE_GATE_DIR="${ARTIFACT_DIR}/finance_partial_closure_gate"
+FINANCE_PARTIAL_CLOSURE_GATE_SUMMARY="${FINANCE_PARTIAL_CLOSURE_GATE_DIR}/summary.txt"
+FINANCE_PARTIAL_CLOSURE_GATE_TSV="${FINANCE_PARTIAL_CLOSURE_GATE_DIR}/result.tsv"
+
 STORE_SKU_STOCK_GATE_DIR="${ARTIFACT_DIR}/store_sku_stock_gate"
 STORE_SKU_STOCK_GATE_SUMMARY="${STORE_SKU_STOCK_GATE_DIR}/summary.txt"
 STORE_SKU_STOCK_GATE_TSV="${STORE_SKU_STOCK_GATE_DIR}/result.tsv"
@@ -351,7 +372,7 @@ STORE_LIFECYCLE_GATE_DIR="${ARTIFACT_DIR}/store_lifecycle_change_order_gate"
 STORE_LIFECYCLE_GATE_SUMMARY="${STORE_LIFECYCLE_GATE_DIR}/summary.txt"
 STORE_LIFECYCLE_GATE_TSV="${STORE_LIFECYCLE_GATE_DIR}/result.tsv"
 
-mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
+mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}" "${FINANCE_PARTIAL_CLOSURE_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
 echo -e "stage\tseverity\tcode\tdetail" > "${RESULT_TSV}"
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
@@ -364,6 +385,7 @@ booking_refund_replay_v2_gate_rc="SKIP"
 booking_refund_replay_runlog_gate_rc="SKIP"
 booking_refund_replay_run_summary_gate_rc="SKIP"
 booking_refund_replay_ticket_sync_gate_rc="SKIP"
+finance_partial_closure_gate_rc="SKIP"
 store_sku_stock_gate_rc="SKIP"
 store_lifecycle_gate_rc="SKIP"
 tests_rc="SKIP"
@@ -404,6 +426,7 @@ finalize() {
     echo "run_booking_refund_replay_runlog_gate=${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE}"
     echo "run_booking_refund_replay_run_summary_gate=${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}"
     echo "run_booking_refund_replay_ticket_sync_gate=${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}"
+    echo "run_finance_partial_closure_gate=${RUN_FINANCE_PARTIAL_CLOSURE_GATE}"
     echo "run_store_sku_stock_gate=${RUN_STORE_SKU_STOCK_GATE}"
     echo "run_store_lifecycle_gate=${RUN_STORE_LIFECYCLE_GATE}"
     echo "run_tests=${RUN_TESTS}"
@@ -417,6 +440,7 @@ finalize() {
     echo "require_booking_refund_replay_runlog_gate=${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE}"
     echo "require_booking_refund_replay_run_summary_gate=${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}"
     echo "require_booking_refund_replay_ticket_sync_gate=${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}"
+    echo "require_finance_partial_closure_gate=${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}"
     echo "require_store_sku_stock_gate=${REQUIRE_STORE_SKU_STOCK_GATE}"
     echo "require_store_lifecycle_gate=${REQUIRE_STORE_LIFECYCLE_GATE}"
     echo "mysql_init_rc=${mysql_init_rc}"
@@ -428,6 +452,7 @@ finalize() {
     echo "booking_refund_replay_runlog_gate_rc=${booking_refund_replay_runlog_gate_rc}"
     echo "booking_refund_replay_run_summary_gate_rc=${booking_refund_replay_run_summary_gate_rc}"
     echo "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
+    echo "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
     echo "store_sku_stock_gate_rc=${store_sku_stock_gate_rc}"
     echo "store_lifecycle_change_order_gate_rc=${store_lifecycle_gate_rc}"
     echo "tests_rc=${tests_rc}"
@@ -443,6 +468,7 @@ finalize() {
     echo "booking_refund_replay_runlog_gate_log=${BOOKING_REFUND_REPLAY_RUNLOG_GATE_LOG}"
     echo "booking_refund_replay_run_summary_gate_log=${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_LOG}"
     echo "booking_refund_replay_ticket_sync_gate_log=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_LOG}"
+    echo "finance_partial_closure_gate_log=${FINANCE_PARTIAL_CLOSURE_GATE_LOG}"
     echo "store_sku_stock_gate_log=${STORE_SKU_STOCK_GATE_LOG}"
     echo "store_lifecycle_change_order_gate_log=${STORE_LIFECYCLE_GATE_LOG}"
     echo "booking_refund_notify_gate_summary=${BOOKING_REFUND_NOTIFY_GATE_SUMMARY}"
@@ -457,6 +483,8 @@ finalize() {
     echo "booking_refund_replay_run_summary_gate_tsv=${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_TSV}"
     echo "booking_refund_replay_ticket_sync_gate_summary=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_SUMMARY}"
     echo "booking_refund_replay_ticket_sync_gate_tsv=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV}"
+    echo "finance_partial_closure_gate_summary=${FINANCE_PARTIAL_CLOSURE_GATE_SUMMARY}"
+    echo "finance_partial_closure_gate_tsv=${FINANCE_PARTIAL_CLOSURE_GATE_TSV}"
     echo "store_sku_stock_gate_summary=${STORE_SKU_STOCK_GATE_SUMMARY}"
     echo "store_sku_stock_gate_tsv=${STORE_SKU_STOCK_GATE_TSV}"
     echo "store_lifecycle_change_order_gate_summary=${STORE_LIFECYCLE_GATE_SUMMARY}"
@@ -721,6 +749,31 @@ if [[ "${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" == "1" ]]; then
     exit 2
   elif [[ "${booking_refund_replay_ticket_sync_gate_rc}" == "2" ]]; then
     add_issue "booking-refund-replay-ticket-sync-gate" "WARN" "OPS18_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_BLOCK_AS_WARN" "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
+  fi
+fi
+
+if [[ "${RUN_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+  echo "[ops-stageb-p1-local-ci] step=finance-partial-closure-gate"
+  set +e
+  bash script/dev/check_finance_partial_closure_gate.sh \
+    --summary-file "${FINANCE_PARTIAL_CLOSURE_GATE_SUMMARY}" \
+    --output-tsv "${FINANCE_PARTIAL_CLOSURE_GATE_TSV}" > "${FINANCE_PARTIAL_CLOSURE_GATE_LOG}" 2>&1
+  finance_partial_closure_gate_rc=$?
+  set -e
+  append_gate_tsv "finance-partial-closure-gate" "${FINANCE_PARTIAL_CLOSURE_GATE_TSV}"
+
+  if [[ "${finance_partial_closure_gate_rc}" != "0" && "${finance_partial_closure_gate_rc}" != "2" ]]; then
+    if [[ "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+      add_issue "finance-partial-closure-gate" "BLOCK" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+      PIPELINE_EXIT_CODE=2
+      exit 2
+    fi
+    add_issue "finance-partial-closure-gate" "WARN" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+  elif [[ "${finance_partial_closure_gate_rc}" == "2" && "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+    PIPELINE_EXIT_CODE=2
+    exit 2
+  elif [[ "${finance_partial_closure_gate_rc}" == "2" ]]; then
+    add_issue "finance-partial-closure-gate" "WARN" "OPS20_FINANCE_PARTIAL_CLOSURE_GATE_BLOCK_AS_WARN" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
   fi
 fi
 
