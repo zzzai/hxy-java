@@ -318,6 +318,23 @@
           <el-option v-for="item in runLogStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
+      <el-form-item label="触发来源" prop="triggerSource">
+        <el-select
+          v-model="runLogQueryParams.triggerSource"
+          allow-create
+          class="!w-180px"
+          clearable
+          filterable
+          placeholder="MANUAL / AUTO"
+        >
+          <el-option
+            v-for="item in runLogTriggerSourceOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item label="操作人" prop="operator">
         <el-input
           v-model="runLogQueryParams.operator"
@@ -325,6 +342,21 @@
           clearable
           placeholder="请输入操作人"
           @keyup.enter="handleRunLogQuery"
+        />
+      </el-form-item>
+      <el-form-item label="含告警" prop="hasWarning">
+        <el-select v-model="runLogQueryParams.hasWarning" class="!w-120px" clearable placeholder="全部">
+          <el-option :value="true" label="是" />
+          <el-option :value="false" label="否" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="最小失败数" prop="minFailCount">
+        <el-input-number
+          v-model="runLogQueryParams.minFailCount"
+          :controls="false"
+          :min="0"
+          class="!w-140px"
+          placeholder=">=0"
         />
       </el-form-item>
       <el-form-item label="时间范围" prop="timeRange">
@@ -431,6 +463,36 @@
 
   <el-drawer v-model="runLogDetailVisible" size="48%" title="重放批次详情">
     <div v-loading="runLogDetailLoading">
+      <el-space wrap class="mb-12px">
+        <el-button
+          v-hasPermi="['booking:refund-notify-log:replay']"
+          :disabled="!runLogCurrentRunId"
+          :loading="runLogSyncLoading"
+          type="primary"
+          @click="handleSyncRunLogTickets(true)"
+        >
+          同步失败工单
+        </el-button>
+        <el-button
+          v-hasPermi="['booking:refund-notify-log:replay']"
+          :disabled="!runLogCurrentRunId"
+          :loading="runLogSyncLoading"
+          plain
+          type="info"
+          @click="handleSyncRunLogTickets(false)"
+        >
+          同步全部明细工单
+        </el-button>
+        <el-button
+          v-if="runLogSyncFailedIdsText !== EMPTY_TEXT"
+          link
+          type="warning"
+          @click="copyTextContent(runLogSyncFailedIdsText, '失败ID')"
+        >
+          复制失败ID
+        </el-button>
+      </el-space>
+
       <el-descriptions :column="2" border>
         <el-descriptions-item label="runId">{{ textOrDash(runLogDetailData.runId) }}</el-descriptions-item>
         <el-descriptions-item label="状态">
@@ -451,7 +513,128 @@
       </el-descriptions>
 
       <div class="mt-16px">
-        <div class="mb-8px font-500">错误信息</div>
+        <div class="mb-8px flex items-center justify-between">
+          <span class="font-500">批次汇总</span>
+          <el-button
+            :disabled="!runLogCurrentRunId"
+            :loading="runLogSummaryLoading"
+            link
+            type="primary"
+            @click="reloadRunLogSummary"
+          >
+            刷新
+          </el-button>
+        </div>
+        <el-alert
+          v-if="runLogSummaryFeatureUnavailable"
+          :closable="false"
+          title="后端版本暂不支持"
+          type="warning"
+          class="mb-8px"
+        />
+        <el-descriptions v-else v-loading="runLogSummaryLoading" :column="2" border>
+          <el-descriptions-item label="runStatus">
+            <el-tag :type="runLogStatusTagType(runLogSummaryStatus)">
+              {{ runLogStatusText(runLogSummaryStatus) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="triggerSource">{{ textOrDash(runLogSummaryTriggerSource) }}</el-descriptions-item>
+          <el-descriptions-item label="operator">{{ textOrDash(runLogSummaryOperator) }}</el-descriptions-item>
+          <el-descriptions-item label="dryRun">{{ boolText(runLogSummaryDryRun) }}</el-descriptions-item>
+          <el-descriptions-item label="start">{{ textOrDash(runLogSummaryStartTime) }}</el-descriptions-item>
+          <el-descriptions-item label="end">{{ textOrDash(runLogSummaryEndTime) }}</el-descriptions-item>
+          <el-descriptions-item label="scanned">{{ numberOrDash(runLogSummaryScannedCount) }}</el-descriptions-item>
+          <el-descriptions-item label="success">{{ numberOrDash(runLogSummarySuccessCount) }}</el-descriptions-item>
+          <el-descriptions-item label="skip">{{ numberOrDash(runLogSummarySkipCount) }}</el-descriptions-item>
+          <el-descriptions-item label="fail">{{ numberOrDash(runLogSummaryFailCount) }}</el-descriptions-item>
+          <el-descriptions-item label="warning">{{ numberOrDash(runLogSummaryWarningCount) }}</el-descriptions-item>
+          <el-descriptions-item label="topFailCodes">
+            <el-space wrap>
+              <template v-if="runLogSummaryTopFailCodeLabels.length">
+                <el-tag v-for="item in runLogSummaryTopFailCodeLabels" :key="`fail-${item}`" type="danger">
+                  {{ item }}
+                </el-tag>
+              </template>
+              <span v-else>{{ EMPTY_TEXT }}</span>
+            </el-space>
+          </el-descriptions-item>
+          <el-descriptions-item label="topWarningTags" :span="2">
+            <el-space wrap>
+              <template v-if="runLogSummaryTopWarningTagLabels.length">
+                <el-tag v-for="item in runLogSummaryTopWarningTagLabels" :key="`warn-${item}`" type="warning">
+                  {{ item }}
+                </el-tag>
+              </template>
+              <span v-else>{{ EMPTY_TEXT }}</span>
+            </el-space>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-alert
+          v-if="runLogSummaryErrorMsg"
+          :closable="false"
+          :title="runLogSummaryErrorMsg"
+          type="error"
+          class="mt-8px"
+        />
+        <el-button
+          v-if="runLogSummaryErrorMsg"
+          class="mt-6px"
+          link
+          type="warning"
+          @click="copyTextContent(runLogSummaryErrorMsg, '批次汇总错误信息')"
+        >
+          复制错误信息
+        </el-button>
+      </div>
+
+      <div class="mt-16px">
+        <div class="mb-8px font-500">工单同步结果</div>
+        <el-alert
+          v-if="runLogSyncFeatureUnavailable"
+          :closable="false"
+          title="后端版本暂不支持"
+          type="warning"
+          class="mb-8px"
+        />
+        <el-descriptions v-else :column="2" border>
+          <el-descriptions-item label="attempted">{{ numberOrDash(runLogSyncAttemptedCount) }}</el-descriptions-item>
+          <el-descriptions-item label="success">{{ numberOrDash(runLogSyncSuccessCount) }}</el-descriptions-item>
+          <el-descriptions-item label="failed">{{ numberOrDash(runLogSyncFailedCount) }}</el-descriptions-item>
+          <el-descriptions-item label="failedIds" :span="2">
+            {{ runLogSyncFailedIdsText }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <el-alert
+          v-if="runLogSyncErrorMsg"
+          :closable="false"
+          :title="runLogSyncErrorMsg"
+          type="error"
+          class="mt-8px"
+        />
+        <el-button
+          v-if="runLogSyncErrorMsg"
+          class="mt-6px"
+          link
+          type="warning"
+          @click="copyTextContent(runLogSyncErrorMsg, '同步工单错误信息')"
+        >
+          复制错误信息
+        </el-button>
+      </div>
+
+      <div class="mt-16px">
+        <div class="mb-8px flex items-center justify-between">
+          <span class="font-500">错误信息</span>
+          <el-button
+            :disabled="textOrDash(runLogDetailData.errorMsg) === EMPTY_TEXT"
+            link
+            type="warning"
+            @click="copyTextContent(runLogDetailData.errorMsg, '错误信息')"
+          >
+            复制错误信息
+          </el-button>
+        </div>
         <el-input :model-value="runLogDetailData.errorMsg || EMPTY_TEXT" :rows="5" readonly type="textarea" />
       </div>
     </div>
@@ -556,6 +739,12 @@ const runLogStatusOptions = [
   { label: '部分失败', value: 'PARTIAL_FAIL' },
   { label: '失败', value: 'FAIL' }
 ]
+const runLogTriggerSourceOptions = [
+  { label: 'MANUAL', value: 'MANUAL' },
+  { label: 'AUTO', value: 'AUTO' },
+  { label: 'SCHEDULE', value: 'SCHEDULE' },
+  { label: 'SYSTEM', value: 'SYSTEM' }
+]
 
 const message = useMessage()
 
@@ -606,14 +795,25 @@ const runLogQueryParams = reactive<RefundNotifyLogApi.RefundNotifyReplayRunLogPa
   pageNo: 1,
   pageSize: 10,
   runId: undefined,
+  triggerSource: undefined,
   status: undefined,
   operator: undefined,
+  hasWarning: undefined,
+  minFailCount: undefined,
   timeRange: undefined
 })
 
 const runLogDetailVisible = ref(false)
 const runLogDetailLoading = ref(false)
 const runLogDetailData = ref<Partial<RefundNotifyLogApi.RefundNotifyReplayRunLogVO>>({})
+const runLogSummaryLoading = ref(false)
+const runLogSummaryFeatureUnavailable = ref(false)
+const runLogSummaryErrorMsg = ref('')
+const runLogSummaryData = ref<RefundNotifyLogApi.RefundNotifyReplayRunLogSummaryVO>()
+const runLogSyncLoading = ref(false)
+const runLogSyncFeatureUnavailable = ref(false)
+const runLogSyncErrorMsg = ref('')
+const runLogSyncResult = ref<RefundNotifyLogApi.RefundNotifyReplayRunLogSyncTicketsResp>()
 
 const queryParams = reactive<RefundNotifyLogApi.RefundNotifyLogPageReq>({
   pageNo: 1,
@@ -626,8 +826,84 @@ const queryParams = reactive<RefundNotifyLogApi.RefundNotifyLogPageReq>({
   createTime: undefined
 })
 
+const toNonNegativeNumber = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return undefined
+  }
+  const normalized = Math.trunc(parsed)
+  return normalized >= 0 ? normalized : undefined
+}
+
 const replayResultTitle = computed(() => {
   return replayResult.value.dryRun ? '退款回调重放预演结果' : '退款回调重放执行结果'
+})
+const runLogCurrentRunId = computed(() => {
+  const text = String(runLogDetailData.value.runId || '').trim()
+  return text || ''
+})
+const runLogSummaryStatus = computed(() => {
+  return runLogSummaryData.value?.runStatus || runLogSummaryData.value?.status
+})
+const runLogSummaryTriggerSource = computed(() => {
+  return runLogSummaryData.value?.triggerSource
+})
+const runLogSummaryOperator = computed(() => {
+  return runLogSummaryData.value?.operator
+})
+const runLogSummaryDryRun = computed(() => {
+  return runLogSummaryData.value?.dryRun
+})
+const runLogSummaryStartTime = computed(() => {
+  return runLogSummaryData.value?.startTime || runLogSummaryData.value?.start
+})
+const runLogSummaryEndTime = computed(() => {
+  return runLogSummaryData.value?.endTime || runLogSummaryData.value?.end
+})
+const runLogSummaryScannedCount = computed(() => {
+  return toNonNegativeNumber(runLogSummaryData.value?.scannedCount)
+    ?? toNonNegativeNumber(runLogSummaryData.value?.scanned)
+})
+const runLogSummarySuccessCount = computed(() => {
+  return toNonNegativeNumber(runLogSummaryData.value?.successCount)
+    ?? toNonNegativeNumber(runLogSummaryData.value?.success)
+})
+const runLogSummarySkipCount = computed(() => {
+  return toNonNegativeNumber(runLogSummaryData.value?.skipCount)
+    ?? toNonNegativeNumber(runLogSummaryData.value?.skip)
+})
+const runLogSummaryFailCount = computed(() => {
+  return toNonNegativeNumber(runLogSummaryData.value?.failCount)
+    ?? toNonNegativeNumber(runLogSummaryData.value?.fail)
+})
+const runLogSummaryWarningCount = computed(() => {
+  return toNonNegativeNumber(runLogSummaryData.value?.warningCount)
+    ?? toNonNegativeNumber(runLogSummaryData.value?.warning)
+})
+const runLogSyncAttemptedCount = computed(() => {
+  return toNonNegativeNumber(runLogSyncResult.value?.attemptedCount)
+    ?? toNonNegativeNumber(runLogSyncResult.value?.attempted)
+})
+const runLogSyncSuccessCount = computed(() => {
+  return toNonNegativeNumber(runLogSyncResult.value?.successCount)
+    ?? toNonNegativeNumber(runLogSyncResult.value?.success)
+})
+const runLogSyncFailedCount = computed(() => {
+  return toNonNegativeNumber(runLogSyncResult.value?.failedCount)
+    ?? toNonNegativeNumber(runLogSyncResult.value?.failed)
+})
+const runLogSyncFailedIdsText = computed(() => {
+  const rawIds = runLogSyncResult.value?.failedIds
+  if (!Array.isArray(rawIds) || !rawIds.length) {
+    return EMPTY_TEXT
+  }
+  const ids = rawIds
+    .map((item) => String(item || '').trim())
+    .filter((item) => item)
+  return ids.length ? ids.join(',') : EMPTY_TEXT
 })
 
 const textOrDash = (value: any) => {
@@ -686,6 +962,41 @@ const normalizeUpperText = (value: any): string | undefined => {
   const text = String(value || '').trim().toUpperCase()
   return text || undefined
 }
+
+const formatSummaryBucketLabel = (item: any): string => {
+  if (item === undefined || item === null) {
+    return ''
+  }
+  if (typeof item !== 'object' || Array.isArray(item)) {
+    return String(item).trim()
+  }
+  const source = item as Record<string, any>
+  const key = String(
+    source.key ?? source.code ?? source.tag ?? source.name ?? source.value ?? ''
+  ).trim()
+  const count = parseNonNegativeInteger(source.count)
+  if (!key) {
+    return ''
+  }
+  return count === undefined ? key : `${key}(${count})`
+}
+
+const toSummaryBucketLabels = (items: any[] | undefined): string[] => {
+  if (!Array.isArray(items)) {
+    return []
+  }
+  return items
+    .map((item) => formatSummaryBucketLabel(item))
+    .filter((item) => item)
+}
+
+const runLogSummaryTopFailCodeLabels = computed(() => {
+  return toSummaryBucketLabels(runLogSummaryData.value?.topFailCodes as any[] | undefined)
+})
+
+const runLogSummaryTopWarningTagLabels = computed(() => {
+  return toSummaryBucketLabels(runLogSummaryData.value?.topWarningTags as any[] | undefined)
+})
 
 const isFailStatus = (status: any) => {
   const normalized = normalizeStatus(status)
@@ -783,7 +1094,7 @@ const replayResultTagType = (status?: any) => {
 
 const runLogStatusText = (status?: RefundNotifyLogApi.RefundNotifyReplayRunStatus | string) => {
   const normalized = normalizeUpperText(status)
-  if (normalized === 'RUNNING') return '运行中'
+  if (normalized === 'RUNNING' || normalized === 'STARTED') return '运行中'
   if (normalized === 'SUCCESS') return '成功'
   if (normalized === 'PARTIAL_FAIL') return '部分失败'
   if (normalized === 'FAIL' || normalized === 'FAILED') return '失败'
@@ -792,7 +1103,7 @@ const runLogStatusText = (status?: RefundNotifyLogApi.RefundNotifyReplayRunStatu
 
 const runLogStatusTagType = (status?: RefundNotifyLogApi.RefundNotifyReplayRunStatus | string) => {
   const normalized = normalizeUpperText(status)
-  if (normalized === 'RUNNING') return 'info'
+  if (normalized === 'RUNNING' || normalized === 'STARTED') return 'info'
   if (normalized === 'SUCCESS') return 'success'
   if (normalized === 'PARTIAL_FAIL') return 'warning'
   if (normalized === 'FAIL' || normalized === 'FAILED') return 'danger'
@@ -892,6 +1203,103 @@ const isLegacyReplayContractError = (error: any) => {
   return false
 }
 
+const copyTextContent = async (value: any, label: string) => {
+  const content = String(value || '').trim()
+  if (!content || content === EMPTY_TEXT) {
+    message.warning(`${label}为空，无法复制`)
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(content)
+    message.success(`${label}复制成功`)
+  } catch {
+    message.error('复制失败，请检查浏览器剪贴板权限')
+  }
+}
+
+const resetRunLogSummaryState = () => {
+  runLogSummaryLoading.value = false
+  runLogSummaryFeatureUnavailable.value = false
+  runLogSummaryErrorMsg.value = ''
+  runLogSummaryData.value = undefined
+}
+
+const resetRunLogSyncState = () => {
+  runLogSyncLoading.value = false
+  runLogSyncFeatureUnavailable.value = false
+  runLogSyncErrorMsg.value = ''
+  runLogSyncResult.value = undefined
+}
+
+const fetchRunLogSummary = async (silent = false) => {
+  runLogSummaryErrorMsg.value = ''
+  const runId = runLogCurrentRunId.value
+  if (!runId) {
+    runLogSummaryData.value = undefined
+    return
+  }
+
+  runLogSummaryLoading.value = true
+  try {
+    const data = await RefundNotifyLogApi.getReplayRunLogSummary(runId)
+    runLogSummaryData.value = data || undefined
+    runLogSummaryFeatureUnavailable.value = false
+  } catch (error: any) {
+    runLogSummaryData.value = undefined
+    if (isEndpointNotUpgraded(error, 'replay-run-log/summary')) {
+      runLogSummaryFeatureUnavailable.value = true
+      if (!silent) {
+        message.warning('后端版本暂不支持')
+      }
+      return
+    }
+    runLogSummaryErrorMsg.value = buildApiErrorMessage(error, '批次汇总查询失败')
+    message.error(runLogSummaryErrorMsg.value)
+  } finally {
+    runLogSummaryLoading.value = false
+  }
+}
+
+const reloadRunLogSummary = () => {
+  fetchRunLogSummary(false)
+}
+
+const handleSyncRunLogTickets = async (onlyFail: boolean) => {
+  runLogSyncErrorMsg.value = ''
+  const runId = runLogCurrentRunId.value
+  if (!runId) {
+    message.warning('runId 为空，无法同步工单')
+    return
+  }
+
+  const syncTargetText = onlyFail ? '失败明细' : '全部明细'
+  try {
+    await message.confirm(`确认同步 runId=${runId} 的${syncTargetText}工单吗？`)
+  } catch {
+    return
+  }
+
+  runLogSyncLoading.value = true
+  try {
+    const data = await RefundNotifyLogApi.syncReplayRunLogTickets({ runId, onlyFail })
+    runLogSyncResult.value = data || undefined
+    runLogSyncFeatureUnavailable.value = false
+    message.success(
+      `同步完成：attempted ${numberOrDash(runLogSyncAttemptedCount.value)} / success ${numberOrDash(runLogSyncSuccessCount.value)} / failed ${numberOrDash(runLogSyncFailedCount.value)}`
+    )
+  } catch (error: any) {
+    if (isEndpointNotUpgraded(error, 'replay-run-log/sync-tickets')) {
+      runLogSyncFeatureUnavailable.value = true
+      message.warning('后端版本暂不支持')
+      return
+    }
+    runLogSyncErrorMsg.value = buildApiErrorMessage(error, '同步工单失败')
+    message.error(runLogSyncErrorMsg.value)
+  } finally {
+    runLogSyncLoading.value = false
+  }
+}
+
 const normalizeQuery = () => {
   queryParams.orderId = parsePositiveInteger(queryParams.orderId)
   queryParams.payRefundId = parsePositiveInteger(queryParams.payRefundId)
@@ -906,12 +1314,18 @@ const normalizeQuery = () => {
 
 const normalizeRunLogQuery = () => {
   runLogQueryParams.runId = String(runLogQueryParams.runId || '').trim() || undefined
+  runLogQueryParams.triggerSource = normalizeUpperText(runLogQueryParams.triggerSource)
   runLogQueryParams.status = normalizeUpperText(runLogQueryParams.status)
   runLogQueryParams.operator = String(runLogQueryParams.operator || '').trim() || undefined
-  runLogQueryParams.timeRange =
+  runLogQueryParams.hasWarning =
+    runLogQueryParams.hasWarning === true ? true : runLogQueryParams.hasWarning === false ? false : undefined
+  runLogQueryParams.minFailCount = parseNonNegativeInteger(runLogQueryParams.minFailCount)
+  const startTimeRange =
     Array.isArray(runLogTimeRange.value) && runLogTimeRange.value.length === 2
       ? [runLogTimeRange.value[0], runLogTimeRange.value[1]]
       : undefined
+  runLogQueryParams.timeRange = startTimeRange
+  ;(runLogQueryParams as any).startTime = startTimeRange
 }
 
 const normalizeReplayDueLimit = () => {
@@ -1325,9 +1739,13 @@ const resetRunLogQuery = () => {
   runLogQueryParams.pageNo = 1
   runLogQueryParams.pageSize = 10
   runLogQueryParams.runId = undefined
+  runLogQueryParams.triggerSource = undefined
   runLogQueryParams.status = undefined
   runLogQueryParams.operator = undefined
+  runLogQueryParams.hasWarning = undefined
+  runLogQueryParams.minFailCount = undefined
   runLogQueryParams.timeRange = undefined
+  ;(runLogQueryParams as any).startTime = undefined
   runLogTimeRange.value = undefined
   getRunLogList()
 }
@@ -1336,10 +1754,13 @@ const openRunLogDetail = async (row: RefundNotifyLogApi.RefundNotifyReplayRunLog
   runLogDetailVisible.value = true
   runLogDetailLoading.value = true
   runLogDetailData.value = { ...(row || {}) }
+  resetRunLogSummaryState()
+  resetRunLogSyncState()
 
   const id = parsePositiveInteger(row.id)
   if (!id) {
     runLogDetailLoading.value = false
+    await fetchRunLogSummary(true)
     return
   }
 
@@ -1357,6 +1778,7 @@ const openRunLogDetail = async (row: RefundNotifyLogApi.RefundNotifyReplayRunLog
     message.error(buildApiErrorMessage(error, '重放批次详情查询失败'))
   } finally {
     runLogDetailLoading.value = false
+    await fetchRunLogSummary(true)
   }
 }
 
