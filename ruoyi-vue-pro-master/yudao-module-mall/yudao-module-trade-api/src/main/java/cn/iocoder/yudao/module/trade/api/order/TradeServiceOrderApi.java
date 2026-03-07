@@ -1,5 +1,9 @@
 package cn.iocoder.yudao.module.trade.api.order;
 
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
+
+import java.util.List;
+
 /**
  * 服务履约单 API
  *
@@ -43,5 +47,13 @@ public interface TradeServiceOrderApi {
      * @return 实际同步数量
      */
     int cancelByPayOrderId(Long payOrderId, String remark);
+
+    /**
+     * 按支付单查询履约单追溯信息。
+     *
+     * @param payOrderId 支付单 ID
+     * @return 履约单追溯信息列表
+     */
+    List<TradeServiceOrderTraceRespDTO> listTraceByPayOrderId(Long payOrderId);
 
 }

@@ -11,6 +11,8 @@ import com.hxy.module.booking.enums.CommissionStatusEnum;
 import com.hxy.module.booking.enums.CommissionTypeEnum;
 import com.hxy.module.booking.enums.DispatchModeEnum;
 import com.hxy.module.booking.service.BookingOrderService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import org.mybatis.spring.annotation.MapperScan;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -41,6 +43,8 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
 
     @MockBean
     private BookingOrderService bookingOrderService;
+    @MockBean
+    private TradeServiceOrderApi tradeServiceOrderApi;
 
     @Test
     public void testCalculateCommission_baseType() {
@@ -49,7 +53,11 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO order = buildOrder(orderId, DispatchModeEnum.AUTO_ASSIGN.getMode(), 0);
         order.setStatus(BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayPrice(10000);
+        order.setPayOrderId(8001L);
         when(bookingOrderService.getOrder(eq(orderId))).thenReturn(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(8001L))).thenReturn(java.util.Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(9101L).setOrderItemId(9201L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         // 调用
         commissionService.calculateCommission(orderId);
@@ -63,6 +71,12 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         // 默认 15% = 1500
         assertEquals(1500, commission.getCommissionAmount());
         assertEquals(CommissionStatusEnum.PENDING.getStatus(), commission.getStatus());
+        assertEquals(9201L, commission.getOrderItemId());
+        assertEquals(9101L, commission.getServiceOrderId());
+        assertEquals("BOOKING_COMMISSION_ACCRUAL:1:9101", commission.getSourceBizNo());
+        assertEquals("FULFILLMENT_COMPLETE", commission.getBizType());
+        assertEquals("BOOKING_COMMISSION_ACCRUAL:1:9101", commission.getBizNo());
+        assertEquals(order.getTechnicianId(), commission.getStaffId());
     }
 
     @Test
@@ -72,7 +86,11 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO order = buildOrder(orderId, DispatchModeEnum.DESIGNATED.getMode(), 0);
         order.setStatus(BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayPrice(10000);
+        order.setPayOrderId(8002L);
         when(bookingOrderService.getOrder(eq(orderId))).thenReturn(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(8002L))).thenReturn(java.util.Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(9102L).setOrderItemId(9202L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         commissionService.calculateCommission(orderId);
 
@@ -91,7 +109,11 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         order.setAddonType(1); // EXTEND
         order.setStatus(BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayPrice(5000);
+        order.setPayOrderId(8003L);
         when(bookingOrderService.getOrder(eq(orderId))).thenReturn(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(8003L))).thenReturn(java.util.Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(9103L).setOrderItemId(9203L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         commissionService.calculateCommission(orderId);
 
@@ -111,7 +133,11 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         order.setStoreId(storeId);
         order.setStatus(BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayPrice(10000);
+        order.setPayOrderId(8004L);
         when(bookingOrderService.getOrder(eq(orderId))).thenReturn(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(8004L))).thenReturn(java.util.Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(9104L).setOrderItemId(9204L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         // 插入门店佣金配置：点钟 30%
         TechnicianCommissionConfigDO config = TechnicianCommissionConfigDO.builder()
@@ -137,7 +163,11 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO order = buildOrder(orderId, DispatchModeEnum.AUTO_ASSIGN.getMode(), 0);
         order.setStatus(BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayPrice(10000);
+        order.setPayOrderId(8005L);
         when(bookingOrderService.getOrder(eq(orderId))).thenReturn(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(8005L))).thenReturn(java.util.Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(9105L).setOrderItemId(9205L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         // 第一次计算
         commissionService.calculateCommission(orderId);
@@ -185,6 +215,7 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         Long orderId = 701L;
         TechnicianCommissionDO settled = TechnicianCommissionDO.builder()
                 .technicianId(11L).orderId(orderId).userId(1001L).storeId(88L)
+                .orderItemId(8901L).serviceOrderId(8801L).sourceBizNo("BOOKING_COMMISSION_ACCRUAL:701:8801")
                 .commissionType(CommissionTypeEnum.BASE.getType())
                 .baseAmount(12000).commissionRate(new BigDecimal("0.15"))
                 .commissionAmount(1800)
@@ -211,6 +242,9 @@ public class TechnicianCommissionServiceImplTest extends BaseDbUnitTest {
         assertEquals(String.valueOf(settled.getId()), reversal.getBizNo());
         assertEquals(settled.getTechnicianId(), reversal.getStaffId());
         assertEquals(settled.getId(), reversal.getOriginCommissionId());
+        assertEquals(settled.getOrderItemId(), reversal.getOrderItemId());
+        assertEquals(settled.getServiceOrderId(), reversal.getServiceOrderId());
+        assertEquals("BOOKING_COMMISSION_REVERSAL:701:" + settled.getId(), reversal.getSourceBizNo());
         assertNull(reversal.getSettlementId());
         assertNull(reversal.getSettlementTime());
     }

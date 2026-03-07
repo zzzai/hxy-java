@@ -232,6 +232,8 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
         assertEquals(1L, respVO.getWarnCount());
         assertEquals(120L, respVO.getTradeMinusFulfillmentSum());
         assertEquals(330L, respVO.getTradeMinusCommissionSplitSum());
+        assertEquals(0L, respVO.getCommissionAmountSum());
+        assertEquals(330L, respVO.getCommissionDifferenceAbsSum());
         assertEquals(1L, respVO.getUnresolvedTicketCount());
         assertEquals(false, respVO.getTicketSummaryDegraded());
     }
@@ -255,6 +257,8 @@ class FourAccountReconcileServiceImplTest extends BaseMockitoUnitTest {
 
         assertEquals(1L, respVO.getTotalCount());
         assertEquals(1L, respVO.getWarnCount());
+        assertEquals(0L, respVO.getCommissionAmountSum());
+        assertEquals(260L, respVO.getCommissionDifferenceAbsSum());
         assertEquals(0L, respVO.getUnresolvedTicketCount());
         assertEquals(true, respVO.getTicketSummaryDegraded());
     }

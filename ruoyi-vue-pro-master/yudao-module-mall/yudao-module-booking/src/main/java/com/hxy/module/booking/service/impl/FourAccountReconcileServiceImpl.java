@@ -231,6 +231,14 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
                 .map(FourAccountReconcileDO::getTradeMinusCommissionSplit)
                 .mapToLong(this::defaultZeroLong)
                 .sum();
+        long commissionAmountSum = filteredRows.stream()
+                .map(FourAccountReconcileDO::getCommissionAmount)
+                .mapToLong(this::defaultZeroLong)
+                .sum();
+        long commissionDifferenceAbsSum = filteredRows.stream()
+                .map(FourAccountReconcileDO::getTradeMinusCommissionSplit)
+                .mapToLong(this::absoluteZeroLong)
+                .sum();
         long unresolvedTicketCount = countUnresolvedTickets(filteredRows, ticketLoadResult.ticketMap);
 
         FourAccountReconcileSummaryRespVO respVO = new FourAccountReconcileSummaryRespVO();
@@ -239,6 +247,8 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         respVO.setWarnCount(warnCount);
         respVO.setTradeMinusFulfillmentSum(tradeMinusFulfillmentSum);
         respVO.setTradeMinusCommissionSplitSum(tradeMinusCommissionSplitSum);
+        respVO.setCommissionAmountSum(commissionAmountSum);
+        respVO.setCommissionDifferenceAbsSum(commissionDifferenceAbsSum);
         respVO.setUnresolvedTicketCount(unresolvedTicketCount);
         respVO.setTicketSummaryDegraded(ticketLoadResult.degraded);
         return respVO;
@@ -649,6 +659,8 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         respVO.setWarnCount(0L);
         respVO.setTradeMinusFulfillmentSum(0L);
         respVO.setTradeMinusCommissionSplitSum(0L);
+        respVO.setCommissionAmountSum(0L);
+        respVO.setCommissionDifferenceAbsSum(0L);
         respVO.setUnresolvedTicketCount(0L);
         respVO.setTicketSummaryDegraded(degraded);
         return respVO;

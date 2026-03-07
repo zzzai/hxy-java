@@ -965,3 +965,18 @@
 - 备选方案：继续仅依赖 run_detail 与日志，不新增同步审计表。
 - 否决原因：无法完整回答“哪条明细何时同步、谁操作、为何失败/跳过”，不满足运营审计与复核要求。
 - 回滚条件：若同步审计写入异常，可暂时降级为仅返回接口结果并保留 fail-open 主链路；修复后恢复审计落库。
+
+## ADR-098：财务 Partial 收口采用“退款主链路优先 + 提成链路强追溯 + 幂等键前置”策略
+
+- 背景：退款回调链路已具备 notify/replay/run-log 能力，但在预约订单非支付态场景仍存在静默忽略；提成计提虽然可按订单去重，但缺少跨域可追溯键（`orderItem/serviceOrder/sourceBizNo`）与显式幂等键，导致财务复核与跨系统排障成本高。
+- 决策：
+  1) `BookingOrderServiceImpl.updateOrderRefunded` 在订单状态非 `PAID/REFUNDED` 时改为显式抛错 `BOOKING_ORDER_STATUS_ERROR`，保证回调失败可检索；
+  2) 退款链路中的提成冲正执行改为 fail-open（仅记录降级告警，不回滚退款状态迁移）；
+  3) `technician_commission` 新增追溯字段 `order_item_id/service_order_id/source_biz_no`，并新增 SQL 脚本 `2026-03-08-hxy-technician-commission-traceability.sql`；
+  4) 提成计提幂等键前置为 `bizType=FULFILLMENT_COMPLETE + bizNo(sourceBizNo) + staffId`，重复请求命中幂等成功，不重复落账；同键不同金额抛 `COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT`；
+  5) trade-api 新增 `TradeServiceOrderApi.listTraceByPayOrderId`，由 booking 在计提时回填 `orderItemId/serviceOrderId`；
+  6) 四账汇总接口补齐提成聚合字段 `commissionAmountSum/commissionDifferenceAbsSum`，保持旧字段语义不变。
+- 影响范围：booking 退款回调稳定性、提成计提/冲正审计追溯、trade-api 跨域查询契约、四账运营汇总口径。
+- 备选方案：继续沿用“按 orderId 去重 + 无跨域 trace 字段 + 非支付态静默忽略”。
+- 否决原因：无法满足“失败可检索、链路可追溯、同键强幂等”的财务闭环要求，且会增加对账定位成本。
+- 回滚条件：若跨域 trace API 临时不可用，可降级为空追溯字段继续落提成（`sourceBizNo` 仍保留），不回退退款状态显式报错与冲正 fail-open 策略。

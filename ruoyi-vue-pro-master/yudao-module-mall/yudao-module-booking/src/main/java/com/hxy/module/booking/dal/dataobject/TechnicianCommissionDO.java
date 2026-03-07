@@ -31,6 +31,12 @@ public class TechnicianCommissionDO extends BaseDO {
     /** 预约订单ID */
     private Long orderId;
 
+    /** 交易订单项ID */
+    private Long orderItemId;
+
+    /** 服务履约单ID */
+    private Long serviceOrderId;
+
     /** 用户ID */
     private Long userId;
 
@@ -54,6 +60,9 @@ public class TechnicianCommissionDO extends BaseDO {
 
     /** 业务单号（冲正幂等键） */
     private String bizNo;
+
+    /** 追溯业务号 */
+    private String sourceBizNo;
 
     /** 归属员工ID（冲正幂等键） */
     private Long staffId;

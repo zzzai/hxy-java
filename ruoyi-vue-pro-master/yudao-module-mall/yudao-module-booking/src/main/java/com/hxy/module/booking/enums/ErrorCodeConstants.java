@@ -67,5 +67,6 @@ public interface ErrorCodeConstants {
     ErrorCode COMMISSION_SETTLEMENT_NOTIFY_OUTBOX_NOT_EXISTS = new ErrorCode(1_030_007_009, "通知出站记录不存在");
     ErrorCode COMMISSION_SETTLEMENT_NOTIFY_OUTBOX_STATUS_INVALID = new ErrorCode(1_030_007_010, "通知出站记录状态非法，当前状态【{}】仅支持待发送/失败");
     ErrorCode COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT = new ErrorCode(1_030_007_011, "佣金冲正幂等键冲突：同键请求金额不一致");
+    ErrorCode COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT = new ErrorCode(1_030_007_012, "佣金计提幂等键冲突：同键请求金额不一致");
 
 }

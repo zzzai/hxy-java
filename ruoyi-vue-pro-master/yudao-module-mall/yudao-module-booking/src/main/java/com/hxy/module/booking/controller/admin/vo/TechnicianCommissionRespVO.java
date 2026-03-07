@@ -19,6 +19,12 @@ public class TechnicianCommissionRespVO {
     @Schema(description = "预约订单ID")
     private Long orderId;
 
+    @Schema(description = "交易订单项ID")
+    private Long orderItemId;
+
+    @Schema(description = "服务履约单ID")
+    private Long serviceOrderId;
+
     @Schema(description = "用户ID")
     private Long userId;
 
@@ -39,6 +45,9 @@ public class TechnicianCommissionRespVO {
 
     @Schema(description = "状态 0=待结算 1=已结算 2=已取消")
     private Integer status;
+
+    @Schema(description = "追溯业务号")
+    private String sourceBizNo;
 
     @Schema(description = "结算单ID")
     private Long settlementId;

@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.trade.api.order;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import cn.iocoder.yudao.module.trade.dal.dataobject.order.TradeServiceOrderDO;
 import cn.iocoder.yudao.module.trade.dal.mysql.order.TradeServiceOrderMapper;
 import cn.iocoder.yudao.module.trade.enums.order.TradeServiceOrderStatusEnum;
@@ -9,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 服务履约单 API 实现
@@ -66,6 +69,26 @@ public class TradeServiceOrderApiImpl implements TradeServiceOrderApi {
             synced++;
         }
         return synced;
+    }
+
+    @Override
+    public List<TradeServiceOrderTraceRespDTO> listTraceByPayOrderId(Long payOrderId) {
+        if (payOrderId == null || payOrderId <= 0) {
+            return Collections.emptyList();
+        }
+        List<TradeServiceOrderDO> serviceOrders = tradeServiceOrderMapper.selectListByPayOrderId(payOrderId);
+        if (CollUtil.isEmpty(serviceOrders)) {
+            return Collections.emptyList();
+        }
+        return serviceOrders.stream()
+                .filter(order -> order != null && order.getId() != null)
+                .map(order -> new TradeServiceOrderTraceRespDTO()
+                        .setServiceOrderId(order.getId())
+                        .setOrderItemId(order.getOrderItemId())
+                        .setPayOrderId(order.getPayOrderId())
+                        .setSpuId(order.getSpuId())
+                        .setSkuId(order.getSkuId()))
+                .collect(Collectors.toList());
     }
 
     private int syncByPayOrderId(Long payOrderId, Integer expectedStatus, SyncOperation operation) {

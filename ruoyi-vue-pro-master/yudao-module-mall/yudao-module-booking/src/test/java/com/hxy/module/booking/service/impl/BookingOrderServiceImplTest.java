@@ -447,6 +447,35 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     }
 
     @Test
+    public void testUpdateOrderRefunded_statusInvalidShouldThrow() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.COMPLETED.getStatus());
+        order.setPayOrderId(891L);
+        bookingOrderMapper.insert(order);
+
+        assertServiceException(() -> bookingOrderService.updateOrderRefunded(order.getId(), 5555L),
+                BOOKING_ORDER_STATUS_ERROR);
+        verify(payRefundApi, never()).getRefund(any());
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_commissionCancelFailOpen() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(892L);
+        bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 6666L);
+        when(payRefundApi.getRefund(eq(6666L))).thenReturn(payRefund);
+        doThrow(new RuntimeException("commission cancel failed"))
+                .when(technicianCommissionService).cancelCommission(eq(order.getId()));
+
+        bookingOrderService.updateOrderRefunded(order.getId(), 6666L);
+
+        BookingOrderDO updated = bookingOrderMapper.selectById(order.getId());
+        assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updated.getStatus());
+        assertEquals(6666L, updated.getPayRefundId());
+        verify(tradeServiceOrderApi).cancelByPayOrderId(eq(892L), eq("SYNC_FROM_BOOKING_REFUNDED"));
+    }
+
+    @Test
     public void testGetOrder_notExists() {
         // 调用
         BookingOrderDO order = bookingOrderService.getOrder(999L);

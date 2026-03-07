@@ -22,6 +22,12 @@ public class FourAccountReconcileSummaryRespVO {
     @Schema(description = "差额聚合：交易-(提成+分账)（分）", example = "5400")
     private Long tradeMinusCommissionSplitSum;
 
+    @Schema(description = "提成金额聚合（分）", example = "3000")
+    private Long commissionAmountSum;
+
+    @Schema(description = "提成差异绝对值聚合（分）", example = "2800")
+    private Long commissionDifferenceAbsSum;
+
     @Schema(description = "未收口工单数", example = "2")
     private Long unresolvedTicketCount;
 

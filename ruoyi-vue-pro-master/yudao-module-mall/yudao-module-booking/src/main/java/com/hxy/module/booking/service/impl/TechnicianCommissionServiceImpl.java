@@ -16,6 +16,8 @@ import com.hxy.module.booking.enums.CommissionTypeEnum;
 import com.hxy.module.booking.enums.DispatchModeEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DuplicateKeyException;
@@ -26,10 +28,13 @@ import org.springframework.validation.annotation.Validated;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT;
 
 @Service
@@ -38,25 +43,31 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.COMMISSION_REVERSA
 public class TechnicianCommissionServiceImpl implements TechnicianCommissionService {
 
     private static final String REVERSAL_BIZ_TYPE = "ORDER_CANCEL_REVERSAL";
+    private static final String ACCRUAL_BIZ_TYPE = "FULFILLMENT_COMPLETE";
     private static final String LOG_ACTION_REVERSAL = "REVERSAL";
+    private static final String ACCRUAL_SOURCE_PREFIX = "BOOKING_COMMISSION_ACCRUAL:";
+    private static final String REVERSAL_SOURCE_PREFIX = "BOOKING_COMMISSION_REVERSAL:";
 
     private final TechnicianCommissionMapper commissionMapper;
     private final TechnicianCommissionConfigMapper commissionConfigMapper;
     private final TechnicianCommissionSettlementMapper settlementMapper;
     private final TechnicianCommissionSettlementLogMapper settlementLogMapper;
     private final BookingOrderService bookingOrderService;
+    private final TradeServiceOrderApi tradeServiceOrderApi;
 
     public TechnicianCommissionServiceImpl(
             TechnicianCommissionMapper commissionMapper,
             TechnicianCommissionConfigMapper commissionConfigMapper,
             TechnicianCommissionSettlementMapper settlementMapper,
             TechnicianCommissionSettlementLogMapper settlementLogMapper,
-            @Lazy BookingOrderService bookingOrderService) {
+            @Lazy BookingOrderService bookingOrderService,
+            TradeServiceOrderApi tradeServiceOrderApi) {
         this.commissionMapper = commissionMapper;
         this.commissionConfigMapper = commissionConfigMapper;
         this.settlementMapper = settlementMapper;
         this.settlementLogMapper = settlementLogMapper;
         this.bookingOrderService = bookingOrderService;
+        this.tradeServiceOrderApi = tradeServiceOrderApi;
     }
 
     @Override
@@ -88,21 +99,40 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 .multiply(rate)
                 .setScale(0, RoundingMode.HALF_UP)
                 .intValue();
+        CommissionTraceInfo traceInfo = resolveTraceInfo(order);
+        String sourceBizNo = buildAccrualSourceBizNo(orderId, traceInfo.getServiceOrderId());
 
         TechnicianCommissionDO commission = TechnicianCommissionDO.builder()
                 .technicianId(order.getTechnicianId())
                 .orderId(orderId)
+                .orderItemId(traceInfo.getOrderItemId())
+                .serviceOrderId(traceInfo.getServiceOrderId())
                 .userId(order.getUserId())
                 .storeId(order.getStoreId())
                 .commissionType(commissionType.getType())
                 .baseAmount(baseAmount)
                 .commissionRate(rate)
                 .commissionAmount(commissionAmount)
+                .bizType(ACCRUAL_BIZ_TYPE)
+                .bizNo(sourceBizNo)
+                .sourceBizNo(sourceBizNo)
+                .staffId(order.getTechnicianId())
                 .status(CommissionStatusEnum.PENDING.getStatus())
                 .build();
-        commissionMapper.insert(commission);
-        log.info("创建佣金记录，commissionId={}, orderId={}, technicianId={}, amount={}",
-                commission.getId(), orderId, order.getTechnicianId(), commissionAmount);
+        try {
+            commissionMapper.insert(commission);
+            log.info("创建佣金记录，commissionId={}, orderId={}, technicianId={}, amount={}, sourceBizNo={}",
+                    commission.getId(), orderId, order.getTechnicianId(), commissionAmount, sourceBizNo);
+        } catch (DuplicateKeyException ex) {
+            TechnicianCommissionDO existingByBizKey = commissionMapper.selectByBizKey(ACCRUAL_BIZ_TYPE, sourceBizNo, order.getTechnicianId());
+            if (existingByBizKey == null) {
+                throw ex;
+            }
+            ensureAccrualPayloadConsistent(existingByBizKey, orderId, traceInfo.getOrderItemId(), traceInfo.getServiceOrderId(),
+                    baseAmount, rate, commissionAmount, sourceBizNo, order.getTechnicianId());
+            log.info("命中佣金计提幂等键，跳过重复创建，orderId={}, commissionId={}, sourceBizNo={}",
+                    orderId, existingByBizKey.getId(), sourceBizNo);
+        }
     }
 
     @Override
@@ -143,6 +173,8 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 TechnicianCommissionDO reversal = TechnicianCommissionDO.builder()
                         .technicianId(commission.getTechnicianId())
                         .orderId(commission.getOrderId())
+                        .orderItemId(commission.getOrderItemId())
+                        .serviceOrderId(commission.getServiceOrderId())
                         .userId(commission.getUserId())
                         .storeId(commission.getStoreId())
                         .commissionType(commission.getCommissionType())
@@ -151,6 +183,7 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                         .commissionAmount(expectedCommissionAmount)
                         .bizType(REVERSAL_BIZ_TYPE)
                         .bizNo(reversalBizNo)
+                        .sourceBizNo(buildReversalSourceBizNo(commission.getOrderId(), commission.getId()))
                         .staffId(commission.getTechnicianId())
                         .originCommissionId(commission.getId())
                         .status(CommissionStatusEnum.PENDING.getStatus())
@@ -331,6 +364,31 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
         throw exception(COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT);
     }
 
+    private void ensureAccrualPayloadConsistent(TechnicianCommissionDO existing,
+                                                Long expectedOrderId,
+                                                Long expectedOrderItemId,
+                                                Long expectedServiceOrderId,
+                                                Integer expectedBaseAmount,
+                                                BigDecimal expectedCommissionRate,
+                                                Integer expectedCommissionAmount,
+                                                String sourceBizNo,
+                                                Long staffId) {
+        if (Objects.equals(existing.getOrderId(), expectedOrderId)
+                && Objects.equals(existing.getOrderItemId(), expectedOrderItemId)
+                && Objects.equals(existing.getServiceOrderId(), expectedServiceOrderId)
+                && Objects.equals(existing.getBaseAmount(), expectedBaseAmount)
+                && isRateEqual(existing.getCommissionRate(), expectedCommissionRate)
+                && Objects.equals(existing.getCommissionAmount(), expectedCommissionAmount)) {
+            return;
+        }
+        log.warn("佣金计提幂等键冲突，commissionId={}, sourceBizNo={}, staffId={}, expectedOrderId={}, actualOrderId={}, expectedOrderItemId={}, actualOrderItemId={}, expectedServiceOrderId={}, actualServiceOrderId={}, expectedBaseAmount={}, actualBaseAmount={}, expectedRate={}, actualRate={}, expectedAmount={}, actualAmount={}",
+                existing.getId(), sourceBizNo, staffId, expectedOrderId, existing.getOrderId(),
+                expectedOrderItemId, existing.getOrderItemId(), expectedServiceOrderId, existing.getServiceOrderId(),
+                expectedBaseAmount, existing.getBaseAmount(), expectedCommissionRate, existing.getCommissionRate(),
+                expectedCommissionAmount, existing.getCommissionAmount());
+        throw exception(COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT);
+    }
+
     private boolean isRateEqual(BigDecimal left, BigDecimal right) {
         if (left == null && right == null) {
             return true;
@@ -346,6 +404,41 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
             return 0;
         }
         return -Math.abs(amount);
+    }
+
+    private CommissionTraceInfo resolveTraceInfo(BookingOrderDO order) {
+        if (order == null || order.getPayOrderId() == null || order.getPayOrderId() <= 0) {
+            return CommissionTraceInfo.empty();
+        }
+        List<TradeServiceOrderTraceRespDTO> traces = tradeServiceOrderApi.listTraceByPayOrderId(order.getPayOrderId());
+        if (traces == null || traces.isEmpty()) {
+            return CommissionTraceInfo.empty();
+        }
+        Optional<TradeServiceOrderTraceRespDTO> exactMatch = traces.stream()
+                .filter(trace -> trace != null)
+                .filter(trace -> Objects.equals(trace.getSkuId(), order.getSkuId()))
+                .findFirst();
+        TradeServiceOrderTraceRespDTO selected = exactMatch.orElseGet(() -> traces.stream()
+                .filter(trace -> trace != null)
+                .filter(trace -> Objects.equals(trace.getSpuId(), order.getSpuId()))
+                .min(Comparator.comparing(TradeServiceOrderTraceRespDTO::getServiceOrderId, Comparator.nullsLast(Long::compareTo)))
+                .orElseGet(() -> traces.stream().filter(Objects::nonNull).findFirst().orElse(null)));
+        if (selected == null) {
+            return CommissionTraceInfo.empty();
+        }
+        return new CommissionTraceInfo(selected.getOrderItemId(), selected.getServiceOrderId());
+    }
+
+    private String buildAccrualSourceBizNo(Long orderId, Long serviceOrderId) {
+        long safeOrderId = orderId == null ? 0L : orderId;
+        long safeServiceOrderId = serviceOrderId == null ? 0L : serviceOrderId;
+        return ACCRUAL_SOURCE_PREFIX + safeOrderId + ":" + safeServiceOrderId;
+    }
+
+    private String buildReversalSourceBizNo(Long orderId, Long originCommissionId) {
+        long safeOrderId = orderId == null ? 0L : orderId;
+        long safeOriginCommissionId = originCommissionId == null ? 0L : originCommissionId;
+        return REVERSAL_SOURCE_PREFIX + safeOrderId + ":" + safeOriginCommissionId;
     }
 
     private void appendSettlementReversalAudit(TechnicianCommissionDO originCommission,
@@ -366,6 +459,28 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 .setOperatorType("SYSTEM")
                 .setOperateRemark("BIZ#" + reversalBizNo + ",amount=" + reversalAmount)
                 .setActionTime(LocalDateTime.now()));
+    }
+
+    private static final class CommissionTraceInfo {
+        private final Long orderItemId;
+        private final Long serviceOrderId;
+
+        private CommissionTraceInfo(Long orderItemId, Long serviceOrderId) {
+            this.orderItemId = orderItemId;
+            this.serviceOrderId = serviceOrderId;
+        }
+
+        private static CommissionTraceInfo empty() {
+            return new CommissionTraceInfo(null, null);
+        }
+
+        private Long getOrderItemId() {
+            return orderItemId;
+        }
+
+        private Long getServiceOrderId() {
+            return serviceOrderId;
+        }
     }
 
 }

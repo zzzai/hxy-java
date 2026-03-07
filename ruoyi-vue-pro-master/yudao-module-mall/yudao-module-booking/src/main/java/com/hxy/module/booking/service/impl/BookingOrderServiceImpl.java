@@ -368,8 +368,8 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         // 取消时间槽预约
         timeSlotService.cancelBooking(order.getTimeSlotId());
 
-        // 取消佣金记录
-        technicianCommissionService.cancelCommission(orderId);
+        // 取消佣金记录（冲正失败 fail-open，不阻断退款主链路）
+        cancelCommissionSafely("refund", orderId);
         syncTradeServiceOrderSafely("refund", order.getPayOrderId(), () ->
                 tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_REFUNDED));
 
@@ -441,9 +441,9 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             return;
         }
         if (!BookingOrderStatusEnum.PAID.getStatus().equals(order.getStatus())) {
-            log.warn("[updateOrderRefunded][order({}) 当前状态({}) 非已支付，忽略回调]",
+            log.warn("[updateOrderRefunded][order({}) 当前状态({}) 非已支付，拒绝回调]",
                     id, order.getStatus());
-            return;
+            throw exception(BOOKING_ORDER_STATUS_ERROR);
         }
         validatePayRefund(order, payRefundId);
         BookingOrderDO update = buildStatusUpdate(id, BookingOrderStatusEnum.REFUNDED);
@@ -451,7 +451,7 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         update.setRefundTime(LocalDateTime.now());
         bookingOrderMapper.updateById(update);
         timeSlotService.cancelBooking(order.getTimeSlotId());
-        technicianCommissionService.cancelCommission(order.getId());
+        cancelCommissionSafely("refundCallback", order.getId());
         syncTradeServiceOrderSafely("refundCallback", order.getPayOrderId(), () ->
                 tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_REFUNDED));
         log.info("退款回调完成，orderId={}, payRefundId={}", id, payRefundId);
@@ -598,6 +598,18 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             // 同步失败不阻断预约主流程，后续由重试/人工台账收口
             log.error("[syncTradeServiceOrderSafely][action({}) payOrderId({}) sync failed]",
                     action, payOrderId, ex);
+        }
+    }
+
+    private void cancelCommissionSafely(String action, Long orderId) {
+        if (orderId == null || orderId <= 0) {
+            return;
+        }
+        try {
+            technicianCommissionService.cancelCommission(orderId);
+        } catch (Exception ex) {
+            // 冲正失败不阻断退款主流程，后续由对账和工单巡检收口
+            log.error("[cancelCommissionSafely][action({}) orderId({}) fail-open degraded]", action, orderId, ex);
         }
     }
 
