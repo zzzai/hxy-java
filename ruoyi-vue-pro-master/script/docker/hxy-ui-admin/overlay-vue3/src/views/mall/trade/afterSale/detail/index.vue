@@ -55,7 +55,7 @@
       <el-descriptions-item label="退款审计状态: ">
         {{ formData.refundAuditStatus || EMPTY_TEXT }}
       </el-descriptions-item>
-      <el-descriptions-item label="退款异常类型: ">
+      <el-descriptions-item label="异常类型: ">
         {{ formData.refundExceptionType || EMPTY_TEXT }}
       </el-descriptions-item>
       <el-descriptions-item label="支付退款ID: ">

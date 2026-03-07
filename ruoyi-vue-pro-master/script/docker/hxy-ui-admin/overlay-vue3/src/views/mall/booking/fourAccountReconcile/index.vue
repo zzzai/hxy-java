@@ -119,6 +119,7 @@
     <div class="mb-10px flex items-center gap-8px">
       <span class="text-13px text-[var(--el-text-color-secondary)]">退款佣金审计</span>
       <el-tag v-if="auditSummaryFallback" type="warning">汇总降级</el-tag>
+      <el-tag v-if="auditSummaryData.financeAggDegraded" type="warning">提成/冲正汇总降级</el-tag>
       <el-tag v-if="auditSummaryData.ticketSummaryDegraded" type="warning">ticket summary degraded</el-tag>
     </div>
     <el-alert
@@ -168,12 +169,12 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="异常类型" prop="refundExceptionType">
+      <el-form-item label="提成冲正类型" prop="mismatchType">
         <el-select
-          v-model="auditQueryParams.refundExceptionType"
+          v-model="auditQueryParams.mismatchType"
           class="!w-240px"
           clearable
-          placeholder="请选择异常类型"
+          placeholder="请选择提成冲正类型"
         >
           <el-option
             v-for="item in refundCommissionMismatchTypeOptions"
@@ -233,7 +234,7 @@
           重置
         </el-button>
         <el-button
-          v-hasPermi="['booking:commission:settlement']"
+          v-hasPermi="['booking:commission:refund-audit:sync-tickets', 'booking:commission:settlement']"
           :loading="auditSyncLoading"
           plain
           type="primary"
@@ -262,6 +263,36 @@
         <el-card shadow="never">
           <div class="text-12px text-[var(--el-text-color-secondary)]">未收口工单</div>
           <div class="mt-8px text-26px font-600">{{ countOrDash(auditSummaryData.unresolvedTicketCount) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">退款金额汇总(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.refundPriceSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">已结算提成汇总(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.settledCommissionAmountSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">冲正金额汇总(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.reversalCommissionAmountAbsSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">提成计提汇总(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.activeCommissionAmountSum) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :lg="8" :md="12" :sm="12" :xs="24">
+        <el-card shadow="never">
+          <div class="text-12px text-[var(--el-text-color-secondary)]">期望冲正汇总(元)</div>
+          <div class="mt-8px text-26px font-600">{{ fenToYuanOrDash(auditSummaryData.expectedReversalAmountSum) }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -327,6 +358,17 @@
             placement="top"
           >
             <span>{{ fenToYuanOrDash(row.reversalCommissionAmountAbs) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
+      <el-table-column label="提成计提(元)" min-width="130">
+        <template #default="{ row }">
+          <el-tooltip
+            :disabled="!isValidNumber(row.activeCommissionAmount)"
+            :content="`分值：${numberOrDash(row.activeCommissionAmount)}`"
+            placement="top"
+          >
+            <span>{{ fenToYuanOrDash(row.activeCommissionAmount) }}</span>
           </el-tooltip>
         </template>
       </el-table-column>
@@ -608,6 +650,9 @@
       <el-descriptions-item label="冲正金额(元)">
         {{ fenToYuanOrDash(auditDetailData.reversalCommissionAmountAbs) }}
       </el-descriptions-item>
+      <el-descriptions-item label="提成计提(元)">
+        {{ fenToYuanOrDash(auditDetailData.activeCommissionAmount) }}
+      </el-descriptions-item>
       <el-descriptions-item label="期望冲正(元)">
         {{ fenToYuanOrDash(auditDetailData.expectedReversalAmount) }}
       </el-descriptions-item>
@@ -739,6 +784,12 @@ interface AuditSummaryData {
   differenceAmountSum?: number
   unresolvedTicketCount?: number
   ticketSummaryDegraded?: boolean
+  financeAggDegraded?: boolean
+  refundPriceSum?: number
+  settledCommissionAmountSum?: number
+  reversalCommissionAmountAbsSum?: number
+  activeCommissionAmountSum?: number
+  expectedReversalAmountSum?: number
   statusAgg?: FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[]
   exceptionTypeAgg?: FourAccountReconcileApi.FourAccountRefundAuditSummaryCountItem[]
 }
@@ -809,6 +860,12 @@ const auditSummaryData = ref<AuditSummaryData>({
   differenceAmountSum: undefined,
   unresolvedTicketCount: undefined,
   ticketSummaryDegraded: false,
+  financeAggDegraded: false,
+  refundPriceSum: undefined,
+  settledCommissionAmountSum: undefined,
+  reversalCommissionAmountAbsSum: undefined,
+  activeCommissionAmountSum: undefined,
+  expectedReversalAmountSum: undefined,
   statusAgg: [],
   exceptionTypeAgg: []
 })
@@ -892,6 +949,12 @@ const createEmptyAuditSummaryData = (): AuditSummaryData => {
     differenceAmountSum: undefined,
     unresolvedTicketCount: undefined,
     ticketSummaryDegraded: false,
+    financeAggDegraded: false,
+    refundPriceSum: undefined,
+    settledCommissionAmountSum: undefined,
+    reversalCommissionAmountAbsSum: undefined,
+    activeCommissionAmountSum: undefined,
+    expectedReversalAmountSum: undefined,
     statusAgg: [],
     exceptionTypeAgg: []
   }
@@ -1232,6 +1295,15 @@ const calculateFallbackAuditDifferenceAmountSum = (rows: FourAccountReconcileApi
   }, 0)
 }
 
+const calculateFallbackAuditAmountSum = (
+  rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[],
+  selector: (row: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO) => any
+) => {
+  return rows.reduce((totalAmount, row) => {
+    return totalAmount + (parseNumber(selector(row)) || 0)
+  }, 0)
+}
+
 const calculateFallbackAuditUnresolvedTicketCount = (rows: FourAccountReconcileApi.FourAccountRefundCommissionAuditVO[]) => {
   return rows.filter((row) => {
     const status = normalizeUpperText(row.refundAuditStatus)
@@ -1296,6 +1368,7 @@ const buildAuditSummaryReq = (): FourAccountReconcileApi.FourAccountRefundAuditS
     relatedTicketLinked: relatedTicketLinked.value,
     beginBizDate: auditQueryParams.beginBizDate,
     endBizDate: auditQueryParams.endBizDate,
+    mismatchType: auditQueryParams.mismatchType,
     refundAuditStatus: auditQueryParams.refundAuditStatus,
     refundExceptionType: auditQueryParams.refundExceptionType,
     refundLimitSource: auditQueryParams.refundLimitSource,
@@ -1314,6 +1387,12 @@ const applyFallbackAuditSummary = (fallbackReason = '') => {
     differenceAmountSum: calculateFallbackAuditDifferenceAmountSum(auditList.value),
     unresolvedTicketCount: calculateFallbackAuditUnresolvedTicketCount(auditList.value),
     ticketSummaryDegraded: false,
+    financeAggDegraded: true,
+    refundPriceSum: calculateFallbackAuditAmountSum(auditList.value, (row) => row.refundPrice),
+    settledCommissionAmountSum: calculateFallbackAuditAmountSum(auditList.value, (row) => row.settledCommissionAmount),
+    reversalCommissionAmountAbsSum: calculateFallbackAuditAmountSum(auditList.value, (row) => row.reversalCommissionAmountAbs),
+    activeCommissionAmountSum: calculateFallbackAuditAmountSum(auditList.value, (row) => row.activeCommissionAmount),
+    expectedReversalAmountSum: calculateFallbackAuditAmountSum(auditList.value, (row) => row.expectedReversalAmount),
     statusAgg: createFallbackStatusAgg(auditList.value),
     exceptionTypeAgg: createFallbackExceptionTypeAgg(auditList.value)
   }
@@ -1324,6 +1403,11 @@ const loadAuditSummary = async () => {
     const data = await FourAccountReconcileApi.getFourAccountRefundAuditSummary(buildAuditSummaryReq())
     const statusAgg = toSummaryCountItems(data?.statusAgg)
     const exceptionTypeAgg = toSummaryCountItems(data?.exceptionTypeAgg)
+    const refundPriceSum = parseNumber(data?.refundPriceSum)
+    const settledCommissionAmountSum = parseNumber(data?.settledCommissionAmountSum)
+    const reversalCommissionAmountAbsSum = parseNumber(data?.reversalCommissionAmountAbsSum)
+    const activeCommissionAmountSum = parseNumber(data?.activeCommissionAmountSum)
+    const expectedReversalAmountSum = parseNumber(data?.expectedReversalAmountSum)
     auditSummaryData.value = {
       totalCount: parseNumber(data?.totalCount) ?? auditTotal.value,
       differenceAmountSum:
@@ -1331,6 +1415,22 @@ const loadAuditSummary = async () => {
       unresolvedTicketCount:
         parseNumber(data?.unresolvedTicketCount) ?? calculateFallbackAuditUnresolvedTicketCount(auditList.value),
       ticketSummaryDegraded: Boolean(data?.ticketSummaryDegraded),
+      financeAggDegraded:
+        refundPriceSum === undefined
+        || settledCommissionAmountSum === undefined
+        || reversalCommissionAmountAbsSum === undefined
+        || activeCommissionAmountSum === undefined
+        || expectedReversalAmountSum === undefined,
+      refundPriceSum:
+        refundPriceSum ?? calculateFallbackAuditAmountSum(auditList.value, (row) => row.refundPrice),
+      settledCommissionAmountSum:
+        settledCommissionAmountSum ?? calculateFallbackAuditAmountSum(auditList.value, (row) => row.settledCommissionAmount),
+      reversalCommissionAmountAbsSum:
+        reversalCommissionAmountAbsSum ?? calculateFallbackAuditAmountSum(auditList.value, (row) => row.reversalCommissionAmountAbs),
+      activeCommissionAmountSum:
+        activeCommissionAmountSum ?? calculateFallbackAuditAmountSum(auditList.value, (row) => row.activeCommissionAmount),
+      expectedReversalAmountSum:
+        expectedReversalAmountSum ?? calculateFallbackAuditAmountSum(auditList.value, (row) => row.expectedReversalAmount),
       statusAgg: statusAgg.length ? statusAgg : createFallbackStatusAgg(auditList.value),
       exceptionTypeAgg: exceptionTypeAgg.length ? exceptionTypeAgg : createFallbackExceptionTypeAgg(auditList.value)
     }
@@ -1510,10 +1610,10 @@ const resetQuery = () => {
 const normalizeAuditQuery = () => {
   auditQueryParams.keyword = String(auditQueryParams.keyword || '').trim() || undefined
   auditQueryParams.refundAuditStatus = normalizeUpperText(auditQueryParams.refundAuditStatus)
-  auditQueryParams.refundExceptionType = normalizeUpperText(
-    auditQueryParams.refundExceptionType || auditQueryParams.mismatchType
-  )
-  auditQueryParams.mismatchType = auditQueryParams.refundExceptionType
+  const normalizedMismatchType = normalizeUpperText(auditQueryParams.mismatchType)
+  const normalizedRefundExceptionType = normalizeUpperText(auditQueryParams.refundExceptionType)
+  auditQueryParams.mismatchType = normalizedMismatchType || normalizedRefundExceptionType
+  auditQueryParams.refundExceptionType = normalizedRefundExceptionType || normalizedMismatchType
   auditQueryParams.refundLimitSource = normalizeUpperText(auditQueryParams.refundLimitSource)
   if (Array.isArray(auditBizDateRange.value) && auditBizDateRange.value.length === 2) {
     auditQueryParams.beginBizDate = auditBizDateRange.value[0]

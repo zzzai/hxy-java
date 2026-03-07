@@ -84,6 +84,7 @@ export interface FourAccountRefundAuditSummaryReq {
   relatedTicketLinked?: boolean
   beginBizDate?: string
   endBizDate?: string
+  mismatchType?: FourAccountRefundCommissionMismatchType
   refundAuditStatus?: FourAccountRefundAuditStatus
   refundExceptionType?: FourAccountRefundExceptionType
   refundLimitSource?: string
@@ -98,6 +99,11 @@ export interface FourAccountRefundAuditSummaryVO {
   differenceAmountSum?: number
   unresolvedTicketCount?: number
   ticketSummaryDegraded?: boolean
+  refundPriceSum?: number
+  settledCommissionAmountSum?: number
+  reversalCommissionAmountAbsSum?: number
+  activeCommissionAmountSum?: number
+  expectedReversalAmountSum?: number
   statusAgg?: FourAccountRefundAuditSummaryCountItem[]
   exceptionTypeAgg?: FourAccountRefundAuditSummaryCountItem[]
 }

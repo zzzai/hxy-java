@@ -18,6 +18,10 @@ export interface RefundNotifyLogVO {
   orderId?: number
   merchantRefundId?: string
   payRefundId?: number
+  runId?: string | number
+  resultCode?: string | number
+  warningTag?: string
+  ticketSyncStatus?: string
   status?: RefundNotifyLogStatus
   errorCode?: string
   errorMsg?: string
@@ -44,8 +48,11 @@ export interface RefundNotifyLogReplayDetail {
   orderId?: number
   merchantRefundId?: string
   payRefundId?: number
+  runId?: string | number
   resultStatus?: RefundNotifyReplayResultStatus
   resultCode?: string | number
+  warningTag?: string
+  ticketSyncStatus?: string
   resultMessage?: string
   failReason?: string
   errorCode?: string
@@ -58,6 +65,8 @@ export interface RefundNotifyLogReplayResp {
   operator?: string
   dryRun?: boolean
   limitSize?: number
+  attempted?: number
+  attemptedCount?: number
   scannedCount?: number
   successCount?: number
   skipCount?: number
@@ -172,7 +181,9 @@ export interface RefundNotifyReplayRunLogSyncTicketsReq {
 
 export interface RefundNotifyReplayRunLogSyncTicketsDetailVO {
   id?: number
+  runId?: string | number
   notifyLogId?: number | string
+  payRefundId?: number
   resultStatus?: string
   resultCode?: string | number
   warningTag?: string

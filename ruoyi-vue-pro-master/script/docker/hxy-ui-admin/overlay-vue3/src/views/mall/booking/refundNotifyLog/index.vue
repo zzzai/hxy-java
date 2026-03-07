@@ -129,6 +129,14 @@
   </ContentWrap>
 
   <ContentWrap>
+    <el-alert
+      v-if="refundNotifyUnsupportedFields.length"
+      :closable="false"
+      :description="`缺失字段：${refundNotifyUnsupportedFields.join('、')}`"
+      title="后端版本暂不支持"
+      type="warning"
+      class="mb-12px"
+    />
     <el-table v-loading="loading" :data="list" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" :selectable="isReplaySelectable" />
       <el-table-column label="ID" prop="id" width="90" />
@@ -147,6 +155,11 @@
           {{ numberOrDash(row.payRefundId) }}
         </template>
       </el-table-column>
+      <el-table-column label="runId" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.runId) }}
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
@@ -157,6 +170,23 @@
       <el-table-column label="错误码" min-width="120" prop="errorCode" show-overflow-tooltip>
         <template #default="{ row }">
           {{ textOrDash(row.errorCode) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="resultCode" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.resultCode) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="warningTag" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.warningTag) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="ticketSyncStatus" min-width="130">
+        <template #default="{ row }">
+          <el-tag :type="syncStatusTagType(row.ticketSyncStatus)">
+            {{ syncStatusText(row.ticketSyncStatus) }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="错误信息" min-width="240" prop="errorMsg" show-overflow-tooltip>
@@ -225,7 +255,7 @@
       <el-descriptions-item label="触发来源">{{ textOrDash(replayResult.triggerSource) }}</el-descriptions-item>
       <el-descriptions-item label="dryRun">{{ boolText(replayResult.dryRun) }}</el-descriptions-item>
       <el-descriptions-item label="limit">{{ numberOrDash(replayResult.limitSize) }}</el-descriptions-item>
-      <el-descriptions-item label="扫描数">{{ numberOrDash(replayResult.scannedCount) }}</el-descriptions-item>
+      <el-descriptions-item label="attempted">{{ numberOrDash(replayResult.attemptedCount) }}</el-descriptions-item>
       <el-descriptions-item label="成功数">{{ numberOrDash(replayResult.successCount) }}</el-descriptions-item>
       <el-descriptions-item label="跳过数">{{ numberOrDash(replayResult.skipCount) }}</el-descriptions-item>
       <el-descriptions-item label="失败数">{{ numberOrDash(replayResult.failCount) }}</el-descriptions-item>
@@ -233,6 +263,13 @@
       <el-descriptions-item label="结束时间">{{ textOrDash(replayResult.endTime) }}</el-descriptions-item>
       <el-descriptions-item label="错误信息" :span="3">{{ textOrDash(replayResult.errorMsg) }}</el-descriptions-item>
     </el-descriptions>
+    <el-alert
+      v-if="replayResultFinanceFieldFallback"
+      :closable="false"
+      title="后端版本暂不支持（批量结果明细缺少财务字段，已降级展示）"
+      type="warning"
+      class="mb-12px"
+    />
 
     <el-alert
       v-if="!replayResult.details.length"
@@ -280,6 +317,18 @@
       <el-table-column label="结果码" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">
           {{ textOrDash(row.resultCode) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="warningTag" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.warningTag) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="ticketSyncStatus" min-width="130">
+        <template #default="{ row }">
+          <el-tag :type="syncStatusTagType(row.ticketSyncStatus)">
+            {{ syncStatusText(row.ticketSyncStatus) }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="结果说明" min-width="320" show-overflow-tooltip>
@@ -467,7 +516,7 @@
         <span class="text-12px text-[var(--el-text-color-secondary)]">forceResync</span>
         <el-switch v-model="runLogSyncForm.forceResync" inline-prompt active-text="开" inactive-text="关" />
         <el-button
-          v-hasPermi="['booking:refund-notify-log:replay']"
+          v-hasPermi="['booking:refund-notify-log:replay-run-log:sync-tickets', 'booking:refund-notify-log:replay']"
           :disabled="!runLogCurrentRunId"
           :loading="runLogSyncLoading"
           type="primary"
@@ -476,7 +525,7 @@
           预演同步(dryRun)
         </el-button>
         <el-button
-          v-hasPermi="['booking:refund-notify-log:replay']"
+          v-hasPermi="['booking:refund-notify-log:replay-run-log:sync-tickets', 'booking:refund-notify-log:replay']"
           :disabled="!runLogCurrentRunId"
           :loading="runLogSyncLoading"
           type="warning"
@@ -617,6 +666,13 @@
           type="warning"
           class="mb-8px"
         />
+        <el-alert
+          v-else-if="runLogDetailFinanceFieldFallback"
+          :closable="false"
+          title="后端版本暂不支持（运行明细缺少财务字段，已降级展示）"
+          type="warning"
+          class="mb-8px"
+        />
         <template v-else>
           <el-form :inline="true" :model="runLogDetailQueryParams" class="-mb-10px" label-width="92px">
             <el-form-item label="notifyLogId" prop="notifyLogId">
@@ -683,9 +739,19 @@
           </el-form>
 
           <el-table v-loading="runLogDetailPageLoading" :data="runLogDetailList" class="mt-8px">
+            <el-table-column label="runId" min-width="130" show-overflow-tooltip>
+              <template #default="{ row }">
+                {{ textOrDash(row.runId || runLogCurrentRunId) }}
+              </template>
+            </el-table-column>
             <el-table-column label="notifyLogId" min-width="110">
               <template #default="{ row }">
                 {{ textOrDash(row.notifyLogId) }}
+              </template>
+            </el-table-column>
+            <el-table-column label="payRefundId" min-width="120">
+              <template #default="{ row }">
+                {{ numberOrDash(row.payRefundId) }}
               </template>
             </el-table-column>
             <el-table-column label="resultStatus" min-width="110">
@@ -819,6 +885,7 @@
         <el-descriptions-item label="notifyLogId">{{ textOrDash(runLogDetailItemData.notifyLogId) }}</el-descriptions-item>
         <el-descriptions-item label="orderId">{{ numberOrDash(runLogDetailItemData.orderId) }}</el-descriptions-item>
         <el-descriptions-item label="merchantRefundId">{{ textOrDash(runLogDetailItemData.merchantRefundId) }}</el-descriptions-item>
+        <el-descriptions-item label="payRefundId">{{ numberOrDash(runLogDetailItemData.payRefundId) }}</el-descriptions-item>
         <el-descriptions-item label="resultStatus">
           <el-tag :type="replayResultTagType(runLogDetailItemData.resultStatus)">
             {{ replayResultText(runLogDetailItemData.resultStatus) }}
@@ -879,9 +946,19 @@
       class="mb-12px"
     />
     <el-table v-else :data="runLogSyncResultDetails" max-height="460">
+      <el-table-column label="runId" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ textOrDash(row.runId || runLogSyncResult?.runId || runLogCurrentRunId) }}
+        </template>
+      </el-table-column>
       <el-table-column label="notifyLogId" min-width="110">
         <template #default="{ row }">
           {{ textOrDash(row.notifyLogId) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="payRefundId" min-width="120">
+        <template #default="{ row }">
+          {{ numberOrDash(row.payRefundId) }}
         </template>
       </el-table-column>
       <el-table-column label="resultStatus" min-width="110">
@@ -932,9 +1009,17 @@
       <el-descriptions-item label="订单ID">{{ numberOrDash(detailRow.orderId) }}</el-descriptions-item>
       <el-descriptions-item label="商户退款单号">{{ textOrDash(detailRow.merchantRefundId) }}</el-descriptions-item>
       <el-descriptions-item label="支付退款单ID">{{ numberOrDash(detailRow.payRefundId) }}</el-descriptions-item>
+      <el-descriptions-item label="runId">{{ textOrDash(detailRow.runId) }}</el-descriptions-item>
       <el-descriptions-item label="状态">
         <el-tag :type="statusTagType(detailRow.status)">
           {{ statusText(detailRow.status) }}
+        </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="resultCode">{{ textOrDash(detailRow.resultCode) }}</el-descriptions-item>
+      <el-descriptions-item label="warningTag">{{ textOrDash(detailRow.warningTag) }}</el-descriptions-item>
+      <el-descriptions-item label="ticketSyncStatus">
+        <el-tag :type="syncStatusTagType(detailRow.ticketSyncStatus)">
+          {{ syncStatusText(detailRow.ticketSyncStatus) }}
         </el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="错误码">{{ textOrDash(detailRow.errorCode) }}</el-descriptions-item>
@@ -984,7 +1069,17 @@ interface ReplayDetailView {
   payRefundId?: number
   resultStatus: ReplayStatus
   resultCode?: string
+  warningTag?: string
+  ticketSyncStatus?: string
   resultMessage?: string
+}
+
+interface ReplayFinanceFieldSupport {
+  runId: boolean
+  payRefundId: boolean
+  resultCode: boolean
+  warningTag: boolean
+  ticketSyncStatus: boolean
 }
 
 interface ReplayResultView {
@@ -995,6 +1090,7 @@ interface ReplayResultView {
   triggerSource?: string
   operator?: string
   limitSize?: number
+  attemptedCount: number
   scannedCount?: number
   successCount: number
   skipCount: number
@@ -1003,12 +1099,15 @@ interface ReplayResultView {
   errorMsg?: string
   startTime?: string
   endTime?: string
+  financeFieldSupport: ReplayFinanceFieldSupport
   details: ReplayDetailView[]
 }
 
 interface RunLogSyncDetailView {
   id?: number
+  runId?: string | number
   notifyLogId?: number | string
+  payRefundId?: number
   resultStatus?: string
   resultCode?: string
   warningTag?: string
@@ -1077,6 +1176,7 @@ const replayResult = ref<ReplayResultView>({
   triggerSource: undefined,
   operator: undefined,
   limitSize: undefined,
+  attemptedCount: 0,
   scannedCount: 0,
   successCount: 0,
   skipCount: 0,
@@ -1085,6 +1185,13 @@ const replayResult = ref<ReplayResultView>({
   errorMsg: undefined,
   startTime: undefined,
   endTime: undefined,
+  financeFieldSupport: {
+    runId: false,
+    payRefundId: false,
+    resultCode: false,
+    warningTag: false,
+    ticketSyncStatus: false
+  },
   details: []
 })
 
@@ -1170,8 +1277,39 @@ const toNonNegativeNumber = (value: any): number | undefined => {
   return normalized >= 0 ? normalized : undefined
 }
 
+const hasOwnField = (source: any, field: string) => {
+  if (!source || typeof source !== 'object') {
+    return false
+  }
+  return Object.prototype.hasOwnProperty.call(source, field)
+}
+
+const hasAnyFieldInRows = (rows: any[], field: string) => {
+  if (!Array.isArray(rows) || !rows.length) {
+    return false
+  }
+  return rows.some((row) => hasOwnField(row, field))
+}
+
+const refundNotifyFinanceFieldDefs = [
+  { key: 'payRefundId', label: 'payRefundId' },
+  { key: 'runId', label: 'runId' },
+  { key: 'resultCode', label: 'resultCode' },
+  { key: 'warningTag', label: 'warningTag' },
+  { key: 'ticketSyncStatus', label: 'ticketSyncStatus' }
+] as const
+
 const replayResultTitle = computed(() => {
   return replayResult.value.dryRun ? '退款回调重放预演结果' : '退款回调重放执行结果'
+})
+const refundNotifyUnsupportedFields = computed(() => {
+  const rows = list.value as Array<Record<string, any>>
+  if (!rows.length) {
+    return []
+  }
+  return refundNotifyFinanceFieldDefs
+    .filter((field) => !hasAnyFieldInRows(rows, field.key))
+    .map((field) => field.label)
 })
 const runLogCurrentRunId = computed(() => {
   const text = String(runLogDetailData.value.runId || '').trim()
@@ -1243,6 +1381,27 @@ const runLogSyncFailCount = computed(() => {
     ?? toNonNegativeNumber(runLogSyncResult.value?.failedCount)
     ?? toNonNegativeNumber(runLogSyncResult.value?.failed)
 })
+const replayResultFinanceFieldFallback = computed(() => {
+  if (!replayResult.value.details.length) {
+    return false
+  }
+  const support = replayResult.value.financeFieldSupport
+  return !support.runId || !support.payRefundId || !support.resultCode || !support.warningTag || !support.ticketSyncStatus
+})
+const runLogDetailFinanceFieldFallback = computed(() => {
+  if (runLogDetailFeatureUnavailable.value || !runLogDetailList.value.length) {
+    return false
+  }
+  const rows = runLogDetailList.value as Array<Record<string, any>>
+  const supportRunId = hasAnyFieldInRows(rows, 'runId') || Boolean(runLogCurrentRunId.value)
+  return (
+    !supportRunId
+    || !hasAnyFieldInRows(rows, 'payRefundId')
+    || !hasAnyFieldInRows(rows, 'resultCode')
+    || !hasAnyFieldInRows(rows, 'warningTag')
+    || !hasAnyFieldInRows(rows, 'ticketSyncStatus')
+  )
+})
 const runLogSyncResultDetails = computed<RunLogSyncDetailView[]>(() => {
   const details = runLogSyncResult.value?.details
   if (!Array.isArray(details)) {
@@ -1252,7 +1411,9 @@ const runLogSyncResultDetails = computed<RunLogSyncDetailView[]>(() => {
     const source = (item || {}) as Record<string, any>
     return {
       id: parsePositiveInteger(source.id),
+      runId: source.runId ?? runLogSyncResult.value?.runId,
       notifyLogId: source.notifyLogId ?? source.logId ?? source.id,
+      payRefundId: parsePositiveInteger(source.payRefundId),
       resultStatus: normalizeUpperText(source.resultStatus ?? source.status),
       resultCode: String(source.resultCode ?? source.code ?? source.errorCode ?? '').trim() || undefined,
       warningTag: String(source.warningTag || '').trim() || undefined,
@@ -1885,10 +2046,38 @@ const unwrapReplayResponse = (rawResp: any) => {
   return source
 }
 
+const hasAnyCandidateField = (details: any[], candidates: string[]) => {
+  if (!Array.isArray(details) || !details.length) {
+    return false
+  }
+  return details.some((item) => {
+    if (!item || typeof item !== 'object') {
+      return false
+    }
+    return candidates.some((field) => hasOwnField(item, field))
+  })
+}
+
+const resolveReplayFinanceFieldSupport = (
+  payload: Record<string, any>,
+  rawDetails: any[],
+  fallbackRunId: string | number | undefined
+): ReplayFinanceFieldSupport => {
+  return {
+    runId: hasAnyCandidateField(rawDetails, ['runId']) || Boolean(payload.runId ?? payload.batchRunId ?? payload.id ?? fallbackRunId),
+    payRefundId: hasAnyCandidateField(rawDetails, ['payRefundId']),
+    resultCode: hasAnyCandidateField(rawDetails, ['resultCode', 'code', 'errorCode']),
+    warningTag: hasAnyCandidateField(rawDetails, ['warningTag']),
+    ticketSyncStatus: hasAnyCandidateField(rawDetails, ['ticketSyncStatus', 'syncStatus'])
+  }
+}
+
 const parseReplayDetail = (item: Record<string, any>, index: number): ReplayDetailView => {
   const status = normalizeReplayStatus(item.resultStatus ?? item.result ?? item.status ?? item.resultType)
   const resultCode = String(item.resultCode ?? item.code ?? item.errorCode ?? '').trim() || undefined
   const rawReason = String(item.resultMessage ?? item.message ?? item.failReason ?? item.errorMsg ?? '').trim() || undefined
+  const warningTag = String(item.warningTag || '').trim() || undefined
+  const ticketSyncStatus = normalizeUpperText(item.ticketSyncStatus ?? item.syncStatus)
   return {
     runId: item.runId,
     id: parsePositiveInteger(item.id),
@@ -1897,6 +2086,8 @@ const parseReplayDetail = (item: Record<string, any>, index: number): ReplayDeta
     payRefundId: parsePositiveInteger(item.payRefundId),
     resultStatus: status,
     resultCode,
+    warningTag,
+    ticketSyncStatus,
     resultMessage: buildReadableReasonByCode(resultCode, rawReason, status) || `明细 #${index + 1}`
   }
 }
@@ -1910,6 +2101,7 @@ const createReplayResultView = (): ReplayResultView => {
     triggerSource: undefined,
     operator: undefined,
     limitSize: undefined,
+    attemptedCount: 0,
     scannedCount: 0,
     successCount: 0,
     skipCount: 0,
@@ -1918,6 +2110,13 @@ const createReplayResultView = (): ReplayResultView => {
     errorMsg: undefined,
     startTime: undefined,
     endTime: undefined,
+    financeFieldSupport: {
+      runId: false,
+      payRefundId: false,
+      resultCode: false,
+      warningTag: false,
+      ticketSyncStatus: false
+    },
     details: []
   }
 }
@@ -1938,11 +2137,19 @@ const buildReplayResultView = (
       modeLabel: options.modeLabel,
       dryRun: options.dryRun,
       fallbackLegacy: Boolean(options.fallbackLegacy),
+      attemptedCount: options.defaultIds?.length || 0,
       scannedCount: options.defaultIds?.length || 0,
       successCount: source ? options.defaultIds?.length || 0 : 0,
       skipCount: 0,
       failCount: source ? 0 : options.defaultIds?.length || 0,
       status: source ? 'SUCCESS' : 'FAIL',
+      financeFieldSupport: {
+        runId: false,
+        payRefundId: false,
+        resultCode: false,
+        warningTag: false,
+        ticketSyncStatus: false
+      },
       details: source
         ? (options.defaultIds || []).map((id) => ({
             id,
@@ -1978,16 +2185,22 @@ const buildReplayResultView = (
     parseNonNegativeInteger(payload.scannedCount)
     ?? defaultScanCount
     ?? successCount + skipCount + failCount
+  const attemptedCount =
+    parseNonNegativeInteger(payload.attemptedCount)
+    ?? parseNonNegativeInteger(payload.attempted)
+    ?? scannedCount
+  const runId = payload.runId ?? payload.batchRunId ?? payload.id
 
   return {
     ...createReplayResultView(),
     modeLabel: options.modeLabel,
     dryRun: options.dryRun,
     fallbackLegacy: Boolean(options.fallbackLegacy),
-    runId: payload.runId ?? payload.batchRunId ?? payload.id,
+    runId,
     triggerSource: payload.triggerSource,
     operator: payload.operator,
     limitSize: parsePositiveInteger(payload.limitSize),
+    attemptedCount,
     scannedCount,
     successCount,
     skipCount,
@@ -1996,6 +2209,7 @@ const buildReplayResultView = (
     errorMsg: String(payload.errorMsg || '').trim() || undefined,
     startTime: payload.startTime,
     endTime: payload.endTime,
+    financeFieldSupport: resolveReplayFinanceFieldSupport(payload, rawDetails, runId),
     details
   }
 }
@@ -2029,11 +2243,19 @@ const replayByLegacyApi = async (ids: number[]): Promise<ReplayResultView> => {
     modeLabel: '手工勾选重放（旧接口降级）',
     dryRun: false,
     fallbackLegacy: true,
+    attemptedCount: ids.length,
     scannedCount: ids.length,
     successCount: details.filter((item) => item.resultStatus === 'SUCCESS').length,
     skipCount: details.filter((item) => item.resultStatus === 'SKIP').length,
     failCount: details.filter((item) => item.resultStatus === 'FAIL').length,
     status: details.some((item) => item.resultStatus === 'FAIL') ? 'PARTIAL_FAIL' : 'SUCCESS',
+    financeFieldSupport: {
+      runId: false,
+      payRefundId: false,
+      resultCode: details.some((item) => !!item.resultCode),
+      warningTag: false,
+      ticketSyncStatus: false
+    },
     details
   }
 }
@@ -2064,7 +2286,7 @@ const handleDryRunReplay = async () => {
     })
     showReplayResult(result)
     message.success(
-      `预演完成：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+      `预演完成：attempted ${numberOrDash(result.attemptedCount)} / success ${numberOrDash(result.successCount)} / skip ${numberOrDash(result.skipCount)} / fail ${numberOrDash(result.failCount)}`
     )
   } catch (error: any) {
     if (isLegacyReplayContractError(error)) {
@@ -2111,7 +2333,7 @@ const handleExecuteReplay = async () => {
 
     showReplayResult(result)
     message.success(
-      `执行完成：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+      `执行完成：attempted ${numberOrDash(result.attemptedCount)} / success ${numberOrDash(result.successCount)} / skip ${numberOrDash(result.skipCount)} / fail ${numberOrDash(result.failCount)}`
     )
     await getList()
   } catch (error: any) {
@@ -2144,7 +2366,7 @@ const handleReplayDue = async () => {
     })
     showReplayResult(result)
     message.success(
-      `自动重放已触发：runId=${textOrDash(result.runId)}，SUCCESS ${result.successCount} / SKIP ${result.skipCount} / FAIL ${result.failCount}`
+      `自动重放已触发：attempted ${numberOrDash(result.attemptedCount)} / success ${numberOrDash(result.successCount)} / skip ${numberOrDash(result.skipCount)} / fail ${numberOrDash(result.failCount)}`
     )
     if (!replayDueForm.dryRun) {
       await getList()
