@@ -32,6 +32,12 @@ public class BookingRefundReplayRunLogPageReqVO extends PageParam {
     @Schema(description = "是否预演", example = "false")
     private Boolean dryRun;
 
+    @Schema(description = "是否包含告警（四账刷新降级）", example = "true")
+    private Boolean hasWarning;
+
+    @Schema(description = "最小失败数", example = "1")
+    private Integer minFailCount;
+
     @Schema(description = "开始时间范围")
     @DateTimeFormat(pattern = FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND)
     private LocalDateTime[] startTime;

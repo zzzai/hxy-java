@@ -8,28 +8,38 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
+import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
+import cn.iocoder.yudao.module.trade.api.reviewticket.dto.TradeReviewTicketUpsertReqDTO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunDetailDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundRepairCandidateDO;
 import com.hxy.module.booking.dal.mysql.BookingRefundNotifyLogMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReconcileQueryMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunLogMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.BookingRefundNotifyLogService;
 import com.hxy.module.booking.service.FourAccountReconcileService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +57,7 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFU
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_LOG_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_LOG_STATUS_INVALID;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_LOG_NOT_EXISTS;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_STATUS_INVALID;
 
@@ -76,6 +87,17 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     private static final String RUN_STATUS_PARTIAL_FAIL = "partial_fail";
     private static final String RUN_STATUS_FAIL = "fail";
 
+    private static final String WARNING_TAG_FOUR_ACCOUNT_REFRESH_WARN = "FOUR_ACCOUNT_REFRESH_WARN";
+
+    private static final Integer REVIEW_TICKET_TYPE = 40;
+    private static final String REVIEW_TICKET_SOURCE_PREFIX = "REFUND_REPLAY_RUN:";
+    private static final String REVIEW_TICKET_RULE_CODE_PREFIX = "REFUND_REPLAY_RUN_";
+    private static final String REVIEW_TICKET_ACTION_CODE_PREFIX = "REFUND_REPLAY_RUN_";
+    private static final String REVIEW_TICKET_DEFAULT_ESCALATE_TO = "HQ_AFTER_SALE";
+    private static final int REVIEW_TICKET_P0_SLA_MINUTES = 30;
+    private static final int REVIEW_TICKET_P1_SLA_MINUTES = 120;
+    private static final int SUMMARY_TOP_N = 5;
+
     private static final int DEFAULT_RECONCILE_LIMIT = 200;
     private static final int MAX_RECONCILE_LIMIT = 1000;
     private static final int RETRY_BACKOFF_BASE_MINUTES = 5;
@@ -87,11 +109,15 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
     @Resource
     private BookingRefundReconcileQueryMapper refundReconcileQueryMapper;
     @Resource
+    private BookingRefundReplayRunDetailMapper refundReplayRunDetailMapper;
+    @Resource
     private BookingRefundReplayRunLogMapper refundReplayRunLogMapper;
     @Resource
     private BookingOrderService bookingOrderService;
     @Resource
     private FourAccountReconcileService fourAccountReconcileService;
+    @Resource
+    private TradeReviewTicketApi tradeReviewTicketApi;
 
     @Override
     public void recordNotifySuccess(Long orderId, PayRefundNotifyReqDTO notifyReqDTO) {
@@ -153,12 +179,14 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             int scannedCount = calculateScannedCount(respVO);
             String runStatus = resolveRunStatus(respVO);
             String runErrorMsg = buildRunErrorMsg(respVO);
+            persistReplayRunDetailsSafely(runId, runLogId, respVO);
             updateReplayRunLogResultSafely(runLogId, scannedCount, respVO.getSuccessCount(), respVO.getSkipCount(),
                     respVO.getFailCount(), runStatus, runErrorMsg, LocalDateTime.now());
             return respVO;
         } catch (Exception ex) {
             String errorCode = resolveErrorCode(ex);
             String errorMsg = resolveErrorMsg(ex);
+            persistReplayRunDetailsSafely(runId, runLogId, respVO);
             updateReplayRunLogResultSafely(runLogId, 0, 0, 0, 1,
                     RUN_STATUS_FAIL,
                     StrUtil.maxLength("RUN_FAIL:" + errorCode + ":" + errorMsg, MAX_RUN_ERROR_MSG_LENGTH),
@@ -184,6 +212,9 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             if (StrUtil.isNotBlank(reqVO.getStatus())) {
                 reqVO.setStatus(reqVO.getStatus().trim().toLowerCase(Locale.ROOT));
             }
+            if (reqVO.getMinFailCount() != null && reqVO.getMinFailCount() < 0) {
+                reqVO.setMinFailCount(0);
+            }
         }
         return refundReplayRunLogMapper.selectPage(reqVO);
     }
@@ -195,6 +226,88 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             throw exception(BOOKING_ORDER_REFUND_REPLAY_RUN_LOG_NOT_EXISTS);
         }
         return runLogDO;
+    }
+
+    @Override
+    public BookingRefundReplayRunLogSummaryRespVO getReplayRunLogSummary(String runId) {
+        String normalizedRunId = normalizeRunId(runId);
+        BookingRefundReplayRunLogDO runLogDO = refundReplayRunLogMapper.selectByRunId(normalizedRunId);
+        if (runLogDO == null) {
+            throw exception(BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS);
+        }
+        List<BookingRefundReplayRunDetailDO> detailList = refundReplayRunDetailMapper.selectByRunId(normalizedRunId);
+        BookingRefundReplayRunLogSummaryRespVO respVO = new BookingRefundReplayRunLogSummaryRespVO();
+        respVO.setRunId(runLogDO.getRunId());
+        respVO.setRunStatus(runLogDO.getStatus());
+        respVO.setTriggerSource(runLogDO.getTriggerSource());
+        respVO.setOperator(runLogDO.getOperator());
+        respVO.setDryRun(runLogDO.getDryRun());
+        respVO.setStartTime(runLogDO.getStartTime());
+        respVO.setEndTime(runLogDO.getEndTime());
+        respVO.setScannedCount(ObjectUtil.defaultIfNull(runLogDO.getScannedCount(), 0));
+        respVO.setSuccessCount(ObjectUtil.defaultIfNull(runLogDO.getSuccessCount(), 0));
+        respVO.setSkipCount(ObjectUtil.defaultIfNull(runLogDO.getSkipCount(), 0));
+        respVO.setFailCount(ObjectUtil.defaultIfNull(runLogDO.getFailCount(), 0));
+        if (CollUtil.isEmpty(detailList)) {
+            respVO.setWarningCount(StrUtil.containsIgnoreCase(runLogDO.getErrorMsg(), "WARN#") ? 1 : 0);
+            respVO.setTopFailCodes(Collections.emptyList());
+            respVO.setTopWarningTags(Collections.emptyList());
+            return respVO;
+        }
+        Map<String, Integer> failCodeCounter = new HashMap<>();
+        Map<String, Integer> warningTagCounter = new HashMap<>();
+        int warningCount = 0;
+        for (BookingRefundReplayRunDetailDO detailDO : detailList) {
+            if (detailDO == null) {
+                continue;
+            }
+            if (StrUtil.equalsIgnoreCase(REPLAY_RESULT_FAIL, detailDO.getResultStatus())) {
+                String failCode = StrUtil.blankToDefault(detailDO.getResultCode(), "UNKNOWN");
+                failCodeCounter.put(failCode, failCodeCounter.getOrDefault(failCode, 0) + 1);
+            }
+            if (StrUtil.isNotBlank(detailDO.getWarningTag())) {
+                warningCount++;
+                String warningTag = detailDO.getWarningTag().trim().toUpperCase(Locale.ROOT);
+                warningTagCounter.put(warningTag, warningTagCounter.getOrDefault(warningTag, 0) + 1);
+            }
+        }
+        respVO.setWarningCount(warningCount);
+        respVO.setTopFailCodes(buildTopBuckets(failCodeCounter));
+        respVO.setTopWarningTags(buildTopBuckets(warningTagCounter));
+        return respVO;
+    }
+
+    @Override
+    public BookingRefundReplayRunLogSyncTicketRespVO syncReplayRunLogTickets(String runId, boolean onlyFail,
+                                                                              Long operatorId, String operatorNickname) {
+        String normalizedRunId = normalizeRunId(runId);
+        BookingRefundReplayRunLogDO runLogDO = refundReplayRunLogMapper.selectByRunId(normalizedRunId);
+        if (runLogDO == null) {
+            throw exception(BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS);
+        }
+        List<BookingRefundReplayRunDetailDO> detailList = onlyFail
+                ? refundReplayRunDetailMapper.selectByRunIdAndResultStatus(normalizedRunId, REPLAY_RESULT_FAIL)
+                : refundReplayRunDetailMapper.selectByRunId(normalizedRunId);
+        if (CollUtil.isEmpty(detailList)) {
+            return buildSyncTicketResp(normalizedRunId, 0, 0, Collections.emptyList());
+        }
+        String operator = resolveOperator(operatorId, operatorNickname);
+        int successCount = 0;
+        List<Long> failedIds = new ArrayList<>();
+        for (BookingRefundReplayRunDetailDO detailDO : detailList) {
+            Long failedId = detailDO == null ? null : detailDO.getNotifyLogId();
+            try {
+                tradeReviewTicketApi.upsertReviewTicket(buildReplayRunTicketReq(normalizedRunId, detailDO, operator));
+                successCount++;
+            } catch (Exception ex) {
+                if (failedId != null) {
+                    failedIds.add(failedId);
+                }
+                log.warn("[syncReplayRunLogTickets][upsert ticket fail, runId={}, notifyLogId={}]",
+                        normalizedRunId, failedId, ex);
+            }
+        }
+        return buildSyncTicketResp(normalizedRunId, detailList.size(), successCount, failedIds);
     }
 
     @Override
@@ -428,6 +541,132 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             builder.append("; ");
         }
         builder.append(issue);
+    }
+
+    private void persistReplayRunDetailsSafely(String runId, Long runLogId, BookingRefundNotifyLogReplayRespVO respVO) {
+        if (StrUtil.isBlank(runId) || respVO == null || CollUtil.isEmpty(respVO.getDetails())) {
+            return;
+        }
+        for (BookingRefundNotifyLogReplayRespVO.ReplayDetail detail : respVO.getDetails()) {
+            if (detail == null || detail.getId() == null) {
+                continue;
+            }
+            BookingRefundReplayRunDetailDO detailDO = new BookingRefundReplayRunDetailDO()
+                    .setRunId(runId)
+                    .setRunLogId(runLogId)
+                    .setNotifyLogId(detail.getId())
+                    .setOrderId(detail.getOrderId())
+                    .setPayRefundId(detail.getPayRefundId())
+                    .setResultStatus(StrUtil.blankToDefault(detail.getResultStatus(), REPLAY_RESULT_FAIL).toUpperCase(Locale.ROOT))
+                    .setResultCode(StrUtil.blankToDefault(detail.getResultCode(), ""))
+                    .setResultMsg(StrUtil.maxLength(StrUtil.blankToDefault(detail.getResultMsg(), ""), 512))
+                    .setWarningTag(extractWarningTag(detail.getResultMsg()));
+            try {
+                refundReplayRunDetailMapper.insert(detailDO);
+            } catch (DuplicateKeyException duplicateKeyException) {
+                log.debug("[persistReplayRunDetailsSafely][duplicate detail skipped][runId={}, notifyLogId={}]",
+                        runId, detail.getId());
+            } catch (Exception ex) {
+                log.warn("[persistReplayRunDetailsSafely][insert run detail fail][runId={}, notifyLogId={}]",
+                        runId, detail.getId(), ex);
+            }
+        }
+    }
+
+    private String extractWarningTag(String resultMsg) {
+        if (StrUtil.containsIgnoreCase(resultMsg, WARNING_TAG_FOUR_ACCOUNT_REFRESH_WARN)) {
+            return WARNING_TAG_FOUR_ACCOUNT_REFRESH_WARN;
+        }
+        return "";
+    }
+
+    private String normalizeRunId(String runId) {
+        String normalized = runId == null ? "" : runId.trim();
+        if (StrUtil.isBlank(normalized)) {
+            throw exception(BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS);
+        }
+        return normalized;
+    }
+
+    private List<BookingRefundReplayRunLogSummaryRespVO.SummaryBucket> buildTopBuckets(Map<String, Integer> counter) {
+        if (counter == null || counter.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return counter.entrySet().stream()
+                .filter(entry -> StrUtil.isNotBlank(entry.getKey()))
+                .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue)
+                        .reversed()
+                        .thenComparing(Map.Entry::getKey))
+                .limit(SUMMARY_TOP_N)
+                .collect(ArrayList::new, (list, entry) -> {
+                    BookingRefundReplayRunLogSummaryRespVO.SummaryBucket bucket =
+                            new BookingRefundReplayRunLogSummaryRespVO.SummaryBucket();
+                    bucket.setKey(entry.getKey());
+                    bucket.setCount(entry.getValue());
+                    list.add(bucket);
+                }, ArrayList::addAll);
+    }
+
+    private BookingRefundReplayRunLogSyncTicketRespVO buildSyncTicketResp(String runId, int attemptedCount,
+                                                                           int successCount, List<Long> failedIds) {
+        BookingRefundReplayRunLogSyncTicketRespVO respVO = new BookingRefundReplayRunLogSyncTicketRespVO();
+        respVO.setRunId(runId);
+        respVO.setAttemptedCount(attemptedCount);
+        respVO.setSuccessCount(successCount);
+        respVO.setFailedCount(Math.max(attemptedCount - successCount, 0));
+        respVO.setFailedIds(failedIds == null ? Collections.emptyList() : failedIds);
+        return respVO;
+    }
+
+    private TradeReviewTicketUpsertReqDTO buildReplayRunTicketReq(String runId,
+                                                                   BookingRefundReplayRunDetailDO detailDO,
+                                                                   String operator) {
+        String resultCode = detailDO == null ? "" : StrUtil.blankToDefault(detailDO.getResultCode(), "");
+        String normalizedCode = StrUtil.isBlank(resultCode) ? "UNKNOWN" : resultCode.trim().toUpperCase(Locale.ROOT);
+        String resultStatus = detailDO == null ? REPLAY_RESULT_FAIL
+                : StrUtil.blankToDefault(detailDO.getResultStatus(), REPLAY_RESULT_FAIL).trim().toUpperCase(Locale.ROOT);
+        String severity = resolveReplayTicketSeverity(normalizedCode, resultStatus);
+        int slaMinutes = "P0".equals(severity) ? REVIEW_TICKET_P0_SLA_MINUTES : REVIEW_TICKET_P1_SLA_MINUTES;
+        Long notifyLogId = detailDO == null ? null : detailDO.getNotifyLogId();
+        Long sourceNotifyId = notifyLogId == null ? 0L : notifyLogId;
+        String sourceBizNo = REVIEW_TICKET_SOURCE_PREFIX + runId + ":" + sourceNotifyId;
+        return new TradeReviewTicketUpsertReqDTO()
+                .setTicketType(REVIEW_TICKET_TYPE)
+                .setOrderId(detailDO == null ? null : detailDO.getOrderId())
+                .setSourceBizNo(sourceBizNo)
+                .setRuleCode(REVIEW_TICKET_RULE_CODE_PREFIX + normalizedCode)
+                .setDecisionReason(detailDO == null ? "" : StrUtil.blankToDefault(detailDO.getResultMsg(), ""))
+                .setSeverity(severity)
+                .setEscalateTo(REVIEW_TICKET_DEFAULT_ESCALATE_TO)
+                .setSlaMinutes(slaMinutes)
+                .setRemark(buildReplayRunTicketRemark(runId, detailDO, operator))
+                .setActionCode(REVIEW_TICKET_ACTION_CODE_PREFIX + resultStatus);
+    }
+
+    private String resolveReplayTicketSeverity(String resultCode, String resultStatus) {
+        if (!StrUtil.equalsIgnoreCase(REPLAY_RESULT_FAIL, resultStatus)) {
+            return "P1";
+        }
+        if (Objects.equals(resultCode, String.valueOf(BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT.getCode()))
+                || Objects.equals(resultCode, String.valueOf(BOOKING_ORDER_REFUND_STATUS_INVALID.getCode()))) {
+            return "P0";
+        }
+        return "P1";
+    }
+
+    private String buildReplayRunTicketRemark(String runId, BookingRefundReplayRunDetailDO detailDO, String operator) {
+        if (detailDO == null) {
+            return "runId=" + runId + ",detail=null,operator=" + StrUtil.blankToDefault(operator, DEFAULT_OPERATOR);
+        }
+        return String.format(Locale.ROOT,
+                "runId=%s,notifyLogId=%s,status=%s,code=%s,warning=%s,operator=%s,msg=%s",
+                runId,
+                String.valueOf(detailDO.getNotifyLogId()),
+                StrUtil.blankToDefault(detailDO.getResultStatus(), ""),
+                StrUtil.blankToDefault(detailDO.getResultCode(), ""),
+                StrUtil.blankToDefault(detailDO.getWarningTag(), ""),
+                StrUtil.blankToDefault(operator, DEFAULT_OPERATOR),
+                StrUtil.maxLength(StrUtil.blankToDefault(detailDO.getResultMsg(), ""), 200));
     }
 
     private String generateRunId() {

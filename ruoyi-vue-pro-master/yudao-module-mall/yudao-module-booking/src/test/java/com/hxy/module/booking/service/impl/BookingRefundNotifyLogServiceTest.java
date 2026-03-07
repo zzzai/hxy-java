@@ -1,15 +1,22 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import cn.iocoder.yudao.module.pay.enums.refund.PayRefundStatusEnum;
+import cn.iocoder.yudao.module.trade.api.reviewticket.TradeReviewTicketApi;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
+import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunDetailDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundRepairCandidateDO;
 import com.hxy.module.booking.dal.mysql.BookingRefundNotifyLogMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReconcileQueryMapper;
+import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunDetailMapper;
 import com.hxy.module.booking.dal.mysql.BookingRefundReplayRunLogMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
@@ -27,6 +34,7 @@ import java.util.Collections;
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -48,11 +56,15 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
     @Mock
     private BookingRefundReconcileQueryMapper refundReconcileQueryMapper;
     @Mock
+    private BookingRefundReplayRunDetailMapper refundReplayRunDetailMapper;
+    @Mock
     private BookingRefundReplayRunLogMapper refundReplayRunLogMapper;
     @Mock
     private BookingOrderService bookingOrderService;
     @Mock
     private FourAccountReconcileService fourAccountReconcileService;
+    @Mock
+    private TradeReviewTicketApi tradeReviewTicketApi;
 
     @Test
     void replayFailedLogs_shouldMarkSuccessWhenReplayPassed() {
@@ -239,6 +251,89 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
         verify(refundNotifyLogMapper, never()).updateReplaySuccess(any(), any(), any(), any(), any(), any(), any());
         verify(refundReplayRunLogMapper).updateRunResult(eq(103L), eq(1), eq(1), eq(0), eq(0),
                 eq("success"), eq(""), any(LocalDateTime.class));
+    }
+
+    @Test
+    void getReplayRunLogSummary_shouldAggregateTopCodesAndWarnings() {
+        BookingRefundReplayRunLogDO runLogDO = new BookingRefundReplayRunLogDO()
+                .setId(201L)
+                .setRunId("RR201")
+                .setStatus("partial_fail")
+                .setTriggerSource("JOB")
+                .setOperator("SYSTEM_JOB")
+                .setDryRun(false)
+                .setScannedCount(4)
+                .setSuccessCount(1)
+                .setSkipCount(1)
+                .setFailCount(2);
+        when(refundReplayRunLogMapper.selectByRunId(eq("RR201"))).thenReturn(runLogDO);
+        when(refundReplayRunDetailMapper.selectByRunId(eq("RR201"))).thenReturn(Arrays.asList(
+                new BookingRefundReplayRunDetailDO().setRunId("RR201").setNotifyLogId(1L)
+                        .setResultStatus("FAIL").setResultCode("E100").setWarningTag(""),
+                new BookingRefundReplayRunDetailDO().setRunId("RR201").setNotifyLogId(2L)
+                        .setResultStatus("FAIL").setResultCode("E100").setWarningTag("FOUR_ACCOUNT_REFRESH_WARN"),
+                new BookingRefundReplayRunDetailDO().setRunId("RR201").setNotifyLogId(3L)
+                        .setResultStatus("SKIP").setResultCode("SKIPPED").setWarningTag(""),
+                new BookingRefundReplayRunDetailDO().setRunId("RR201").setNotifyLogId(4L)
+                        .setResultStatus("SUCCESS").setResultCode("OK").setWarningTag("FOUR_ACCOUNT_REFRESH_WARN")
+        ));
+
+        BookingRefundReplayRunLogSummaryRespVO summary = service.getReplayRunLogSummary("RR201");
+
+        assertEquals("RR201", summary.getRunId());
+        assertEquals(2, summary.getWarningCount());
+        assertNotNull(summary.getTopFailCodes());
+        assertEquals("E100", summary.getTopFailCodes().get(0).getKey());
+        assertEquals(2, summary.getTopFailCodes().get(0).getCount());
+        assertEquals("FOUR_ACCOUNT_REFRESH_WARN", summary.getTopWarningTags().get(0).getKey());
+    }
+
+    @Test
+    void syncReplayRunLogTickets_shouldFailOpenAndReturnFailedIds() {
+        when(refundReplayRunLogMapper.selectByRunId(eq("RR301"))).thenReturn(
+                new BookingRefundReplayRunLogDO().setId(301L).setRunId("RR301"));
+        when(refundReplayRunDetailMapper.selectByRunIdAndResultStatus(eq("RR301"), eq("FAIL"))).thenReturn(Arrays.asList(
+                new BookingRefundReplayRunDetailDO().setRunId("RR301").setNotifyLogId(11L)
+                        .setOrderId(5001L).setResultStatus("FAIL").setResultCode("E101").setResultMsg("fail one"),
+                new BookingRefundReplayRunDetailDO().setRunId("RR301").setNotifyLogId(12L)
+                        .setOrderId(5002L).setResultStatus("FAIL").setResultCode("E102").setResultMsg("fail two")
+        ));
+        when(tradeReviewTicketApi.upsertReviewTicket(any()))
+                .thenReturn(1001L)
+                .thenThrow(new RuntimeException("trade down"));
+
+        BookingRefundReplayRunLogSyncTicketRespVO respVO =
+                service.syncReplayRunLogTickets("RR301", true, 99L, "ops-user");
+
+        assertEquals("RR301", respVO.getRunId());
+        assertEquals(2, respVO.getAttemptedCount());
+        assertEquals(1, respVO.getSuccessCount());
+        assertEquals(1, respVO.getFailedCount());
+        assertEquals(1, respVO.getFailedIds().size());
+        assertEquals(12L, respVO.getFailedIds().get(0));
+        verify(tradeReviewTicketApi, times(2)).upsertReviewTicket(any());
+    }
+
+    @Test
+    void getReplayRunLogPage_shouldNormalizeNewFilters() {
+        BookingRefundReplayRunLogPageReqVO reqVO = new BookingRefundReplayRunLogPageReqVO();
+        reqVO.setRunId("  RR401 ");
+        reqVO.setOperator(" ops-user ");
+        reqVO.setTriggerSource("manual");
+        reqVO.setStatus("PARTIAL_FAIL");
+        reqVO.setMinFailCount(-1);
+        when(refundReplayRunLogMapper.selectPage(eq(reqVO)))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 0L));
+
+        PageResult<BookingRefundReplayRunLogDO> pageResult = service.getReplayRunLogPage(reqVO);
+
+        assertEquals(0L, pageResult.getTotal());
+        assertEquals("RR401", reqVO.getRunId());
+        assertEquals("ops-user", reqVO.getOperator());
+        assertEquals("MANUAL", reqVO.getTriggerSource());
+        assertEquals("partial_fail", reqVO.getStatus());
+        assertEquals(0, reqVO.getMinFailCount());
+        verify(refundReplayRunLogMapper).selectPage(eq(reqVO));
     }
 
     @Test

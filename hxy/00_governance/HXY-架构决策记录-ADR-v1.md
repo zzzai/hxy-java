@@ -937,3 +937,17 @@
 - 备选方案：继续仅依赖 V2 台账的逐条 `lastReplay*` 字段，不新增批次级运行台账。
 - 否决原因：无法回答“本次批量重放整体效果如何、由谁触发、何时结束、失败比例多少”，运营复盘成本高。
 - 回滚条件：若批次台账写入异常，可保留 replay 主流程并降级为仅日志输出 run 摘要；待表结构恢复后重新开启 run-log 写入。
+
+## ADR-096：退款补偿 V2 看板采用“runId 明细聚合 + 工单批量联动 + fail-open”策略
+
+- 背景：V3 已具备 run-log 批次台账，但仍缺“runId 级失败码/告警标签聚合”和“按批次一键同步统一工单”的运营闭环；仅靠 run-log 总计数字段难以快速定位失败主因与高风险批次。
+- 决策：
+  1) 新增 `hxy_booking_refund_replay_run_detail` 明细台账，固化每条 replay 结果（`runId/notifyLogId/resultStatus/resultCode/resultMsg/warningTag`），唯一键 `run_id + notify_log_id` 保证幂等落账；
+  2) 新增 `GET /booking/refund-notify-log/replay-run-log/summary`，按 runId 输出 `warningCount/topFailCodes/topWarningTags` 聚合；
+  3) 新增 `POST /booking/refund-notify-log/replay-run-log/sync-tickets`，按 runId 明细（默认仅 FAIL）批量 upsert 工单，来源号固定 `REFUND_REPLAY_RUN:<runId>:<notifyLogId>`；
+  4) 工单联动采用 fail-open：trade 异常不阻断批次，接口返回 `attempted/success/failed/failedIds`；
+  5) `replay-run-log/page` 扩展筛选 `hasWarning/minFailCount/triggerSource`，保持旧字段与旧语义兼容。
+- 影响范围：booking 退款补偿运营看板、失败批次工单闭环效率、跨域降级稳定性。
+- 备选方案：继续仅提供 run-log 总计数字段和逐条日志，不新增明细聚合与工单批量联动。
+- 否决原因：运营无法直接识别主失败类型与高风险告警标签，且批次级联动需要大量手工操作，收口时效不可控。
+- 回滚条件：若明细台账写入异常，可临时关闭 summary/sync-tickets 入口并退回 run-log 基础查询；主 replay 链路与 run-log 主表保持可用。

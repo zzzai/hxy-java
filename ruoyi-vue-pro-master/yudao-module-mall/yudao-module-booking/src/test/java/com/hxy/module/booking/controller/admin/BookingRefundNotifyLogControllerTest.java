@@ -10,6 +10,9 @@ import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogReplayRe
 import com.hxy.module.booking.controller.admin.vo.BookingRefundNotifyLogRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSummaryRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingRefundReplayRunLogSyncTicketRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundNotifyLogDO;
 import com.hxy.module.booking.dal.dataobject.BookingRefundReplayRunLogDO;
 import com.hxy.module.booking.service.BookingRefundNotifyLogService;
@@ -136,6 +139,9 @@ class BookingRefundNotifyLogControllerTest extends BaseMockitoUnitTest {
         BookingRefundReplayRunLogPageReqVO reqVO = new BookingRefundReplayRunLogPageReqVO();
         reqVO.setPageNo(1);
         reqVO.setPageSize(10);
+        reqVO.setHasWarning(true);
+        reqVO.setMinFailCount(1);
+        reqVO.setTriggerSource("MANUAL");
         BookingRefundReplayRunLogDO row = new BookingRefundReplayRunLogDO()
                 .setId(1L)
                 .setRunId("RR001")
@@ -164,5 +170,55 @@ class BookingRefundNotifyLogControllerTest extends BaseMockitoUnitTest {
         assertTrue(result.isSuccess());
         assertEquals("RR002", result.getData().getRunId());
         verify(refundNotifyLogService).getReplayRunLog(eq(2L));
+    }
+
+    @Test
+    void replayRunLogSummary_shouldDelegateService() {
+        BookingRefundReplayRunLogSummaryRespVO summaryRespVO = new BookingRefundReplayRunLogSummaryRespVO();
+        summaryRespVO.setRunId("RR003");
+        summaryRespVO.setWarningCount(2);
+        when(refundNotifyLogService.getReplayRunLogSummary(eq("RR003"))).thenReturn(summaryRespVO);
+
+        CommonResult<BookingRefundReplayRunLogSummaryRespVO> result = controller.replayRunLogSummary("RR003");
+
+        assertTrue(result.isSuccess());
+        assertEquals("RR003", result.getData().getRunId());
+        assertEquals(2, result.getData().getWarningCount());
+        verify(refundNotifyLogService).getReplayRunLogSummary(eq("RR003"));
+    }
+
+    @Test
+    void replayRunLogSyncTickets_shouldDelegateService() {
+        BookingRefundReplayRunLogSyncTicketReqVO reqVO = new BookingRefundReplayRunLogSyncTicketReqVO();
+        reqVO.setRunId("RR004");
+        reqVO.setOnlyFail(false);
+        BookingRefundReplayRunLogSyncTicketRespVO respVO = new BookingRefundReplayRunLogSyncTicketRespVO();
+        respVO.setRunId("RR004");
+        respVO.setSuccessCount(3);
+        when(refundNotifyLogService.syncReplayRunLogTickets(eq("RR004"), eq(false), isNull(), isNull()))
+                .thenReturn(respVO);
+
+        CommonResult<BookingRefundReplayRunLogSyncTicketRespVO> result = controller.replayRunLogSyncTickets(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals("RR004", result.getData().getRunId());
+        assertEquals(3, result.getData().getSuccessCount());
+        verify(refundNotifyLogService).syncReplayRunLogTickets(eq("RR004"), eq(false), isNull(), isNull());
+    }
+
+    @Test
+    void replayRunLogSyncTickets_shouldDefaultOnlyFailTrue() {
+        BookingRefundReplayRunLogSyncTicketReqVO reqVO = new BookingRefundReplayRunLogSyncTicketReqVO();
+        reqVO.setRunId("RR005");
+        BookingRefundReplayRunLogSyncTicketRespVO respVO = new BookingRefundReplayRunLogSyncTicketRespVO();
+        respVO.setRunId("RR005");
+        when(refundNotifyLogService.syncReplayRunLogTickets(eq("RR005"), eq(true), isNull(), isNull()))
+                .thenReturn(respVO);
+
+        CommonResult<BookingRefundReplayRunLogSyncTicketRespVO> result = controller.replayRunLogSyncTickets(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals("RR005", result.getData().getRunId());
+        verify(refundNotifyLogService).syncReplayRunLogTickets(eq("RR005"), eq(true), isNull(), isNull());
     }
 }
