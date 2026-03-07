@@ -28,6 +28,7 @@ RUN_BOOKING_REFUND_AUDIT_GATE="${RUN_BOOKING_REFUND_AUDIT_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_V2_GATE="${RUN_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE:-1}"
+RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE:-1}"
 RUN_STORE_SKU_STOCK_GATE="${RUN_STORE_SKU_STOCK_GATE:-1}"
 RUN_STORE_LIFECYCLE_GATE="${RUN_STORE_LIFECYCLE_GATE:-1}"
 RUN_TESTS="${RUN_TESTS:-1}"
@@ -40,6 +41,7 @@ REQUIRE_BOOKING_REFUND_AUDIT_GATE="${REQUIRE_BOOKING_REFUND_AUDIT_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE:-1}"
+REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE:-1}"
 REQUIRE_STORE_SKU_STOCK_GATE="${REQUIRE_STORE_SKU_STOCK_GATE:-0}"
 REQUIRE_STORE_LIFECYCLE_GATE="${REQUIRE_STORE_LIFECYCLE_GATE:-0}"
 
@@ -77,6 +79,7 @@ Options:
   --skip-booking-refund-replay-v2-gate       skip booking refund replay v2 gate
   --skip-booking-refund-replay-runlog-gate   skip booking refund replay runlog gate
   --skip-booking-refund-replay-run-summary-gate skip booking refund replay run summary gate
+  --skip-booking-refund-replay-ticket-sync-gate skip booking refund replay ticket sync audit gate
   --skip-stock-gate                          跳过库存门禁
   --skip-lifecycle-gate                      跳过生命周期审批门禁
   --skip-tests                               跳过回归测试（product/trade/booking）
@@ -89,6 +92,7 @@ Options:
   --require-booking-refund-replay-v2-gate <0|1> block on booking refund replay v2 gate failure (default 1)
   --require-booking-refund-replay-runlog-gate <0|1> block on booking refund replay runlog gate failure (default 1)
   --require-booking-refund-replay-run-summary-gate <0|1> block on booking refund replay run summary gate failure (default 1)
+  --require-booking-refund-replay-ticket-sync-gate <0|1> block on booking refund replay ticket sync gate failure (default 1)
   --require-store-sku-stock-gate <0|1>       库存门禁失败是否阻断（默认 0）
   --require-store-lifecycle-gate <0|1>       生命周期门禁失败是否阻断（默认 0）
 
@@ -176,6 +180,10 @@ while [[ $# -gt 0 ]]; do
       RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0
       shift
       ;;
+    --skip-booking-refund-replay-ticket-sync-gate)
+      RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0
+      shift
+      ;;
     --skip-stock-gate)
       RUN_STORE_SKU_STOCK_GATE=0
       shift
@@ -220,6 +228,10 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="$2"
       shift 2
       ;;
+    --require-booking-refund-replay-ticket-sync-gate)
+      REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="$2"
+      shift 2
+      ;;
     --require-store-sku-stock-gate)
       REQUIRE_STORE_SKU_STOCK_GATE="$2"
       STOCK_REQUIRE_OVERDUE_ZERO="$2"
@@ -262,6 +274,7 @@ for flag in \
   "${RUN_BOOKING_REFUND_REPLAY_V2_GATE}" \
   "${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE}" \
   "${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}" \
+  "${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" \
   "${RUN_STORE_SKU_STOCK_GATE}" \
   "${RUN_STORE_LIFECYCLE_GATE}" \
   "${RUN_TESTS}" \
@@ -273,6 +286,7 @@ for flag in \
   "${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}" \
   "${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE}" \
   "${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}" \
+  "${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" \
   "${REQUIRE_STORE_SKU_STOCK_GATE}" \
   "${REQUIRE_STORE_LIFECYCLE_GATE}" \
   "${STOCK_REQUIRE_OVERDUE_ZERO}" \
@@ -300,6 +314,7 @@ BOOKING_REFUND_AUDIT_GATE_LOG="${LOG_DIR}/booking_refund_audit_gate.log"
 BOOKING_REFUND_REPLAY_V2_GATE_LOG="${LOG_DIR}/booking_refund_replay_v2_gate.log"
 BOOKING_REFUND_REPLAY_RUNLOG_GATE_LOG="${LOG_DIR}/booking_refund_replay_runlog_gate.log"
 BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_LOG="${LOG_DIR}/booking_refund_replay_run_summary_gate.log"
+BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_LOG="${LOG_DIR}/booking_refund_replay_ticket_sync_gate.log"
 STORE_SKU_STOCK_GATE_LOG="${LOG_DIR}/store_sku_stock_gate.log"
 STORE_LIFECYCLE_GATE_LOG="${LOG_DIR}/store_lifecycle_change_order_gate.log"
 TEST_LOG="${LOG_DIR}/regression_tests.log"
@@ -324,6 +339,10 @@ BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR="${ARTIFACT_DIR}/booking_refund_repla
 BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_SUMMARY="${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}/summary.txt"
 BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_TSV="${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}/result.tsv"
 
+BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR="${ARTIFACT_DIR}/booking_refund_replay_ticket_sync_gate"
+BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_SUMMARY="${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}/summary.txt"
+BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV="${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}/result.tsv"
+
 STORE_SKU_STOCK_GATE_DIR="${ARTIFACT_DIR}/store_sku_stock_gate"
 STORE_SKU_STOCK_GATE_SUMMARY="${STORE_SKU_STOCK_GATE_DIR}/summary.txt"
 STORE_SKU_STOCK_GATE_TSV="${STORE_SKU_STOCK_GATE_DIR}/result.tsv"
@@ -332,7 +351,7 @@ STORE_LIFECYCLE_GATE_DIR="${ARTIFACT_DIR}/store_lifecycle_change_order_gate"
 STORE_LIFECYCLE_GATE_SUMMARY="${STORE_LIFECYCLE_GATE_DIR}/summary.txt"
 STORE_LIFECYCLE_GATE_TSV="${STORE_LIFECYCLE_GATE_DIR}/result.tsv"
 
-mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
+mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
 echo -e "stage\tseverity\tcode\tdetail" > "${RESULT_TSV}"
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
@@ -344,6 +363,7 @@ booking_refund_audit_gate_rc="SKIP"
 booking_refund_replay_v2_gate_rc="SKIP"
 booking_refund_replay_runlog_gate_rc="SKIP"
 booking_refund_replay_run_summary_gate_rc="SKIP"
+booking_refund_replay_ticket_sync_gate_rc="SKIP"
 store_sku_stock_gate_rc="SKIP"
 store_lifecycle_gate_rc="SKIP"
 tests_rc="SKIP"
@@ -383,6 +403,7 @@ finalize() {
     echo "run_booking_refund_replay_v2_gate=${RUN_BOOKING_REFUND_REPLAY_V2_GATE}"
     echo "run_booking_refund_replay_runlog_gate=${RUN_BOOKING_REFUND_REPLAY_RUNLOG_GATE}"
     echo "run_booking_refund_replay_run_summary_gate=${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}"
+    echo "run_booking_refund_replay_ticket_sync_gate=${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}"
     echo "run_store_sku_stock_gate=${RUN_STORE_SKU_STOCK_GATE}"
     echo "run_store_lifecycle_gate=${RUN_STORE_LIFECYCLE_GATE}"
     echo "run_tests=${RUN_TESTS}"
@@ -395,6 +416,7 @@ finalize() {
     echo "require_booking_refund_replay_v2_gate=${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}"
     echo "require_booking_refund_replay_runlog_gate=${REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE}"
     echo "require_booking_refund_replay_run_summary_gate=${REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}"
+    echo "require_booking_refund_replay_ticket_sync_gate=${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}"
     echo "require_store_sku_stock_gate=${REQUIRE_STORE_SKU_STOCK_GATE}"
     echo "require_store_lifecycle_gate=${REQUIRE_STORE_LIFECYCLE_GATE}"
     echo "mysql_init_rc=${mysql_init_rc}"
@@ -405,6 +427,7 @@ finalize() {
     echo "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
     echo "booking_refund_replay_runlog_gate_rc=${booking_refund_replay_runlog_gate_rc}"
     echo "booking_refund_replay_run_summary_gate_rc=${booking_refund_replay_run_summary_gate_rc}"
+    echo "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
     echo "store_sku_stock_gate_rc=${store_sku_stock_gate_rc}"
     echo "store_lifecycle_change_order_gate_rc=${store_lifecycle_gate_rc}"
     echo "tests_rc=${tests_rc}"
@@ -419,6 +442,7 @@ finalize() {
     echo "booking_refund_replay_v2_gate_log=${BOOKING_REFUND_REPLAY_V2_GATE_LOG}"
     echo "booking_refund_replay_runlog_gate_log=${BOOKING_REFUND_REPLAY_RUNLOG_GATE_LOG}"
     echo "booking_refund_replay_run_summary_gate_log=${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_LOG}"
+    echo "booking_refund_replay_ticket_sync_gate_log=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_LOG}"
     echo "store_sku_stock_gate_log=${STORE_SKU_STOCK_GATE_LOG}"
     echo "store_lifecycle_change_order_gate_log=${STORE_LIFECYCLE_GATE_LOG}"
     echo "booking_refund_notify_gate_summary=${BOOKING_REFUND_NOTIFY_GATE_SUMMARY}"
@@ -431,6 +455,8 @@ finalize() {
     echo "booking_refund_replay_runlog_gate_tsv=${BOOKING_REFUND_REPLAY_RUNLOG_GATE_TSV}"
     echo "booking_refund_replay_run_summary_gate_summary=${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_SUMMARY}"
     echo "booking_refund_replay_run_summary_gate_tsv=${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_TSV}"
+    echo "booking_refund_replay_ticket_sync_gate_summary=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_SUMMARY}"
+    echo "booking_refund_replay_ticket_sync_gate_tsv=${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV}"
     echo "store_sku_stock_gate_summary=${STORE_SKU_STOCK_GATE_SUMMARY}"
     echo "store_sku_stock_gate_tsv=${STORE_SKU_STOCK_GATE_TSV}"
     echo "store_lifecycle_change_order_gate_summary=${STORE_LIFECYCLE_GATE_SUMMARY}"
@@ -670,6 +696,31 @@ if [[ "${RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE}" == "1" ]]; then
     exit 2
   elif [[ "${booking_refund_replay_run_summary_gate_rc}" == "2" ]]; then
     add_issue "booking-refund-replay-run-summary-gate" "WARN" "OPS16_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_BLOCK_AS_WARN" "booking_refund_replay_run_summary_gate_rc=${booking_refund_replay_run_summary_gate_rc}"
+  fi
+fi
+
+if [[ "${RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" == "1" ]]; then
+  echo "[ops-stageb-p1-local-ci] step=booking-refund-replay-ticket-sync-gate"
+  set +e
+  bash script/dev/check_booking_refund_replay_ticket_sync_gate.sh \
+    --summary-file "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_SUMMARY}" \
+    --output-tsv "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV}" > "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_LOG}" 2>&1
+  booking_refund_replay_ticket_sync_gate_rc=$?
+  set -e
+  append_gate_tsv "booking-refund-replay-ticket-sync-gate" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_TSV}"
+
+  if [[ "${booking_refund_replay_ticket_sync_gate_rc}" != "0" && "${booking_refund_replay_ticket_sync_gate_rc}" != "2" ]]; then
+    if [[ "${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" == "1" ]]; then
+      add_issue "booking-refund-replay-ticket-sync-gate" "BLOCK" "OPS17_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_EXEC_FAIL" "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
+      PIPELINE_EXIT_CODE=2
+      exit 2
+    fi
+    add_issue "booking-refund-replay-ticket-sync-gate" "WARN" "OPS17_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_EXEC_FAIL" "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
+  elif [[ "${booking_refund_replay_ticket_sync_gate_rc}" == "2" && "${REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE}" == "1" ]]; then
+    PIPELINE_EXIT_CODE=2
+    exit 2
+  elif [[ "${booking_refund_replay_ticket_sync_gate_rc}" == "2" ]]; then
+    add_issue "booking-refund-replay-ticket-sync-gate" "WARN" "OPS18_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_BLOCK_AS_WARN" "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
   fi
 fi
 

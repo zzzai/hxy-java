@@ -10,6 +10,7 @@ on:
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_runlog_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh"
+      - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_sku_stock_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_lifecycle_change_order_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh"
@@ -53,6 +54,11 @@ on:
         type: boolean
       require_booking_refund_replay_run_summary_gate:
         description: "退款重放汇总与工单同步门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
+      require_booking_refund_replay_ticket_sync_gate:
+        description: "退款重放明细与工单同步审计门禁失败是否阻断"
         required: true
         default: true
         type: boolean
@@ -149,6 +155,7 @@ jobs:
           require_refund_replay_v2_input="${{ github.event.inputs.require_booking_refund_replay_v2_gate }}"
           require_refund_replay_runlog_input="${{ github.event.inputs.require_booking_refund_replay_runlog_gate }}"
           require_refund_replay_run_summary_input="${{ github.event.inputs.require_booking_refund_replay_run_summary_gate }}"
+          require_refund_replay_ticket_sync_input="${{ github.event.inputs.require_booking_refund_replay_ticket_sync_gate }}"
           require_stock_input="${{ github.event.inputs.require_store_sku_stock_gate }}"
           require_lifecycle_input="${{ github.event.inputs.require_store_lifecycle_gate }}"
           run_tests_input="${{ github.event.inputs.run_tests }}"
@@ -161,6 +168,7 @@ jobs:
           [[ -z "${require_refund_replay_v2_input}" ]] && require_refund_replay_v2_input="true"
           [[ -z "${require_refund_replay_runlog_input}" ]] && require_refund_replay_runlog_input="true"
           [[ -z "${require_refund_replay_run_summary_input}" ]] && require_refund_replay_run_summary_input="true"
+          [[ -z "${require_refund_replay_ticket_sync_input}" ]] && require_refund_replay_ticket_sync_input="true"
           [[ -z "${require_stock_input}" ]] && require_stock_input="true"
           [[ -z "${require_lifecycle_input}" ]] && require_lifecycle_input="true"
           [[ -z "${run_tests_input}" ]] && run_tests_input="true"
@@ -173,6 +181,7 @@ jobs:
           require_refund_replay_v2=0
           require_refund_replay_runlog=0
           require_refund_replay_run_summary=0
+          require_refund_replay_ticket_sync=0
           require_stock=0
           require_lifecycle=0
           run_tests=0
@@ -183,6 +192,7 @@ jobs:
           [[ "${require_refund_replay_v2_input}" == "true" ]] && require_refund_replay_v2=1
           [[ "${require_refund_replay_runlog_input}" == "true" ]] && require_refund_replay_runlog=1
           [[ "${require_refund_replay_run_summary_input}" == "true" ]] && require_refund_replay_run_summary=1
+          [[ "${require_refund_replay_ticket_sync_input}" == "true" ]] && require_refund_replay_ticket_sync=1
           [[ "${require_stock_input}" == "true" ]] && require_stock=1
           [[ "${require_lifecycle_input}" == "true" ]] && require_lifecycle=1
           [[ "${run_tests_input}" == "true" ]] && run_tests=1
@@ -228,6 +238,7 @@ jobs:
           REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${require_refund_replay_v2}" \
           REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${require_refund_replay_runlog}" \
           REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${require_refund_replay_run_summary}" \
+          REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${require_refund_replay_ticket_sync}" \
           REQUIRE_STORE_SKU_STOCK_GATE="${require_stock}" \
           REQUIRE_STORE_LIFECYCLE_GATE="${require_lifecycle}" \
           REGRESSION_TEST_CLASSES="${regression_test_classes}" \
@@ -277,8 +288,11 @@ jobs:
             echo "| booking_refund_replay_v2_gate_rc | $(kv "${summary_file}" booking_refund_replay_v2_gate_rc) |"
             echo "| booking_refund_replay_runlog_gate_rc | $(kv "${summary_file}" booking_refund_replay_runlog_gate_rc) |"
             echo "| booking_refund_replay_run_summary_gate_rc | $(kv "${summary_file}" booking_refund_replay_run_summary_gate_rc) |"
+            echo "| booking_refund_replay_ticket_sync_gate_rc | $(kv "${summary_file}" booking_refund_replay_ticket_sync_gate_rc) |"
             echo "| run_booking_refund_replay_run_summary_gate | $(kv "${summary_file}" run_booking_refund_replay_run_summary_gate) |"
             echo "| require_booking_refund_replay_run_summary_gate | $(kv "${summary_file}" require_booking_refund_replay_run_summary_gate) |"
+            echo "| run_booking_refund_replay_ticket_sync_gate | $(kv "${summary_file}" run_booking_refund_replay_ticket_sync_gate) |"
+            echo "| require_booking_refund_replay_ticket_sync_gate | $(kv "${summary_file}" require_booking_refund_replay_ticket_sync_gate) |"
             echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
             echo "| store_lifecycle_change_order_gate_rc | $(kv "${summary_file}" store_lifecycle_change_order_gate_rc) |"
             echo "| tests_rc | $(kv "${summary_file}" tests_rc) |"
