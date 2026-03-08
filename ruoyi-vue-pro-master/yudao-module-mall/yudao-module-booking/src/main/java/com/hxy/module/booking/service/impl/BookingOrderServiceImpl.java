@@ -14,6 +14,7 @@ import com.hxy.module.booking.service.OffpeakRuleService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
 import com.hxy.module.booking.service.TechnicianDispatchService;
 import com.hxy.module.booking.service.TimeSlotService;
+import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
 import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.PayOrderApi;
 import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderCreateReqDTO;
@@ -426,10 +427,20 @@ public class BookingOrderServiceImpl implements BookingOrderService {
                             .setId(order.getId())
                             .setRefundTime(LocalDateTime.now()));
                 }
-                log.warn("[updateOrderRefunded][order({}) 已退款且回调退款单一致({})，幂等返回]", id, payRefundId);
+                FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                        id, payRefundId, buildBookingRefundMerchantRefundId(id), "IDEMPOTENT_HIT");
+                log.warn("[finance-audit][scene=booking_refund_callback_idempotent][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                        fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                        fields.getSourceBizNo(), fields.getErrorCode());
                 return;
             }
             if (order.getPayRefundId() != null) {
+                FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                        id, payRefundId, buildBookingRefundMerchantRefundId(id),
+                        String.valueOf(BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT.getCode()));
+                log.warn("[finance-audit][scene=booking_refund_callback_conflict][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                        fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                        fields.getSourceBizNo(), fields.getErrorCode());
                 throw exception(BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT);
             }
             validatePayRefund(order, payRefundId);
@@ -437,12 +448,20 @@ public class BookingOrderServiceImpl implements BookingOrderService {
                     .setId(order.getId())
                     .setPayRefundId(payRefundId)
                     .setRefundTime(order.getRefundTime() != null ? order.getRefundTime() : LocalDateTime.now()));
-            log.info("退款回调补录成功，orderId={}, payRefundId={}", id, payRefundId);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    id, payRefundId, buildBookingRefundMerchantRefundId(id), "BACKFILL_OK");
+            log.info("[finance-audit][scene=booking_refund_callback_backfill][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
             return;
         }
         if (!BookingOrderStatusEnum.PAID.getStatus().equals(order.getStatus())) {
-            log.warn("[updateOrderRefunded][order({}) 当前状态({}) 非已支付，拒绝回调]",
-                    id, order.getStatus());
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    id, payRefundId, buildBookingRefundMerchantRefundId(id),
+                    String.valueOf(BOOKING_ORDER_STATUS_ERROR.getCode()));
+            log.warn("[finance-audit][scene=booking_refund_callback_status_reject][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}][status={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode(), order.getStatus());
             throw exception(BOOKING_ORDER_STATUS_ERROR);
         }
         validatePayRefund(order, payRefundId);
@@ -454,7 +473,11 @@ public class BookingOrderServiceImpl implements BookingOrderService {
         cancelCommissionSafely("refundCallback", order.getId());
         syncTradeServiceOrderSafely("refundCallback", order.getPayOrderId(), () ->
                 tradeServiceOrderApi.cancelByPayOrderId(order.getPayOrderId(), SYNC_REMARK_REFUNDED));
-        log.info("退款回调完成，orderId={}, payRefundId={}", id, payRefundId);
+        FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                id, payRefundId, buildBookingRefundMerchantRefundId(id), "OK");
+        log.info("[finance-audit][scene=booking_refund_callback_done][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                fields.getSourceBizNo(), fields.getErrorCode());
     }
 
     @Override
@@ -609,8 +632,23 @@ public class BookingOrderServiceImpl implements BookingOrderService {
             technicianCommissionService.cancelCommission(orderId);
         } catch (Exception ex) {
             // 冲正失败不阻断退款主流程，后续由对账和工单巡检收口
-            log.error("[cancelCommissionSafely][action({}) orderId({}) fail-open degraded]", action, orderId, ex);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    orderId, -1L, "BOOKING_COMMISSION_REVERSAL:" + orderId, ex.getClass().getSimpleName());
+            log.error("[finance-audit][scene=commission_reversal_fail_open][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}][action={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode(), action, ex);
         }
+    }
+
+    private FinanceLogFieldValidator.FinanceLogFields validateFinanceLogFields(Long orderId, Long payRefundId,
+                                                                                String sourceBizNo, String errorCode) {
+        FinanceLogFieldValidator.FinanceLogFields fields = FinanceLogFieldValidator.validate(
+                "NO_RUN", orderId, payRefundId, sourceBizNo, errorCode);
+        if (!fields.isComplete()) {
+            log.warn("[finance-log-validate][scene=booking_refund_callback][missingFields={}]",
+                    fields.getMissingFields());
+        }
+        return fields;
     }
 
     private Integer resolvePayPrice(TimeSlotDO timeSlot, Integer originalPrice) {

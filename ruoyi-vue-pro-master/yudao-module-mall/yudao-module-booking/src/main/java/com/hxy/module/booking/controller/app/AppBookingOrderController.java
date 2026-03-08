@@ -3,6 +3,7 @@ package com.hxy.module.booking.controller.app;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import com.hxy.module.booking.controller.app.vo.*;
+import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
 import com.hxy.module.booking.convert.BookingOrderConvert;
 import com.hxy.module.booking.dal.dataobject.BookingOrderDO;
 import com.hxy.module.booking.service.BookingOrderService;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +32,7 @@ import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUti
 @RequestMapping("/booking/order")
 @Validated
 @RequiredArgsConstructor
+@Slf4j
 public class AppBookingOrderController {
 
     private static final Pattern REFUND_BIZ_NO_PATTERN = Pattern.compile("^(\\d+)(?:-refund)?$");
@@ -98,13 +101,30 @@ public class AppBookingOrderController {
     @PermitAll
     public CommonResult<Boolean> updateOrderRefunded(@Valid @RequestBody PayRefundNotifyReqDTO notifyReqDTO) {
         Long orderId = null;
+        FinanceLogFieldValidator.FinanceLogFields beginFields = validateFinanceLogFields(
+                null, notifyReqDTO == null ? null : notifyReqDTO.getPayRefundId(),
+                notifyReqDTO == null ? null : notifyReqDTO.getMerchantRefundId(), "CALLBACK_RECEIVED");
+        log.info("[finance-audit][scene=booking_refund_callback_received][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                beginFields.getRunId(), beginFields.getOrderId(), beginFields.getPayRefundId(),
+                beginFields.getSourceBizNo(), beginFields.getErrorCode());
         try {
             orderId = parseOrderId(notifyReqDTO.getMerchantRefundId());
             bookingOrderService.updateOrderRefunded(orderId, notifyReqDTO.getPayRefundId());
             refundNotifyLogService.recordNotifySuccess(orderId, notifyReqDTO);
+            FinanceLogFieldValidator.FinanceLogFields successFields = validateFinanceLogFields(
+                    orderId, notifyReqDTO.getPayRefundId(), notifyReqDTO.getMerchantRefundId(), "CALLBACK_SUCCESS");
+            log.info("[finance-audit][scene=booking_refund_callback_success][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    successFields.getRunId(), successFields.getOrderId(), successFields.getPayRefundId(),
+                    successFields.getSourceBizNo(), successFields.getErrorCode());
             return success(true);
         } catch (Exception ex) {
             refundNotifyLogService.recordNotifyFailure(orderId, notifyReqDTO, ex);
+            FinanceLogFieldValidator.FinanceLogFields failFields = validateFinanceLogFields(
+                    orderId, notifyReqDTO == null ? null : notifyReqDTO.getPayRefundId(),
+                    notifyReqDTO == null ? null : notifyReqDTO.getMerchantRefundId(), ex.getClass().getSimpleName());
+            log.warn("[finance-audit][scene=booking_refund_callback_failed][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    failFields.getRunId(), failFields.getOrderId(), failFields.getPayRefundId(),
+                    failFields.getSourceBizNo(), failFields.getErrorCode(), ex);
             throw ex;
         }
     }
@@ -119,6 +139,17 @@ public class AppBookingOrderController {
         } catch (NumberFormatException ex) {
             throw exception(BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID);
         }
+    }
+
+    private FinanceLogFieldValidator.FinanceLogFields validateFinanceLogFields(Long orderId, Long payRefundId,
+                                                                                String sourceBizNo, String errorCode) {
+        FinanceLogFieldValidator.FinanceLogFields fields = FinanceLogFieldValidator.validate(
+                "NO_RUN", orderId, payRefundId, sourceBizNo, errorCode);
+        if (!fields.isComplete()) {
+            log.warn("[finance-log-validate][scene=booking_refund_callback][missingFields={}]",
+                    fields.getMissingFields());
+        }
+        return fields;
     }
 
 }

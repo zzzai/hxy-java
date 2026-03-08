@@ -16,6 +16,7 @@ import com.hxy.module.booking.enums.CommissionTypeEnum;
 import com.hxy.module.booking.enums.DispatchModeEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.TechnicianCommissionService;
+import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
 import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -123,6 +124,11 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
             commissionMapper.insert(commission);
             log.info("创建佣金记录，commissionId={}, orderId={}, technicianId={}, amount={}, sourceBizNo={}",
                     commission.getId(), orderId, order.getTechnicianId(), commissionAmount, sourceBizNo);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    orderId, -1L, sourceBizNo, "COMMISSION_ACCRUAL_OK", "commission_accrual");
+            log.info("[finance-audit][scene=commission_accrual_success][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
         } catch (DuplicateKeyException ex) {
             TechnicianCommissionDO existingByBizKey = commissionMapper.selectByBizKey(ACCRUAL_BIZ_TYPE, sourceBizNo, order.getTechnicianId());
             if (existingByBizKey == null) {
@@ -132,6 +138,11 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                     baseAmount, rate, commissionAmount, sourceBizNo, order.getTechnicianId());
             log.info("命中佣金计提幂等键，跳过重复创建，orderId={}, commissionId={}, sourceBizNo={}",
                     orderId, existingByBizKey.getId(), sourceBizNo);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    orderId, -1L, sourceBizNo, "COMMISSION_ACCRUAL_IDEMPOTENT_HIT", "commission_accrual");
+            log.info("[finance-audit][scene=commission_accrual_idempotent_hit][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
         }
     }
 
@@ -193,6 +204,11 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                     log.info("创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}, bizNo={}",
                             commission.getId(), reversal.getId(), orderId, reversalBizNo);
                     appendSettlementReversalAudit(commission, reversalBizNo, expectedCommissionAmount);
+                    FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                            orderId, -1L, reversal.getSourceBizNo(), "COMMISSION_REVERSAL_OK", "commission_reversal");
+                    log.info("[finance-audit][scene=commission_reversal_success][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                            fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                            fields.getSourceBizNo(), fields.getErrorCode());
                 } catch (DuplicateKeyException ex) {
                     TechnicianCommissionDO reversalByOrigin = commissionMapper.selectByOriginCommissionId(commission.getId());
                     if (reversalByOrigin == null) {
@@ -210,6 +226,11 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                             log.info("重试后创建佣金冲正记录，originCommissionId={}, reversalCommissionId={}, orderId={}, bizNo={}",
                                     commission.getId(), reversal.getId(), orderId, reversalBizNo);
                             appendSettlementReversalAudit(commission, reversalBizNo, expectedCommissionAmount);
+                            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                                    orderId, -1L, reversal.getSourceBizNo(), "COMMISSION_REVERSAL_RETRY_OK", "commission_reversal");
+                            log.info("[finance-audit][scene=commission_reversal_retry_success][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                                    fields.getSourceBizNo(), fields.getErrorCode());
                         } catch (DuplicateKeyException retryEx) {
                             TechnicianCommissionDO existingAfterRetry = commissionMapper.selectByOriginCommissionId(commission.getId());
                             if (existingAfterRetry == null
@@ -361,6 +382,12 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 originCommissionId, reversal.getId(), reversal.getBizType(), reversalBizNo, reversal.getStaffId(),
                 expectedBaseAmount, reversal.getBaseAmount(), expectedCommissionRate, reversal.getCommissionRate(),
                 expectedCommissionAmount, reversal.getCommissionAmount());
+        FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                reversal.getOrderId(), -1L, reversalBizNo,
+                String.valueOf(COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT.getCode()), "commission_reversal");
+        log.warn("[finance-audit][scene=commission_reversal_conflict][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                fields.getSourceBizNo(), fields.getErrorCode());
         throw exception(COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT);
     }
 
@@ -386,6 +413,12 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
                 expectedOrderItemId, existing.getOrderItemId(), expectedServiceOrderId, existing.getServiceOrderId(),
                 expectedBaseAmount, existing.getBaseAmount(), expectedCommissionRate, existing.getCommissionRate(),
                 expectedCommissionAmount, existing.getCommissionAmount());
+        FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                expectedOrderId, -1L, sourceBizNo,
+                String.valueOf(COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT.getCode()), "commission_accrual");
+        log.warn("[finance-audit][scene=commission_accrual_conflict][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                fields.getSourceBizNo(), fields.getErrorCode());
         throw exception(COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT);
     }
 
@@ -481,6 +514,17 @@ public class TechnicianCommissionServiceImpl implements TechnicianCommissionServ
         private Long getServiceOrderId() {
             return serviceOrderId;
         }
+    }
+
+    private FinanceLogFieldValidator.FinanceLogFields validateFinanceLogFields(Long orderId, Long payRefundId,
+                                                                                String sourceBizNo, String errorCode,
+                                                                                String scene) {
+        FinanceLogFieldValidator.FinanceLogFields fields = FinanceLogFieldValidator.validate(
+                "NO_RUN", orderId, payRefundId, sourceBizNo, errorCode);
+        if (!fields.isComplete()) {
+            log.warn("[finance-log-validate][scene={}][missingFields={}]", scene, fields.getMissingFields());
+        }
+        return fields;
     }
 
 }

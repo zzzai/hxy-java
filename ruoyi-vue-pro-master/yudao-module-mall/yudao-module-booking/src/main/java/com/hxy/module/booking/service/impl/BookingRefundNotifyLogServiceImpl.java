@@ -33,6 +33,7 @@ import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.service.BookingOrderService;
 import com.hxy.module.booking.service.BookingRefundNotifyLogService;
 import com.hxy.module.booking.service.FourAccountReconcileService;
+import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -185,6 +186,11 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
         String runId = generateRunId();
         LocalDateTime startTime = LocalDateTime.now();
         Long runLogId = insertReplayRunLogStartSafely(runId, normalizedTriggerSource, operator, dryRun, safeLimit, startTime);
+        FinanceLogFieldValidator.FinanceLogFields startFields = validateFinanceLogFields(
+                runId, -1L, -1L, "BOOKING_REFUND_REPLAY_RUN:" + runId, "RUN_START", "booking_refund_replay_due");
+        log.info("[finance-audit][scene=booking_refund_replay_due_start][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}][triggerSource={}][dryRun={}]",
+                startFields.getRunId(), startFields.getOrderId(), startFields.getPayRefundId(),
+                startFields.getSourceBizNo(), startFields.getErrorCode(), normalizedTriggerSource, dryRun);
 
         BookingRefundNotifyLogReplayRespVO respVO = initReplayResp();
         respVO.setRunId(runId);
@@ -199,6 +205,13 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             persistReplayRunDetailsSafely(runId, runLogId, respVO);
             updateReplayRunLogResultSafely(runLogId, scannedCount, respVO.getSuccessCount(), respVO.getSkipCount(),
                     respVO.getFailCount(), runStatus, runErrorMsg, LocalDateTime.now());
+            FinanceLogFieldValidator.FinanceLogFields doneFields = validateFinanceLogFields(
+                    runId, -1L, -1L, "BOOKING_REFUND_REPLAY_RUN:" + runId, "RUN_" + runStatus.toUpperCase(Locale.ROOT),
+                    "booking_refund_replay_due");
+            log.info("[finance-audit][scene=booking_refund_replay_due_done][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}][scanned={}][success={}][skip={}][fail={}]",
+                    doneFields.getRunId(), doneFields.getOrderId(), doneFields.getPayRefundId(),
+                    doneFields.getSourceBizNo(), doneFields.getErrorCode(),
+                    scannedCount, respVO.getSuccessCount(), respVO.getSkipCount(), respVO.getFailCount());
             return respVO;
         } catch (Exception ex) {
             String errorCode = resolveErrorCode(ex);
@@ -210,6 +223,11 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                     LocalDateTime.now());
             respVO.setFailCount(ObjectUtil.defaultIfNull(respVO.getFailCount(), 0) + 1);
             respVO.getDetails().add(buildReplayDetail(null, null, null, REPLAY_RESULT_FAIL, errorCode, errorMsg));
+            FinanceLogFieldValidator.FinanceLogFields failFields = validateFinanceLogFields(
+                    runId, -1L, -1L, "BOOKING_REFUND_REPLAY_RUN:" + runId, errorCode, "booking_refund_replay_due");
+            log.warn("[finance-audit][scene=booking_refund_replay_due_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}][errorMsg={}]",
+                    failFields.getRunId(), failFields.getOrderId(), failFields.getPayRefundId(),
+                    failFields.getSourceBizNo(), failFields.getErrorCode(), errorMsg, ex);
             return respVO;
         }
     }
@@ -388,8 +406,15 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                         buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), null,
                         TICKET_SYNC_STATUS_FAIL, errorCode, errorMsg, operator));
                 syncDetails.add(buildSyncDetail(notifyLogId, null, errorCode, errorMsg));
+                FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                        normalizedRunId, detailDO.getOrderId(), detailDO.getPayRefundId(),
+                        buildReplayRunTicketSourceBizNo(normalizedRunId, notifyLogId), errorCode,
+                        "booking_refund_sync_tickets");
                 log.warn("[syncReplayRunLogTickets][{}][upsert ticket fail, runId={}, notifyLogId={}]",
                         WARNING_TAG_TICKET_SYNC_DEGRADED, normalizedRunId, failedId, ex);
+                log.warn("[finance-audit][scene=booking_refund_sync_ticket_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                        fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                        fields.getSourceBizNo(), fields.getErrorCode());
             }
         }
         if (ticketSyncDegraded) {
@@ -418,8 +443,14 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                 successCount++;
             } catch (Exception ex) {
                 persistLogSafely(buildRepairLog(candidate, STATUS_FAIL, ex));
+                FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                        "NO_RUN", candidate.getOrderId(), candidate.getPayRefundId(),
+                        candidate.getMerchantRefundId(), resolveErrorCode(ex), "booking_refund_reconcile_repair");
                 log.error("[reconcileRefundedOrders][repair failed][orderId={}, payRefundId={}]",
                         candidate.getOrderId(), candidate.getPayRefundId(), ex);
+                log.error("[finance-audit][scene=booking_refund_reconcile_repair_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                        fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                        fields.getSourceBizNo(), fields.getErrorCode());
             }
         }
         return successCount;
@@ -464,6 +495,13 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                     : "REPLAY_SUCCESS|" + warningRemark;
             refundNotifyLogMapper.updateReplaySuccess(logDO.getId(), STATUS_SUCCESS, nextRetryCount,
                     operator, LocalDateTime.now(), REPLAY_RESULT_SUCCESS, StrUtil.maxLength(replayRemark, 512));
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    "NO_RUN", orderId, payRefundId,
+                    StrUtil.blankToDefault(logDO.getMerchantRefundId(), ""), RESULT_CODE_OK,
+                    "booking_refund_replay_single");
+            log.info("[finance-audit][scene=booking_refund_replay_single_success][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
             return buildReplayDetail(logDO.getId(), orderId, payRefundId,
                     REPLAY_RESULT_SUCCESS, RESULT_CODE_OK, resultMsg);
         } catch (Exception ex) {
@@ -474,6 +512,13 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                     LocalDateTime.now().plusMinutes(resolveRetryBackoffMinutes(nextRetryCount)),
                     errorCode, errorMsg,
                     operator, LocalDateTime.now(), REPLAY_RESULT_FAIL, replayRemark);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    "NO_RUN", orderId, payRefundId,
+                    StrUtil.blankToDefault(logDO.getMerchantRefundId(), ""), errorCode,
+                    "booking_refund_replay_single");
+            log.warn("[finance-audit][scene=booking_refund_replay_single_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
             return buildReplayDetail(logDO.getId(), orderId, payRefundId,
                     REPLAY_RESULT_FAIL, errorCode, errorMsg);
         }
@@ -1100,5 +1145,16 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             log.error("[persistLogSafely][insert refund notify log failed][orderId={}, merchantRefundId={}, payRefundId={}]",
                     logDO.getOrderId(), logDO.getMerchantRefundId(), logDO.getPayRefundId(), ex);
         }
+    }
+
+    private FinanceLogFieldValidator.FinanceLogFields validateFinanceLogFields(String runId, Long orderId,
+                                                                                Long payRefundId, String sourceBizNo,
+                                                                                String errorCode, String scene) {
+        FinanceLogFieldValidator.FinanceLogFields fields = FinanceLogFieldValidator.validate(
+                runId, orderId, payRefundId, sourceBizNo, errorCode);
+        if (!fields.isComplete()) {
+            log.warn("[finance-log-validate][scene={}][missingFields={}]", scene, fields.getMissingFields());
+        }
+        return fields;
     }
 }
