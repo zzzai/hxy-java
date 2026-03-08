@@ -20,6 +20,8 @@
    - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh`
    - `ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh`
    - `ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh`
+   - `ruoyi-vue-pro-master/script/dev/check_miniapp_p0_contract_gate.sh`
+   - `docs/contracts/2026-03-08-miniapp-contract-freeze-v1.md`
    - `.github/workflows/ops-stageb-p1-guard.yml`
 
 ## 2. 启用（Dry Run + Apply）
@@ -38,6 +40,7 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
 - 会输出可审计信息：`gh_dry_run_cmd`、`gh_apply_cmd`、payload 文件路径。
 - 会输出运维辅助命令：`helper_setup_dry_run_cmd`、`helper_setup_apply_cmd`、`helper_rollback_cmd`。
 - 会输出 StageB finance gate dry-run 场景样例：`stageb_guard_finance_partial_dry_run_example`。
+- 会输出 StageB miniapp gate dry-run 场景样例：`stageb_guard_miniapp_p0_contract_dry_run_example`。
 - 检查集会显示 profile：
   - `base-only`
   - `stagea-only`
@@ -227,6 +230,20 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gat
 bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
 ```
 
+若 `check_miniapp_p0_contract_gate.sh` 返回 `BLOCK`，优先检查以下锚点：
+- `docs/contracts/2026-03-08-miniapp-contract-freeze-v1.md` 文件存在
+- `P0 页面清单` 段落包含：`支付结果/售后申请/售后列表/售后详情/退款进度/异常兜底`
+- `关键错误码锚点` 段落包含：
+  - `BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT`（`1030004012`，幂等冲突）
+  - `BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS`（`1030004016`，runId不存在）
+  - `TICKET_SYNC_DEGRADED`（降级语义，fail-open/degrade）
+
+可单独执行：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/check_miniapp_p0_contract_gate.sh
+```
+
 ## 5. 快速检查命令
 
 ```bash
@@ -238,6 +255,7 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_runlog_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh
 bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
+bash ruoyi-vue-pro-master/script/dev/check_miniapp_p0_contract_gate.sh
 ```
 
 ## 6. 巡检接口回归测试（退款-提成联调）
@@ -251,6 +269,7 @@ bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
 - `check_booking_refund_replay_run_summary_gate.sh`（退款重放汇总 + 工单同步锚点检查）
 - `check_booking_refund_replay_ticket_sync_gate.sh`（退款重放明细 + 工单同步审计 V4 锚点检查）
 - `check_finance_partial_closure_gate.sh`（财务 Partial 收口锚点检查）
+- `check_miniapp_p0_contract_gate.sh`（小程序 P0 页面补齐 + 契约冻结锚点检查）
 - `FourAccountReconcileServiceImplTest`
 - `FourAccountReconcileControllerTest`
 - `BookingOrderServiceImplTest`（退款回调一致性）
@@ -281,6 +300,19 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
   --skip-finance-partial-closure-gate
 ```
 
+miniapp gate 常用开关：
+
+```bash
+# 软阻断（gate BLOCK 时降级为 WARN）
+REQUIRE_MINIAPP_P0_CONTRACT_GATE=0 \
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+
+# 单次回滚（跳过 miniapp gate）
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-miniapp-p0-contract-gate
+```
+
 Required checks 回滚（移除 StageB context）：
 
 ```bash
@@ -303,18 +335,23 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
 - 紧急降级 replay-run-summary 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-run-summary-gate`
 - 紧急降级 replay-ticket-sync 门禁（仅短期）：`--skip-mysql-init --skip-booking-refund-replay-ticket-sync-gate`
 - 紧急降级 finance-partial-closure 门禁（仅短期）：`--skip-mysql-init --skip-finance-partial-closure-gate`
+- 紧急降级 miniapp-p0-contract 门禁（仅短期）：`--skip-mysql-init --skip-miniapp-p0-contract-gate`
 - 临时软阻断 replay-run-summary 门禁（仅短期）：
   - `REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 临时软阻断 replay-ticket-sync 门禁（仅短期）：
   - `REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 临时软阻断 finance-partial-closure 门禁（仅短期）：
   - `REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
+- 临时软阻断 miniapp-p0-contract 门禁（仅短期）：
+  - `REQUIRE_MINIAPP_P0_CONTRACT_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 环境变量显式关闭 replay-run-summary 门禁（单次）：
   - `RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 环境变量显式关闭 replay-ticket-sync 门禁（单次）：
   - `RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 - 环境变量显式关闭 finance-partial-closure 门禁（单次）：
   - `RUN_FINANCE_PARTIAL_CLOSURE_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
+- 环境变量显式关闭 miniapp-p0-contract 门禁（单次）：
+  - `RUN_MINIAPP_P0_CONTRACT_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init`
 
 如需临时降级退款审计门禁（不建议长期使用）：
 
@@ -364,6 +401,14 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
   --skip-finance-partial-closure-gate
 ```
 
+如需临时降级 miniapp-p0-contract 门禁（不建议长期使用）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-miniapp-p0-contract-gate
+```
+
 如需临时覆盖回归测试集合，可通过环境变量：
 
 ```bash
@@ -374,7 +419,7 @@ bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-
 ### 6.2 CI 执行
 
 `hxy-ops-stageb-p1-guard` workflow 在 `regression-tests` 步骤调用同一脚本与默认测试集合，确保本地与 CI 口径一致。
-workflow summary 会输出 `clean_before_tests`、`booking_refund_replay_v2_gate_rc`、`booking_refund_replay_runlog_gate_rc`、`booking_refund_replay_run_summary_gate_rc`、`booking_refund_replay_ticket_sync_gate_rc` 与 `finance_partial_closure_gate_rc`，用于排查 clean 口径和 StageB 门禁状态。
+workflow summary 会输出 `clean_before_tests`、`booking_refund_replay_v2_gate_rc`、`booking_refund_replay_runlog_gate_rc`、`booking_refund_replay_run_summary_gate_rc`、`booking_refund_replay_ticket_sync_gate_rc`、`finance_partial_closure_gate_rc` 与 `miniapp_p0_contract_gate_rc`，用于排查 clean 口径和 StageB 门禁状态。
 
 ## 7. 退款回调一致性回归用例
 

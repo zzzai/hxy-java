@@ -307,13 +307,16 @@ else
   echo "[github-required-checks] profile=base-only"
 fi
 if [[ "${INCLUDE_OPS_STAGEB_CHECKS}" == "1" ]]; then
-  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,booking-refund-replay-runlog,booking-refund-replay-run-summary,booking-refund-replay-ticket-sync,finance-partial-closure,four-account-audit-regression"
+  echo "[github-required-checks] stageb_guard_scope=stock,lifecycle,booking-refund-notify,booking-refund-audit,booking-refund-replay-v2,booking-refund-replay-runlog,booking-refund-replay-run-summary,booking-refund-replay-ticket-sync,finance-partial-closure,miniapp-p0-contract,four-account-audit-regression"
   echo "[github-required-checks] stageb_guard_context_unchanged=hxy-ops-stageb-p1-guard / ops-stageb-p1-guard"
   echo "[github-required-checks] stageb_guard_ticket_sync_skip_example=RUN_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 (local-ci env) or --skip-booking-refund-replay-ticket-sync-gate"
   echo "[github-required-checks] stageb_guard_ticket_sync_soft_block_example=REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE=0 (local-ci env) or --require-booking-refund-replay-ticket-sync-gate 0"
   echo "[github-required-checks] stageb_guard_finance_partial_skip_example=RUN_FINANCE_PARTIAL_CLOSURE_GATE=0 (local-ci env) or --skip-finance-partial-closure-gate"
   echo "[github-required-checks] stageb_guard_finance_partial_soft_block_example=REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 (local-ci env) or --require-finance-partial-closure-gate 0"
   echo "[github-required-checks] stageb_guard_finance_partial_dry_run_example=RUN_FINANCE_PARTIAL_CLOSURE_GATE=1 REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init --skip-tests"
+  echo "[github-required-checks] stageb_guard_miniapp_p0_contract_skip_example=RUN_MINIAPP_P0_CONTRACT_GATE=0 (local-ci env) or --skip-miniapp-p0-contract-gate"
+  echo "[github-required-checks] stageb_guard_miniapp_p0_contract_soft_block_example=REQUIRE_MINIAPP_P0_CONTRACT_GATE=0 (local-ci env) or --require-miniapp-p0-contract-gate 0"
+  echo "[github-required-checks] stageb_guard_miniapp_p0_contract_dry_run_example=RUN_MINIAPP_P0_CONTRACT_GATE=1 REQUIRE_MINIAPP_P0_CONTRACT_GATE=0 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init --skip-tests"
   echo "[github-required-checks] stageb_guard_skip_example=RUN_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --skip-booking-refund-replay-run-summary-gate"
   echo "[github-required-checks] stageb_guard_soft_block_example=REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE=0 (local-ci env) or --require-booking-refund-replay-run-summary-gate 0"
 fi

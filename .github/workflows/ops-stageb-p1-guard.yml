@@ -12,9 +12,11 @@ on:
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_run_summary_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh"
+      - "ruoyi-vue-pro-master/script/dev/check_miniapp_p0_contract_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_sku_stock_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_store_lifecycle_change_order_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh"
+      - "docs/contracts/2026-03-08-miniapp-contract-freeze-v1.md"
       - "ruoyi-vue-pro-master/sql/mysql/ruoyi-modules-member-pay-mall.sql"
       - "ruoyi-vue-pro-master/sql/mysql/hxy/2026-02-28-hxy-store-product-mapping.sql"
       - "ruoyi-vue-pro-master/sql/mysql/hxy/2026-03-01-hxy-store-sku-stock-flow.sql"
@@ -65,6 +67,11 @@ on:
         type: boolean
       require_finance_partial_closure_gate:
         description: "财务 Partial 收口门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
+      require_miniapp_p0_contract_gate:
+        description: "小程序 P0 页面与契约冻结门禁失败是否阻断"
         required: true
         default: true
         type: boolean
@@ -163,6 +170,7 @@ jobs:
           require_refund_replay_run_summary_input="${{ github.event.inputs.require_booking_refund_replay_run_summary_gate }}"
           require_refund_replay_ticket_sync_input="${{ github.event.inputs.require_booking_refund_replay_ticket_sync_gate }}"
           require_finance_partial_closure_input="${{ github.event.inputs.require_finance_partial_closure_gate }}"
+          require_miniapp_p0_contract_input="${{ github.event.inputs.require_miniapp_p0_contract_gate }}"
           require_stock_input="${{ github.event.inputs.require_store_sku_stock_gate }}"
           require_lifecycle_input="${{ github.event.inputs.require_store_lifecycle_gate }}"
           run_tests_input="${{ github.event.inputs.run_tests }}"
@@ -177,6 +185,7 @@ jobs:
           [[ -z "${require_refund_replay_run_summary_input}" ]] && require_refund_replay_run_summary_input="true"
           [[ -z "${require_refund_replay_ticket_sync_input}" ]] && require_refund_replay_ticket_sync_input="true"
           [[ -z "${require_finance_partial_closure_input}" ]] && require_finance_partial_closure_input="true"
+          [[ -z "${require_miniapp_p0_contract_input}" ]] && require_miniapp_p0_contract_input="true"
           [[ -z "${require_stock_input}" ]] && require_stock_input="true"
           [[ -z "${require_lifecycle_input}" ]] && require_lifecycle_input="true"
           [[ -z "${run_tests_input}" ]] && run_tests_input="true"
@@ -191,6 +200,7 @@ jobs:
           require_refund_replay_run_summary=0
           require_refund_replay_ticket_sync=0
           require_finance_partial_closure=0
+          require_miniapp_p0_contract=0
           require_stock=0
           require_lifecycle=0
           run_tests=0
@@ -203,6 +213,7 @@ jobs:
           [[ "${require_refund_replay_run_summary_input}" == "true" ]] && require_refund_replay_run_summary=1
           [[ "${require_refund_replay_ticket_sync_input}" == "true" ]] && require_refund_replay_ticket_sync=1
           [[ "${require_finance_partial_closure_input}" == "true" ]] && require_finance_partial_closure=1
+          [[ "${require_miniapp_p0_contract_input}" == "true" ]] && require_miniapp_p0_contract=1
           [[ "${require_stock_input}" == "true" ]] && require_stock=1
           [[ "${require_lifecycle_input}" == "true" ]] && require_lifecycle=1
           [[ "${run_tests_input}" == "true" ]] && run_tests=1
@@ -250,6 +261,7 @@ jobs:
           REQUIRE_BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE="${require_refund_replay_run_summary}" \
           REQUIRE_BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE="${require_refund_replay_ticket_sync}" \
           REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE="${require_finance_partial_closure}" \
+          REQUIRE_MINIAPP_P0_CONTRACT_GATE="${require_miniapp_p0_contract}" \
           REQUIRE_STORE_SKU_STOCK_GATE="${require_stock}" \
           REQUIRE_STORE_LIFECYCLE_GATE="${require_lifecycle}" \
           REGRESSION_TEST_CLASSES="${regression_test_classes}" \
@@ -301,6 +313,7 @@ jobs:
             echo "| booking_refund_replay_run_summary_gate_rc | $(kv "${summary_file}" booking_refund_replay_run_summary_gate_rc) |"
             echo "| booking_refund_replay_ticket_sync_gate_rc | $(kv "${summary_file}" booking_refund_replay_ticket_sync_gate_rc) |"
             echo "| finance_partial_closure_gate_rc | $(kv "${summary_file}" finance_partial_closure_gate_rc) |"
+            echo "| miniapp_p0_contract_gate_rc | $(kv "${summary_file}" miniapp_p0_contract_gate_rc) |"
             echo "| finance_partial_closure_gate_result | $(kv "${summary_file}" finance_partial_closure_gate_result) |"
             echo "| finance_partial_closure_gate_decision | $(kv "${summary_file}" finance_partial_closure_gate_decision) |"
             echo "| finance_partial_closure_gate_blocking | $(kv "${summary_file}" finance_partial_closure_gate_blocking) |"
@@ -311,6 +324,8 @@ jobs:
             echo "| require_booking_refund_replay_ticket_sync_gate | $(kv "${summary_file}" require_booking_refund_replay_ticket_sync_gate) |"
             echo "| run_finance_partial_closure_gate | $(kv "${summary_file}" run_finance_partial_closure_gate) |"
             echo "| require_finance_partial_closure_gate | $(kv "${summary_file}" require_finance_partial_closure_gate) |"
+            echo "| run_miniapp_p0_contract_gate | $(kv "${summary_file}" run_miniapp_p0_contract_gate) |"
+            echo "| require_miniapp_p0_contract_gate | $(kv "${summary_file}" require_miniapp_p0_contract_gate) |"
             echo "| store_sku_stock_gate_rc | $(kv "${summary_file}" store_sku_stock_gate_rc) |"
             echo "| store_lifecycle_change_order_gate_rc | $(kv "${summary_file}" store_lifecycle_change_order_gate_rc) |"
             echo "| tests_rc | $(kv "${summary_file}" tests_rc) |"
