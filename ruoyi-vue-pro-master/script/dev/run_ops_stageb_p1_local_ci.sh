@@ -410,6 +410,42 @@ append_gate_tsv() {
 finalize() {
   local rc=$?
   local pipeline_rc="${PIPELINE_EXIT_CODE:-$rc}"
+  local finance_gate_result="SKIP"
+  local finance_gate_decision="SKIP"
+  local finance_gate_blocking="0"
+  local finance_gate_rc_semantics="0=PASS_OR_WARN,2=BLOCK,other=EXEC_FAIL"
+
+  if [[ "${RUN_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+    finance_gate_result="SUMMARY_MISSING"
+    if [[ -f "${FINANCE_PARTIAL_CLOSURE_GATE_SUMMARY}" ]]; then
+      finance_gate_result="$(grep -E '^result=' "${FINANCE_PARTIAL_CLOSURE_GATE_SUMMARY}" | head -n 1 | cut -d'=' -f2- || true)"
+      if [[ -z "${finance_gate_result}" ]]; then
+        finance_gate_result="UNKNOWN"
+      fi
+    fi
+
+    case "${finance_partial_closure_gate_rc}" in
+      0)
+        finance_gate_decision="PASS_OR_WARN"
+        ;;
+      2)
+        if [[ "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+          finance_gate_decision="BLOCK"
+          finance_gate_blocking="1"
+        else
+          finance_gate_decision="WARN_SOFT_BLOCK"
+        fi
+        ;;
+      *)
+        if [[ "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+          finance_gate_decision="EXEC_FAIL_BLOCK"
+          finance_gate_blocking="1"
+        else
+          finance_gate_decision="EXEC_FAIL_WARN"
+        fi
+        ;;
+    esac
+  fi
 
   {
     echo "run_id=${RUN_ID}"
@@ -453,6 +489,10 @@ finalize() {
     echo "booking_refund_replay_run_summary_gate_rc=${booking_refund_replay_run_summary_gate_rc}"
     echo "booking_refund_replay_ticket_sync_gate_rc=${booking_refund_replay_ticket_sync_gate_rc}"
     echo "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+    echo "finance_partial_closure_gate_result=${finance_gate_result}"
+    echo "finance_partial_closure_gate_decision=${finance_gate_decision}"
+    echo "finance_partial_closure_gate_blocking=${finance_gate_blocking}"
+    echo "finance_partial_closure_gate_rc_semantics=${finance_gate_rc_semantics}"
     echo "store_sku_stock_gate_rc=${store_sku_stock_gate_rc}"
     echo "store_lifecycle_change_order_gate_rc=${store_lifecycle_gate_rc}"
     echo "tests_rc=${tests_rc}"
@@ -502,6 +542,9 @@ finalize() {
     else
       echo "decision=BLOCK"
     fi
+    echo "finance_partial_closure_gate_result=${finance_gate_result}"
+    echo "finance_partial_closure_gate_decision=${finance_gate_decision}"
+    echo "finance_partial_closure_gate_rc_semantics=${finance_gate_rc_semantics}"
     echo "summary=${SUMMARY_FILE}"
     echo "result_tsv=${RESULT_TSV}"
   } > "${FINAL_GATE_LOG}"
@@ -764,16 +807,17 @@ if [[ "${RUN_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
 
   if [[ "${finance_partial_closure_gate_rc}" != "0" && "${finance_partial_closure_gate_rc}" != "2" ]]; then
     if [[ "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
-      add_issue "finance-partial-closure-gate" "BLOCK" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+      add_issue "finance-partial-closure-gate" "BLOCK" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}; semantic=EXEC_FAIL_BLOCK(require=1)"
       PIPELINE_EXIT_CODE=2
       exit 2
     fi
-    add_issue "finance-partial-closure-gate" "WARN" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+    add_issue "finance-partial-closure-gate" "WARN" "OPS19_FINANCE_PARTIAL_CLOSURE_GATE_EXEC_FAIL" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}; semantic=EXEC_FAIL_WARN(require=0)"
   elif [[ "${finance_partial_closure_gate_rc}" == "2" && "${REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE}" == "1" ]]; then
+    add_issue "finance-partial-closure-gate" "BLOCK" "OPS20_FINANCE_PARTIAL_CLOSURE_GATE_BLOCK" "finance_partial_closure_gate_rc=2; semantic=GATE_BLOCK(require=1)"
     PIPELINE_EXIT_CODE=2
     exit 2
   elif [[ "${finance_partial_closure_gate_rc}" == "2" ]]; then
-    add_issue "finance-partial-closure-gate" "WARN" "OPS20_FINANCE_PARTIAL_CLOSURE_GATE_BLOCK_AS_WARN" "finance_partial_closure_gate_rc=${finance_partial_closure_gate_rc}"
+    add_issue "finance-partial-closure-gate" "WARN" "OPS21_FINANCE_PARTIAL_CLOSURE_GATE_BLOCK_AS_WARN" "finance_partial_closure_gate_rc=2; semantic=GATE_BLOCK_DOWNGRADED(require=0)"
   fi
 fi
 

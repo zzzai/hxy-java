@@ -37,6 +37,7 @@ bash ruoyi-vue-pro-master/script/dev/setup_github_required_checks.sh \
 - 未传 `--repo-owner/--repo-name` 时自动从 `git remote origin` 解析。
 - 会输出可审计信息：`gh_dry_run_cmd`、`gh_apply_cmd`、payload 文件路径。
 - 会输出运维辅助命令：`helper_setup_dry_run_cmd`、`helper_setup_apply_cmd`、`helper_rollback_cmd`。
+- 会输出 StageB finance gate dry-run 场景样例：`stageb_guard_finance_partial_dry_run_example`。
 - 检查集会显示 profile：
   - `base-only`
   - `stagea-only`
@@ -206,9 +207,19 @@ bash ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_ticket_sync_gat
 
 若 `check_finance_partial_closure_gate.sh` 返回 `BLOCK`，优先检查以下锚点：
 - 退款回调幂等冲突错误码：`BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT`（`1030004012`）
-- 提成计提/冲正幂等关键契约：`ensureReversalPayloadConsistent`、`selectByOriginCommissionId`、`selectByBizKey`、`COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT`（`1030007011`）
+- 退款 replay 锚点：
+  - controller：`/replay`、`/replay-due`、`/replay-run-log/summary`、`/replay-run-log/sync-tickets`
+  - service：`replayFailedLogs`、`replayDueFailedLogs`、`getReplayRunLogSummary`、`syncReplayRunLogTickets`
+  - 错误码：`BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS`（`1030004016`）
+  - fail-open/degrade 日志：`fail-open continue`、`refresh failed, degrade continue`
+- 提成计提/冲正幂等关键契约：
+  - 计提：`ACCRUAL_BIZ_TYPE`、`buildAccrualSourceBizNo`、`ensureAccrualPayloadConsistent`、`COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT`（`1030007012`）
+  - 冲正：`ensureReversalPayloadConsistent`、`buildReversalSourceBizNo`、`selectByOriginCommissionId`、`COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT`（`1030007011`）
 - 退款冲正唯一约束/冲突语义：`uk_origin_commission_id`、`DuplicateKeyException` 冲突分支
-- 四账摘要字段与 fail-open 标记：`ticketSummaryDegraded`、`load ticket summary degrade`
+- 四账提成聚合与 fail-open 标记：
+  - 聚合字段：`tradeMinusCommissionSplitSum`、`commissionAmountSum`、`commissionDifferenceAbsSum`、`differenceAmountSum`、`unresolvedTicketCount`
+  - 降级字段：`ticketSummaryDegraded`
+  - 降级日志：`load ticket summary degrade`
 
 可单独执行：
 
@@ -249,6 +260,31 @@ bash ruoyi-vue-pro-master/script/dev/check_finance_partial_closure_gate.sh
 
 ```bash
 bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+```
+
+finance gate 结果审计（`summary.txt`）新增字段：
+- `finance_partial_closure_gate_result`
+- `finance_partial_closure_gate_decision`
+- `finance_partial_closure_gate_blocking`
+- `finance_partial_closure_gate_rc_semantics`（`0=PASS_OR_WARN,2=BLOCK,other=EXEC_FAIL`）
+
+finance gate 常用开关：
+
+```bash
+# 软阻断（gate BLOCK 时降级为 WARN）
+REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE=0 \
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh --skip-mysql-init
+
+# 单次回滚（跳过 finance gate）
+bash ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh \
+  --skip-mysql-init \
+  --skip-finance-partial-closure-gate
+```
+
+Required checks 回滚（移除 StageB context）：
+
+```bash
+bash ruoyi-vue-pro-master/script/dev/rollback_ops_stageb_required_checks.sh
 ```
 
 若怀疑本地增量编译产物污染（例如偶发 `NoClassDefFoundError`、`Unresolved compilation problem`），可启用 clean 回归：
