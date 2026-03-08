@@ -133,7 +133,7 @@
       v-if="refundNotifyUnsupportedFields.length"
       :closable="false"
       :description="`缺失字段：${refundNotifyUnsupportedFields.join('、')}`"
-      title="后端版本暂不支持"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
       type="warning"
       class="mb-12px"
     />
@@ -266,7 +266,8 @@
     <el-alert
       v-if="replayResultFinanceFieldFallback"
       :closable="false"
-      title="后端版本暂不支持（批量结果明细缺少财务字段，已降级展示）"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+      description="批量结果明细缺少财务字段"
       type="warning"
       class="mb-12px"
     />
@@ -347,7 +348,8 @@
     <el-alert
       v-if="runLogFeatureUnavailable"
       :closable="false"
-      title="后端未升级 V3，当前不可查询重放批次历史"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+      description="重放批次历史接口不可用"
       type="warning"
       class="mb-12px"
     />
@@ -586,7 +588,7 @@
         <el-alert
           v-if="runLogSummaryFeatureUnavailable"
           :closable="false"
-          title="后端版本暂不支持"
+          :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
           type="warning"
           class="mb-8px"
         />
@@ -662,14 +664,15 @@
         <el-alert
           v-if="runLogDetailFeatureUnavailable"
           :closable="false"
-          title="后端版本暂不支持"
+          :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
           type="warning"
           class="mb-8px"
         />
         <el-alert
           v-else-if="runLogDetailFinanceFieldFallback"
           :closable="false"
-          title="后端版本暂不支持（运行明细缺少财务字段，已降级展示）"
+          :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+          description="运行明细缺少财务字段"
           type="warning"
           class="mb-8px"
         />
@@ -820,7 +823,7 @@
         <el-alert
           v-if="runLogSyncFeatureUnavailable"
           :closable="false"
-          title="后端版本暂不支持"
+          :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
           type="warning"
           class="mb-8px"
         />
@@ -875,7 +878,7 @@
     <el-alert
       v-if="runLogDetailItemFeatureUnavailable"
       :closable="false"
-      title="后端版本暂不支持"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
       type="warning"
       class="mb-12px"
     />
@@ -1118,6 +1121,7 @@ interface RunLogSyncDetailView {
 }
 
 const EMPTY_TEXT = '--'
+const UNSUPPORTED_BACKEND_FALLBACK_TITLE = '后端版本不支持，已降级展示'
 const DEFAULT_STATUS = 'fail'
 const DEFAULT_REPLAY_DUE_LIMIT = 200
 const RESULT_HINT_BY_CODE: Record<number, string> = {
@@ -1783,6 +1787,11 @@ const isSyncTicketsContractNotSupported = (error: any) => {
   return false
 }
 
+const notifyBackendUnsupportedFallback = (scene: string) => {
+  // 埋点注释: finance_ui_backend_unsupported(scene) 建议在此处统一上报
+  message.warning(`${UNSUPPORTED_BACKEND_FALLBACK_TITLE}（${scene}）`)
+}
+
 const copyTextContent = async (value: any, label: string) => {
   const content = String(value || '').trim()
   if (!content || content === EMPTY_TEXT) {
@@ -1853,7 +1862,7 @@ const fetchRunLogSummary = async (silent = false) => {
     if (isEndpointNotUpgraded(error, 'replay-run-log/summary')) {
       runLogSummaryFeatureUnavailable.value = true
       if (!silent) {
-        message.warning('后端版本暂不支持')
+        notifyBackendUnsupportedFallback('批次汇总接口不可用')
       }
       return
     }
@@ -1903,7 +1912,7 @@ const handleSyncRunLogTickets = async (dryRun: boolean) => {
   } catch (error: any) {
     if (isEndpointNotUpgraded(error, 'replay-run-log/sync-tickets') || isSyncTicketsContractNotSupported(error)) {
       runLogSyncFeatureUnavailable.value = true
-      message.warning('后端版本暂不支持')
+      notifyBackendUnsupportedFallback('同步工单接口不可用')
       return
     }
     runLogSyncErrorMsg.value = buildApiErrorMessage(error, '同步工单失败')
@@ -2290,7 +2299,7 @@ const handleDryRunReplay = async () => {
     )
   } catch (error: any) {
     if (isLegacyReplayContractError(error)) {
-      message.warning('当前后端未支持 dry-run 预演能力，请升级至 V2+ 后端后重试')
+      notifyBackendUnsupportedFallback('dry-run 预演能力不可用')
       return
     }
     message.error(buildApiErrorMessage(error, '预演重放失败'))
@@ -2376,7 +2385,7 @@ const handleReplayDue = async () => {
     }
   } catch (error: any) {
     if (isEndpointNotUpgraded(error, 'replay-due')) {
-      message.warning('后端未升级 V3，暂不支持自动补偿重放入口')
+      notifyBackendUnsupportedFallback('自动补偿重放入口不可用')
       return
     }
     message.error(buildApiErrorMessage(error, '自动补偿重放触发失败'))
@@ -2398,7 +2407,7 @@ const getRunLogList = async () => {
     runLogTotal.value = 0
     if (isEndpointNotUpgraded(error, 'replay-run-log')) {
       runLogFeatureUnavailable.value = true
-      message.warning('后端未升级 V3，当前不可查询重放批次历史')
+      notifyBackendUnsupportedFallback('重放批次历史接口不可用')
       return
     }
     message.error(buildApiErrorMessage(error, '重放批次历史查询失败'))
@@ -2427,7 +2436,7 @@ const fetchRunLogDetailPage = async (silent = false) => {
     if (isEndpointNotUpgraded(error, 'replay-run-log/detail/page')) {
       runLogDetailFeatureUnavailable.value = true
       if (!silent) {
-        message.warning('后端版本暂不支持')
+        notifyBackendUnsupportedFallback('运行明细分页接口不可用')
       }
       return
     }
@@ -2507,7 +2516,7 @@ const openRunLogDetail = async (row: RefundNotifyLogApi.RefundNotifyReplayRunLog
     }
   } catch (error: any) {
     if (isEndpointNotUpgraded(error, 'replay-run-log/get')) {
-      message.warning('后端未提供批次详情接口，已降级展示列表快照')
+      notifyBackendUnsupportedFallback('批次详情接口不可用')
       return
     }
     message.error(buildApiErrorMessage(error, '重放批次详情查询失败'))
@@ -2539,7 +2548,7 @@ const openRunLogDetailItem = async (row: RefundNotifyLogApi.RefundNotifyReplayRu
   } catch (error: any) {
     if (isEndpointNotUpgraded(error, 'replay-run-log/detail/get')) {
       runLogDetailItemFeatureUnavailable.value = true
-      message.warning('后端版本暂不支持')
+      notifyBackendUnsupportedFallback('运行明细详情接口不可用')
       return
     }
     message.error(buildApiErrorMessage(error, '运行明细详情查询失败'))

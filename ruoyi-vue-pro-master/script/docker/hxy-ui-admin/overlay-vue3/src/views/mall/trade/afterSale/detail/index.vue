@@ -32,6 +32,14 @@
     </el-descriptions>
 
     <!-- 售后信息 -->
+    <el-alert
+      v-if="refundFieldUnsupportedList.length"
+      :closable="false"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+      :description="`缺失字段：${refundFieldUnsupportedList.join('、')}`"
+      type="warning"
+      class="mb-12px"
+    />
     <el-descriptions title="售后信息">
       <el-descriptions-item label="退款编号: ">{{ formData.no }}</el-descriptions-item>
       <el-descriptions-item label="申请时间: ">
@@ -229,11 +237,21 @@ const formData = ref({
   order: {},
   logs: []
 })
+const detailLoaded = ref(false)
 const updateAuditReasonFormRef = ref() // 拒绝售后表单 Ref
 const REFUND_LIMIT_BUNDLE_CHILD_FULFILLED_CODE = 1011000125
 const BOOKING_ORDER_REFUND_NOTIFY_ORDER_ID_INVALID_CODE = 1030004011
 const BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT_CODE = 1030004012
 const EMPTY_TEXT = '-'
+const UNSUPPORTED_BACKEND_FALLBACK_TITLE = '后端版本不支持，已降级展示'
+const REQUIRED_REFUND_FIELD_DEFS = [
+  { key: 'refundLimitSource', label: 'refundLimitSource' },
+  { key: 'refundExceptionType', label: 'refundExceptionType' },
+  { key: 'refundEvidenceJson', label: 'refundEvidenceJson' },
+  { key: 'refundAuditStatus', label: 'refundAuditStatus' },
+  { key: 'payRefundId', label: 'payRefundId' },
+  { key: 'refundTime', label: 'refundTime' }
+] as const
 
 interface RefundLimitDetailEntry {
   key: string
@@ -335,6 +353,24 @@ const refundEvidenceView = computed(() => {
   return parseRefundLimitDetailJson(formData.value.refundEvidenceJson)
 })
 
+const hasOwnField = (source: any, field: string) => {
+  if (!source || typeof source !== 'object') {
+    return false
+  }
+  return Object.prototype.hasOwnProperty.call(source, field)
+}
+
+const refundFieldUnsupportedList = computed(() => {
+  if (!detailLoaded.value) {
+    return []
+  }
+  const source = formData.value as Record<string, any>
+  // 埋点注释: finance_ui_backend_unsupported(scene=after_sale_detail_refund_fields)
+  return REQUIRED_REFUND_FIELD_DEFS
+    .filter((item) => !hasOwnField(source, item.key))
+    .map((item) => item.label)
+})
+
 const resolveRefundErrorCode = (error: any): number | undefined => {
   const candidates = [
     error?.code,
@@ -400,6 +436,7 @@ const getUserTypeColor = (type: number) => {
 const getDetail = async () => {
   const id = params.id as unknown as number
   if (id) {
+    detailLoaded.value = false
     const res = await AfterSaleApi.getAfterSale(id)
     // 没有表单信息则关闭页面返回
     if (res == null) {
@@ -407,6 +444,7 @@ const getDetail = async () => {
       close()
     }
     formData.value = res
+    detailLoaded.value = true
   }
 }
 

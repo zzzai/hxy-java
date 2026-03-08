@@ -67,7 +67,7 @@
       v-if="summaryFallback"
       :closable="false"
       :description="summaryFallbackReason || 'summary 接口不可用，当前展示列表近似统计。'"
-      title="统计已降级"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
       type="warning"
       class="mb-12px"
     />
@@ -126,7 +126,15 @@
       v-if="auditSummaryFallback"
       :closable="false"
       :description="auditSummaryFallbackReason || 'refund-audit-summary 接口不可用，当前展示列表近似统计。'"
-      title="退款审计汇总已降级"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+      type="warning"
+      class="mb-12px"
+    />
+    <el-alert
+      v-else-if="auditSummaryData.financeAggDegraded"
+      :closable="false"
+      :title="UNSUPPORTED_BACKEND_FALLBACK_TITLE"
+      description="refund-audit-summary 未返回完整提成/冲正聚合字段，已回退当前列表近似统计。"
       type="warning"
       class="mb-12px"
     />
@@ -800,6 +808,7 @@ interface AuditEvidenceEntry {
 }
 
 const EMPTY_TEXT = '--'
+const UNSUPPORTED_BACKEND_FALLBACK_TITLE = '后端版本不支持，已降级展示'
 
 const message = useMessage()
 const router = useRouter()
@@ -1380,6 +1389,7 @@ const buildAuditSummaryReq = (): FourAccountReconcileApi.FourAccountRefundAuditS
 }
 
 const applyFallbackAuditSummary = (fallbackReason = '') => {
+  // 埋点注释: finance_ui_backend_unsupported(scene=refund_audit_summary)
   auditSummaryFallback.value = true
   auditSummaryFallbackReason.value = fallbackReason
   auditSummaryData.value = {
@@ -1560,6 +1570,7 @@ const loadSummary = async () => {
     summaryFallback.value = false
     summaryFallbackReason.value = ''
   } catch (error: any) {
+    // 埋点注释: finance_ui_backend_unsupported(scene=four_account_summary)
     summaryData.value = calculateFallbackSummary()
     summaryFallback.value = true
     const msg = String(error?.msg || '').toLowerCase()
