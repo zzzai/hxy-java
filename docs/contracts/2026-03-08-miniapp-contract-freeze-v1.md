@@ -8,7 +8,7 @@
   - 错误码语义冻结，前后端按码处理，不依赖错误文案。
   - 跨域依赖异常统一 fail-open：主链路可用，返回降级标记并记录审计日志。
 
-## 2. 页面契约矩阵（P0）
+## 2. P0 页面清单（页面契约矩阵）
 
 | 页面路由 | 后端接口清单 | 请求关键字段 | 响应关键字段 | 关键错误码 | 降级语义 | 能力状态 |
 |---|---|---|---|---|---|---|
@@ -19,6 +19,7 @@
 | `/pages/after-sale/list` 售后列表 | `GET /trade/after-sale/page` | `statuses?`, `pageNo`, `pageSize` | `list[]`, `status`, `refundPrice`, `refundLimitSource` | `AFTER_SALE_NOT_FOUND(1011000100)` | 空结果返回空列表，不作为错误 | 已有能力 |
 | `/pages/after-sale/detail` 售后详情 | `GET /trade/after-sale/get` | `id` | `id`, `status`, `refundPrice`, `payRefundId`, `refundTime`, `refundLimitSource` | `AFTER_SALE_NOT_FOUND(1011000100)` | pay 侧退款单暂不可查时仍返回售后主信息 | 部分能力 |
 | `/pages/refund/progress` 退款进度 | `GET /trade/after-sale/refund-progress` | `afterSaleId?`, `orderId?` | `afterSaleStatus`, `payRefundStatus`, `progressCode`, `channelErrorCode` | `AFTER_SALE_NOT_FOUND(1011000100)` | pay 退款单缺失时按售后状态回退进度，不抛 500 | 已有能力 |
+| `/pages/common/exception` 异常兜底 | `N/A`（前端统一兜底页） | `scene?`, `traceId?` | `fallbackCode`, `fallbackMessage`, `degraded`, `degradeReason` | `TICKET_SYNC_DEGRADED` | 下游异常走 fail-open，页面可降级展示并引导重试/联系客服 | 冻结约定 |
 | `/pages/booking/list` 预约列表 | `GET /booking/order/list`, `GET /booking/order/list-by-status` | `status?` | `id`, `orderNo`, `status`, `payPrice`, `payRefundId`, `refundTime` | `BOOKING_ORDER_NOT_EXISTS` | 状态筛选为空时返回全部，不报错 | 已有能力 |
 | `/pages/address/list` 地址管理 | `GET/POST/PUT/DELETE /member/address/*` | `id`, `name`, `mobile`, `areaId`, `detailAddress` | `id`, `defaultStatus`, `list[]` | `MEMBER_ADDRESS_*` | 无默认地址时返回 `null`，前端引导新增 | 已有能力 |
 | `/pages/coupon/center` 领券中心 | `GET /promotion/coupon-template/page`, `POST /promotion/coupon/take` | `templateId`, `pageNo`, `pageSize` | `template[]`, `takeResult` | `PROMOTION_COUPON_*` | 重复领取返回业务错误码，不抛系统异常 | 已有能力 |
