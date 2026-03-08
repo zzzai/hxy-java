@@ -6,7 +6,7 @@
 
 ## 2. 冻结范围
 
-### 2.1 本次冻结文档（14份）
+### 2.1 本次冻结文档（21份）
 1. `docs/products/miniapp/2026-03-09-miniapp-feature-inventory-and-release-matrix-v1.md`
 2. `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md`
 3. `docs/contracts/2026-03-09-miniapp-addbook-conflict-spec-v1.md`
@@ -21,6 +21,13 @@
 12. `docs/products/miniapp/2026-03-09-miniapp-content-compliance-styleguide-v1.md`
 13. `docs/products/miniapp/2026-03-09-miniapp-business-rulebook-v1.md`
 14. `docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md`
+15. `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md`
+16. `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md`
+17. `docs/products/miniapp/2026-03-09-miniapp-technician-feed-product-policy-v1.md`
+18. `docs/products/miniapp/2026-03-09-miniapp-cs-sop-and-escalation-v1.md`
+19. `docs/products/miniapp/2026-03-09-miniapp-operation-config-playbook-v1.md`
+20. `docs/products/miniapp/2026-03-09-miniapp-growth-kpi-and-experiment-plan-v1.md`
+21. `docs/products/miniapp/2026-03-09-miniapp-commercial-model-and-unit-economics-v1.md`
 
 ### 2.2 冻结后约束
 - 仅允许向后兼容补充。
@@ -38,11 +45,12 @@
 
 | 检查项 | 结果 | 说明 |
 |---|---|---|
-| 文档齐套性 | PASS | 14/14 文档存在且可追踪 |
+| 文档齐套性 | PASS | 21/21 文档存在且可追踪 |
 | 契约一致性 | PASS | 路由/API/错误码语义与既有基线一致 |
 | 状态机一致性 | PASS | 统一引用 03-08 状态机文档 |
 | 降级语义一致性 | PASS | fail-open/fail-close 边界明确 |
 | 审计可检索性 | PASS | 关键字段约束统一（runId/orderId/payRefundId/sourceBizNo/errorCode） |
+| SOP/运营口径一致性 | PASS | 客服SOP、运营配置与契约错误码矩阵对齐 |
 
 ## 5. 回滚策略
 - 文档回滚触发条件：

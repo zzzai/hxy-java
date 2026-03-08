@@ -22,7 +22,7 @@
 | P2 | `docs/contracts/2026-03-08-miniapp-recommendation-explainability-spec-v1.md` | Frozen |
 | P2 | `docs/plans/2026-03-08-miniapp-motion-accessibility-performance-spec-v1.md` | Frozen |
 
-## 3. 2026-03-09 Batch (14 Docs Mapping + Status)
+## 3. 2026-03-09 Batch (21 Docs Mapping + Status)
 
 | # | Priority | Owner Window | Document | Status | Notes |
 |---|---|---|---|---|---|
@@ -38,5 +38,17 @@
 | 10 | P1 | D | `docs/plans/2026-03-09-miniapp-event-taxonomy-v2.md` | Frozen | 已由窗口D提交并通过A集成评审 |
 | 11 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-fulfillment-logistics-prd-v1.md` | Frozen | 已由窗口D提交并通过A集成评审 |
 | 12 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-content-compliance-styleguide-v1.md` | Frozen | 已由窗口D提交并通过A集成评审 |
-| 13 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-business-rulebook-v1.md` | Frozen | 本批新增，规则字典已冻结 |
-| 14 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md` | Frozen | 本批新增，封版评审文档 |
+| 13 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-business-rulebook-v1.md` | Frozen | 规则字典已冻结 |
+| 14 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md` | Frozen | 封版评审文档已冻结 |
+| 15 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 16 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 17 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-technician-feed-product-policy-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 18 | P1 | C | `docs/products/miniapp/2026-03-09-miniapp-cs-sop-and-escalation-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 19 | P1 | C | `docs/products/miniapp/2026-03-09-miniapp-operation-config-playbook-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 20 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-growth-kpi-and-experiment-plan-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+| 21 | P2 | D | `docs/products/miniapp/2026-03-09-miniapp-commercial-model-and-unit-economics-v1.md` | Frozen | 第二波补齐，已通过A集成评审 |
+
+## 4. Integration Snapshot (2026-03-09)
+- A 侧冻结收口提交：`51b8eb120d`
+- 第二波跨窗口文档提交：`40e60fe0dc`（B）、`1d7bbb1a9a`（C）、`b9fcc16f54`（D）
+- 当前状态：03-09 文档包 `21/21 Frozen`，可作为发布前联调与验收基线。
