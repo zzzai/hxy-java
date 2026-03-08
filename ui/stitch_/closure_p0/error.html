@@ -45,6 +45,9 @@
       var common = window.ClosureP0Common;
       var query = common.parseQuery();
       var type = query.type || 'service';
+      var code = String(query.code || '');
+      var msg = query.msg || '';
+      var from = query.from || '';
 
       var title = '服务降级';
       var desc = '系统服务暂不可用，已建议走降级流程。';
@@ -64,14 +67,34 @@
         ];
       }
 
+      if (type === 'biz') {
+        title = '业务校验失败';
+        desc = '请求已到达服务端，但业务校验未通过，请按错误信息修正后重试。';
+        tips = [
+          '核对请求参数字段与类型是否与接口契约一致。',
+          '重点检查必填字段：id/orderItemId/refundPrice/way。',
+          '若持续失败，携带错误码与请求参数联系后端定位。',
+        ];
+      }
+
+      if (type === 'service' && ['404', '405', '501', '40401', '50100'].includes(code)) {
+        title = '旧后端接口未支持';
+        desc = '当前环境接口尚未升级，页面已降级为可继续操作的样例数据。';
+        tips = [
+          '本次操作不阻断主流程，可继续浏览订单和售后页。',
+          '联调时优先核对网关路径与服务版本是否包含目标接口。',
+          '后端升级完成后，刷新页面即可回到真实接口数据。',
+        ];
+      }
+
       document.getElementById('errorTitle').textContent = title;
-      document.getElementById('errorDesc').textContent = desc;
+      document.getElementById('errorDesc').textContent = msg || desc;
       document.getElementById('errorMeta').textContent = JSON.stringify(
         {
           type: type,
-          code: query.code || '',
-          msg: query.msg || '',
-          from: query.from || '',
+          code: code,
+          msg: msg,
+          from: from,
         },
         null,
         2,

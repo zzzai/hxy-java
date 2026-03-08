@@ -79,6 +79,25 @@
     element.innerHTML = `<span>${escapeHtml(message)}</span>${actionLink}`;
   }
 
+  function currentPageName() {
+    const path = window.location.pathname || '';
+    const parts = path.split('/');
+    return parts[parts.length - 1] || 'index.html';
+  }
+
+  function buildErrorUrl(type, result) {
+    const params = new URLSearchParams();
+    params.set('type', type || 'service');
+    params.set('from', currentPageName());
+    if (result && result.code !== undefined && result.code !== null) {
+      params.set('code', String(result.code));
+    }
+    if (result && result.msg) {
+      params.set('msg', result.msg);
+    }
+    return `error.html?${params.toString()}`;
+  }
+
   function syncApiBase() {
     const input = document.querySelector('[data-api-base]');
     const save = document.querySelector('[data-api-save]');
@@ -114,7 +133,7 @@
         bannerElement,
         `${result.degradeReason || '已降级'}${suffix}，主流程继续。`,
         'warning',
-        result.errorType ? `error.html?type=${result.errorType || errorPageType || 'service'}` : '',
+        buildErrorUrl(result.errorType || errorPageType || 'service', result),
       );
       return;
     }
@@ -124,9 +143,7 @@
         bannerElement,
         `${result.msg || '请求失败'}，请稍后重试。`,
         'error',
-        `error.html?type=${errorPageType || result.errorType || 'service'}&code=${
-          result.code || ''
-        }&msg=${encodeURIComponent(result.msg || '')}`,
+        buildErrorUrl(errorPageType || result.errorType || 'service', result),
       );
       return;
     }
@@ -144,5 +161,6 @@
     renderBanner: renderBanner,
     syncApiBase: syncApiBase,
     withFallbackHint: withFallbackHint,
+    buildErrorUrl: buildErrorUrl,
   };
 })();
