@@ -25,6 +25,7 @@ import com.hxy.module.booking.dal.mysql.FourAccountReconcileMapper;
 import com.hxy.module.booking.dal.mysql.FourAccountReconcileQueryMapper;
 import com.hxy.module.booking.enums.FourAccountReconcileStatusEnum;
 import com.hxy.module.booking.service.FourAccountReconcileService;
+import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -370,8 +371,15 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
                 successCount++;
             } catch (Exception ex) {
                 failedOrderIds.add(row.getOrderId());
+                String sourceBizNo = REFUND_COMMISSION_TICKET_SOURCE_PREFIX + row.getOrderId();
+                FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                        "NO_RUN", row.getOrderId(), row.getPayRefundId(), sourceBizNo, resolveErrorCode(ex),
+                        "four_account_refund_commission_sync_tickets");
                 log.warn("[syncRefundCommissionAuditTickets][upsert ticket fail, orderId={}, mismatchType={}]",
                         row.getOrderId(), row.getMismatchType(), ex);
+                log.warn("[finance-audit][scene=four_account_refund_commission_sync_ticket_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                        fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                        fields.getSourceBizNo(), fields.getErrorCode());
             }
         }
         return buildSyncResp(mismatchRows.size(), attemptedCount, successCount, failedOrderIds);
@@ -888,8 +896,13 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         try {
             tradeReviewTicketApi.upsertReviewTicket(reqDTO);
         } catch (Exception ex) {
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    "NO_RUN", null, null, reqDTO.getSourceBizNo(), resolveErrorCode(ex), "four_account_warn_upsert");
             log.warn("[upsertWarnReviewTicket][bizDate({}) sourceBizNo({}) failed]",
                     bizDate, reqDTO.getSourceBizNo(), ex);
+            log.warn("[finance-audit][scene=four_account_warn_ticket_upsert_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
         }
     }
 
@@ -915,9 +928,32 @@ public class FourAccountReconcileServiceImpl implements FourAccountReconcileServ
         try {
             tradeReviewTicketApi.resolveReviewTicketBySourceBizNo(reqDTO);
         } catch (Exception ex) {
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    "NO_RUN", null, null, sourceBizNo, resolveErrorCode(ex), "four_account_pass_resolve");
             log.warn("[resolvePassReviewTicket][bizDate({}) sourceBizNo({}) failed]",
                     bizDate, sourceBizNo, ex);
+            log.warn("[finance-audit][scene=four_account_pass_ticket_resolve_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
         }
+    }
+
+    private FinanceLogFieldValidator.FinanceLogFields validateFinanceLogFields(String runId, Long orderId,
+                                                                                Long payRefundId, String sourceBizNo,
+                                                                                String errorCode, String scene) {
+        FinanceLogFieldValidator.FinanceLogFields fields = FinanceLogFieldValidator.validate(
+                runId, orderId, payRefundId, sourceBizNo, errorCode);
+        if (!fields.isComplete()) {
+            log.warn("[finance-log-validate][scene={}][missingFields={}]", scene, fields.getMissingFields());
+        }
+        return fields;
+    }
+
+    private String resolveErrorCode(Exception ex) {
+        if (ex == null) {
+            return "UNKNOWN";
+        }
+        return ex.getClass().getSimpleName();
     }
 
     private static final class TicketSummaryLoadResult {

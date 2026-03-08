@@ -43,6 +43,15 @@ public interface AfterSaleService {
     AfterSaleDO getAfterSale(Long userId, Long id);
 
     /**
+     * 【会员】按订单维度查询最近一条售后单
+     *
+     * @param userId  用户编号
+     * @param orderId 交易订单编号
+     * @return 售后单
+     */
+    AfterSaleDO getLatestAfterSaleByOrderId(Long userId, Long orderId);
+
+    /**
      * 【管理员】获得售后单
      *
      * @param id 售后编号

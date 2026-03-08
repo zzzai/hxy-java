@@ -49,6 +49,14 @@ public interface AfterSaleMapper extends BaseMapperX<AfterSaleDO> {
                 AfterSaleDO::getUserId, userId);
     }
 
+    default AfterSaleDO selectLatestByUserIdAndOrderId(Long userId, Long orderId) {
+        return selectOne(new LambdaQueryWrapperX<AfterSaleDO>()
+                .eq(AfterSaleDO::getUserId, userId)
+                .eq(AfterSaleDO::getOrderId, orderId)
+                .orderByDesc(AfterSaleDO::getId)
+                .last("LIMIT 1"));
+    }
+
     default Long selectCountByUserIdAndStatus(Long userId, Collection<Integer> statuses) {
         return selectCount(new LambdaQueryWrapperX<AfterSaleDO>()
                 .eq(AfterSaleDO::getUserId, userId)

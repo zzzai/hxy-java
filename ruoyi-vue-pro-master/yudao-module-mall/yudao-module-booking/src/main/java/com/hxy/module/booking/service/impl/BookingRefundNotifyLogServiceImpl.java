@@ -486,7 +486,8 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
             payRefundId = resolvePayRefundId(logDO);
             bookingOrderService.updateOrderRefunded(orderId, payRefundId);
             assertOrderRefundSynced(orderId, payRefundId);
-            String warningRemark = refreshFourAccountSafely(orderId, operator);
+            String warningRemark = refreshFourAccountSafely("NO_RUN", orderId, payRefundId,
+                    logDO.getMerchantRefundId(), operator);
             String resultMsg = StrUtil.isBlank(warningRemark)
                     ? "重放成功"
                     : "重放成功（四账刷新降级:" + warningRemark + "）";
@@ -954,7 +955,8 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
         }
     }
 
-    private String refreshFourAccountSafely(Long orderId, String operator) {
+    private String refreshFourAccountSafely(String runId, Long orderId, Long payRefundId,
+                                            String sourceBizNo, String operator) {
         try {
             BookingOrderDO order = bookingOrderService.getOrder(orderId);
             if (order == null || order.getRefundTime() == null) {
@@ -964,8 +966,14 @@ public class BookingRefundNotifyLogServiceImpl implements BookingRefundNotifyLog
                     StrUtil.blankToDefault(operator, DEFAULT_OPERATOR));
             return "";
         } catch (Exception ex) {
+            String errorCode = resolveErrorCode(ex);
+            FinanceLogFieldValidator.FinanceLogFields fields = validateFinanceLogFields(
+                    runId, orderId, payRefundId, sourceBizNo, errorCode, "booking_refund_refresh_four_account");
             log.warn("[refreshFourAccountSafely][orderId={}] refresh failed, degrade continue", orderId, ex);
-            return "FOUR_ACCOUNT_REFRESH_WARN:" + resolveErrorCode(ex);
+            log.warn("[finance-audit][scene=booking_refund_refresh_four_account_fail][runId={}][orderId={}][payRefundId={}][sourceBizNo={}][errorCode={}]",
+                    fields.getRunId(), fields.getOrderId(), fields.getPayRefundId(),
+                    fields.getSourceBizNo(), fields.getErrorCode());
+            return "FOUR_ACCOUNT_REFRESH_WARN:" + errorCode;
         }
     }
 

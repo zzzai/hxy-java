@@ -125,6 +125,11 @@ public class AfterSaleServiceImpl implements AfterSaleService {
     }
 
     @Override
+    public AfterSaleDO getLatestAfterSaleByOrderId(Long userId, Long orderId) {
+        return tradeAfterSaleMapper.selectLatestByUserIdAndOrderId(userId, orderId);
+    }
+
+    @Override
     public AfterSaleDO getAfterSale(Long id) {
         return tradeAfterSaleMapper.selectById(id);
     }

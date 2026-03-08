@@ -993,3 +993,17 @@
 - 备选方案：仅依赖已有代码注释与接口文档，不新增冻结清单/回滚脚本/日志校验。
 - 否决原因：缺少统一冻结边界、无法保证快速可控回滚，且日志检索字段不一致会增加定位成本。
 - 回滚条件：如结构化日志输出导致日志量异常，可暂时降级为仅保留校验告警日志；接口冻结与 DDL 回滚脚本不应回退。
+
+## ADR-100：小程序 P0 查询链路采用“聚合接口优先 + 旧接口兼容保留 + 降级显式化”策略
+
+- 背景：小程序发布前，支付结果页与退款进度页需要稳定、单次查询可渲染的数据契约；仅依赖多接口拼装会放大端侧状态不一致与弱网重试复杂度。
+- 决策：
+  1) 新增聚合查询接口 `GET /trade/order/pay-result`（按 `orderId`）与 `GET /trade/after-sale/refund-progress`（按 `afterSaleId/orderId`）；
+  2) 旧接口 `trade/order/get-detail`、`trade/after-sale/get`、`pay/order/get` 保留，不做破坏性调整；
+  3) 聚合接口在跨域依赖缺失时 fail-open，返回显式降级字段（如 `degraded/degradeReason`）而非抛系统异常；
+  4) 统一冻结聚合结果码：支付结果 `WAITING/SUCCESS/REFUNDED/CLOSED`，退款进度 `REFUND_PENDING/REFUND_PROCESSING/REFUND_SUCCESS/REFUND_FAILED`；
+  5) 四账联动与工单同步异常继续 fail-open，并要求结构化日志稳定覆盖 `runId/orderId/payRefundId/sourceBizNo/errorCode`。
+- 影响范围：小程序 P0 页面渲染稳定性、端侧重试策略复杂度、跨域异常可观测性与发布前联调效率。
+- 备选方案：继续由端侧并发调用旧接口并自行聚合。
+- 否决原因：端侧需要处理更多时序一致性问题（支付状态和退款状态跨模块同步时延），弱网场景故障定位困难，发布风险高。
+- 回滚条件：若聚合接口出现异常，可临时切回旧接口拼装方案；旧接口已保留，不阻断业务查询能力。

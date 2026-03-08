@@ -3,6 +3,9 @@ package cn.iocoder.yudao.module.trade.controller.app.order;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayOrderNotifyReqDTO;
+import cn.iocoder.yudao.module.pay.api.order.PayOrderApi;
+import cn.iocoder.yudao.module.pay.api.order.dto.PayOrderRespDTO;
+import cn.iocoder.yudao.module.pay.enums.order.PayOrderStatusEnum;
 import cn.iocoder.yudao.module.trade.controller.app.order.vo.*;
 import cn.iocoder.yudao.module.trade.controller.app.order.vo.item.AppTradeOrderItemCommentCreateReqVO;
 import cn.iocoder.yudao.module.trade.controller.app.order.vo.item.AppTradeOrderItemRespVO;
@@ -53,6 +56,8 @@ public class AppTradeOrderController {
     private AfterSaleService afterSaleService;
     @Resource
     private TradePriceService priceService;
+    @Resource
+    private PayOrderApi payOrderApi;
 
     @Resource
     private TradeOrderProperties tradeOrderProperties;
@@ -160,6 +165,58 @@ public class AppTradeOrderController {
         return success(orderCount);
     }
 
+    @GetMapping("/pay-result")
+    @Operation(summary = "获得交易订单支付结果聚合（按订单维度）")
+    @Parameters({
+            @Parameter(name = "orderId", description = "交易订单编号", required = true),
+            @Parameter(name = "sync", description = "是否同步支付状态", example = "true")
+    })
+    public CommonResult<AppTradeOrderPayResultRespVO> getOrderPayResult(@RequestParam("orderId") Long orderId,
+                                                                         @RequestParam(value = "sync", required = false) Boolean sync) {
+        TradeOrderDO order = tradeOrderQueryService.getOrder(getLoginUserId(), orderId);
+        if (order == null) {
+            return success(null);
+        }
+        if (Boolean.TRUE.equals(sync)
+                && TradeOrderStatusEnum.isUnpaid(order.getStatus())
+                && !Boolean.TRUE.equals(order.getPayStatus())
+                && order.getPayOrderId() != null) {
+            tradeOrderUpdateService.syncOrderPayStatusQuietly(order.getId(), order.getPayOrderId());
+            order = tradeOrderQueryService.getOrder(order.getId());
+        }
+        PayOrderRespDTO payOrder = null;
+        if (order.getPayOrderId() != null) {
+            payOrder = payOrderApi.getOrder(order.getPayOrderId());
+        }
+        AppTradeOrderPayResultRespVO respVO = new AppTradeOrderPayResultRespVO();
+        respVO.setOrderId(order.getId());
+        respVO.setOrderNo(order.getNo());
+        respVO.setPayOrderId(order.getPayOrderId());
+        respVO.setOrderStatus(order.getStatus());
+        respVO.setOrderPayStatus(order.getPayStatus());
+        respVO.setOrderRefundStatus(order.getRefundStatus());
+        respVO.setOrderRefundPrice(order.getRefundPrice());
+        respVO.setPayChannelCode(order.getPayChannelCode());
+        if (payOrder != null) {
+            respVO.setPayOrderStatus(payOrder.getStatus());
+            respVO.setPayOrderStatusName(resolvePayOrderStatusName(payOrder.getStatus()));
+            respVO.setPaySuccessTime(payOrder.getSuccessTime());
+            respVO.setPayResultCode(resolvePayResultCode(payOrder.getStatus(), order));
+            respVO.setPayResultDesc(resolvePayResultDesc(respVO.getPayResultCode()));
+            return success(respVO);
+        }
+        respVO.setPayResultCode(resolvePayResultCode(null, order));
+        respVO.setPayResultDesc(resolvePayResultDesc(respVO.getPayResultCode()));
+        if (order.getPayOrderId() != null) {
+            respVO.setDegraded(Boolean.TRUE);
+            respVO.setDegradeReason("PAY_ORDER_NOT_FOUND");
+        } else {
+            respVO.setDegraded(Boolean.FALSE);
+            respVO.setDegradeReason("");
+        }
+        return success(respVO);
+    }
+
     @PutMapping("/receive")
     @Operation(summary = "确认交易订单收货")
     @Parameter(name = "id", description = "交易订单编号")
@@ -198,6 +255,53 @@ public class AppTradeOrderController {
     @Operation(summary = "创建交易订单项的评价")
     public CommonResult<Long> createOrderItemComment(@RequestBody AppTradeOrderItemCommentCreateReqVO createReqVO) {
         return success(tradeOrderUpdateService.createOrderItemCommentByMember(getLoginUserId(), createReqVO));
+    }
+
+    private String resolvePayOrderStatusName(Integer payOrderStatus) {
+        if (payOrderStatus == null) {
+            return "未知";
+        }
+        for (PayOrderStatusEnum statusEnum : PayOrderStatusEnum.values()) {
+            if (statusEnum.getStatus().equals(payOrderStatus)) {
+                return statusEnum.getName();
+            }
+        }
+        return "未知";
+    }
+
+    private String resolvePayResultCode(Integer payOrderStatus, TradeOrderDO order) {
+        if (PayOrderStatusEnum.SUCCESS.getStatus().equals(payOrderStatus)) {
+            return "SUCCESS";
+        }
+        if (PayOrderStatusEnum.REFUND.getStatus().equals(payOrderStatus)) {
+            return "REFUNDED";
+        }
+        if (PayOrderStatusEnum.CLOSED.getStatus().equals(payOrderStatus)) {
+            return "CLOSED";
+        }
+        if (PayOrderStatusEnum.WAITING.getStatus().equals(payOrderStatus)) {
+            return "WAITING";
+        }
+        if (Boolean.TRUE.equals(order.getPayStatus())) {
+            return "SUCCESS";
+        }
+        return "WAITING";
+    }
+
+    private String resolvePayResultDesc(String payResultCode) {
+        if ("SUCCESS".equals(payResultCode)) {
+            return "支付成功";
+        }
+        if ("REFUNDED".equals(payResultCode)) {
+            return "已退款";
+        }
+        if ("CLOSED".equals(payResultCode)) {
+            return "支付关闭";
+        }
+        if ("WAITING".equals(payResultCode)) {
+            return "待支付";
+        }
+        return "未知状态";
     }
 
 }
