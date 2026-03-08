@@ -390,6 +390,11 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
     }
 
     @Test
+    public void testErrorCodeAnchor_bookingRefundIdempotentConflict_shouldStayStable() {
+        assertEquals(1_030_004_012, BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT.getCode());
+    }
+
+    @Test
     public void testUpdateOrderRefunded_backfillAuditWhenAlreadyRefundedWithoutPayRefundId() {
         BookingOrderDO order = createOrder(BookingOrderStatusEnum.REFUNDED.getStatus());
         order.setPayOrderId(779L);
@@ -473,6 +478,24 @@ public class BookingOrderServiceImplTest extends BaseDbUnitTest {
         assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updated.getStatus());
         assertEquals(6666L, updated.getPayRefundId());
         verify(tradeServiceOrderApi).cancelByPayOrderId(eq(892L), eq("SYNC_FROM_BOOKING_REFUNDED"));
+    }
+
+    @Test
+    public void testUpdateOrderRefunded_tradeSyncFailOpenAndResultRetrievable() {
+        BookingOrderDO order = createOrder(BookingOrderStatusEnum.PAID.getStatus());
+        order.setPayOrderId(893L);
+        bookingOrderMapper.insert(order);
+        PayRefundRespDTO payRefund = createSuccessRefundResp(order, 7777L);
+        when(payRefundApi.getRefund(eq(7777L))).thenReturn(payRefund);
+        doThrow(new RuntimeException("trade cancel failed"))
+                .when(tradeServiceOrderApi).cancelByPayOrderId(eq(893L), eq("SYNC_FROM_BOOKING_REFUNDED"));
+
+        bookingOrderService.updateOrderRefunded(order.getId(), 7777L);
+
+        BookingOrderDO updated = bookingOrderService.getOrder(order.getId());
+        assertEquals(BookingOrderStatusEnum.REFUNDED.getStatus(), updated.getStatus());
+        assertEquals(7777L, updated.getPayRefundId());
+        assertNotNull(updated.getRefundTime());
     }
 
     @Test

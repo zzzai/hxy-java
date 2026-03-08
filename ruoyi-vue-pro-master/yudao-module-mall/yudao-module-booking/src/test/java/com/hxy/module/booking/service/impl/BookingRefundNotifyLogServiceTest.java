@@ -37,7 +37,9 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static cn.iocoder.yudao.framework.test.core.util.AssertUtils.assertServiceException;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_IDEMPOTENT_CONFLICT;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -185,6 +187,13 @@ class BookingRefundNotifyLogServiceTest extends BaseMockitoUnitTest {
         assertTrue(respVO.getDetails().get(0).getResultMsg().contains("降级"));
         verify(refundNotifyLogMapper).updateReplaySuccess(eq(5L), eq("success"), eq(1),
                 eq("ops-user"), any(LocalDateTime.class), eq("SUCCESS"), contains("FOUR_ACCOUNT_REFRESH_WARN"));
+    }
+
+    @Test
+    void replayRunIdErrorCodeAnchor_shouldStayStable() {
+        assertEquals(1_030_004_016, BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS.getCode());
+        assertServiceException(() -> service.getReplayRunLogSummary(" "),
+                BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS);
     }
 
     @Test
