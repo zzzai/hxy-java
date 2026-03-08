@@ -19,10 +19,15 @@
 3. 2026-03-09 批次 12 份文档已建立统一索引和状态管理（Draft/Ready/Frozen）。
 
 ## 4. Current Status Snapshot
-- 2026-03-09 批次：
-  - Ready: 1（主矩阵）
-  - Draft: 11（待 B/C/D 分窗口补齐）
-  - Frozen: 0（本批新增尚未冻结）
+- 2026-03-09 批次（已收口 B/C/D 反馈）：
+  - Ready: 12（A/B/C/D 文档均已提交）
+  - Draft: 0
+  - Frozen: 0（待 A 做最终冻结评审）
+
+## 4.1 Integrated Commits (B/C/D)
+1. Window B: `36c2d9ba78` (`docs(miniapp): add growth booking asset search prd pack`)
+2. Window C: `5b5ac12cba` (`docs: add miniapp contract extension pack specs`)
+3. Window D: `1a2a7b6cb44d78f10e3143b5870b8fa404c57a8b` (`docs: add miniapp data and compliance governance pack`)
 
 ## 5. B/C/D 联调关注点
 1. Window B（PRD/UI语义）
@@ -36,5 +41,5 @@
    - 合规文档需明确“营销文案不得暗示成功先于后端确认”的审计规则。
 
 ## 6. Next Merge Rule for A
-- A 窗口合并 B/C/D 文档时，按顺序执行：C（契约）-> B（PRD）-> D（数据合规）-> A（二次冻结矩阵状态）。
-- 二次冻结触发条件：12 份文档均为 Ready 且关键契约文档通过门禁锚点检查。
+- A 已完成 B/C/D 文档收口，下一步按“契约 -> PRD -> 数据治理 -> 总矩阵”进行最终冻结审阅。
+- 二次冻结触发条件：12 份文档均为 Ready（已满足）且关键契约文档通过门禁锚点检查（待执行冻结动作）。

@@ -27,14 +27,14 @@
 | # | Priority | Owner Window | Document | Status | Notes |
 |---|---|---|---|---|---|
 | 1 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-feature-inventory-and-release-matrix-v1.md` | Ready | 主矩阵，作为跨窗口收口基线 |
-| 2 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md` | Draft | 首页增长位与上下文一致性 |
-| 3 | P1 | C | `docs/contracts/2026-03-09-miniapp-addbook-conflict-spec-v1.md` | Draft | 加购/加约冲突契约与错误码 |
-| 4 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md` | Draft | 预约排期与冲突处理 |
-| 5 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | Draft | 会员资产总账口径 |
-| 6 | P2 | C | `docs/contracts/2026-03-09-miniapp-gift-card-domain-contract-v1.md` | Draft | 礼品卡全生命周期契约 |
-| 7 | P2 | C | `docs/contracts/2026-03-09-miniapp-referral-domain-contract-v1.md` | Draft | 邀请有礼到账与冲正 |
-| 8 | P2 | C | `docs/contracts/2026-03-09-miniapp-technician-feed-contract-v1.md` | Draft | 技师动态广场契约 |
-| 9 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md` | Draft | 搜索召回与排序口径 |
-| 10 | P1 | D | `docs/plans/2026-03-09-miniapp-event-taxonomy-v2.md` | Draft | 全链路埋点分类法v2 |
-| 11 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-fulfillment-logistics-prd-v1.md` | Draft | 履约与物流链路规范 |
-| 12 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-content-compliance-styleguide-v1.md` | Draft | 文案与合规风格规范 |
+| 2 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md` | Ready | 已由窗口B提交（36c2d9ba78） |
+| 3 | P1 | C | `docs/contracts/2026-03-09-miniapp-addbook-conflict-spec-v1.md` | Ready | 已由窗口C提交（5b5ac12cba） |
+| 4 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md` | Ready | 已由窗口B提交（36c2d9ba78） |
+| 5 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | Ready | 已由窗口B提交（36c2d9ba78） |
+| 6 | P2 | C | `docs/contracts/2026-03-09-miniapp-gift-card-domain-contract-v1.md` | Ready | 已由窗口C提交（5b5ac12cba） |
+| 7 | P2 | C | `docs/contracts/2026-03-09-miniapp-referral-domain-contract-v1.md` | Ready | 已由窗口C提交（5b5ac12cba） |
+| 8 | P2 | C | `docs/contracts/2026-03-09-miniapp-technician-feed-contract-v1.md` | Ready | 已由窗口C提交（5b5ac12cba） |
+| 9 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md` | Ready | 已由窗口B提交（36c2d9ba78） |
+| 10 | P1 | D | `docs/plans/2026-03-09-miniapp-event-taxonomy-v2.md` | Ready | 已由窗口D提交（1a2a7b6cb4） |
+| 11 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-fulfillment-logistics-prd-v1.md` | Ready | 已由窗口D提交（1a2a7b6cb4） |
+| 12 | P1 | D | `docs/products/miniapp/2026-03-09-miniapp-content-compliance-styleguide-v1.md` | Ready | 已由窗口D提交（1a2a7b6cb4） |
