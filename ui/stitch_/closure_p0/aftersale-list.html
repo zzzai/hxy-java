@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>售后列表页</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>售后列表页</h1>
+        <p>接口绑定：`GET /trade/after-sale/page`，支持按状态筛选。</p>
+        <div class="api-config">
+          <input data-api-base placeholder="API Base，例如 http://localhost:48080/admin-api" />
+          <button class="button-primary" data-api-save>保存 API Base</button>
+          <button class="button-ghost" data-api-clear>清空</button>
+        </div>
+      </section>
+
+      <nav class="top-nav">
+        <a href="index.html">总览</a>
+        <a href="pay-result.html">支付结果</a>
+        <a href="order-list.html">订单列表</a>
+        <a href="aftersale-apply.html">售后申请</a>
+        <a class="active" href="aftersale-list.html">售后列表</a>
+        <a href="aftersale-detail.html">售后详情</a>
+        <a href="error.html">异常页</a>
+      </nav>
+
+      <section class="panel">
+        <h2>筛选与查询</h2>
+        <div class="pill-tabs" id="statusTabs"></div>
+        <div class="grid three" style="margin-top: 10px">
+          <label>
+            pageNo
+            <input id="pageNo" value="1" />
+          </label>
+          <label>
+            pageSize
+            <input id="pageSize" value="10" />
+          </label>
+          <div class="footer-actions" style="align-items: end">
+            <button class="button-primary" id="searchBtn">查询售后单</button>
+          </div>
+        </div>
+        <div id="pageBanner" class="banner hidden"></div>
+      </section>
+
+      <section class="panel">
+        <h2>售后列表（trade/after-sale/page）</h2>
+        <div class="card-list" id="afterSaleList"></div>
+      </section>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="api-client.js"></script>
+    <script src="app.js"></script>
+    <script>
+      var api = window.ClosureP0Api;
+      var common = window.ClosureP0Common;
+      common.syncApiBase();
+
+      var tabMaps = [
+        { name: '全部', value: '' },
+        { name: '申请中', value: '10' },
+        { name: '处理中', value: '20,30,40' },
+        { name: '已完成', value: '50' },
+        { name: '已拒绝', value: '61,62,63' },
+      ];
+
+      var state = {
+        currentTab: 0,
+      };
+
+      function renderTabs() {
+        var container = document.getElementById('statusTabs');
+        container.innerHTML = '';
+        tabMaps.forEach(function (tab, index) {
+          var button = document.createElement('button');
+          button.textContent = tab.name;
+          button.className = index === state.currentTab ? 'active' : '';
+          button.addEventListener('click', function () {
+            state.currentTab = index;
+            renderTabs();
+            queryAfterSalePage();
+          });
+          container.appendChild(button);
+        });
+      }
+
+      function toCard(item) {
+        var sku = (item.properties || [])
+          .map(function (p) {
+            return p.valueName;
+          })
+          .join(' ');
+
+        return (
+          '<div class="card">' +
+          '<div class="title">服务单号：' +
+          common.escapeHtml(item.no) +
+          '</div>' +
+          '<div class="muted">状态：' +
+          common.afterSaleStatus(item.status) +
+          ' · 退款：￥' +
+          common.fen2yuan(item.refundPrice) +
+          '</div>' +
+          '<div class="muted">商品：' +
+          common.escapeHtml(item.spuName) +
+          ' · ' +
+          common.escapeHtml(sku) +
+          '</div>' +
+          '<div class="muted">说明：' +
+          common.escapeHtml(common.afterSaleDesc(item.status)) +
+          '</div>' +
+          '<div class="footer-actions"><a class="link" href="aftersale-detail.html?id=' +
+          encodeURIComponent(item.id) +
+          '">查看详情/进度</a></div>' +
+          '</div>'
+        );
+      }
+
+      async function queryAfterSalePage() {
+        var banner = document.getElementById('pageBanner');
+        var listEl = document.getElementById('afterSaleList');
+
+        var result = await api.request('tradeAfterSalePage', {
+          method: 'GET',
+          params: {
+            pageNo: document.getElementById('pageNo').value.trim(),
+            pageSize: document.getElementById('pageSize').value.trim(),
+            statuses: tabMaps[state.currentTab].value,
+          },
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+
+        var data = result.data || { list: [] };
+        var list = data.list || [];
+        if (!list.length) {
+          listEl.innerHTML = '<div class="note">暂无售后单</div>';
+          return;
+        }
+        listEl.innerHTML = list.map(toCard).join('');
+      }
+
+      renderTabs();
+      queryAfterSalePage();
+      document.getElementById('searchBtn').addEventListener('click', queryAfterSalePage);
+    </script>
+  </body>
+</html>

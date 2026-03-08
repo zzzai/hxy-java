@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>全局异常兜底页</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>全局异常兜底页</h1>
+        <p>统一承接网络异常 / 服务降级，并提供重试与回主流程入口。</p>
+      </section>
+
+      <nav class="top-nav">
+        <a href="index.html">总览</a>
+        <a href="pay-result.html">支付结果</a>
+        <a href="order-list.html">订单列表</a>
+        <a href="aftersale-apply.html">售后申请</a>
+        <a href="aftersale-list.html">售后列表</a>
+        <a href="aftersale-detail.html">售后详情</a>
+        <a class="active" href="error.html">异常页</a>
+      </nav>
+
+      <section class="panel status-box" id="errorBox">
+        <div class="icon">!</div>
+        <h2 id="errorTitle">服务异常</h2>
+        <p class="note" id="errorDesc"></p>
+        <pre id="errorMeta" class="note"></pre>
+        <div class="footer-actions" style="justify-content: center">
+          <button class="button-primary" id="retryBtn">重试</button>
+          <a class="button-ghost" href="index.html">返回首页</a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>推荐恢复动作</h3>
+        <div class="card-list" id="tips"></div>
+      </section>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      var common = window.ClosureP0Common;
+      var query = common.parseQuery();
+      var type = query.type || 'service';
+
+      var title = '服务降级';
+      var desc = '系统服务暂不可用，已建议走降级流程。';
+      var tips = [
+        '检查后端服务健康状态（网关、交易服务、支付服务）。',
+        '如果接口是旧版本未支持，前端应提示“已降级并继续主流程”。',
+        '引导用户返回订单/售后列表继续操作，避免流程中断。',
+      ];
+
+      if (type === 'network') {
+        title = '网络异常';
+        desc = '当前设备与服务端连接失败，请检查网络后重试。';
+        tips = [
+          '确认小程序网络权限和当前网络状态。',
+          '重试关键接口：/trade/order/page、/pay/order/get。',
+          '仍失败时展示离线提示与缓存数据，保证可浏览。',
+        ];
+      }
+
+      document.getElementById('errorTitle').textContent = title;
+      document.getElementById('errorDesc').textContent = desc;
+      document.getElementById('errorMeta').textContent = JSON.stringify(
+        {
+          type: type,
+          code: query.code || '',
+          msg: query.msg || '',
+          from: query.from || '',
+        },
+        null,
+        2,
+      );
+
+      var tipEl = document.getElementById('tips');
+      tipEl.innerHTML = tips
+        .map(function (item) {
+          return '<div class="card"><div class="muted">' + common.escapeHtml(item) + '</div></div>';
+        })
+        .join('');
+
+      document.getElementById('retryBtn').addEventListener('click', function () {
+        window.history.back();
+      });
+    </script>
+  </body>
+</html>

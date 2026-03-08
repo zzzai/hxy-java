@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P0 页面闭环原型</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>小程序 P0 页面闭环 - Window B</h1>
+        <p>可运行 HTML 原型，已按指定 6 个接口接入并包含旧后端降级策略。</p>
+        <div class="api-config">
+          <input data-api-base placeholder="API Base，例如 http://localhost:48080/admin-api" />
+          <button class="button-primary" data-api-save>保存 API Base</button>
+          <button class="button-ghost" data-api-clear>清空</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>页面入口</h2>
+        <div class="card-list">
+          <a class="card link" href="pay-result.html">
+            <div class="title">支付结果页</div>
+            <div class="muted">覆盖成功 / 处理中 / 失败，接口：/pay/order/get</div>
+          </a>
+          <a class="card link" href="order-list.html">
+            <div class="title">订单列表页</div>
+            <div class="muted">按状态筛选，接口：/trade/order/page + /trade/order/get-detail</div>
+          </a>
+          <a class="card link" href="aftersale-apply.html">
+            <div class="title">售后申请页</div>
+            <div class="muted">接口：/trade/order/get-detail + /trade/after-sale/create</div>
+          </a>
+          <a class="card link" href="aftersale-list.html">
+            <div class="title">售后列表页</div>
+            <div class="muted">接口：/trade/after-sale/page</div>
+          </a>
+          <a class="card link" href="aftersale-detail.html">
+            <div class="title">售后详情/退款进度页</div>
+            <div class="muted">接口：/trade/after-sale/get</div>
+          </a>
+          <a class="card link" href="error.html?type=network">
+            <div class="title">全局异常兜底页</div>
+            <div class="muted">网络异常 / 服务降级统一入口</div>
+          </a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>降级策略说明</h2>
+        <div class="note">
+          当后端返回 404/405/501、或错误信息包含“未实现/不支持”等旧版本特征时，页面将提示“已降级为原型数据”，并继续完成浏览/提交流程，不阻断主流程。
+        </div>
+      </section>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="api-client.js"></script>
+    <script src="app.js"></script>
+    <script>
+      window.ClosureP0Common.syncApiBase();
+    </script>
+  </body>
+</html>

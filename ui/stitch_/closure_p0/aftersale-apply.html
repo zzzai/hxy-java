@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>售后申请页</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>售后申请页</h1>
+        <p>接口绑定：`GET /trade/order/get-detail`、`POST /trade/after-sale/create`。</p>
+        <div class="api-config">
+          <input data-api-base placeholder="API Base，例如 http://localhost:48080/admin-api" />
+          <button class="button-primary" data-api-save>保存 API Base</button>
+          <button class="button-ghost" data-api-clear>清空</button>
+        </div>
+      </section>
+
+      <nav class="top-nav">
+        <a href="index.html">总览</a>
+        <a href="pay-result.html">支付结果</a>
+        <a href="order-list.html">订单列表</a>
+        <a class="active" href="aftersale-apply.html">售后申请</a>
+        <a href="aftersale-list.html">售后列表</a>
+        <a href="aftersale-detail.html">售后详情</a>
+        <a href="error.html">异常页</a>
+      </nav>
+
+      <section class="panel">
+        <h2>订单项定位</h2>
+        <div class="grid two">
+          <label>
+            orderId
+            <input id="orderId" value="5001" />
+          </label>
+          <label>
+            itemId
+            <input id="itemId" value="91001" />
+          </label>
+        </div>
+        <div class="footer-actions">
+          <button class="button-primary" id="loadOrderBtn">读取订单明细</button>
+        </div>
+        <div id="pageBanner" class="banner hidden"></div>
+      </section>
+
+      <section class="panel">
+        <h2>售后商品信息（trade/order/get-detail）</h2>
+        <div class="card" id="itemCard">
+          <div class="note">请先读取订单明细。</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>提交售后申请（trade/after-sale/create）</h2>
+        <div class="grid two">
+          <label>
+            way
+            <select id="way">
+              <option value="10">10 仅退款</option>
+              <option value="20">20 退款退货</option>
+            </select>
+          </label>
+          <label>
+            refundPrice（分）
+            <input id="refundPrice" value="6900" />
+          </label>
+          <label>
+            applyReason
+            <input id="applyReason" value="效果不明显" />
+          </label>
+          <label>
+            applyPicUrls（逗号分隔）
+            <input id="applyPicUrls" value="https://dummyimage.com/120x120/ddd/333&text=pic1" />
+          </label>
+        </div>
+        <label style="margin-top: 10px; display: block">
+          applyDescription
+          <textarea id="applyDescription">理疗三天无明显效果，申请退款。</textarea>
+        </label>
+
+        <div class="footer-actions">
+          <button class="button-primary" id="submitBtn">提交申请</button>
+          <a class="link" href="aftersale-list.html">查看售后列表</a>
+        </div>
+
+        <pre id="submitResult" class="note">{}</pre>
+      </section>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="api-client.js"></script>
+    <script src="app.js"></script>
+    <script>
+      var api = window.ClosureP0Api;
+      var common = window.ClosureP0Common;
+      common.syncApiBase();
+
+      var query = common.parseQuery();
+      if (query.orderId) {
+        document.getElementById('orderId').value = query.orderId;
+      }
+      if (query.itemId) {
+        document.getElementById('itemId').value = query.itemId;
+      }
+
+      function renderItem(order, itemId) {
+        var list = (order && order.items) || [];
+        var picked = list.find(function (it) {
+          return String(it.id) === String(itemId);
+        });
+        if (!picked && list.length) {
+          picked = list[0];
+          document.getElementById('itemId').value = picked.id;
+        }
+        if (!picked) {
+          document.getElementById('itemCard').innerHTML = '<div class="note">订单项不存在</div>';
+          return;
+        }
+
+        document.getElementById('refundPrice').value = picked.payPrice || picked.price || 0;
+        var sku = (picked.properties || [])
+          .map(function (p) {
+            return p.valueName;
+          })
+          .join(' ');
+        document.getElementById('itemCard').innerHTML =
+          '<div class="title">' +
+          common.escapeHtml(picked.spuName) +
+          '</div>' +
+          '<div class="muted">SKU：' +
+          common.escapeHtml(sku) +
+          '</div>' +
+          '<div class="muted">数量：' +
+          picked.count +
+          ' · 支付金额：￥' +
+          common.fen2yuan(picked.payPrice || picked.price) +
+          '</div>';
+      }
+
+      async function loadOrderDetail() {
+        var orderId = document.getElementById('orderId').value.trim();
+        var itemId = document.getElementById('itemId').value.trim();
+        var banner = document.getElementById('pageBanner');
+
+        var result = await api.request('tradeOrderGetDetail', {
+          method: 'GET',
+          params: {
+            id: orderId,
+            sync: true,
+          },
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+        renderItem(result.data || {}, itemId);
+      }
+
+      async function submitAfterSale() {
+        var banner = document.getElementById('pageBanner');
+        var orderItemId = document.getElementById('itemId').value.trim();
+        var payload = {
+          orderItemId: Number(orderItemId),
+          refundPrice: Number(document.getElementById('refundPrice').value.trim() || 0),
+          way: Number(document.getElementById('way').value.trim()),
+          applyReason: document.getElementById('applyReason').value.trim(),
+          applyDescription: document.getElementById('applyDescription').value.trim(),
+          applyPicUrls: document
+            .getElementById('applyPicUrls')
+            .value.split(',')
+            .map(function (s) {
+              return s.trim();
+            })
+            .filter(Boolean),
+        };
+
+        var result = await api.request('tradeAfterSaleCreate', {
+          method: 'POST',
+          data: payload,
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+
+        document.getElementById('submitResult').textContent = JSON.stringify(
+          {
+            request: payload,
+            response: result.data,
+            degraded: !!result.degraded,
+          },
+          null,
+          2,
+        );
+      }
+
+      document.getElementById('loadOrderBtn').addEventListener('click', loadOrderDetail);
+      document.getElementById('submitBtn').addEventListener('click', submitAfterSale);
+      loadOrderDetail();
+    </script>
+  </body>
+</html>

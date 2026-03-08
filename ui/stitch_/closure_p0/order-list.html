@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>订单列表页</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>订单列表页</h1>
+        <p>接口绑定：`GET /trade/order/page`，详情抽屉：`GET /trade/order/get-detail`。</p>
+        <div class="api-config">
+          <input data-api-base placeholder="API Base，例如 http://localhost:48080/admin-api" />
+          <button class="button-primary" data-api-save>保存 API Base</button>
+          <button class="button-ghost" data-api-clear>清空</button>
+        </div>
+      </section>
+
+      <nav class="top-nav">
+        <a href="index.html">总览</a>
+        <a href="pay-result.html">支付结果</a>
+        <a class="active" href="order-list.html">订单列表</a>
+        <a href="aftersale-apply.html">售后申请</a>
+        <a href="aftersale-list.html">售后列表</a>
+        <a href="aftersale-detail.html">售后详情</a>
+        <a href="error.html">异常页</a>
+      </nav>
+
+      <section class="panel">
+        <h2>筛选与查询</h2>
+        <div class="pill-tabs" id="statusTabs"></div>
+        <div class="grid three" style="margin-top: 10px">
+          <label>
+            pageNo
+            <input id="pageNo" value="1" />
+          </label>
+          <label>
+            pageSize
+            <input id="pageSize" value="5" />
+          </label>
+          <div class="footer-actions" style="align-items: end">
+            <button class="button-primary" id="searchBtn">查询订单</button>
+          </div>
+        </div>
+        <div id="pageBanner" class="banner hidden"></div>
+      </section>
+
+      <section class="panel">
+        <h2>订单列表（trade/order/page）</h2>
+        <div class="card-list" id="orderList"></div>
+      </section>
+
+      <section class="panel">
+        <h2>订单详情（trade/order/get-detail）</h2>
+        <div class="note">点击上方任一订单的“查看详情”按钮获取。</div>
+        <pre id="detailResult" class="note">{}</pre>
+      </section>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="api-client.js"></script>
+    <script src="app.js"></script>
+    <script>
+      var api = window.ClosureP0Api;
+      var common = window.ClosureP0Common;
+      common.syncApiBase();
+
+      var tabMaps = [
+        { name: '全部', value: '' },
+        { name: '待付款', value: 0 },
+        { name: '待发货', value: 10 },
+        { name: '待收货', value: 20 },
+        { name: '待评价', value: 30 },
+      ];
+
+      var state = {
+        currentTab: 0,
+      };
+
+      function renderTabs() {
+        var container = document.getElementById('statusTabs');
+        container.innerHTML = '';
+        tabMaps.forEach(function (tab, index) {
+          var button = document.createElement('button');
+          button.textContent = tab.name;
+          button.className = index === state.currentTab ? 'active' : '';
+          button.addEventListener('click', function () {
+            state.currentTab = index;
+            renderTabs();
+            queryOrderPage();
+          });
+          container.appendChild(button);
+        });
+      }
+
+      function orderCard(order) {
+        var items = (order.items || [])
+          .map(function (item) {
+            var sku = (item.properties || [])
+              .map(function (p) {
+                return p.valueName;
+              })
+              .join(' ');
+            return '<div class="muted">' + common.escapeHtml(item.spuName) + ' | ' + common.escapeHtml(sku) + '</div>';
+          })
+          .join('');
+
+        return (
+          '<div class="card">' +
+          '<div class="title">订单号：' +
+          common.escapeHtml(order.no) +
+          '</div>' +
+          '<div class="muted">状态：' +
+          common.textStatus(order.status) +
+          ' · 总额：￥' +
+          common.fen2yuan(order.payPrice) +
+          '</div>' +
+          items +
+          '<div class="footer-actions"><button class="button-ghost" data-order-detail="' +
+          order.id +
+          '">查看详情</button><a class="link" href="aftersale-apply.html?orderId=' +
+          encodeURIComponent(order.id) +
+          '&itemId=' +
+          encodeURIComponent(order.items && order.items[0] ? order.items[0].id : '') +
+          '">去申请售后</a></div>' +
+          '</div>'
+        );
+      }
+
+      async function queryOrderPage() {
+        var banner = document.getElementById('pageBanner');
+        var listEl = document.getElementById('orderList');
+
+        var status = tabMaps[state.currentTab].value;
+        var pageNo = document.getElementById('pageNo').value.trim();
+        var pageSize = document.getElementById('pageSize').value.trim();
+
+        var result = await api.request('tradeOrderPage', {
+          method: 'GET',
+          params: {
+            pageNo: pageNo,
+            pageSize: pageSize,
+            status: status,
+            commentStatus: status === 30 ? false : null,
+          },
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+
+        var data = result.data || { list: [], total: 0 };
+        var orders = data.list || [];
+        if (!orders.length) {
+          listEl.innerHTML = '<div class="note">暂无订单数据</div>';
+          return;
+        }
+
+        listEl.innerHTML = orders.map(orderCard).join('');
+
+        listEl.querySelectorAll('[data-order-detail]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            queryOrderDetail(button.getAttribute('data-order-detail'));
+          });
+        });
+      }
+
+      async function queryOrderDetail(orderId) {
+        var detail = document.getElementById('detailResult');
+        var banner = document.getElementById('pageBanner');
+
+        var result = await api.request('tradeOrderGetDetail', {
+          method: 'GET',
+          params: {
+            id: orderId,
+            sync: true,
+          },
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+
+        detail.textContent = JSON.stringify(result.data || {}, null, 2);
+      }
+
+      renderTabs();
+      queryOrderPage();
+      document.getElementById('searchBtn').addEventListener('click', queryOrderPage);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>售后详情/退款进度页</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>售后详情 / 退款进度页</h1>
+        <p>接口绑定：`GET /trade/after-sale/get`，按状态渲染进度节点。</p>
+        <div class="api-config">
+          <input data-api-base placeholder="API Base，例如 http://localhost:48080/admin-api" />
+          <button class="button-primary" data-api-save>保存 API Base</button>
+          <button class="button-ghost" data-api-clear>清空</button>
+        </div>
+      </section>
+
+      <nav class="top-nav">
+        <a href="index.html">总览</a>
+        <a href="pay-result.html">支付结果</a>
+        <a href="order-list.html">订单列表</a>
+        <a href="aftersale-apply.html">售后申请</a>
+        <a href="aftersale-list.html">售后列表</a>
+        <a class="active" href="aftersale-detail.html">售后详情</a>
+        <a href="error.html">异常页</a>
+      </nav>
+
+      <section class="panel">
+        <h2>查询服务单</h2>
+        <div class="grid three">
+          <label>
+            id
+            <input id="afterSaleId" value="7001" />
+          </label>
+          <div class="footer-actions" style="align-items: end">
+            <button class="button-primary" id="queryBtn">查询详情</button>
+          </div>
+        </div>
+        <div id="pageBanner" class="banner hidden"></div>
+      </section>
+
+      <section class="panel">
+        <h2>退款进度</h2>
+        <div class="timeline" id="timeline"></div>
+      </section>
+
+      <section class="panel">
+        <h2>详情字段（trade/after-sale/get）</h2>
+        <pre id="detailJson" class="note">{}</pre>
+      </section>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="api-client.js"></script>
+    <script src="app.js"></script>
+    <script>
+      var api = window.ClosureP0Api;
+      var common = window.ClosureP0Common;
+      common.syncApiBase();
+
+      var query = common.parseQuery();
+      if (query.id) {
+        document.getElementById('afterSaleId').value = query.id;
+      }
+
+      function timelineStep(status) {
+        if (Number(status) === 10) {
+          return 0;
+        }
+        if ([20, 30, 40].includes(Number(status))) {
+          return 1;
+        }
+        return 2;
+      }
+
+      function renderTimeline(record) {
+        var active = timelineStep(record.status);
+        var nodes = [
+          { title: '提交申请', desc: '买家已发起售后申请' },
+          { title: '处理中', desc: common.afterSaleDesc(record.status) },
+          { title: '完成', desc: [50].includes(Number(record.status)) ? '退款成功' : '流程结束' },
+        ];
+
+        document.getElementById('timeline').innerHTML = nodes
+          .map(function (node, index) {
+            return (
+              '<div class="node ' +
+              (index <= active ? 'active' : '') +
+              '"><div class="title">' +
+              common.escapeHtml(node.title) +
+              '</div><div class="muted">' +
+              common.escapeHtml(node.desc) +
+              '</div></div>'
+            );
+          })
+          .join('');
+      }
+
+      async function queryDetail() {
+        var id = document.getElementById('afterSaleId').value.trim();
+        var banner = document.getElementById('pageBanner');
+
+        var result = await api.request('tradeAfterSaleGet', {
+          method: 'GET',
+          params: {
+            id: id,
+          },
+        });
+
+        common.withFallbackHint(result, banner, result.errorType || 'service');
+        if (!result.ok) {
+          return;
+        }
+
+        var record = result.data || {};
+        renderTimeline(record);
+        document.getElementById('detailJson').textContent = JSON.stringify(record, null, 2);
+      }
+
+      document.getElementById('queryBtn').addEventListener('click', queryDetail);
+      queryDetail();
+    </script>
+  </body>
+</html>
