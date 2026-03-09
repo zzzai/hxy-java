@@ -29,7 +29,7 @@
 | Trade & Pay | 购物车、结算、支付提交/结果、订单列表/详情 | Full | Full | Full | Full | Full | Full | 95 | `wallet transfer / recharge` 仍缺独立验收条目；历史原型路由未清理 | P1 |
 | After-sale & Refund | 售后申请、售后列表/详情、退款进度、回寄、日志 | Full | Full | Full | Full | Full | Full | 96 | 发布矩阵仍沿用部分原型别名路由，需与真实 uniapp 路由统一 | P1 |
 | Booking & Technician Service | 预约列表/详情、技师、时段、创建、取消、加钟 | Full | Partial | Full | Full | Full | Partial | 76 | booking 前后端方法/路径不一致；缺“真实 FE route + real API”校对增补文档；addon 缺专属验收 | P0 |
-| Member Account & Assets | 登录/注册、个人资料、地址、钱包、积分、签到、等级 | Partial | Partial | Partial | Partial | Partial | Partial | 63 | 登录/资料/签到/等级没有冻结 PRD/contract/error/degrade 文档；地址/资产路由与历史 alias 漂移 | P0 |
+| Member Account & Assets | 登录/注册、个人资料、地址、钱包、积分、签到、等级、资产总览规划 | Full | Full | Full | Full | Full | Full | 84 | 03-10 member 文档包已补齐，但仍有 route truth 漂移；`/pages/user/level`、`/pages/profile/assets` 当前缺真实页面；`/member/asset-ledger/page` 仍是 `PLANNED_RESERVED` | P0 |
 | Product / Search / Catalog | 首页 DIY、分类、商品列表、商品详情、搜索、收藏、浏览历史、评论 | Partial | Partial | Partial | Partial | None | None | 58 | `search-lite` 与 canonical search 未拆清；商品详情/收藏/浏览历史/评论没有产品文档包 | P1 |
 | Promotion / Growth | 首页增长、优惠券、积分商城、活动列表、通知触点 | Full | Full | Full | Full | Full | Full | 89 | 拼团/秒杀/砍价/满减送等扩展活动仍缺独立业务文档；真实路由与原型 alias 未统一 | P1 |
 | Content / DIY / Customer Service | 文章、富文本、FAQ、自定义页、客服聊天 | Partial | None | None | None | Partial | None | 36 | 缺 canonical API、错误码、降级策略、监控与回滚手册；DIY 仅被首页间接覆盖 | P0 |
@@ -45,7 +45,7 @@
 
 ### 4.2 当前最危险的三类缺口
 1. Booking 不是“文档少”，而是“文档已写，但代码真实路径/方法不一致”，会制造假 Active。
-2. Member 域不是“没有代码”，而是“登录/资料/签到/等级缺少冻结文档”，导致运行能力无法进入正式发布真值。
+2. Member 域已不再是“缺文档”，而是“文档已补齐但 route truth 与 Active/Planned 边界仍需收口”；最明显的是 `/pages/public/login`、`/pages/user/index`、`/pages/user/sign-in` 与当前真实 uniapp 路由不一致。
 3. Brokerage / Content 域已有真实代码和页面，但几乎没有发布级产品文档，当前高度依赖口头知识。
 
 ### 4.3 Route Alias 漂移
@@ -61,9 +61,9 @@
 1. `Booking 用户侧真实 API 对齐增补文档`
    - 目标：把 `technician-list / slot / cancel / addon` 的真实方法和路径对齐成可执行单一真值。
    - 交付建议：新增 `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`。
-2. `Member 账户域文档包`
-   - 目标：补齐登录/社交绑定/个人资料/签到/等级的 PRD + contract + error/degrade。
-   - 交付建议：新增 `miniapp-member-account-prd`、`miniapp-member-account-contract`、`miniapp-member-account-error-recovery`。
+2. `Member route truth / Active-Planned 收口文档`
+   - 目标：把 03-10 member PRD/contract 中的别名路由校正为真实 uniapp route，并明确哪些能力是真 Active、哪些仍是 Planned。
+   - 交付建议：优先校正 `/pages/public/login`、`/pages/user/index`、`/pages/user/sign-in`、`/pages/address/list`、`/pages/point/mall`，并把 `/pages/user/level`、`/pages/profile/assets` 固定为缺页能力。
 3. `Content / Customer Service 文档包`
    - 目标：把客服聊天、文章、FAQ、DIY 页从“代码存在”提升到“可验收、可运营、可回滚”。
    - 交付建议：补齐 PRD、contract、error/degrade、客服 SOP。
@@ -84,6 +84,6 @@
 
 ## 7. 结论
 1. 当前文档最完整的是交易、售后、退款、券积分、首页增长主链路。
-2. 当前最需要补的不是再写一轮“总览”，而是针对 booking/member/content/brokerage 做域内闭环补齐。
-3. `coverageScore` 不等于代码可用性；它衡量的是“是否已经具备发布级单一真值”。
-4. 后续封版应先消除 booking 假 Active，再决定是否将 member/content/brokerage 纳入同一轮冻结。
+2. 当前最需要补的不是再写一轮“总览”，而是针对 booking/member/content/brokerage 做域内真值收口。
+3. `coverageScore` 不等于代码可用性；它衡量的是“是否已经具备发布级单一真值”。Member 域分数已上升，但还不能直接冻结。
+4. 后续封版应先消除 booking 假 Active 与 member route truth 漂移，再决定是否将 member/content/brokerage 纳入同一轮冻结。

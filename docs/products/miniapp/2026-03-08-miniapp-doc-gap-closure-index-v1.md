@@ -137,13 +137,35 @@
 - Ready: 2
 - Draft: 0
 
-## 11. Current Snapshot (2026-03-10)
+## 11. 2026-03-10 Member Domain Pack（B/C/D）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | Ready | 会员全域 PRD 已补齐，但 route truth 仍需从原型别名归一到真实 uniapp 路由 |
+| 2 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-member-page-api-field-dictionary-v1.md` | Ready | 会员页面/API/字段字典已补齐，待 A 侧按真实 route 复核 |
+| 3 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-member-user-facing-errorcopy-v1.md` | Ready | 会员域错误文案与恢复动作已补齐 |
+| 4 | P0 | C | `docs/contracts/2026-03-10-miniapp-member-domain-contract-v1.md` | Ready | 会员域契约已补齐，待结合真实前端 route 与组件入口冻结 |
+| 5 | P0 | C | `docs/contracts/2026-03-10-miniapp-active-vs-planned-api-matrix-v1.md` | Ready | Active/Planned API 边界已建立，待 A 侧与能力台账联调收口 |
+| 6 | P0 | D | `docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md` | Ready | 会员域 KPI 与告警阈值已补齐 |
+| 7 | P0 | D | `docs/plans/2026-03-10-miniapp-active-planned-gate-runbook-v1.md` | Ready | Active/Planned 门禁运行手册已补齐 |
+| 8 | P0 | D | `docs/plans/2026-03-10-miniapp-member-domain-sla-routing-v1.md` | Ready | 会员域告警路由与 SLA 已补齐 |
+
+### 11.1 03-10 Member Pack 状态汇总
+- Frozen: 0
+- Ready: 8
+- Draft: 0
+
+### 11.2 03-10 增补说明
+- `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 已在当前分支扩展会员域错误码锚点。
+- 该扩展属于 03-10 Ready 增补输入，不改变 03-09 Frozen 基线记录本身；是否进入 Frozen，需等待 A 侧 route truth 与 Active/Planned 边界收口。
+
+## 12. Current Snapshot (2026-03-10)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 03-10 新增准备态文档：`2 Ready`
+- 03-10 新增准备态文档：`10 Ready`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 2
+  - Ready: 10
   - Draft: 0
 - 说明：
-  - 03-10 文档用于收敛“真实能力状态”与“业务域文档覆盖”单一真值。
+  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”与“member 域 Active/Planned 边界”单一真值。
   - 未发生任何既有 Frozen 文档回退。

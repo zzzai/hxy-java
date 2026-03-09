@@ -42,6 +42,14 @@
 - `ED-18` `docs/products/miniapp/2026-03-09-miniapp-operation-config-playbook-v1.md`
 - `ED-19` `docs/products/miniapp/2026-03-09-miniapp-release-decision-pack-v1.md`
 - `ED-20` `docs/products/miniapp/2026-03-09-miniapp-product-doc-consistency-audit-v1.md`
+- `ED-21` `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`
+- `ED-22` `docs/products/miniapp/2026-03-10-miniapp-member-page-api-field-dictionary-v1.md`
+- `ED-23` `docs/products/miniapp/2026-03-10-miniapp-member-user-facing-errorcopy-v1.md`
+- `ED-24` `docs/contracts/2026-03-10-miniapp-member-domain-contract-v1.md`
+- `ED-25` `docs/contracts/2026-03-10-miniapp-active-vs-planned-api-matrix-v1.md`
+- `ED-26` `docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md`
+- `ED-27` `docs/plans/2026-03-10-miniapp-active-planned-gate-runbook-v1.md`
+- `ED-28` `docs/plans/2026-03-10-miniapp-member-domain-sla-routing-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -64,6 +72,14 @@
 - referral：前端无页面、后端无 app 控制器，且门禁 `miniapp.referral=off`，状态只能是 `PLANNED_RESERVED`。
 - technician-feed：前端无页面、后端无 feed 控制器，且门禁 `miniapp.technician-feed.audit=off`，状态只能是 `PLANNED_RESERVED`。
 
+### 4.3 已确认的 member 路由真值漂移
+1. 03-10 member PRD 将登录页写为 `/pages/public/login`，但当前用户侧真实路由是 `yudao-mall-uniapp/pages/index/login.vue`，且该页主要承担 H5/社交登录回调，日常登录 UI 仍以全局 auth modal 为主。
+2. 03-10 member PRD 将个人中心写为 `/pages/user/index`，但真实 tab 路由是 `yudao-mall-uniapp/pages/index/user.vue`。
+3. 03-10 member PRD 将签到写为 `/pages/user/sign-in`，但真实路由是 `yudao-mall-uniapp/pages/app/sign.vue`。
+4. 03-10 member PRD 将地址写为 `/pages/address/list`，但真实路由是 `yudao-mall-uniapp/pages/user/address/list`。
+5. 03-10 member PRD 将积分商城写为 `/pages/point/mall`，但真实路由是 `yudao-mall-uniapp/pages/activity/point/list`。
+6. 03-10 member PRD 声明了 `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag`；当前分支均无真实页面文件，因此不能按 `ACTIVE` 处理。
+
 ## 5. 能力清单
 
 ### 5.1 Trade / Pay
@@ -80,12 +96,14 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-MEMBER-001 | member.auth-social | `/pages/index/login`; `s-auth-modal` 组件链路 | `/member/auth/*`; `/member/social-user/*` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Member Domain Owner | `N/A` | 代码存在，但缺独立 PRD / contract / acceptance 口径，不能记 `ACTIVE` |
-| CAP-MEMBER-002 | member.profile-security | `/pages/user/info`; `/pages/public/setting` | `GET /member/user/get`; `PUT /member/user/update`; `PUT /member/user/update-mobile*`; `PUT /member/user/update-password`; `POST /member/auth/logout` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Member Domain Owner | `N/A` | 页面和接口存在，但无冻结验收口径 |
+| CAP-MEMBER-001 | member.auth-social | `component:s-auth-modal`; `/pages/index/login`（H5/社交回调） | `/member/auth/*`; `/member/social-user/*` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 会员登录/短信/微信一键登录已有前端组件、后端接口与错误码/SLA文档，但 03-10 PRD 的 route 描述仍需校正后才能冻结 |
+| CAP-MEMBER-002 | member.profile-security | `/pages/index/user`; `/pages/user/info`; `/pages/public/setting` | `GET /member/user/get`; `PUT /member/user/update`; `PUT /member/user/update-mobile*`; `PUT /member/user/update-password`; `PUT /member/user/reset-password`; `POST /member/auth/logout` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 个人资料、手机号、密码修改链路前后端存在，03-10 member 包已补齐文档，但个人中心主路由仍需从 `/pages/user/index` 校正到真实 route |
 | CAP-MEMBER-003 | member.address | `/pages/user/address/list`; `/pages/user/address/edit` | `GET /member/address/list`; `GET /member/address/get`; `GET /member/address/get-default`; `POST /member/address/create`; `PUT /member/address/update`; `DELETE /member/address/delete` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-01/ED-02/ED-04/ED-06/ED-10` | 真实路由已存在，地址 CRUD 与默认地址规则已冻结 |
 | CAP-MEMBER-004 | member.wallet-ledger | `/pages/user/wallet/money`; `/pages/pay/recharge`; `/pages/pay/recharge-log` | `GET /pay/wallet/get`; `GET /pay/wallet-transaction/page`; `GET /pay/wallet-transaction/get-summary`; `GET /pay/wallet-recharge-package/list`; `POST /pay/wallet-recharge/create`; `GET /pay/wallet-recharge/page` | ACTIVE | P1 | RB2-P1 | Member + Pay Domain Owner | `ED-02/ED-06/ED-10` | 钱包余额、流水、充值套餐前后端已闭环，资产账本 PRD 可执行 |
 | CAP-MEMBER-005 | member.point-ledger | `/pages/user/wallet/score` | `GET /member/point/record/page` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-02/ED-06/ED-10/ED-11` | 积分流水已纳入资产账本 PRD 与 canonical API |
-| CAP-MEMBER-006 | member.signin-level | `/pages/app/sign` | `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page`; `GET /member/level/list` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Member Domain Owner | `N/A` | 页面与接口存在，但签到/等级未进入冻结文档包 |
+| CAP-MEMBER-006 | member.sign-in | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page` | ACTIVE | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 签到页和接口存在，03-10 member 包已补齐错误码、告警和人工接管口径；文档 route 仍需规范到 `/pages/app/sign` |
+| CAP-MEMBER-007 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-24/ED-25` | 后端接口存在，但当前分支缺 `pages/user/level.vue`，不能按 `ACTIVE` 处理 |
+| CAP-MEMBER-008 | member.asset-overview | `/pages/user/wallet/money`; `/pages/coupon/list`; `N/A（/pages/profile/assets 缺失）` | `GET /pay/wallet/get`; `GET /promotion/coupon/get-unused-count`; `GET /member/point/record/page`; `GET /member/asset-ledger/page`（规划） | PLANNED_RESERVED | P1 | RB2-P1 | Member + Promotion Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27` | 分资产页已运行，但聚合资产总览页与 `/member/asset-ledger/page` 仍是规划态，不得误标 Active |
 
 ### 5.3 Product / Search
 
@@ -141,6 +159,7 @@
 
 ## 7. 当前结论
 1. 可直接视作 `ACTIVE` 的主链路集中在：交易支付、售后退款、地址、钱包/积分、优惠券、积分商城、基础首页 DIY、搜索 lite、预约查询。
-2. 当前最关键的假 Active 风险在 booking 域：页面存在，但 `create/cancel/addon` 未达到“前后端方法路径对齐 + 验收口径”标准。
-3. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，不得被误算进发布已上线能力。
-4. 后续封版时，应以本文替代历史原型别名路由，避免继续使用 `/pages/after-sale/*`、`/pages/coupon/center` 等旧路径描述。
+2. 会员域已从“文档缺口”推进到“文档已补齐但 route truth 待归一”，当前可判定为 `ACTIVE` 的只包括登录组件链路、资料、安全、签到、地址、钱包/积分；等级页与资产总览仍不能升 Active。
+3. 当前最关键的假 Active 风险仍在 booking 域：页面存在，但 `create/cancel/addon` 未达到“前后端方法路径对齐 + 验收口径”标准。
+4. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，不得被误算进发布已上线能力。
+5. 后续封版时，应以本文替代历史原型别名路由，避免继续使用 `/pages/after-sale/*`、`/pages/coupon/center`、`/pages/public/login`、`/pages/user/index` 等旧路径描述。
