@@ -83,3 +83,19 @@
 - 第三波跨窗口文档提交：`dc8de52280`（B）、`047dc257ca`（C）、`8edb2bc035`（D）
 - 累计状态：03-09 相关文档 `30/30 Frozen`（21 基线 + 9 增量）
 - 说明：后续语义变更按 `ready-to-frozen-review` 门禁执行，触发条件下先回退 `Ready` 再修订。
+
+## 7. 本批发布决策单一真值包（A）
+
+| Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|
+| P0 | A | `docs/products/miniapp/2026-03-09-miniapp-release-decision-pack-v1.md` | Frozen | 发布范围、Go/No-Go、风险台账、跨窗口责任矩阵已冻结 |
+
+### 7.1 本批状态汇总
+- Frozen: 1
+- Ready: 0
+- Draft: 0
+
+### 7.2 累计状态（03-09）
+- Frozen: 31
+- Ready: 0
+- Draft: 0

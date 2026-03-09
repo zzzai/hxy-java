@@ -6,7 +6,7 @@
 
 ## 2. 冻结范围
 
-### 2.1 本次冻结文档（30份）
+### 2.1 本次冻结文档（31份）
 1. `docs/products/miniapp/2026-03-09-miniapp-feature-inventory-and-release-matrix-v1.md`
 2. `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md`
 3. `docs/contracts/2026-03-09-miniapp-addbook-conflict-spec-v1.md`
@@ -37,6 +37,7 @@
 28. `docs/plans/2026-03-09-miniapp-store-operations-dashboard-spec-v1.md`
 29. `docs/plans/2026-03-09-miniapp-experiment-registry-and-governance-v1.md`
 30. `docs/plans/2026-03-09-miniapp-data-quality-slo-and-alerting-v1.md`
+31. `docs/products/miniapp/2026-03-09-miniapp-release-decision-pack-v1.md`
 
 ### 2.2 冻结后约束
 - 仅允许向后兼容补充。
@@ -54,13 +55,14 @@
 
 | 检查项 | 结果 | 说明 |
 |---|---|---|
-| 文档齐套性 | PASS | 30/30 文档存在且可追踪 |
+| 文档齐套性 | PASS | 31/31 文档存在且可追踪 |
 | 契约一致性 | PASS | 路由/API/错误码语义与既有基线一致 |
 | 状态机一致性 | PASS | 统一引用 03-08 状态机文档 |
 | 降级语义一致性 | PASS | fail-open/fail-close 边界明确 |
 | 审计可检索性 | PASS | 关键字段约束统一（runId/orderId/payRefundId/sourceBizNo/errorCode） |
 | SOP/运营口径一致性 | PASS | 客服SOP、运营配置与契约错误码矩阵对齐 |
 | 错误码去占位符收口 | PASS | `TBD_*` 已在 canonical register 映射并受禁用态治理 |
+| 发布决策闭环 | PASS | Go/No-Go 决策表、风险台账与跨窗口责任矩阵已冻结 |
 
 ## 5. 回滚策略
 - 文档回滚触发条件：
@@ -112,3 +114,17 @@
 2. A窗口判定是否触发“回退Ready”条件。
 3. 若触发，索引状态从 `Frozen` 回退为 `Ready`，并冻结上线窗口。
 4. 完成修订后重新走一致性审计 + Frozen 评审。
+
+## 9. 发布决策门禁（何时必须回退 Ready）
+
+### 9.1 触发“必须回退 Ready”的条件
+1. 发布范围（P级/RB批次）发生变化。
+2. Go/No-Go 决策阈值或处置时限发生变化。
+3. 风险台账中的风险等级、监控指标或回滚策略发生语义变化。
+4. 跨窗口责任矩阵（A/B/C/D 的 R/A/C/I）发生变化。
+5. `RESERVED_DISABLED` 错误码开关策略与禁用态处置发生变化。
+
+### 9.2 可保持 Frozen 直接补充的条件
+1. 补充操作示例、截图位、附录解释，不改变语义。
+2. 增加不影响决策逻辑的参考链接。
+3. 补充同义描述，不改变角色职责、阈值、策略边界。
