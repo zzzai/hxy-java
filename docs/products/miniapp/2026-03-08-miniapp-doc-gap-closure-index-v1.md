@@ -53,7 +53,7 @@
 - 第二波跨窗口文档提交：`40e60fe0dc`（B）、`1d7bbb1a9a`（C）、`b9fcc16f54`（D）
 - 当前状态：03-09 文档包 `21/21 Frozen`，可作为发布前联调与验收基线。
 
-## 5. 本批增量映射（已冻结21份 + 本批增量缺口）
+## 5. 本批增量映射（已冻结21份 + 增量9份收口）
 
 ### 5.1 本批已交付（A）
 
@@ -61,20 +61,25 @@
 |---|---|---|---|---|
 | P0 | A | `docs/products/miniapp/2026-03-09-miniapp-product-doc-consistency-audit-v1.md` | Frozen | 一致性审计、冲突清单、Go/No-Go 已收口 |
 
-### 5.2 本批待交付增量缺口（8 Docs）
+### 5.2 本批增量交付（B/C/D，8 Docs）
 
-| # | Priority | Owner Window | Document | Status | Gap Type |
+| # | Priority | Owner Window | Document | Status | Notes |
 |---|---|---|---|---|---|
-| 1 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-user-journey-service-blueprint-v1.md` | Draft | 用户旅程与门店履约蓝图缺失 |
-| 2 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-release-acceptance-testbook-v1.md` | Draft | 发布验收样例库缺失 |
-| 3 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-notification-touchpoint-policy-v1.md` | Draft | 触达策略与频控规范缺失 |
-| 4 | P0 | C | `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` | Ready | 错误码总表待A集成冻结 |
-| 5 | P1 | C | `docs/contracts/2026-03-09-miniapp-p1p2-contract-tbd-closure-v1.md` | Ready | P1/P2契约去TBD待A集成冻结 |
-| 6 | P1 | D | `docs/plans/2026-03-09-miniapp-store-operations-dashboard-spec-v1.md` | Draft | 门店经营看板口径缺失 |
-| 7 | P1 | D | `docs/plans/2026-03-09-miniapp-experiment-registry-and-governance-v1.md` | Draft | 实验登记与停机线缺失 |
-| 8 | P2 | D | `docs/plans/2026-03-09-miniapp-data-quality-slo-and-alerting-v1.md` | Draft | DQ-SLO与告警分级缺失 |
+| 1 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-user-journey-service-blueprint-v1.md` | Frozen | `dc8de52280` |
+| 2 | P0 | B | `docs/products/miniapp/2026-03-09-miniapp-release-acceptance-testbook-v1.md` | Frozen | `dc8de52280` |
+| 3 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-notification-touchpoint-policy-v1.md` | Frozen | `dc8de52280` |
+| 4 | P0 | C | `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` | Frozen | `047dc257ca` |
+| 5 | P1 | C | `docs/contracts/2026-03-09-miniapp-p1p2-contract-tbd-closure-v1.md` | Frozen | `047dc257ca` |
+| 6 | P1 | D | `docs/plans/2026-03-09-miniapp-store-operations-dashboard-spec-v1.md` | Frozen | `8edb2bc035` |
+| 7 | P1 | D | `docs/plans/2026-03-09-miniapp-experiment-registry-and-governance-v1.md` | Frozen | `8edb2bc035` |
+| 8 | P2 | D | `docs/plans/2026-03-09-miniapp-data-quality-slo-and-alerting-v1.md` | Frozen | `8edb2bc035` |
 
 ### 5.3 状态汇总（本批增量）
-- Frozen: 1
-- Ready: 2
-- Draft: 5
+- Frozen: 9
+- Ready: 0
+- Draft: 0
+
+## 6. Closure Snapshot (2026-03-09)
+- 第三波跨窗口文档提交：`dc8de52280`（B）、`047dc257ca`（C）、`8edb2bc035`（D）
+- 累计状态：03-09 相关文档 `30/30 Frozen`（21 基线 + 9 增量）
+- 说明：后续语义变更按 `ready-to-frozen-review` 门禁执行，触发条件下先回退 `Ready` 再修订。

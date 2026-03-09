@@ -11,8 +11,8 @@
 4. `hxy/07_memory_archive/handoffs/2026-03-09/miniapp-doc-consistency-window-a.md`
 
 ## 3. Closure Result
-- `21/21` docs remain frozen as current release baseline.
-- Incremental gap map added with explicit status (`Frozen/Ready/Draft`).
+- `30/30` docs are frozen as current release baseline（21 基线 + 9 增量）.
+- Incremental gap map has been closed to all `Frozen`.
 - New consistency audit includes:
   - Cross-doc matrix (page/route/API/state machine/error code/degrade/P-level/owner)
   - Conflict list (TBD codes, priority drift, API naming inconsistency)
@@ -21,6 +21,12 @@
 - Frozen review doc now includes a post-freeze gate:
   - which changes can be appended directly
   - which changes must rollback to `Ready`
+
+## 3.1 Third-Wave Integration Record
+- Window B commit: `dc8de52280`（journey/acceptance/notification pack）
+- Window C commit: `047dc257ca`（errorcode canonical register + p1p2 closure）
+- Window D commit: `8edb2bc035`（dashboard + experiment + DQ-SLO pack）
+- Integration decision: accepted and frozen in A index/review baseline.
 
 ## 4. Cross-Window Coordination Notes
 1. Window B
@@ -34,8 +40,10 @@
    - Keep metric and event models aligned with stable code anchors.
 
 ## 5. Risk and Next Gate
-- Current release decision: conditional go.
-- Must clear blockers before full sign-off:
-  - `TBD_*` unresolved in release-scoped docs
-  - cross-doc priority conflicts
-  - wildcard API naming in release-bound matrix rows
+- Current release decision: go-with-gate.
+- Current residual risks:
+  - `RESERVED_DISABLED` 码误返回（配置/开关异常）
+  - `degraded=true` 流量若误入主池会污染经营口径
+- Gate actions:
+  - 命中 `RESERVED_DISABLED` 立即按 P1 配置异常处理并回滚开关
+  - 持续执行“冻结后变更门禁”，语义变更必须先回退 `Ready`
