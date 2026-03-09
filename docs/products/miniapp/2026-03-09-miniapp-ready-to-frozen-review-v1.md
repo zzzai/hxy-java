@@ -6,7 +6,7 @@
 
 ## 2. 冻结范围
 
-### 2.1 本次冻结文档（31份）
+### 2.1 本次冻结文档（39份）
 1. `docs/products/miniapp/2026-03-09-miniapp-feature-inventory-and-release-matrix-v1.md`
 2. `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md`
 3. `docs/contracts/2026-03-09-miniapp-addbook-conflict-spec-v1.md`
@@ -38,6 +38,14 @@
 29. `docs/plans/2026-03-09-miniapp-experiment-registry-and-governance-v1.md`
 30. `docs/plans/2026-03-09-miniapp-data-quality-slo-and-alerting-v1.md`
 31. `docs/products/miniapp/2026-03-09-miniapp-release-decision-pack-v1.md`
+32. `docs/products/miniapp/2026-03-09-miniapp-feature-priority-alignment-v1.md`
+33. `docs/products/miniapp/2026-03-09-miniapp-page-api-field-dictionary-v1.md`
+34. `docs/products/miniapp/2026-03-09-miniapp-user-facing-errorcopy-and-recovery-v1.md`
+35. `docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`
+36. `docs/contracts/2026-03-09-miniapp-reserved-disabled-gate-spec-v1.md`
+37. `docs/plans/2026-03-09-miniapp-degraded-pool-governance-v1.md`
+38. `docs/plans/2026-03-09-miniapp-release-gate-kpi-runbook-v1.md`
+39. `docs/plans/2026-03-09-miniapp-alert-routing-and-oncall-sla-v1.md`
 
 ### 2.2 冻结后约束
 - 仅允许向后兼容补充。
@@ -55,7 +63,7 @@
 
 | 检查项 | 结果 | 说明 |
 |---|---|---|
-| 文档齐套性 | PASS | 31/31 文档存在且可追踪 |
+| 文档齐套性 | PASS | 39/39 文档存在且可追踪 |
 | 契约一致性 | PASS | 路由/API/错误码语义与既有基线一致 |
 | 状态机一致性 | PASS | 统一引用 03-08 状态机文档 |
 | 降级语义一致性 | PASS | fail-open/fail-close 边界明确 |
@@ -63,6 +71,8 @@
 | SOP/运营口径一致性 | PASS | 客服SOP、运营配置与契约错误码矩阵对齐 |
 | 错误码去占位符收口 | PASS | `TBD_*` 已在 canonical register 映射并受禁用态治理 |
 | 发布决策闭环 | PASS | Go/No-Go 决策表、风险台账与跨窗口责任矩阵已冻结 |
+| API Canonical 门禁 | PASS | 通配 API 已收口到 canonical API list |
+| 运行治理闭环 | PASS | degraded_pool、KPI门禁、告警路由与SLA已冻结 |
 
 ## 5. 回滚策略
 - 文档回滚触发条件：
@@ -128,3 +138,8 @@
 1. 补充操作示例、截图位、附录解释，不改变语义。
 2. 增加不影响决策逻辑的参考链接。
 3. 补充同义描述，不改变角色职责、阈值、策略边界。
+
+### 9.3 P2 规划能力发布约束
+1. gift-card/referral/technician-feed 统一为 `P2/RB3-P2`，不纳入 RB1/RB2 阻断发布范围。
+2. 上述能力进入生产前必须满足：功能开关审批、灰度验证、RESERVED_DISABLED 命中为 0。
+3. 若被误纳入 RB1/RB2，必须立即回退 `Ready` 并执行 No-Go 处理。

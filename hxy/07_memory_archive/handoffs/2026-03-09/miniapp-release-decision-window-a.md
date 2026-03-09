@@ -18,11 +18,11 @@
 - Release matrix now removes wildcard API entries in release-critical rows.
 - `TBD_*` placeholders are removed from matrix and backfilled by canonical error codes.
 - Priority/batch aligned to single source for key disputed domains:
-  - gift-card => `P0 / RB1-P0`
-  - referral => `P0 / RB1-P0`
-  - technician feed => `P1 / RB2-P1`
+  - gift-card => `P2 / RB3-P2`
+  - referral => `P2 / RB3-P2`
+  - technician feed => `P2 / RB3-P2`
 - Index and freeze review now include this batch and remain frozen.
-- 03-09 cumulative freeze status updated to `31/31 Frozen`.
+- 03-09 cumulative freeze status updated to `39/39 Frozen`.
 
 ## 4. Release Gate Clarification
 - Added explicit “release decision gate” section:
@@ -45,3 +45,9 @@
 - Reserved-disabled misconfiguration can still produce runtime drift.
 - Degraded pool leakage can still contaminate KPI if routing rules are bypassed.
 - Both risks are now explicitly tied to No-Go conditions in release decision pack.
+
+## 7. Fourth-Wave Integration
+- Window B: `f181ace64c`
+- Window C: `c96d0dd9cf`
+- Window D: `14391fab28`
+- Integration decision: accepted and merged into frozen baseline with P2 planning guard.

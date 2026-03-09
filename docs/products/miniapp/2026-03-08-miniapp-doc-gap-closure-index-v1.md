@@ -99,3 +99,28 @@
 - Frozen: 31
 - Ready: 0
 - Draft: 0
+
+## 8. 第四波增量映射（B/C/D）
+
+### 8.1 增量交付（8 Docs）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P2 | B | `docs/products/miniapp/2026-03-09-miniapp-feature-priority-alignment-v1.md` | Frozen | `f181ace64c` |
+| 2 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-page-api-field-dictionary-v1.md` | Frozen | `f181ace64c` |
+| 3 | P1 | B | `docs/products/miniapp/2026-03-09-miniapp-user-facing-errorcopy-and-recovery-v1.md` | Frozen | `f181ace64c` |
+| 4 | P1 | C | `docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md` | Frozen | `c96d0dd9cf` |
+| 5 | P1 | C | `docs/contracts/2026-03-09-miniapp-reserved-disabled-gate-spec-v1.md` | Frozen | `c96d0dd9cf` |
+| 6 | P1 | D | `docs/plans/2026-03-09-miniapp-degraded-pool-governance-v1.md` | Frozen | `14391fab28` |
+| 7 | P1 | D | `docs/plans/2026-03-09-miniapp-release-gate-kpi-runbook-v1.md` | Frozen | `14391fab28` |
+| 8 | P1 | D | `docs/plans/2026-03-09-miniapp-alert-routing-and-oncall-sla-v1.md` | Frozen | `14391fab28` |
+
+### 8.2 状态汇总（第四波）
+- Frozen: 8
+- Ready: 0
+- Draft: 0
+
+## 9. Latest Closure Snapshot (2026-03-09)
+- 第四波跨窗口文档提交：`f181ace64c`（B）、`c96d0dd9cf`（C）、`14391fab28`（D）
+- 累计状态：03-09 相关文档 `39/39 Frozen`（31 既有 + 8 第四波）
+- 单一真值：gift-card / referral / technician-feed 统一为 `P2/RB3-P2`，以发布矩阵与决策包为准。
