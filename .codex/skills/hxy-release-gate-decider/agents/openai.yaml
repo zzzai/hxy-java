@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Release Gate Decider"
+  short_description: "Make Go/No-Go decisions from HXY release evidence"

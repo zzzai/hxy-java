@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Health Data Compliance Guard"
+  short_description: "Review health-data sensing and tag flows against HXY red lines"

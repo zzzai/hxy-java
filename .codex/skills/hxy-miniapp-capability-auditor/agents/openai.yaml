@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Miniapp Capability Auditor"
+  short_description: "Audit miniapp ACTIVE/PLANNED truth from code and docs"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Miniapp Doc Freeze Closer"
+  short_description: "Close Ready/Frozen miniapp doc batches safely"

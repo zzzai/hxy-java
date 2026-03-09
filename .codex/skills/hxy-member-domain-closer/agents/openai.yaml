@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Member Domain Closer"
+  short_description: "Close member doc gaps against real route and API truth"

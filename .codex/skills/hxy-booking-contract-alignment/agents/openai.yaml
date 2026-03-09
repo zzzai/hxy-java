@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Booking Contract Alignment"
+  short_description: "Reconcile booking frontend/backend/doc contract drift"
