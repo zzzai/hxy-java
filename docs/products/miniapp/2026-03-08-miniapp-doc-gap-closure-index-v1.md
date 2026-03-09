@@ -1,4 +1,4 @@
-# MiniApp Missing Docs Closure Index v1.1 (2026-03-09)
+# MiniApp Missing Docs Closure Index v1.2 (2026-03-10)
 
 ## 1. Status Model
 - `Draft`: scope aligned, content pending completion.
@@ -124,3 +124,26 @@
 - 第四波跨窗口文档提交：`f181ace64c`（B）、`c96d0dd9cf`（C）、`14391fab28`（D）
 - 累计状态：03-09 相关文档 `39/39 Frozen`（31 既有 + 8 第四波）
 - 单一真值：gift-card / referral / technician-feed 统一为 `P2/RB3-P2`，以发布矩阵与决策包为准。
+
+## 10. 2026-03-10 Batch（A，能力台账 + 覆盖矩阵）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md` | Ready | 以真实前端路由 + 实际后端 API + 验收口径三要素判定 `ACTIVE/PLANNED_RESERVED/DEPRECATED` |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md` | Ready | 按业务域输出 PRD/Contract/ErrorCode/Degrade/SOP/Runbook 覆盖率与 P0/P1 补齐顺序 |
+
+### 10.1 状态汇总（03-10 当前批次）
+- Frozen: 0
+- Ready: 2
+- Draft: 0
+
+## 11. Current Snapshot (2026-03-10)
+- 03-09 冻结基线保持不变：`39/39 Frozen`
+- 03-10 新增准备态文档：`2 Ready`
+- 当前累计状态：
+  - Frozen: 39
+  - Ready: 2
+  - Draft: 0
+- 说明：
+  - 03-10 文档用于收敛“真实能力状态”与“业务域文档覆盖”单一真值。
+  - 未发生任何既有 Frozen 文档回退。

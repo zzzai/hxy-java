@@ -1,0 +1,89 @@
+# MiniApp 业务域文档覆盖矩阵 v1（2026-03-10）
+
+## 1. 目标
+- 基于当前真实代码与 2026-03-08/03-09 文档仓，评估每个业务域的文档覆盖完整度。
+- 覆盖维度固定为：`PRD / Contract / ErrorCode / Degrade / SOP / Runbook`。
+- 输出 `coverageScore(0-100)`、缺口项和 P0/P1 补齐顺序，作为后续产品文档治理的执行面板。
+
+## 2. 评分规则
+
+| 维度 | 满分 | 判定口径 |
+|---|---|---|
+| PRD | 20 | 是否有用户流程、状态、验收清单 |
+| Contract | 20 | 是否有页面/API/字段契约或 canonical list |
+| ErrorCode | 15 | 是否有域内错误码锚点和恢复动作 |
+| Degrade | 15 | 是否有 fail-open / fail-close / degraded 语义 |
+| SOP | 15 | 是否有客服/运营/人工接管口径 |
+| Runbook | 15 | 是否有发布门禁、监控、回滚或告警手册 |
+
+### 2.1 评分解释
+- `90-100`：文档可以直接支撑联调、验收和发布。
+- `70-89`：主链路可执行，但仍有明显补齐项。
+- `40-69`：有业务文档基础，但无法独立支撑端到端交付。
+- `<40`：文档严重缺失，当前只能依赖代码和口头知识。
+
+## 3. 业务域覆盖矩阵
+
+| 业务域 | Runtime 能力范围 | PRD | Contract | ErrorCode | Degrade | SOP | Runbook | coverageScore | 主要缺口 | 补齐优先级 |
+|---|---|---|---|---|---|---|---|---:|---|---|
+| Trade & Pay | 购物车、结算、支付提交/结果、订单列表/详情 | Full | Full | Full | Full | Full | Full | 95 | `wallet transfer / recharge` 仍缺独立验收条目；历史原型路由未清理 | P1 |
+| After-sale & Refund | 售后申请、售后列表/详情、退款进度、回寄、日志 | Full | Full | Full | Full | Full | Full | 96 | 发布矩阵仍沿用部分原型别名路由，需与真实 uniapp 路由统一 | P1 |
+| Booking & Technician Service | 预约列表/详情、技师、时段、创建、取消、加钟 | Full | Partial | Full | Full | Full | Partial | 76 | booking 前后端方法/路径不一致；缺“真实 FE route + real API”校对增补文档；addon 缺专属验收 | P0 |
+| Member Account & Assets | 登录/注册、个人资料、地址、钱包、积分、签到、等级 | Partial | Partial | Partial | Partial | Partial | Partial | 63 | 登录/资料/签到/等级没有冻结 PRD/contract/error/degrade 文档；地址/资产路由与历史 alias 漂移 | P0 |
+| Product / Search / Catalog | 首页 DIY、分类、商品列表、商品详情、搜索、收藏、浏览历史、评论 | Partial | Partial | Partial | Partial | None | None | 58 | `search-lite` 与 canonical search 未拆清；商品详情/收藏/浏览历史/评论没有产品文档包 | P1 |
+| Promotion / Growth | 首页增长、优惠券、积分商城、活动列表、通知触点 | Full | Full | Full | Full | Full | Full | 89 | 拼团/秒杀/砍价/满减送等扩展活动仍缺独立业务文档；真实路由与原型 alias 未统一 | P1 |
+| Content / DIY / Customer Service | 文章、富文本、FAQ、自定义页、客服聊天 | Partial | None | None | None | Partial | None | 36 | 缺 canonical API、错误码、降级策略、监控与回滚手册；DIY 仅被首页间接覆盖 | P0 |
+| Brokerage / Distribution | 分销中心、佣金、团队、提现、排行 | None | None | None | None | None | None | 18 | 整域缺产品 PRD、字段/接口契约、错误码矩阵、客服口径、运行手册 | P0 |
+| Reserved Expansion（Gift / Referral / Feed） | 礼品卡、邀请有礼、技师动态 | Full | Full | Full | Full | Full | Full | 88 | 文档齐全但实现仍为空；缺“上线前灰度验收手册”与“从 Reserved -> Active 的切换 checklist” | P1 |
+
+## 4. 域级判断与说明
+
+### 4.1 已可作为发布基线的域
+1. `Trade & Pay`
+2. `After-sale & Refund`
+3. `Promotion / Growth`（限定在券、积分、首页增长、通知触点，不含全部营销扩展）
+
+### 4.2 当前最危险的三类缺口
+1. Booking 不是“文档少”，而是“文档已写，但代码真实路径/方法不一致”，会制造假 Active。
+2. Member 域不是“没有代码”，而是“登录/资料/签到/等级缺少冻结文档”，导致运行能力无法进入正式发布真值。
+3. Brokerage / Content 域已有真实代码和页面，但几乎没有发布级产品文档，当前高度依赖口头知识。
+
+### 4.3 Route Alias 漂移
+- 03-08 IA / 03-09 部分矩阵仍使用原型别名：`/pages/after-sale/*`、`/pages/refund/progress`、`/pages/coupon/center`、`/pages/point/mall`、`/pages/booking/list`。
+- 真实 uniapp 路由已经收口到：
+  - `/pages/order/aftersale/*`
+  - `/pages/coupon/list`
+  - `/pages/activity/point/list`
+  - `/pages/booking/order-list`
+- 这类漂移不改会继续污染验收、埋点和联调脚本。
+
+## 5. P0 补齐顺序
+1. `Booking 用户侧真实 API 对齐增补文档`
+   - 目标：把 `technician-list / slot / cancel / addon` 的真实方法和路径对齐成可执行单一真值。
+   - 交付建议：新增 `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`。
+2. `Member 账户域文档包`
+   - 目标：补齐登录/社交绑定/个人资料/签到/等级的 PRD + contract + error/degrade。
+   - 交付建议：新增 `miniapp-member-account-prd`、`miniapp-member-account-contract`、`miniapp-member-account-error-recovery`。
+3. `Content / Customer Service 文档包`
+   - 目标：把客服聊天、文章、FAQ、DIY 页从“代码存在”提升到“可验收、可运营、可回滚”。
+   - 交付建议：补齐 PRD、contract、error/degrade、客服 SOP。
+4. `Brokerage / Distribution 文档包`
+   - 目标：补齐分销中心、佣金、提现、团队、排行的业务规则和资金口径。
+   - 交付建议：至少补齐 PRD、contract、errorcode、runbook 四件套。
+
+## 6. P1 补齐顺序
+1. `Search-lite 与 canonical search 拆分文档`
+   - 当前真实能力是 `keyword -> /product/spu/page`，规划能力才是 `/product/search/page`。
+   - 需要单文档说明二者切换门槛、灰度条件和错误码生效边界。
+2. `营销扩展活动文档包`
+   - 拼团、秒杀、砍价、满减送、活动聚合页的产品规则尚未形成完整 PRD/contract。
+3. `商品互动文档包`
+   - 收藏、浏览历史、评价发布/列表需要从代码状态补到产品验收状态。
+4. `Reserved -> Active 切换 checklist`
+   - gift-card / referral / technician-feed 当前文档齐，但缺真正上线前的灰度验收手册。
+
+## 7. 结论
+1. 当前文档最完整的是交易、售后、退款、券积分、首页增长主链路。
+2. 当前最需要补的不是再写一轮“总览”，而是针对 booking/member/content/brokerage 做域内闭环补齐。
+3. `coverageScore` 不等于代码可用性；它衡量的是“是否已经具备发布级单一真值”。
+4. 后续封版应先消除 booking 假 Active，再决定是否将 member/content/brokerage 纳入同一轮冻结。
