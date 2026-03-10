@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Agent Workflow Router"
+  short_description: "Route HXY governance work to the right skill chain"

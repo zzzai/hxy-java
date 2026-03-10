@@ -51,6 +51,14 @@
 25. `00_governance/HXY-长记忆治理规范-v1-2026-03-01.md`
 26. `06_roadmap/HXY-执行状态看板-v1-2026-03-01.md`
 27. `05_engineering/HXY-总部门店双层-AI运营SOP与提示词-v1-2026-03-01.md`
+28. `05_engineering/HXY-AI代理操作系统与项目技能编排-v1-2026-03-10.md`
+
+## 3.1 Agent Skills（新增）
+
+1. 项目技能目录：`.codex/skills/`
+2. 项目总入口：`.codex/skills/hxy-agent-workflow-router/SKILL.md`
+3. 核心能力：能力真值审计、文档冻结收口、发布门禁、booking/member 域收口、健康数据合规、窗口交接规范化。
+4. 技能套件烟雾检查：`bash .codex/skills/hxy-agent-workflow-router/scripts/check_hxy_agent_suite.sh .`
 
 ## 6. 长记忆门禁（新增）
 
