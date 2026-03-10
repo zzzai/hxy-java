@@ -28,12 +28,17 @@
 | REASON | PAY_ORDER_NOT_FOUND | trade/pay | ACTIVE_REASON | FAIL_OPEN | P2 | MANUAL_RETRY_3 | pay 聚合缺失 pay 单 | 下拉刷新（最多 3 次） | 监控支付依赖，超阈值转 P1 | 已生效 | - |
 | 1008001000 | CATEGORY_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 类目不存在 | 切换默认类目并重试 | 核验类目配置 | 已生效 | - |
 | 1008005000 | SPU_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | SPU 不存在 | 返回上一页并重选商品 | 商品运营核验上下架 | 已生效 | - |
+| 1008005003 | SPU_NOT_ENABLE | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 商品未上架或已下架 | 返回商品列表并改选可售商品 | 商品运营核验上下架状态与发布时间 | 已生效 | - |
 | 1008006000 | SKU_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | SKU 不存在 | 刷新规格并重选 | 商品 on-call 校验 SKU 映射 | 已生效 | - |
 | 1008006004 | SKU_STOCK_NOT_ENOUGH | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | SKU 库存不足 | 减少数量后重试 | 运营关注库存阈值 | 已生效 | - |
+| 1008008000 | FAVORITE_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 重复收藏同一商品 | 保持当前收藏态，不重复提交 | 商品前台负责人核验幂等与收藏态同步 | 已生效 | - |
+| 1008008001 | FAVORITE_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 取消收藏时收藏记录不存在 | 刷新收藏列表后再操作 | 商品前台负责人排查收藏态脏读与并发删除 | 已生效 | - |
 | 1008009006 | STORE_SKU_STOCK_BIZ_KEY_CONFLICT | product | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 门店库存幂等冲突 | 刷新库存并重提 | 商品 on-call 排查并发/幂等 | 已生效 | - |
 | 1030002001 | SCHEDULE_CONFLICT | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 排班冲突 | 重选时段 | 预约排期负责人复核排班 | 已生效 | - |
 | 1030003001 | TIME_SLOT_NOT_AVAILABLE | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 时段不可预约 | 选择其他时段 | 检查时段实时性 | 已生效 | - |
 | 1030003002 | TIME_SLOT_ALREADY_BOOKED | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 时段被占用 | 重新选时段 | 监控时段抢占冲突率 | 已生效 | - |
+| 1030004000 | BOOKING_ORDER_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 预约详情/取消/加项时订单不存在 | 刷新预约列表后重试 | 预约域核验订单归属与清理异常引用 | 已生效 | - |
+| 1030004001 | BOOKING_ORDER_STATUS_ERROR | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 预约订单状态不允许当前操作 | 刷新订单状态后按当前可用动作继续 | 预约域排查状态流转与重复操作冲突 | 已生效 | - |
 | 1004001000 | USER_NOT_EXISTS | member | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 用户身份无效 | 重新登录 | 账号体系值班排查 | 已生效 | - |
 | 1004001001 | USER_MOBILE_NOT_EXISTS | member/auth | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 重置密码或短信场景手机号未注册 | 核对手机号或去注册 | 会员认证负责人核验注册漏数与短信场景配置 | 已生效 | - |
 | 1004001002 | USER_MOBILE_USED | member/profile | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 修改手机号时目标手机号已被占用 | 更换手机号后重试 | 会员资料负责人排查重复绑定与脏数据 | 已生效 | - |
@@ -58,8 +63,23 @@
 | 1002018200 | SOCIAL_CLIENT_WEIXIN_MINI_APP_PHONE_CODE_ERROR | system/social(member-auth) | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 小程序 `phoneCode` 无效或过期 | 重新执行 `wx.getPhoneNumber` 获取新 code | 会员认证负责人排查微信凭证链路与客户端配置 | 已生效 | - |
 | 1013005000 | COUPON_NOT_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 优惠券记录不存在 | 刷新券列表 | 运营核验发券流水 | 已生效 | - |
 | 1013004000 | COUPON_TEMPLATE_NOT_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 券模板不存在 | 选择其他活动券 | 运营核验模板配置 | 已生效 | - |
+| 1013012000 | BARGAIN_ACTIVITY_NOT_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 发起砍价时活动不存在或已失效 | 返回活动列表并改选其他活动 | 营销负责人核验砍价活动上下线与缓存刷新 | 已生效 | - |
+| 1013013001 | BARGAIN_RECORD_CREATE_FAIL_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户重复参与同一砍价活动 | 进入当前砍价记录，不重复发起 | 营销负责人核验参与幂等与记录状态 | 已生效 | - |
+| 1013013002 | BARGAIN_RECORD_CREATE_FAIL_LIMIT | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户已达当前砍价活动参与上限 | 停止重试并改选其他活动 | 营销负责人核验活动限次配置 | 已生效 | - |
+| 1013014000 | BARGAIN_HELP_CREATE_FAIL_RECORD_NOT_IN_PROCESS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 助力目标砍价记录不在进行中 | 返回记录页并刷新状态 | 营销负责人排查活动状态与助力窗口关闭时机 | 已生效 | - |
+| 1013014001 | BARGAIN_HELP_CREATE_FAIL_RECORD_SELF | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户尝试给自己的砍价记录助力 | 停止当前操作并提示分享给好友 | 营销负责人确认自助力守卫持续生效 | 已生效 | - |
+| 1013014002 | BARGAIN_HELP_CREATE_FAIL_LIMIT | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户已达到当前活动助力上限 | 停止重试，改为等待他人助力 | 营销负责人核验助力限次配置 | 已生效 | - |
+| 1013014004 | BARGAIN_HELP_CREATE_FAIL_HELP_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户已为当前记录助力过 | 刷新助力列表，不重复提交 | 营销负责人排查助力幂等与分享链路重复点击 | 已生效 | - |
+| 1013019000 | KEFU_CONVERSATION_NOT_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 标记已读或拉取会话时会话不存在 | 刷新会话列表并重新进入会话 | 客服域核验会话建链与清理策略 | 已生效 | - |
 | 1030001000 | TECHNICIAN_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 技师不存在 | 更换技师 | 预约域核验技师数据 | 已生效 | - |
 | 1030001001 | TECHNICIAN_DISABLED | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 技师已禁用 | 更换技师 | 预约域核验启停状态 | 已生效 | - |
+| 1011007002 | BROKERAGE_BIND_SELF | trade/brokerage | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户尝试绑定自己为推广人 | 停止绑定并更换推广人 | 分销负责人核验分享链路与自绑定拦截 | 已生效 | - |
+| 1011007003 | BROKERAGE_BIND_USER_NOT_ENABLED | trade/brokerage | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 绑定的推广人没有推广资格 | 更换有资格的推广人后重试 | 分销负责人核验推广资格与开通状态 | 已生效 | - |
+| 1011007005 | BROKERAGE_BIND_MODE_REGISTER | trade/brokerage | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 非注册阶段尝试绑定推广人 | 停止当前绑定，回退正常注册/登录流程 | 分销负责人核验绑定时机与渠道埋点 | 已生效 | - |
+| 1011007006 | BROKERAGE_BIND_OVERRIDE | trade/brokerage | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 用户已绑定推广人仍再次发起绑定 | 停止当前操作并展示既有绑定关系 | 分销负责人核验覆盖保护与异常重放 | 已生效 | - |
+| 1011007007 | BROKERAGE_BIND_LOOP | trade/brokerage | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 下级尝试绑定自己的上级形成闭环 | 停止绑定并更换推广关系 | 分销负责人核验上下级关系图与导入数据 | 已生效 | - |
+| 1011008002 | BROKERAGE_WITHDRAW_MIN_PRICE | trade/brokerage | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 提现金额低于系统最小门槛 | 提高提现金额后重试 | 分销负责人核验最小提现门槛配置 | 已生效 | - |
+| 1011008003 | BROKERAGE_WITHDRAW_USER_BALANCE_NOT_ENOUGH | trade/brokerage | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 用户可提现余额不足 | 刷新余额后调整金额重试 | 分销负责人核验余额汇总、冻结佣金与提现申请并发 | 已生效 | - |
 | 1008009901 | MINIAPP_HOME_ACTIVITY_CONTEXT_MISMATCH | product/promotion | RESERVED_DISABLED | FAIL_OPEN | P1 | REFRESH_ONCE | 首页活动与上下文不一致 | 强制刷新后重试 | 若禁用态返回，立即回滚开关并开 P1 | `miniapp.home.context-check=on` 且命中灰度 | 默认禁用 |
 | 1008009902 | MINIAPP_CATALOG_VERSION_MISMATCH | product | RESERVED_DISABLED | FAIL_OPEN | P1 | REFRESH_ONCE | 目录版本快照不一致 | 强制全量刷新 | 若禁用态返回，立即回滚并开 P1 | `miniapp.catalog.version-guard=on` 且命中灰度 | 默认禁用 |
 | 1008009903 | MINIAPP_ADDON_INTENT_CONFLICT | product/booking | RESERVED_DISABLED | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 加购意图同键异参冲突 | 按服务端可购量重提 | 若禁用态返回，立即回滚并开 P1 | `miniapp.addon.intent-idempotency=on` 且命中灰度 | 默认禁用 |
