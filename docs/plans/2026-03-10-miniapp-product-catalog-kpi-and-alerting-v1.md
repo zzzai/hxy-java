@@ -10,6 +10,8 @@
   - `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md`
   - `docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`
   - `docs/contracts/2026-03-09-miniapp-reserved-disabled-gate-spec-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
 
 ## 2. 口径总则
 - 成功率只认后端成功响应，不认前端展示成功。
@@ -17,6 +19,12 @@
   - 合法空结果：无搜索结果、无评论、无收藏、无浏览历史
   - 异常空结果：接口错误、降级错误、字段缺失导致的空展示
 - `degraded=true` 单独入 `degraded_pool`，不得计入主成功率、主转化率。
+- `search-lite` 与 `search-canonical` 必须分池治理：
+  - `search-lite` 只认 `GET /product/spu/page`
+  - `search-canonical` 只认 `GET /product/search/page`
+  - 不共享分母、TopN、放量结论
+- `product.detail-comment-collect-history`、`product.search-canonical` 当前仍是 `PLANNED_RESERVED`，只允许内部验收与保留能力门禁，不得混入 `ACTIVE` 分母。
+- `1008009902`、`1008009904` 在关闭态命中统一视为误发布，直接 `No-Go`。
 
 ## 3. 指标执行表
 
@@ -87,7 +95,16 @@
 | `1008009904` 开关关闭态命中 | 关闭 `miniapp.search.validation`，停止灰度，按误返回处理 |
 | 收藏/评论/历史异常集中 | 暂停入口展示，仅保留只读详情 |
 
-## 8. 审计字段
+## 8. 人工接管入口
+- `search-lite`
+  - Product / Search on-call 冻结发布口径，保留 query，回退默认商品列表。
+- `search-canonical`
+  - 关闭 `miniapp.search.validation`，把所有证据打回保留能力池。
+- `catalog version guard`
+  - 关闭 `miniapp.catalog.version-guard`，恢复旧目录读取，并把 `1008009902` 样本单独归档。
+- `comment / collect / history`
+  - 暂停入口展示，仅保留 browse / detail 主链路。
+## 9. 审计字段
 - 所有告警和恢复记录必须包含：
   - `runId`
   - `orderId`
@@ -97,8 +114,9 @@
   - `route`
   - `keyword`（搜索场景）
 
-## 9. 验收标准
+## 10. 验收标准
 1. 商品详情、收藏、浏览历史、评论、搜索均有指标口径。
 2. 空结果率、错误率、降级率、恢复率、转化率均有明确判定。
 3. 告警路由和升级时限明确，支持 ACTIVE 与 PLANNED_RESERVED 混合治理。
 4. `1008009902/1008009904` 的回滚条件与动作明确可执行。
+5. `search-lite` 与 `search-canonical` 的分池口径不会再混算。

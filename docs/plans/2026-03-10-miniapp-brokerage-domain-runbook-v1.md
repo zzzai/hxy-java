@@ -9,6 +9,18 @@
 - 对齐后台能力：
   - `booking/commission-settlement/*`
   - `booking/commission-settlement/notify-outbox-*`
+- 对齐门禁与值班：
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+- 当前 capability 真值：
+  - `CAP-BROKERAGE-001 brokerage.center = PLANNED_RESERVED / BACKLOG-DOC-GAP`
+  - 本文补齐运行与回滚口径，不自动等价为 `ACTIVE`
+
+## 1.1 资金治理总则
+- 资金相关异常必须闭合四段：`审核 -> 冲正 -> 申诉 -> 追溯`；缺任一环都不能结案。
+- 告警、申诉、人工补录统一携带五键：`runId/orderId/payRefundId/sourceBizNo/errorCode`；字段不适用时填 `"0"`。
+- 任何带 `degraded=true`、warning 或 outbox 保活语义的样本，只进入 `degraded_pool`，不得计入主结算成功率、主提现成功率、主 ROI。
+- 客服、财务、风控都不得在财务系统未确认前对用户承诺“已到账”“已结算成功”。
 
 ## 2. 关键对象与状态
 
@@ -63,6 +75,17 @@
 2. 风控/财务联合复核账务与订单。
 3. 结论回写申诉单并由客服回访。
 
+### 4.7 资金异常闭环
+
+| 阶段 | 最小动作 | 必填证据 |
+|---|---|---|
+| 审核 | 记录审核人、审核结论、批次/渠道信息 | `auditId/runId/sourceBizNo/errorCode` |
+| 冲正 | 校验 `origin_commission_id`、执行冲正或冻结相关批次 | `reversalId/orderId/payRefundId/sourceBizNo/errorCode` |
+| 申诉 | 建立用户申诉单、附证据、说明处理时限 | `appealId/orderId/payRefundId/sourceBizNo/errorCode` |
+| 追溯 | 把审核、冲正、申诉、通知 outbox 串到同一追溯单 | `traceTicketId/runId/orderId/payRefundId/sourceBizNo/errorCode` |
+
+> 任一资金异常若只能定位到“失败”而无法串到上述四段，统一视为 `No-Go`。
+
 ## 5. 执行表
 
 | 动作ID | 场景 | 执行人 | 关键动作 | 必填审计字段 |
@@ -87,6 +110,7 @@
 | `BRO-KPI-05` | 冻结余额异常率 | `freeze_mismatch_cnt / frozen_record_cnt` | 30 分钟 | `>0.5%` | P1 | 风控 Owner |
 | `BRO-KPI-06` | 申诉超时未结率 | `appeal_overdue_cnt / open_appeal_cnt` | 小时 | `>10%` | P2 | 客服组长 |
 | `BRO-KPI-07` | 通知 outbox 堵塞量 | `pending_outbox_cnt` | 15 分钟 | `>100` | P1 | 技术 on-call |
+| `BRO-KPI-08` | 资金异常追溯完整率 | `traced_finance_incident_cnt / finance_incident_cnt` | 15 分钟 | `<100%` | P0 | 技术 on-call + 财务值班 |
 
 ## 7. 告警路由
 
@@ -106,6 +130,7 @@
 | 提现失败率 `>2%` | 暂停新提现申请入口或切换人工审核模式 | 15 分钟 |
 | 结算单支付异常集中 | 暂停结算支付动作，仅保留查询与审核 | 15 分钟 |
 | 冻结余额异常持续 | 停止解冻与打款，锁定相关用户 | 15 分钟 |
+| 资金异常缺失审核/冲正/申诉/追溯任一闭环证据 | 视为 `No-Go`，冻结相关批次并转人工总复核 | 15 分钟 |
 
 ## 9. 客服标准口径
 - 佣金未到账：`当前佣金仍在结算流程中，我已记录并为你核查。`
@@ -119,3 +144,4 @@
 2. 每个关键场景均有指标、阈值、告警等级和回滚动作。
 3. 审计字段固定包含 `runId/orderId/payRefundId/sourceBizNo/errorCode`。
 4. 客服、财务、风控、运营口径一致，不出现“已到账但系统未确认”的假成功表述。
+5. 资金异常都能回溯到审核、冲正、申诉、追溯四段闭环。

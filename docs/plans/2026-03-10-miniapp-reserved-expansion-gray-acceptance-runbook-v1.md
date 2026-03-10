@@ -2,6 +2,17 @@
 
 ## 1. 目标
 - 规范 gift-card、referral、technician-feed 的灰度验收流程，确保从 `PLANNED_RESERVED` 到 `ACTIVE` 的过程可观测、可回滚、不可越级。
+- 对齐基线：
+  - `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+
+## 1.1 当前批次执行前提
+- capability ledger 当前仍记录：
+  - gift-card / referral / technician-feed 页面未实现
+  - 对应 app controller 未实现
+  - 开关默认 `off`
+- 因此当前默认结论仍是 `NO_GO`。本 runbook 现在是“灰度执行模板”，只有当 activation checklist 全量通过后才允许启动阶段 G1。
 
 ## 2. 灰度比例
 
@@ -31,9 +42,9 @@
 
 | 观察项 | 通过标准 |
 |---|---|
-| 主成功率 | 不低于基线 |
+| 主成功率 | 不低于基线（`degraded_pool` 不计入） |
 | 错误率 | 不高于基线 + 1 个百分点 |
-| 降级率 | `<=3%` |
+| 降级率 | `<=3%`（只统计 `degraded_pool`） |
 | 恢复率 | `>=85%` |
 | 客服投诉量 | 不超过基线 2 倍 |
 | `RESERVED_DISABLED` 误返回 | 必须为 0 |
@@ -53,6 +64,13 @@
 2. 任一阶段有 `NO_GO` 结果，不得继续推进。
 3. 任一阶段未完成样本量，不得判定通过。
 4. 灰度阶段未完成回滚演练，不得推进下一阶段。
+
+## 7.1 五键记录规则
+- 每个阶段都必须记录：`runId/orderId/payRefundId/sourceBizNo/errorCode`。
+- 不适用字段固定填 `"0"`：
+  - 灰度台账巡检：`orderId=0`、`payRefundId=0`
+  - 样本命中真实业务对象时，优先透传真实 `orderId/payRefundId/sourceBizNo`
+  - 无单一错误码的阶段性观察可填 `errorCode=0`
 
 ## 8. `RESERVED_DISABLED` 命中即回滚判断
 
@@ -90,6 +108,7 @@
 | `PASS` | 样本达标、指标达标、无误返回 | 推进下一阶段或转 `ACTIVE` |
 | `PASS_WITH_WATCH` | 非阻断项轻微异常 | 保持当前阶段继续观察 |
 | `FAIL_ROLLBACK` | 触发任一回滚条件 | 立即回滚并复盘 |
+| `BLOCKED_NO_IMPL` | 页面 / controller / checklist 任一未满足 | 保持 `NO_GO`，不得启动灰度 |
 
 ## 11. 审计字段
 - 每个阶段都必须记录：
@@ -107,3 +126,4 @@
 2. gift/referral/feed 三个能力都有明确的 `RESERVED_DISABLED` 回滚条件。
 3. 状态从 `PLANNED_RESERVED` 到 `ACTIVE` 的变更有唯一准入路径。
 4. 整个灰度过程支持审计与复盘。
+5. capability 未落地时会被明确挡在 `BLOCKED_NO_IMPL / NO_GO`，不会跳过灰度前置门禁。

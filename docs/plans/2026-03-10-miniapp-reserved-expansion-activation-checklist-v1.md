@@ -3,6 +3,11 @@
 ## 1. 目标
 - 为 gift-card、referral、technician-feed 从 `PLANNED_RESERVED` 进入 `ACTIVE` 提供统一门禁清单。
 - 原则：先完成契约、页面、接口、监控、SOP、灰度演练，再考虑激活；不得越级上线。
+- 对齐基线：
+  - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
+  - `docs/contracts/2026-03-09-miniapp-reserved-disabled-gate-spec-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
 
 ## 2. 适用能力
 
@@ -11,6 +16,13 @@
 | gift-card | `PLANNED_RESERVED` | `miniapp.gift-card` | `1011009901`、`1011009902` |
 | referral | `PLANNED_RESERVED` | `miniapp.referral` | `1013009901`、`1013009902` |
 | technician-feed | `PLANNED_RESERVED` | `miniapp.technician-feed.audit` | `1030009901` |
+
+## 2.1 当前批次默认结论
+- 按 capability ledger 当前真值：
+  - gift-card：前端无页面、后端无 app controller
+  - referral：前端无页面、后端无 app controller
+  - technician-feed：前端无页面、后端无 feed controller
+- 因此本批默认结论是 `NO_GO`；只有当真实页面、controller、台账、灰度 evidence 全部补齐后，本文才进入“可执行激活”状态。
 
 ## 3. 激活前门禁条件
 
@@ -23,6 +35,10 @@
 | 监控 | 成功率、错误率、降级率、恢复率、`RESERVED_DISABLED` 计数上线 |
 | SOP | 客服、运营、回滚 runbook 已冻结并演练 |
 | 灰度 | 白名单、比例、样本、回滚阈值明确 |
+
+- 统一附加规则：
+  - `degraded=true` 只进入 `degraded_pool`，不得计入主成功率 / 主 ROI。
+  - 五键固定为 `runId/orderId/payRefundId/sourceBizNo/errorCode`；无值时填 `"0"`。
 
 ## 4. 逐域激活清单
 
@@ -69,6 +85,9 @@
 | `GO_WITH_WATCH` | 非阻断项有轻微风险，但不影响主链路 |
 | `NO_GO` | 任一阻断项失败或 `RESERVED_DISABLED` 误返回 |
 
+- 当前批次补充判断：
+  - 若 capability ledger 仍显示“未实现页面 / 未实现 controller / switch=off”，即使文档存在也固定判定为 `NO_GO`。
+
 ## 8. 审计字段
 - 激活决策必须记录：
   - `releaseId`
@@ -77,9 +96,14 @@
   - `switchValue`
   - `grayScope`
   - `runId/orderId/payRefundId/sourceBizNo/errorCode`
+- 字段补位规则：
+  - 激活巡检 / 台账扫描：`orderId=0`、`payRefundId=0`
+  - 误发布扫描：`sourceBizNo` 优先取灰度规则或真实来源号，无值填 `0`
+  - 纯门禁判断无单一错误码时，`errorCode=0`
 
 ## 9. 验收标准
 1. gift/referral/feed 的门禁条件逐项明确。
 2. 灰度前置条件和不得越级上线规则明确。
 3. `RESERVED_DISABLED` 命中即回滚的判断条件可直接执行。
 4. 激活决策可审计、可复盘。
+5. capability 未落地时会保持 `NO_GO`，不会因文档完备而被误判上线。

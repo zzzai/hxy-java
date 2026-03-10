@@ -12,12 +12,19 @@
   - `docs/products/miniapp/2026-03-09-miniapp-user-facing-errorcopy-and-recovery-v1.md`
   - `docs/products/miniapp/2026-03-09-miniapp-content-compliance-styleguide-v1.md`
   - `docs/plans/2026-03-08-miniapp-degrade-retry-playbook-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+- 当前 capability 真值：
+  - `CAP-CONTENT-001 content.kefu-article-faq = PLANNED_RESERVED / BACKLOG-DOC-GAP`
+  - 本文补齐的是 D 窗口客服 / 运营 / 回滚闭环，不自动等价为 A 窗口可改 `ACTIVE`
 
 ## 2. 处理原则
 - 先保活页面，再判断是否转人工，不允许“白屏后再解释”。
 - 按错误码和降级标记处置，不按 message 自由发挥。
+- `content / FAQ / chat / DIY` 只能使用内容域帮助与咨询话术，禁止套用交易域“退款中 / 到账中 / 售后处理中 / 已完成”话术。
 - 所有工单必须携带：`runId/orderId/payRefundId/sourceBizNo/errorCode`；无值时统一填 `"0"`。
 - 降级不等于成功，任何 `degraded=true` 都必须同步恢复动作和回访计划。
+- `degraded=true`、`TICKET_SYNC_DEGRADED` 样本统一进入 `degraded_pool`，不得计入内容主可用率，也不得回填活动主 ROI / 主转化。
 
 ## 3. 客服接待分层
 
@@ -41,6 +48,10 @@
   - 聊天发送失败、内容页返回白屏、DIY 首屏不可用。
   - 命中 P0/P1 错误码或内容合规拦截。
   - 同一问题 15 分钟内出现 3 单以上。
+- 固定人工接管入口：
+  - 客服一线 `L1` -> 转人工坐席 `L2`
+  - 工单类型固定为 `CONTENT_CS_INCIDENT` 或 `CONTENT_DEGRADE_TASK`
+  - DIY / 内容配置异常必须同步内容运营执行“下线 / 恢复上一稳定模板快照”
 
 ### 4.3 失败升级
 
@@ -113,7 +124,7 @@
 | `1011000011 ORDER_NOT_FOUND` | 内容内跳订单/售后帮助 | 引导刷新或返回订单列表 | 3 次失败转 P1 |
 | `1030004016 BOOKING_ORDER_REFUND_REPLAY_RUN_ID_NOT_EXISTS` | 内容内批次说明/运营公告 | 记录审计 warning，不阻断主阅读 | P2 |
 | `TICKET_SYNC_DEGRADED` | 聊天 / 内容协同工单 | 告知“同步中”，保留页面可用 | 15 分钟未恢复转 P1 |
-| `degraded=true` | 文章 / DIY / 聊天通用 | 只承诺“部分信息延迟”，不承诺已成功恢复 | 视影响面升级 |
+| `degraded=true` | 文章 / DIY / 聊天通用 | 只承诺“部分信息延迟”，不承诺已成功恢复；样本进入 `degraded_pool`，不计主可用率 / 主 ROI | 视影响面升级 |
 | `content_fake_success_block` | DIY / 活动页 / 文章 CTA | 立即下线对应内容，客服统一回复“当前活动信息已更新，请以页面最新展示为准” | P0 |
 
 ## 8. 运营与技术责任边界
@@ -130,3 +141,4 @@
 2. 转人工、失败升级、回访闭环步骤明确可审计。
 3. 工单字段固定包含 `runId/orderId/payRefundId/sourceBizNo/errorCode`。
 4. `degraded=true`、`TICKET_SYNC_DEGRADED`、合规拦截等场景有统一处置口径。
+5. 内容域话术与交易域话术边界清晰，客服不会把内容异常误解释为退款/到账/售后成功。

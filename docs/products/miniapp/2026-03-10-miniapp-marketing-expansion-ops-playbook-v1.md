@@ -2,11 +2,22 @@
 
 ## 1. 目标
 - 为营销扩展能力建立运营执行手册，覆盖秒杀、拼团、砍价、满减送的上下线、灰度、库存阈值、兜底关闭和异常处置。
+- 当前 capability 真值：
+  - `CAP-PROMO-003 promotion.activity-growth = PLANNED_RESERVED / BACKLOG-DOC-GAP`
+  - 本文提供的是联调、放量、回滚口径；在 B/C 文档冻结并由 A 窗口更新台账前，不得并入 `ACTIVE` 发布分母。
 - 适用能力：
   - 秒杀：`/promotion/seckill-*`
   - 拼团：`/promotion/combination-*`
   - 砍价：`/promotion/bargain-*`
   - 满减送：`/promotion/reward-activity/get`
+- 对齐门禁：
+  - `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+  - `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+
+## 1.1 统一口径
+- 营销扩展域的 `degraded=true`、warning、兜底关闭样本统一进入 `degraded_pool`，不得计入主 ROI、主转化率、主成功率。
+- 在 capability ledger 仍保持 `PLANNED_RESERVED / BACKLOG-DOC-GAP` 时，秒杀 / 拼团 / 砍价 / 满减送只能做联调与灰度预演，不得混入 `promotion.coupon/point-mall` 的已发布分母。
+- 任一活动执行 `MKT-07` 后，客服公告、活动页说明、放量记录必须同时更新。
 
 ## 2. 上下线规则
 
@@ -28,6 +39,7 @@
 
 - 任一阶段都不得越级到下一个阶段。
 - 灰度维度优先：内部账号 -> 白名单门店 -> 低风险门店 -> 全量。
+- 若 `CAP-PROMO-003` 状态仍未由 A 窗口从 `BACKLOG-DOC-GAP` 改到可灰度状态，则灰度阶段固定停留在 `NO_GO`，不得启动阶段 1。
 
 ## 4. 库存阈值
 
@@ -89,6 +101,15 @@
   3. 更新客服/运营公告
   4. 复核库存和订单影响范围
 
+## 9.1 发布前硬门禁
+
+| 检查项 | 通过标准 | 不通过动作 |
+|---|---|---|
+| capability 真值 | A 窗口已更新 `CAP-PROMO-003` 的状态与 evidenceDoc | 保持 `PLANNED_RESERVED`，不得放量 |
+| 文档包 | PRD / Contract / ErrorCode / Degrade / Ops playbook 全部落盘 | 维持 `NO_GO` |
+| 分池治理 | `degraded_pool` 与主 ROI / 主转化彻底隔离 | 不得进入发布窗口 |
+| 回滚预案 | `MKT-04/MKT-05/MKT-07` 已演练 | 只能联调，不得灰度 |
+
 ## 10. 告警与回滚
 
 | 场景 | 阈值 | 告警级别 | 回滚动作 |
@@ -115,3 +136,4 @@
 2. 配置错误、库存异常、规则冲突都有明确处置动作。
 3. 任一活动都可回滚到上一稳定配置快照。
 4. 客服、运营、技术对“活动关闭/恢复”口径一致。
+5. `degraded=true` 样本不会污染主 ROI / 主转化；在 capability 真值未升级前，不会误算为已发布能力。
