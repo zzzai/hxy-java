@@ -71,7 +71,7 @@
 ## 7. 03-10 终审集成增量
 
 ### 7.1 本批集成原则
-1. 只吸收当前分支真实存在且已正式提交，或已明确落盘但仍处于 `Draft` 的 03-10 文档。
+1. 只吸收当前分支真实存在且已正式提交的 03-10 文档。
 2. 03-09 `Frozen` 基线绝不回退。
 3. 03-10 只有在“真实 route/API/contract/runbook 全闭环”时，才允许进入 `Frozen Candidate`。
 
@@ -81,15 +81,15 @@
 |---|---|---|
 | Member | Ready | 文档输入可作为后续冻结评审依据，但缺页能力与 `PLANNED_RESERVED` API 仍阻断 Frozen Candidate |
 | Booking | Still Blocked | `create / cancel / addon` 未收口前，不得进入任何发布放量或冻结候选 |
-| Content / Customer Service | Still Blocked | 仅有 SOP 正式提交，缺 PRD 与正式 contract，不能进入冻结候选 |
-| Brokerage | Still Blocked | 仅有 runbook 正式提交，缺 PRD 与正式 contract，不能进入冻结候选 |
-| Product / Search / Catalog | Still Blocked | KPI/alerting 已提交，但 `search-lite` / `search-canonical` 与互动能力仍缺正式 PRD/contract |
-| Marketing Expansion | Still Blocked | 仅有 ops playbook 正式提交，缺 PRD 与 contract |
-| Reserved Activation | Ready | 激活治理文档可作为执行输入，但 gift/referral/feed runtime 仍为 `PLANNED_RESERVED` |
+| Content / Customer Service | Ready | 文档包已齐，但能力边界仍受 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 约束，不能把聊天/文章/FAQ 壳页整体并入已发布范围 |
+| Brokerage | Ready | 文档包已齐，但“提现申请成功 != 到账成功”，申诉/撤回/取消提现仍是缺页能力，不进入放量范围 |
+| Product / Search / Catalog | Ready | 文档包已齐，但必须继续分离 `search-lite` 与 `search-canonical`，并把评论/收藏/历史维持在 `PLANNED_RESERVED` |
+| Marketing Expansion | Ready | 文档包已齐，但秒杀/拼团/满减送整域仍按 `PLANNED_RESERVED` 管理，砍价只属后端存在 |
+| Reserved Activation | Ready | 激活治理文档可作为执行输入，但 gift/referral/feed runtime 仍为 `PLANNED_RESERVED`，关闭态命中一律 No-Go |
 
 ### 7.3 当前门禁结论
 1. 03-10 本批新增 `Frozen Candidate = 0`。
-2. 03-10 `Ready` 文档可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
+2. 03-10 `Ready` 文档共 `31` 份，可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
 3. 若任何窗口把以下对象误标为 `ACTIVE`、`Frozen Candidate` 或准发布范围，直接触发 No-Go：
    - `/pages/user/level`
    - `/pages/profile/assets`
@@ -98,4 +98,12 @@
    - `GET /booking/time-slot/list`
    - `PUT /booking/order/cancel`
    - `POST /booking/addon/create`
-4. `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` 与 `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` 当前只允许按 `Draft / Pending formal window output` 处理，未正式提交前不得纳入发布签发口径。
+4. 以下 runtime 边界继续作为 03-10 No-Go 触发器：
+   - 把 `/pages/public/faq` 当成独立 FAQ 数据页，而不是 FAQ 壳跳转到 `/pages/public/richtext?title=常见问题`
+   - 把 `/product/favorite/exits` 改写成 `/exists`
+   - 把 `search-lite` 与 `search-canonical` 混算，或把 `1008009904` 用到 lite 路径
+   - 把 `type=2 bargain` 营销聚合当成真实前端可跳转能力
+   - 在 `miniapp.gift-card / miniapp.referral / miniapp.technician-feed.audit = off` 时仍命中 `RESERVED_DISABLED`
+5. 当前总体决策保持：
+   - 03-09 Frozen 基线仍可按既有 `Go with Gate` 规则继续执行；
+   - 03-10 新增域全部停留在文档 `Ready` 层，不构成新增签发范围。

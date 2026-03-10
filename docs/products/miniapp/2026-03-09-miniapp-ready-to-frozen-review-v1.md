@@ -160,13 +160,24 @@
 11. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md`
 12. `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`
 13. `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
-14. `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`
-15. `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md`
-16. `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`
-17. `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`
-18. `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`
-19. `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`
-20. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
+14. `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md`
+15. `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md`
+16. `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`
+17. `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md`
+18. `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
+19. `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md`
+20. `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md`
+21. `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md`
+22. `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md`
+23. `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`
+24. `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md`
+25. `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`
+26. `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`
+27. `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`
+28. `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`
+29. `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
+30. `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+31. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
 
 ### 10.2 当前保持 Ready 的原因
 1. Booking 域仍存在前端 / 后端 / 文档三方 method + path 不一致：
@@ -183,19 +194,22 @@
    - `/pages/profile/assets`
    - `/pages/user/tag`
 4. `/member/asset-ledger/page` 仍为 `PLANNED_RESERVED`，不得误升 `ACTIVE`。
-5. Content / Brokerage / Catalog / Marketing Expansion 文档包仍未完成最小闭环：
-   - D 侧 SOP/runbook/playbook 已正式提交；
-   - 但 B 侧 PRD 与 C 侧正式 contract 仍不完整，或仅存在未提交工作树文件。
+5. Content / Brokerage / Product-Catalog / Marketing Expansion 的 B/C/D 文档包已全部正式提交，但这些域的 capability 仍保留在 `Ready / PLANNED_RESERVED / ACTIVE_BE_ONLY` 边界：
+   - content 域当前只允许把 DIY 模板/自定义页视为 `ACTIVE`；聊天发送、文章详情、FAQ 壳跳转仍按 `PLANNED_RESERVED` 管理；
+   - brokerage 域 contract 仍明确“页面可访问 != capability 已上线”，提现成功只代表建单成功，不代表到账成功；
+   - product 域必须继续拆分 `search-lite = GET /product/spu/page` 与 `search-canonical = GET /product/search/page (BLOCKED)`；
+   - marketing 域当前真实页面与接口存在，但 contract 明确整域仍不能直接升为 `ACTIVE`，砍价仅属后端存在。
 6. Reserved Activation 治理文档已具备 `Ready` 输入，但 gift-card / referral / technician-feed 当前仍无真实 route/API/runtime 实现，不能以治理文档替代 runtime 闭环。
 
 ### 10.3 当前冻结门禁判断
 1. 03-09 `Frozen` 基线保持不变，不回退。
 2. 03-10 当前终审结论：`Frozen Candidate = 0`。
-3. 03-10 已提交文档当前只允许停留在 `Ready`；未正式提交的窗口产出只允许停留在 `Draft`。
+3. 03-10 已正式提交文档共 `31 Ready`，当前无 `Draft`；但这些文档仍只允许停留在 `Ready`，不得直接升为 `Frozen Candidate`。
 4. 待以下条件满足后，才可发起下一轮 Frozen 评审：
    - A：member route truth 与 booking route/API truth 收口完成；
-   - C：booking user API alignment contract 已交付；
-   - B/C/D：content / brokerage 文档包至少达到 PRD + contract + SOP/runbook 最小闭环；
+   - booking 旧路径与旧方法从 FE 联调和发布 allowlist 中清除；
+   - member 缺页能力不再被写成已上线页面；
+   - content / brokerage / product / marketing / reserved 的 capability scope 与 release decision 继续保持一致；
    - 索引、capability ledger、coverage matrix 与 release gate 引用路径同步完成。
 
 ### 10.4 03-10 目标域终审判定
@@ -203,8 +217,8 @@
 |---|---|---|
 | Member | Ready | 路由真值已补，但缺页能力和 `PLANNED_RESERVED` API 仍在 |
 | Booking | Still Blocked | `create / cancel / addon` method/path 漂移未消除 |
-| Content / Customer Service | Still Blocked | 仅有 D 侧 SOP 正式提交；B/C 关键文档仍未闭环 |
-| Brokerage | Still Blocked | 仅有 D 侧 runbook 正式提交；B/C 关键文档仍未闭环 |
-| Product / Search / Catalog | Still Blocked | D 侧 KPI 文档已提交，但 B/C 仍未形成正式 PRD/contract |
-| Marketing Expansion | Still Blocked | 只有 D 侧 ops playbook 正式提交 |
+| Content / Customer Service | Ready | PRD + contract + SOP + 验收/告警矩阵已落盘，但 capability scope 仍受 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 约束 |
+| Brokerage | Ready | PRD + contract + runbook + 验收/告警矩阵已落盘，但提现到账、申诉/撤回等缺页能力仍未进入上线口径 |
+| Product / Search / Catalog | Ready | PRD + contract + KPI/alerting 已落盘，但 `search-canonical` 与 detail-comment-collect-history 仍不得误升 `ACTIVE` |
+| Marketing Expansion | Ready | PRD + contract + ops playbook + 验收/告警矩阵已落盘，但整域继续按 `PLANNED_RESERVED` 管理 |
 | Reserved Activation | Ready | 激活治理文档已落盘，但 runtime 仍是 `PLANNED_RESERVED` |

@@ -130,7 +130,7 @@
 | # | Priority | Owner Window | Document | Status | Notes |
 |---|---|---|---|---|---|
 | 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md` | Ready | 以真实前端路由 + 实际后端 API + 验收口径三要素判定 `ACTIVE/PLANNED_RESERVED/DEPRECATED` |
-| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md` | Ready | 按业务域输出 PRD/Contract/ErrorCode/Degrade/SOP/Runbook 覆盖率与 P0/P1 补齐顺序 |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md` | Ready | 按业务域输出 PRD/Contract/ErrorCode/Degrade/SOP/Runbook 覆盖率与后续冻结边界 |
 
 ### 10.1 状态汇总（03-10 当前批次）
 - Frozen: 0
@@ -159,33 +159,39 @@
 - `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 已在当前分支扩展会员域错误码锚点。
 - 该扩展属于 03-10 Ready 增补输入，不改变 03-09 Frozen 基线记录本身；是否进入 Frozen，需等待 A 侧 route truth 与 Active/Planned 边界收口。
 
-## 12. 2026-03-10 Completion Closure Batch（A + Pending B/C/D）
+## 12. 2026-03-10 Remaining Domain Pack（A + B/C/D）
 
 | # | Priority | Owner Window | Document | Status | Notes |
 |---|---|---|---|---|---|
 | 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md` | Ready | A 侧总收口主计划，明确“先文档后开发”的执行顺序 |
-| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md` | Ready | A 侧 member route truth 收口；03-10 member 文档仍保持 Ready |
-| 3 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | Ready | A 侧 booking route/API 真值审查；booking create/cancel/addon 仍阻断 Frozen |
-| 4 | P0 | C | `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` | Draft | 文件已落盘到当前工作树，但未形成正式提交与窗口回报；Pending formal window output |
-| 5 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | Draft | Pending window output |
-| 6 | P0 | C | `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` | Draft | 文件已落盘到当前工作树，但未形成正式提交与窗口回报；Pending formal window output |
-| 7 | P0 | D | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 content/customer-service 终审输入 |
-| 8 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | Draft | Pending window output |
-| 9 | P0 | C | `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md` | Draft | Pending window output |
-| 10 | P0 | D | `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 brokerage 终审输入 |
-| 11 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | Draft | Pending window output |
-| 12 | P1 | C | `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md` | Draft | Pending window output |
-| 13 | P1 | D | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 catalog 终审输入 |
-| 14 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | Draft | Pending window output |
-| 15 | P1 | C | `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md` | Draft | Pending window output |
-| 16 | P1 | D | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 marketing-expansion 终审输入 |
-| 17 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 reserved-activation 终审输入 |
-| 18 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 reserved-activation 终审输入 |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md` | Ready | A 侧 member route truth 收口 |
+| 3 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | Ready | A 侧 booking route/API 真值审查 |
+| 4 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | Ready | 内容/客服产品规划已正式提交 `8df260c458` |
+| 5 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | Ready | 分销产品规划已正式提交 `8df260c458` |
+| 6 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | Ready | 商品目录/互动产品规划已正式提交 `8df260c458` |
+| 7 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | Ready | 营销扩展 PRD 已正式提交 `8df260c458` |
+| 8 | P0 | C | `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` | Ready | booking canonical contract 已正式提交 `8cb521d02a` |
+| 9 | P0 | C | `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` | Ready | 内容/客服 contract 已正式提交 `8cb521d02a` |
+| 10 | P0 | C | `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md` | Ready | 分销 contract 已正式提交 `8cb521d02a` |
+| 11 | P1 | C | `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md` | Ready | catalog contract 已正式提交 `8cb521d02a` |
+| 12 | P1 | C | `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md` | Ready | marketing contract 已正式提交 `8cb521d02a` |
+| 13 | P0 | D | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md` | Ready | content/customer-service SOP 已正式提交 `bc7faaa30d37` |
+| 14 | P0 | D | `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | Ready | brokerage runbook 已正式提交 `bc7faaa30d37` |
+| 15 | P1 | D | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | Ready | catalog KPI/alerting 已正式提交 `bc7faaa30d37` |
+| 16 | P1 | D | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | Ready | marketing ops playbook 已正式提交 `bc7faaa30d37` |
+| 17 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | Ready | reserved activation checklist 已正式提交 `bc7faaa30d37` |
+| 18 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` | Ready | reserved 灰度验收 runbook 已正式提交 `bc7faaa30d37` |
+| 19 | P0 | D | `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md` | Ready | 跨域验收矩阵已正式提交 `bc7faaa30d37` |
+| 20 | P0 | D | `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | Ready | 跨域告警路由与 owner/SLA 已正式提交 `bc7faaa30d37` |
 
-### 12.1 状态汇总（Completion Closure Batch）
+### 12.1 状态汇总（Remaining Domain Pack）
 - Frozen: 0
-- Ready: 9
-- Draft: 9
+- Ready: 20
+- Draft: 0
+
+### 12.2 Ready 增补说明
+- `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 在 `8cb521d02a` 中补充了 booking/content/brokerage/catalog/marketing 相关错误码锚点。
+- 该扩展属于 03-10 Ready 增补输入，不改变 03-09 Frozen 基线记录本身。
 
 ## 13. 2026-03-10 Final Review Batch（A）
 
@@ -198,16 +204,16 @@
 - Ready: 1
 - Draft: 0
 
-## 14. Current Snapshot (2026-03-10 Final Review)
+## 14. Current Snapshot (2026-03-11)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 03-10 已交付准备态文档：`20 Ready`
-- 03-10 已登记待补文档：`9 Draft`
+- 03-10 已交付准备态文档：`31 Ready`
+- 03-10 已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 20
-  - Draft: 9
+  - Ready: 31
+  - Draft: 0
 - 说明：
-  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”“member route truth”“booking route/API truth”“剩余文档缺口主计划”和“终审状态判定”单一真值。
-  - D 侧 `content / brokerage / catalog / marketing-expansion / reserved-activation` 文档已正式提交并转为 `Ready`。
-  - C 侧 `booking-user-api-alignment` 与 `content-customer-service-contract` 目前只记录为 `Draft`，因为尚未形成正式提交与固定格式回报。
+  - 03-10 文档已完成从“缺口盘点”到“剩余域产品/契约/验收/告警文档正式落盘”的闭环。
+  - 当前剩余问题已从“缺文档”转为“冻结边界与 runtime scope 是否继续升级”的问题。
+  - Booking 仍是唯一明确 `Still Blocked` 的域，其余新增域已达到 `Ready`，但尚未进入 `Frozen Candidate`。
   - 未发生任何既有 Frozen 文档回退。
