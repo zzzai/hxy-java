@@ -67,3 +67,35 @@
   3. RB3-P2 能力不得进入 RB1/RB2 发布范围。
   4. `RESERVED_DISABLED` 与 `degraded_pool` 监控项在灰度窗口内无异常。
 - 任一前置不满足则自动降为 No-Go，并执行相应回滚策略。
+
+## 7. 03-10 终审集成增量
+
+### 7.1 本批集成原则
+1. 只吸收当前分支真实存在且已正式提交，或已明确落盘但仍处于 `Draft` 的 03-10 文档。
+2. 03-09 `Frozen` 基线绝不回退。
+3. 03-10 只有在“真实 route/API/contract/runbook 全闭环”时，才允许进入 `Frozen Candidate`。
+
+### 7.2 03-10 目标域决策状态
+
+| 域 | 当前状态 | 发布决策含义 |
+|---|---|---|
+| Member | Ready | 文档输入可作为后续冻结评审依据，但缺页能力与 `PLANNED_RESERVED` API 仍阻断 Frozen Candidate |
+| Booking | Still Blocked | `create / cancel / addon` 未收口前，不得进入任何发布放量或冻结候选 |
+| Content / Customer Service | Still Blocked | 仅有 SOP 正式提交，缺 PRD 与正式 contract，不能进入冻结候选 |
+| Brokerage | Still Blocked | 仅有 runbook 正式提交，缺 PRD 与正式 contract，不能进入冻结候选 |
+| Product / Search / Catalog | Still Blocked | KPI/alerting 已提交，但 `search-lite` / `search-canonical` 与互动能力仍缺正式 PRD/contract |
+| Marketing Expansion | Still Blocked | 仅有 ops playbook 正式提交，缺 PRD 与 contract |
+| Reserved Activation | Ready | 激活治理文档可作为执行输入，但 gift/referral/feed runtime 仍为 `PLANNED_RESERVED` |
+
+### 7.3 当前门禁结论
+1. 03-10 本批新增 `Frozen Candidate = 0`。
+2. 03-10 `Ready` 文档可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
+3. 若任何窗口把以下对象误标为 `ACTIVE`、`Frozen Candidate` 或准发布范围，直接触发 No-Go：
+   - `/pages/user/level`
+   - `/pages/profile/assets`
+   - `/pages/user/tag`
+   - `GET /booking/technician/list-by-store`
+   - `GET /booking/time-slot/list`
+   - `PUT /booking/order/cancel`
+   - `POST /booking/addon/create`
+4. `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` 与 `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` 当前只允许按 `Draft / Pending formal window output` 处理，未正式提交前不得纳入发布签发口径。

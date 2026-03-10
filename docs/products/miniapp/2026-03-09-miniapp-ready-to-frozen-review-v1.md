@@ -144,7 +144,7 @@
 2. 上述能力进入生产前必须满足：功能开关审批、灰度验证、RESERVED_DISABLED 命中为 0。
 3. 若被误纳入 RB1/RB2，必须立即回退 `Ready` 并执行 No-Go 处理。
 
-## 10. 03-10 Ready 增量说明（未进入 Frozen 范围）
+## 10. 03-10 终审增量说明（未进入 Frozen 范围）
 
 ### 10.1 本批不进入 Frozen 的文档
 1. `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
@@ -160,6 +160,13 @@
 11. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md`
 12. `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`
 13. `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
+14. `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`
+15. `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md`
+16. `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`
+17. `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`
+18. `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`
+19. `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`
+20. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
 
 ### 10.2 当前保持 Ready 的原因
 1. Booking 域仍存在前端 / 后端 / 文档三方 method + path 不一致：
@@ -176,13 +183,28 @@
    - `/pages/profile/assets`
    - `/pages/user/tag`
 4. `/member/asset-ledger/page` 仍为 `PLANNED_RESERVED`，不得误升 `ACTIVE`。
-5. Content / Brokerage / Catalog / Marketing Expansion / Reserved Activation 文档包尚未由 B/C/D 交付完成。
+5. Content / Brokerage / Catalog / Marketing Expansion 文档包仍未完成最小闭环：
+   - D 侧 SOP/runbook/playbook 已正式提交；
+   - 但 B 侧 PRD 与 C 侧正式 contract 仍不完整，或仅存在未提交工作树文件。
+6. Reserved Activation 治理文档已具备 `Ready` 输入，但 gift-card / referral / technician-feed 当前仍无真实 route/API/runtime 实现，不能以治理文档替代 runtime 闭环。
 
 ### 10.3 当前冻结门禁判断
 1. 03-09 `Frozen` 基线保持不变，不回退。
-2. 03-10 文档当前只允许停留在 `Draft / Ready`。
-3. 待以下条件满足后，才可发起下一轮 Frozen 评审：
+2. 03-10 当前终审结论：`Frozen Candidate = 0`。
+3. 03-10 已提交文档当前只允许停留在 `Ready`；未正式提交的窗口产出只允许停留在 `Draft`。
+4. 待以下条件满足后，才可发起下一轮 Frozen 评审：
    - A：member route truth 与 booking route/API truth 收口完成；
    - C：booking user API alignment contract 已交付；
    - B/C/D：content / brokerage 文档包至少达到 PRD + contract + SOP/runbook 最小闭环；
    - 索引、capability ledger、coverage matrix 与 release gate 引用路径同步完成。
+
+### 10.4 03-10 目标域终审判定
+| 域 | 当前判定 | 说明 |
+|---|---|---|
+| Member | Ready | 路由真值已补，但缺页能力和 `PLANNED_RESERVED` API 仍在 |
+| Booking | Still Blocked | `create / cancel / addon` method/path 漂移未消除 |
+| Content / Customer Service | Still Blocked | 仅有 D 侧 SOP 正式提交；B/C 关键文档仍未闭环 |
+| Brokerage | Still Blocked | 仅有 D 侧 runbook 正式提交；B/C 关键文档仍未闭环 |
+| Product / Search / Catalog | Still Blocked | D 侧 KPI 文档已提交，但 B/C 仍未形成正式 PRD/contract |
+| Marketing Expansion | Still Blocked | 只有 D 侧 ops playbook 正式提交 |
+| Reserved Activation | Ready | 激活治理文档已落盘，但 runtime 仍是 `PLANNED_RESERVED` |

@@ -166,35 +166,48 @@
 | 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md` | Ready | A 侧总收口主计划，明确“先文档后开发”的执行顺序 |
 | 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md` | Ready | A 侧 member route truth 收口；03-10 member 文档仍保持 Ready |
 | 3 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | Ready | A 侧 booking route/API 真值审查；booking create/cancel/addon 仍阻断 Frozen |
-| 4 | P0 | C | `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` | Draft | Pending window output；待 C 输出 booking canonical contract |
+| 4 | P0 | C | `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` | Draft | 文件已落盘到当前工作树，但未形成正式提交与窗口回报；Pending formal window output |
 | 5 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | Draft | Pending window output |
-| 6 | P0 | C | `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` | Draft | Pending window output |
-| 7 | P0 | D | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md` | Draft | Pending window output |
+| 6 | P0 | C | `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` | Draft | 文件已落盘到当前工作树，但未形成正式提交与窗口回报；Pending formal window output |
+| 7 | P0 | D | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 content/customer-service 终审输入 |
 | 8 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | Draft | Pending window output |
 | 9 | P0 | C | `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md` | Draft | Pending window output |
-| 10 | P0 | D | `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | Draft | Pending window output |
+| 10 | P0 | D | `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 brokerage 终审输入 |
 | 11 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | Draft | Pending window output |
 | 12 | P1 | C | `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md` | Draft | Pending window output |
-| 13 | P1 | D | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | Draft | Pending window output |
+| 13 | P1 | D | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 catalog 终审输入 |
 | 14 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | Draft | Pending window output |
 | 15 | P1 | C | `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md` | Draft | Pending window output |
-| 16 | P1 | D | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | Draft | Pending window output |
-| 17 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | Draft | Pending window output |
-| 18 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` | Draft | Pending window output |
+| 16 | P1 | D | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 marketing-expansion 终审输入 |
+| 17 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 reserved-activation 终审输入 |
+| 18 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` | Ready | 已由 D 正式提交 `3a2f40ef5e`，作为 reserved-activation 终审输入 |
 
 ### 12.1 状态汇总（Completion Closure Batch）
 - Frozen: 0
-- Ready: 3
-- Draft: 15
+- Ready: 9
+- Draft: 9
 
-## 13. Current Snapshot (2026-03-10)
+## 13. 2026-03-10 Final Review Batch（A）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md` | Ready | A 侧终审文档；明确本批 `Frozen Candidate = 0` |
+
+### 13.1 状态汇总（Final Review Batch）
+- Frozen: 0
+- Ready: 1
+- Draft: 0
+
+## 14. Current Snapshot (2026-03-10 Final Review)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 03-10 已交付准备态文档：`13 Ready`
-- 03-10 已登记待补文档：`15 Draft`（均为 `Pending window output`）
+- 03-10 已交付准备态文档：`20 Ready`
+- 03-10 已登记待补文档：`9 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 13
-  - Draft: 15
+  - Ready: 20
+  - Draft: 9
 - 说明：
-  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”“member route truth”“booking route/API truth”和“剩余文档缺口主计划”单一真值。
+  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”“member route truth”“booking route/API truth”“剩余文档缺口主计划”和“终审状态判定”单一真值。
+  - D 侧 `content / brokerage / catalog / marketing-expansion / reserved-activation` 文档已正式提交并转为 `Ready`。
+  - C 侧 `booking-user-api-alignment` 与 `content-customer-service-contract` 目前只记录为 `Draft`，因为尚未形成正式提交与固定格式回报。
   - 未发生任何既有 Frozen 文档回退。

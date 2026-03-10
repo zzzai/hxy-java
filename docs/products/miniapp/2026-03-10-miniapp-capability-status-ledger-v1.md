@@ -53,6 +53,13 @@
 - `ED-29` `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md`
 - `ED-30` `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`
 - `ED-31` `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
+- `ED-32` `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`
+- `ED-33` `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md`
+- `ED-34` `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`
+- `ED-35` `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`
+- `ED-36` `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`
+- `ED-37` `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`
+- `ED-38` `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -120,7 +127,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | CAP-PRODUCT-001 | product.home-diy | `/pages/index/index`; `/pages/index/page` | `GET /promotion/diy-template/used`; `GET /promotion/diy-template/get`; `GET /promotion/diy-page/get` | ACTIVE | P1 | RB2-P1 | Product + Promotion Domain Owner | `ED-08/ED-10/ED-19` | 首页基础装配链路已有前端承接、PRD 和发布决策约束 |
 | CAP-PRODUCT-002 | product.catalog-browse | `/pages/index/category`; `/pages/goods/list`; `/pages/goods/index` | `GET /product/category/list`; `GET /product/spu/page`; `GET /product/spu/get-detail` | ACTIVE | P1 | RB2-P1 | Product Domain Owner | `ED-02/ED-03/ED-07/ED-10` | 当前真实搜索/浏览是 `search-lite + spu.page`，非 canonical search |
-| CAP-PRODUCT-003 | product.detail-comment-collect-history | `/pages/goods/comment/add`; `/pages/goods/comment/list`; `/pages/user/goods-collect`; `/pages/user/goods-log` | `GET /product/comment/page`; `POST /trade/order/item/create-comment`; `/product/favorite/*`; `/product/browse-history/*` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Product Domain Owner | `N/A` | 代码能力存在，但缺独立产品验收文档，不能记 `ACTIVE` |
+| CAP-PRODUCT-003 | product.detail-comment-collect-history | `/pages/goods/comment/add`; `/pages/goods/comment/list`; `/pages/user/goods-collect`; `/pages/user/goods-log` | `GET /product/comment/page`; `POST /trade/order/item/create-comment`; `/product/favorite/*`; `/product/browse-history/*` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Product Domain Owner | `ED-34/ED-38` | D 已补 KPI/告警文档，但商品详情/收藏/浏览历史/评论仍缺 B/C 正式 PRD 与 contract，不能记 `ACTIVE` |
 | CAP-PRODUCT-004 | product.search-lite | `/pages/index/search` -> `/pages/goods/list` | `GET /product/spu/page` | ACTIVE | P1 | RB2-P1 | Product Domain Owner | `ED-02/ED-03/ED-07/ED-10` | 当前已上线能力是搜索词透传 + `spu.page` 召回，不是 `product/search/page` |
 | CAP-PRODUCT-005 | product.search-canonical | `/pages/search/index`（规划态） | `GET /product/search/page` | PLANNED_RESERVED | P2 | RB3-P2 | Search Owner | `ED-07/ED-10/ED-11/ED-19` | 仅文档冻结，受 `miniapp.search.validation=off` 保护 |
 
@@ -130,7 +137,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | CAP-PROMO-001 | promotion.coupon | `/pages/coupon/list`; `/pages/coupon/detail` | `GET /promotion/coupon-template/page`; `GET /promotion/coupon/page`; `POST /promotion/coupon/take`; `GET /promotion/coupon/get` | ACTIVE | P0 | RB1-P0 | Promotion Domain Owner | `ED-01/ED-02/ED-03/ED-04/ED-10/ED-11` | 领券成功、重复领取、活动失效均有冻结验收口径 |
 | CAP-PROMO-002 | promotion.point-mall | `/pages/activity/point/list`; `/pages/goods/point`; `/pages/user/wallet/score` | `GET /promotion/point-activity/page`; `GET /promotion/point-activity/get-detail`; `GET /promotion/point-activity/list-by-ids`; `GET /member/point/record/page` | ACTIVE | P0 | RB1-P0 | Promotion + Member Domain Owner | `ED-01/ED-03/ED-06/ED-10/ED-11` | 积分商品、活动详情、积分流水三端已成闭环 |
-| CAP-PROMO-003 | promotion.activity-growth | `/pages/activity/index`; `/pages/activity/groupon/*`; `/pages/activity/seckill/list` | `/promotion/activity/*`; `/promotion/combination/*`; `/promotion/seckill/*`; `/promotion/reward-activity/*` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Promotion Domain Owner | `N/A` | 前后端运行能力存在，但缺完整发布 PRD/contract/error/degrade 文档包 |
+| CAP-PROMO-003 | promotion.activity-growth | `/pages/activity/index`; `/pages/activity/groupon/*`; `/pages/activity/seckill/list` | `/promotion/activity/*`; `/promotion/combination/*`; `/promotion/seckill/*`; `/promotion/reward-activity/*` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Promotion Domain Owner | `ED-35/ED-38` | D 已补 marketing expansion ops playbook，但 B/C 正式 PRD 与 contract 仍未形成最小闭环 |
 | CAP-PROMO-004 | promotion.home-context-guard | `/pages/index/index` | `N/A（门禁能力）` | PLANNED_RESERVED | P1 | RB2-P1 | Product on-call | `ED-08/ED-11/ED-12/ED-19` | `miniapp.home.context-check=off`，仅有门禁文档，不计入 `ACTIVE` |
 
 ### 5.5 Booking / Technician Service
@@ -146,16 +153,16 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-CONTENT-001 | content.kefu-article-faq | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `/promotion/kefu-message/*`; `/promotion/article/get` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Content Ops Owner | `ED-17/ED-29` | 客服与文章能力运行存在；`ED-29` 已登记待补 contract/error/degrade/runbook，但当前仍未形成发布级闭环 |
-| CAP-BROKERAGE-001 | brokerage.center | `/pages/commission/*` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P2 | BACKLOG-DOC-GAP | Brokerage Domain Owner | `ED-29` | 分销页和后端控制器存在；`ED-29` 已固定补文档路径与 owner，但当前没有冻结产品文档包 |
+| CAP-CONTENT-001 | content.kefu-article-faq | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `/promotion/kefu-message/*`; `/promotion/article/get` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Content Ops Owner | `ED-17/ED-29/ED-32/ED-38` | 客服与文章能力运行存在；D 已补 SOP，但 B PRD缺失、C contract 仅工作树 Draft，当前仍未形成发布级闭环 |
+| CAP-BROKERAGE-001 | brokerage.center | `/pages/commission/*` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P2 | BACKLOG-DOC-GAP | Brokerage Domain Owner | `ED-29/ED-33/ED-38` | 分销页和后端控制器存在；D 已补 runbook，但 B/C 关键文档未正式提交，当前仍不是冻结候选 |
 
 ### 5.7 Reserved Expansion Domains
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-RESERVED-001 | gift-card | `/pages/gift-card/*`（未实现） | `/promotion/gift-card/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Trade Domain Owner | `ED-13/ED-14/ED-12/ED-19` | 文档冻结但前后端未落地，且 `miniapp.gift-card=off` |
-| CAP-RESERVED-002 | referral | `/pages/referral/*`（未实现） | `/promotion/referral/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Promotion Domain Owner | `ED-13/ED-15/ED-12/ED-19` | 文档冻结但前后端未落地，且 `miniapp.referral=off` |
-| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19` | 文档冻结但前后端未落地，且 `miniapp.technician-feed.audit=off` |
+| CAP-RESERVED-001 | gift-card | `/pages/gift-card/*`（未实现） | `/promotion/gift-card/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Trade Domain Owner | `ED-13/ED-14/ED-12/ED-19/ED-36/ED-37/ED-38` | 治理与灰度验收文档已补齐，但前后端仍未落地，且 `miniapp.gift-card=off` |
+| CAP-RESERVED-002 | referral | `/pages/referral/*`（未实现） | `/promotion/referral/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Promotion Domain Owner | `ED-13/ED-15/ED-12/ED-19/ED-36/ED-37/ED-38` | 治理与灰度验收文档已补齐，但前后端仍未落地，且 `miniapp.referral=off` |
+| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19/ED-36/ED-37/ED-38` | 治理与灰度验收文档已补齐，但前后端仍未落地，且 `miniapp.technician-feed.audit=off` |
 
 ## 6. Deprecated 路由别名（不再作为执行真值）
 
@@ -173,3 +180,4 @@
 4. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，不得被误算进发布已上线能力。
 5. 后续封版时，应以本文替代历史原型别名路由，避免继续使用 `/pages/after-sale/*`、`/pages/coupon/center`、`/pages/public/login`、`/pages/user/index` 等旧路径描述。
 6. `ED-29/ED-30/ED-31` 只是 03-10 A 侧真值收口输入，不构成自动 Frozen 放行依据。
+7. 03-10 终审结论已固定为：`Frozen Candidate = 0`；content / brokerage / catalog / marketing-expansion / reserved-activation 仅能按 `Ready` 或 `Still Blocked` 处理。
