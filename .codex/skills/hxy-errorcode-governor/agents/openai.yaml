@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Errorcode Governor"
+  short_description: "Govern canonical errorCode truth across docs and runbooks"

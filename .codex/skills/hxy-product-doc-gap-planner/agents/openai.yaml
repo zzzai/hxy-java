@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY Product Doc Gap Planner"
+  short_description: "Plan product-doc closure by business domain and priority"

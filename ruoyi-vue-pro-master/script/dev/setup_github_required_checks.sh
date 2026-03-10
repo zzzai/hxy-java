@@ -46,6 +46,7 @@ Default contexts (if none provided):
   - hxy-pay-notify-replay-acceptance / replay-acceptance
   - hxy-naming-guard / naming-guard
   - hxy-memory-guard / memory-guard
+  - hxy-agent-suite-guard / agent-suite-guard
 USAGE
 }
 
@@ -203,6 +204,7 @@ if [[ ${#CONTEXTS[@]} -eq 0 ]]; then
     "hxy-pay-notify-replay-acceptance / replay-acceptance"
     "hxy-naming-guard / naming-guard"
     "hxy-memory-guard / memory-guard"
+    "hxy-agent-suite-guard / agent-suite-guard"
   )
 fi
 

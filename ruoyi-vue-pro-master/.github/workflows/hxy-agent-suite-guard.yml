@@ -1,0 +1,26 @@
+name: hxy-agent-suite-guard
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  agent-suite-guard:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run HXY agent suite guard
+        shell: bash
+        run: |
+          bash script/dev/check_hxy_agent_suite_guard.sh

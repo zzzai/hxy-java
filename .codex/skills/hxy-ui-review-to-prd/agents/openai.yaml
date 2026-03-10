@@ -1,0 +1,3 @@
+interface:
+  display_name: "HXY UI Review To PRD"
+  short_description: "Turn reviewed UI into PRD, field dict, and acceptance assets"

@@ -1,6 +1,6 @@
 ---
 name: hxy-agent-workflow-router
-description: Use when deciding which HXY governance skill or skill sequence applies to miniapp capability audits, doc freeze closure, release gating, booking/member alignment, health-data compliance, or A/B/C/D window dispatch.
+description: Use when deciding which HXY governance skill or skill sequence applies to capability audits, doc freeze closure, release gating, errorcode governance, product doc-gap planning, UI review to PRD, booking/member alignment, health-data compliance, or A/B/C/D window dispatch.
 ---
 
 # HXY Agent Workflow Router

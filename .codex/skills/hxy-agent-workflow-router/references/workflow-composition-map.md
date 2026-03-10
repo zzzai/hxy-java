@@ -30,7 +30,28 @@
 
 适用：面诊、舌诊、体征、标签、抽象推荐、审计字段、营销使用。
 
-## 5. 多窗口并行派发
+## 5. errorCode 单一真值治理
+1. `hxy-errorcode-governor`
+2. `hxy-miniapp-doc-freeze-closer`
+3. `hxy-release-gate-decider`（如涉及冻结或放量）
+
+适用：canonical register、recovery matrix、SOP、runbook、用户恢复文案统一。
+
+## 6. 产品文档缺口规划
+1. `hxy-product-doc-gap-planner`
+2. `hxy-miniapp-capability-auditor`
+3. `hxy-miniapp-doc-freeze-closer`（如涉及本轮封版）
+
+适用：按业务域盘点产品文档完整度、确定 P0/P1/P2 补齐顺序。
+
+## 7. UI 评审落 PRD
+1. `hxy-ui-review-to-prd`
+2. `hxy-miniapp-capability-auditor`
+3. `hxy-miniapp-doc-freeze-closer`（如进入发布范围）
+
+适用：把 UI 评审、页面稿、拼接稿沉淀为 PRD、字段字典和验收清单。
+
+## 8. 多窗口并行派发
 1. `hxy-agent-workflow-router`
 2. `hxy-window-handoff-normalizer`
 3. 按窗口目标加载对应领域技能

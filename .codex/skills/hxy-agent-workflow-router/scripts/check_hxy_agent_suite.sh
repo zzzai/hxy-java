@@ -5,6 +5,9 @@ ROOT="${1:-.}"
 SKILLS=(
   hxy-agent-workflow-router
   hxy-window-handoff-normalizer
+  hxy-errorcode-governor
+  hxy-product-doc-gap-planner
+  hxy-ui-review-to-prd
   hxy-miniapp-capability-auditor
   hxy-miniapp-doc-freeze-closer
   hxy-release-gate-decider
