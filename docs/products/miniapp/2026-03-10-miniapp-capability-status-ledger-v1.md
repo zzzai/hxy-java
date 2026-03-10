@@ -50,6 +50,9 @@
 - `ED-26` `docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md`
 - `ED-27` `docs/plans/2026-03-10-miniapp-active-planned-gate-runbook-v1.md`
 - `ED-28` `docs/plans/2026-03-10-miniapp-member-domain-sla-routing-v1.md`
+- `ED-29` `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md`
+- `ED-30` `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`
+- `ED-31` `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -80,6 +83,12 @@
 5. 03-10 member PRD 将积分商城写为 `/pages/point/mall`，但真实路由是 `yudao-mall-uniapp/pages/activity/point/list`。
 6. 03-10 member PRD 声明了 `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag`；当前分支均无真实页面文件，因此不能按 `ACTIVE` 处理。
 
+### 4.4 03-10 A 侧真值收口输入
+1. `ED-29` 明确了剩余文档缺口、Owner、前置依赖和“先文档后开发”顺序，可作为 content / brokerage / catalog / marketing expansion 的补齐总计划。
+2. `ED-30` 将 member 域从“历史 alias route”切回真实 uniapp route，并固定 `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 为当前不可升 `ACTIVE` 的缺页能力。
+3. `ED-31` 将 booking 域前端实际 `booking.js`、后端 app controller 和现有 PRD / canonical doc 三方真值并排校对，明确 `create / cancel / addon` 仍是阻断项。
+4. 上述三份文档属于 03-10 `Ready` 收口输入，只补证据链，不改变 03-09 Frozen 基线。
+
 ## 5. 能力清单
 
 ### 5.1 Trade / Pay
@@ -96,14 +105,14 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-MEMBER-001 | member.auth-social | `component:s-auth-modal`; `/pages/index/login`（H5/社交回调） | `/member/auth/*`; `/member/social-user/*` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 会员登录/短信/微信一键登录已有前端组件、后端接口与错误码/SLA文档，但 03-10 PRD 的 route 描述仍需校正后才能冻结 |
-| CAP-MEMBER-002 | member.profile-security | `/pages/index/user`; `/pages/user/info`; `/pages/public/setting` | `GET /member/user/get`; `PUT /member/user/update`; `PUT /member/user/update-mobile*`; `PUT /member/user/update-password`; `PUT /member/user/reset-password`; `POST /member/auth/logout` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 个人资料、手机号、密码修改链路前后端存在，03-10 member 包已补齐文档，但个人中心主路由仍需从 `/pages/user/index` 校正到真实 route |
+| CAP-MEMBER-001 | member.auth-social | `component:s-auth-modal`; `/pages/index/login`（H5/社交回调） | `/member/auth/*`; `/member/social-user/*` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28/ED-30` | 会员登录/短信/微信一键登录已有前端组件、后端接口与错误码/SLA文档；真实 route 以 `ED-30` 为准，但 03-10 文档批次当前仍只到 `Ready` |
+| CAP-MEMBER-002 | member.profile-security | `/pages/index/user`; `/pages/user/info`; `/pages/public/setting` | `GET /member/user/get`; `PUT /member/user/update`; `PUT /member/user/update-mobile*`; `PUT /member/user/update-password`; `PUT /member/user/reset-password`; `POST /member/auth/logout` | ACTIVE | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28/ED-30` | 个人资料、手机号、密码修改链路前后端存在，个人中心主路由已由 `ED-30` 校正到 `/pages/index/user`；03-10 文档批次仍待后续 Frozen 评审 |
 | CAP-MEMBER-003 | member.address | `/pages/user/address/list`; `/pages/user/address/edit` | `GET /member/address/list`; `GET /member/address/get`; `GET /member/address/get-default`; `POST /member/address/create`; `PUT /member/address/update`; `DELETE /member/address/delete` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-01/ED-02/ED-04/ED-06/ED-10` | 真实路由已存在，地址 CRUD 与默认地址规则已冻结 |
 | CAP-MEMBER-004 | member.wallet-ledger | `/pages/user/wallet/money`; `/pages/pay/recharge`; `/pages/pay/recharge-log` | `GET /pay/wallet/get`; `GET /pay/wallet-transaction/page`; `GET /pay/wallet-transaction/get-summary`; `GET /pay/wallet-recharge-package/list`; `POST /pay/wallet-recharge/create`; `GET /pay/wallet-recharge/page` | ACTIVE | P1 | RB2-P1 | Member + Pay Domain Owner | `ED-02/ED-06/ED-10` | 钱包余额、流水、充值套餐前后端已闭环，资产账本 PRD 可执行 |
 | CAP-MEMBER-005 | member.point-ledger | `/pages/user/wallet/score` | `GET /member/point/record/page` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-02/ED-06/ED-10/ED-11` | 积分流水已纳入资产账本 PRD 与 canonical API |
-| CAP-MEMBER-006 | member.sign-in | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page` | ACTIVE | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28` | 签到页和接口存在，03-10 member 包已补齐错误码、告警和人工接管口径；文档 route 仍需规范到 `/pages/app/sign` |
-| CAP-MEMBER-007 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-24/ED-25` | 后端接口存在，但当前分支缺 `pages/user/level.vue`，不能按 `ACTIVE` 处理 |
-| CAP-MEMBER-008 | member.asset-overview | `/pages/user/wallet/money`; `/pages/coupon/list`; `N/A（/pages/profile/assets 缺失）` | `GET /pay/wallet/get`; `GET /promotion/coupon/get-unused-count`; `GET /member/point/record/page`; `GET /member/asset-ledger/page`（规划） | PLANNED_RESERVED | P1 | RB2-P1 | Member + Promotion Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27` | 分资产页已运行，但聚合资产总览页与 `/member/asset-ledger/page` 仍是规划态，不得误标 Active |
+| CAP-MEMBER-006 | member.sign-in | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page` | ACTIVE | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-25/ED-26/ED-27/ED-28/ED-30` | 签到页和接口存在，03-10 member 包已补齐错误码、告警和人工接管口径；真实 route 以 `ED-30` 固定为 `/pages/app/sign` |
+| CAP-MEMBER-007 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-24/ED-25/ED-30` | 后端接口存在，但 `ED-30` 已确认当前分支缺 `pages/user/level.vue`，不能按 `ACTIVE` 处理 |
+| CAP-MEMBER-008 | member.asset-overview | `/pages/user/wallet/money`; `/pages/coupon/list`; `N/A（/pages/profile/assets 缺失）` | `GET /pay/wallet/get`; `GET /promotion/coupon/get-unused-count`; `GET /member/point/record/page`; `GET /member/asset-ledger/page`（规划） | PLANNED_RESERVED | P1 | RB2-P1 | Member + Promotion Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27/ED-30` | 分资产页已运行，但 `ED-30` 已确认聚合资产总览页缺真实 route，且 `/member/asset-ledger/page` 仍是规划态，不得误标 Active |
 
 ### 5.3 Product / Search
 
@@ -128,17 +137,17 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-BOOKING-001 | booking.query | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-02/ED-03/ED-05/ED-10` | 查询与详情路径前后端一致，且已有验收清单 |
-| CAP-BOOKING-002 | booking.create | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | 目标口径应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-11` | 前端当前请求的 `list-by-store` 与 `time-slot/list` 不等于后端真实路径，不能记 `ACTIVE` |
-| CAP-BOOKING-003 | booking.cancel | `/pages/booking/order-list` | 目标口径应为 `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-17/ED-18` | 前端发 `PUT`，后端收 `POST`，方法不一致 |
-| CAP-BOOKING-004 | booking.addon-upgrade | `/pages/booking/addon` | 目标口径应为 `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-11/ED-18` | 前后端路径不一致，且 `miniapp.addon.intent-idempotency=off` |
+| CAP-BOOKING-001 | booking.query | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-02/ED-03/ED-05/ED-10/ED-31` | 查询与详情路径前后端一致，且 `ED-31` 已确认查询链路不在当前 booking 阻断项内 |
+| CAP-BOOKING-002 | booking.create | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | 目标口径应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-11/ED-31` | `ED-31` 已确认前端当前请求的 `list-by-store` 与 `time-slot/list` 不等于后端真实路径；待 C 窗口补 canonical contract 前不能记 `ACTIVE` |
+| CAP-BOOKING-003 | booking.cancel | `/pages/booking/order-list` | 目标口径应为 `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-17/ED-18/ED-31` | `ED-31` 已确认前端发 `PUT`、后端收 `POST`；方法不一致，当前只允许停留在 `Ready`/`Planned` 边界 |
+| CAP-BOOKING-004 | booking.addon-upgrade | `/pages/booking/addon` | 目标口径应为 `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-10/ED-11/ED-18/ED-31` | `ED-31` 已确认前端 `/booking/addon/create` 与后端 `/app-api/booking/addon/create` 不一致，且 `miniapp.addon.intent-idempotency=off` |
 
 ### 5.6 Content / Service / Brokerage
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-CONTENT-001 | content.kefu-article-faq | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `/promotion/kefu-message/*`; `/promotion/article/get` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Content Ops Owner | `ED-17` | 客服与文章能力运行存在，但缺 contract/error/degrade/runbook 闭环 |
-| CAP-BROKERAGE-001 | brokerage.center | `/pages/commission/*` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P2 | BACKLOG-DOC-GAP | Brokerage Domain Owner | `N/A` | 分销页和后端控制器存在，但没有冻结产品文档包 |
+| CAP-CONTENT-001 | content.kefu-article-faq | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `/promotion/kefu-message/*`; `/promotion/article/get` | PLANNED_RESERVED | P1 | BACKLOG-DOC-GAP | Content Ops Owner | `ED-17/ED-29` | 客服与文章能力运行存在；`ED-29` 已登记待补 contract/error/degrade/runbook，但当前仍未形成发布级闭环 |
+| CAP-BROKERAGE-001 | brokerage.center | `/pages/commission/*` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P2 | BACKLOG-DOC-GAP | Brokerage Domain Owner | `ED-29` | 分销页和后端控制器存在；`ED-29` 已固定补文档路径与 owner，但当前没有冻结产品文档包 |
 
 ### 5.7 Reserved Expansion Domains
 
@@ -163,3 +172,4 @@
 3. 当前最关键的假 Active 风险仍在 booking 域：页面存在，但 `create/cancel/addon` 未达到“前后端方法路径对齐 + 验收口径”标准。
 4. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，不得被误算进发布已上线能力。
 5. 后续封版时，应以本文替代历史原型别名路由，避免继续使用 `/pages/after-sale/*`、`/pages/coupon/center`、`/pages/public/login`、`/pages/user/index` 等旧路径描述。
+6. `ED-29/ED-30/ED-31` 只是 03-10 A 侧真值收口输入，不构成自动 Frozen 放行依据。

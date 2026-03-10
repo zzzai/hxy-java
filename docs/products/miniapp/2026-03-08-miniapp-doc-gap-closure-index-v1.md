@@ -159,13 +159,42 @@
 - `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 已在当前分支扩展会员域错误码锚点。
 - 该扩展属于 03-10 Ready 增补输入，不改变 03-09 Frozen 基线记录本身；是否进入 Frozen，需等待 A 侧 route truth 与 Active/Planned 边界收口。
 
-## 12. Current Snapshot (2026-03-10)
+## 12. 2026-03-10 Completion Closure Batch（A + Pending B/C/D）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md` | Ready | A 侧总收口主计划，明确“先文档后开发”的执行顺序 |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md` | Ready | A 侧 member route truth 收口；03-10 member 文档仍保持 Ready |
+| 3 | P0 | A | `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | Ready | A 侧 booking route/API 真值审查；booking create/cancel/addon 仍阻断 Frozen |
+| 4 | P0 | C | `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` | Draft | Pending window output；待 C 输出 booking canonical contract |
+| 5 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | Draft | Pending window output |
+| 6 | P0 | C | `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md` | Draft | Pending window output |
+| 7 | P0 | D | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md` | Draft | Pending window output |
+| 8 | P0 | B | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | Draft | Pending window output |
+| 9 | P0 | C | `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md` | Draft | Pending window output |
+| 10 | P0 | D | `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | Draft | Pending window output |
+| 11 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | Draft | Pending window output |
+| 12 | P1 | C | `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md` | Draft | Pending window output |
+| 13 | P1 | D | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | Draft | Pending window output |
+| 14 | P1 | B | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | Draft | Pending window output |
+| 15 | P1 | C | `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md` | Draft | Pending window output |
+| 16 | P1 | D | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | Draft | Pending window output |
+| 17 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | Draft | Pending window output |
+| 18 | P1 | D | `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` | Draft | Pending window output |
+
+### 12.1 状态汇总（Completion Closure Batch）
+- Frozen: 0
+- Ready: 3
+- Draft: 15
+
+## 13. Current Snapshot (2026-03-10)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 03-10 新增准备态文档：`10 Ready`
+- 03-10 已交付准备态文档：`13 Ready`
+- 03-10 已登记待补文档：`15 Draft`（均为 `Pending window output`）
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 10
-  - Draft: 0
+  - Ready: 13
+  - Draft: 15
 - 说明：
-  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”与“member 域 Active/Planned 边界”单一真值。
+  - 03-10 文档用于收敛“真实能力状态”“业务域文档覆盖”“member route truth”“booking route/API truth”和“剩余文档缺口主计划”单一真值。
   - 未发生任何既有 Frozen 文档回退。

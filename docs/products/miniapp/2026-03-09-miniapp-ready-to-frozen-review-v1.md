@@ -143,3 +143,46 @@
 1. gift-card/referral/technician-feed 统一为 `P2/RB3-P2`，不纳入 RB1/RB2 阻断发布范围。
 2. 上述能力进入生产前必须满足：功能开关审批、灰度验证、RESERVED_DISABLED 命中为 0。
 3. 若被误纳入 RB1/RB2，必须立即回退 `Ready` 并执行 No-Go 处理。
+
+## 10. 03-10 Ready 增量说明（未进入 Frozen 范围）
+
+### 10.1 本批不进入 Frozen 的文档
+1. `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
+2. `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md`
+3. `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`
+4. `docs/products/miniapp/2026-03-10-miniapp-member-page-api-field-dictionary-v1.md`
+5. `docs/products/miniapp/2026-03-10-miniapp-member-user-facing-errorcopy-v1.md`
+6. `docs/contracts/2026-03-10-miniapp-member-domain-contract-v1.md`
+7. `docs/contracts/2026-03-10-miniapp-active-vs-planned-api-matrix-v1.md`
+8. `docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md`
+9. `docs/plans/2026-03-10-miniapp-active-planned-gate-runbook-v1.md`
+10. `docs/plans/2026-03-10-miniapp-member-domain-sla-routing-v1.md`
+11. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-master-plan-v1.md`
+12. `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`
+13. `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
+
+### 10.2 当前保持 Ready 的原因
+1. Booking 域仍存在前端 / 后端 / 文档三方 method + path 不一致：
+   - `GET /booking/technician/list-by-store` vs `GET /booking/technician/list`
+   - `GET /booking/time-slot/list` vs `GET /booking/slot/list` / `GET /booking/slot/list-by-technician`
+   - `PUT /booking/order/cancel` vs `POST /booking/order/cancel`
+   - `POST /booking/addon/create` vs `POST /app-api/booking/addon/create`
+2. Member 域 route truth 尚未完全归一：
+   - `/pages/public/login` -> 真实入口为 `component:s-auth-modal` + `/pages/index/login`
+   - `/pages/user/index` -> 真实 route 为 `/pages/index/user`
+   - `/pages/user/sign-in` -> 真实 route 为 `/pages/app/sign`
+3. 缺页能力仍存在：
+   - `/pages/user/level`
+   - `/pages/profile/assets`
+   - `/pages/user/tag`
+4. `/member/asset-ledger/page` 仍为 `PLANNED_RESERVED`，不得误升 `ACTIVE`。
+5. Content / Brokerage / Catalog / Marketing Expansion / Reserved Activation 文档包尚未由 B/C/D 交付完成。
+
+### 10.3 当前冻结门禁判断
+1. 03-09 `Frozen` 基线保持不变，不回退。
+2. 03-10 文档当前只允许停留在 `Draft / Ready`。
+3. 待以下条件满足后，才可发起下一轮 Frozen 评审：
+   - A：member route truth 与 booking route/API truth 收口完成；
+   - C：booking user API alignment contract 已交付；
+   - B/C/D：content / brokerage 文档包至少达到 PRD + contract + SOP/runbook 最小闭环；
+   - 索引、capability ledger、coverage matrix 与 release gate 引用路径同步完成。
