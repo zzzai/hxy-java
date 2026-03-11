@@ -279,15 +279,26 @@
 - Ready: 3
 - Draft: 0
 
-## 20. Current Snapshot (2026-03-12)
+## 20. 2026-03-12 Technician Feed PRD Batch（A）
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P1 | A | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | Ready | 把技师动态从 policy 升级为完整 PRD，但当前仍保持 `PLANNED_RESERVED / NO_GO` |
+
+### 20.1 状态汇总（03-12 Technician Feed PRD Batch）
+- Frozen: 0
+- Ready: 1
+- Draft: 0
+
+## 21. Current Snapshot (2026-03-12)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`43 Ready`
+- 当前已交付准备态文档：`44 Ready`
 - 当前已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 43
+  - Ready: 44
   - Draft: 0
 - 说明：
-  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD，以及 core trade / pay / after-sale 三份独立 PRD 的补齐。
-  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力、technician-feed 仍是 policy、以及技师提成管理独立页面真值未核出。
+  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD、core trade / pay / after-sale 三份独立 PRD，以及 technician-feed 独立 PRD 的补齐。
+  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现，以及技师提成管理独立页面真值未核出。
   - 未发生任何既有 Frozen 文档回退。

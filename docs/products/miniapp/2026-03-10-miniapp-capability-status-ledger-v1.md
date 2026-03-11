@@ -2,7 +2,7 @@
 
 ## 1. 目标与适用范围
 - 目标：给小程序用户侧 + 后端 app API 建立一份可执行的能力状态台账，作为后续封版、门禁和文档补齐的单一真值输入。
-- 适用范围：当前仓内真实存在的用户侧前端页面 `yudao-mall-uniapp`、对应后端 app 控制器、以及 2026-03-08/03-09/03-10 已落盘文档包。
+- 适用范围：当前仓内真实存在的用户侧前端页面 `yudao-mall-uniapp`、对应后端 app 控制器、以及 2026-03-08/03-09/03-10/03-11/03-12 已落盘文档包。
 - 本文只使用三种状态：
   - `ACTIVE`：前端页面或真实入口存在，前后端 API 路径/方法对齐，且已有验收/运行口径文档。
   - `PLANNED_RESERVED`：任一条件缺失，或能力仍受 `RESERVED_DISABLED` / scope gate 保护，或 contract 明确保留为 `Ready / ACTIVE_BE_ONLY / BLOCKED` 边界。
@@ -19,7 +19,7 @@
 ### 2.1 判定补充
 - 仅“后端接口存在 + 前端页面存在”但 contract 或验收口径明确保留在 `Ready / ACTIVE_BE_ONLY / BLOCKED` 的，不得强行升为 `ACTIVE`。
 - `RESERVED_DISABLED` 能力在开关默认 `off` 时，一律记为 `PLANNED_RESERVED`。
-- 03-10 B/C/D 文档已全部落盘，但落盘不等于 capability 自动进入 `Frozen Candidate` 或发布 allowlist。
+- 03-10 之后的增量文档已持续落盘，但落盘不等于 capability 自动进入 `Frozen Candidate` 或发布 allowlist。
 
 ## 3. 文档证据缩写
 - `ED-01` `docs/products/miniapp/2026-03-09-miniapp-feature-inventory-and-release-matrix-v1.md`
@@ -76,6 +76,7 @@
 - `ED-52` `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`
 - `ED-53` `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`
 - `ED-54` `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
+- `ED-55` `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -173,7 +174,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | CAP-RESERVED-001 | gift-card | `/pages/gift-card/*`（未实现） | `/promotion/gift-card/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Trade Domain Owner | `ED-13/ED-14/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.gift-card=off` 下的 No-Go 证据 |
 | CAP-RESERVED-002 | referral | `/pages/referral/*`（未实现） | `/promotion/referral/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Promotion Domain Owner | `ED-13/ED-15/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.referral=off` 下的 No-Go 证据 |
-| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.technician-feed.audit=off` 下的 No-Go 证据 |
+| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54/ED-55` | 已从 policy 升级到完整 PRD，但当前仍无真实页面、无真实 app controller、无运行样本；03-11 readiness register 已固定 `miniapp.technician-feed.audit=off` 下的 No-Go 证据 |
 
 ## 6. Deprecated 路由别名（不再作为执行真值）
 

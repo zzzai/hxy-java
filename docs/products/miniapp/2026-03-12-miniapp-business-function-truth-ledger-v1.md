@@ -64,7 +64,7 @@
 | BF-028 | Brokerage | 分销中心 / 佣金 / 提现 / 团队 / 排行 / 推广订单 / 推广商品 | `/pages/commission/index`; `/pages/commission/wallet`; `/pages/commission/withdraw`; `/pages/commission/team`; `/pages/commission/commission-ranking`; `/pages/commission/promoter`; `/pages/commission/order`; `/pages/commission/goods` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*`; `AppBrokerageUserController`; `AppBrokerageRecordController`; `AppBrokerageWithdrawController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | 完整 | 部分 | PRD 已齐，但整域仍未升 `ACTIVE` |
 | BF-029 | Reserved | 礼品卡 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md` | 完整 | 是 | 只有规划 PRD，无 runtime 实现 |
 | BF-030 | Reserved | 邀请有礼 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | 完整 | 是 | 只有规划 PRD，无 runtime 实现 |
-| BF-031 | Reserved | 技师动态 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-technician-feed-product-policy-v1.md` | 部分完整 | 是 | 当前是 product policy，不是完整 PRD，且无 runtime 实现 |
+| BF-031 | Reserved | 技师动态 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 是 | PRD 已补齐，但当前仍无真实页面、无真实 app controller、无运行样本，继续阻断开发 |
 
 ## 4. 后台运营独立业务功能清单
 
@@ -100,7 +100,7 @@
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
 2. 当前最强阻断不在首页、交易、地址、签到等已冻结主链，而在 booking、member 缺页能力、reserved 规划能力和后台运营财务闭环。
 3. 后台运营财务闭环的 PRD 空白已在本批补齐，当前剩余问题转为：佣金管理独立页面真值与执行边界仍需继续收口。
-4. 技师动态当前只有 product policy，没有完整 PRD；如果后续要推进开发，需要先从 policy 升级为完整 PRD。
+4. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
 
 ## 7. 主要依据
 - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
