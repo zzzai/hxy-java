@@ -70,10 +70,10 @@
 
 | 功能ID | 业务域 | 业务功能 | 页面真值 | 接口 / Controller 真值 | 当前状态 | 对应 PRD | PRD 完整度 | 是否阻断开发 | 说明 |
 |---|---|---|---|---|---|---|---|---|---|
-| BO-001 | Finance Ops | 四账对账 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/fourAccountReconcile/index.vue` | `/booking/four-account-reconcile/page`; `/booking/four-account-reconcile/get`; `/booking/four-account-reconcile/summary`; `/booking/four-account-reconcile/refund-commission-audit-page`; `/booking/four-account-reconcile/refund-audit-summary`; `/booking/four-account-reconcile/refund-commission-audit/sync-tickets`; `/booking/four-account-reconcile/run`; `FourAccountReconcileController` | ACTIVE_ADMIN | `N/A（当前未见独立产品 PRD）` | 缺失 | 是 | 已有后台页和后台 API，但缺产品 PRD |
-| BO-002 | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/refundNotifyLog/index.vue` | `/booking/refund-notify-log/page`; `/booking/refund-notify-log/replay`; `BookingRefundNotifyLogController` | ACTIVE_ADMIN | `N/A（当前未见独立产品 PRD）` | 缺失 | 是 | 后台页与 API 已存在，但缺产品规则与运营口径 PRD |
-| BO-003 | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/outbox/index.vue` | `/booking/commission-settlement/page`; `/booking/commission-settlement/get`; `/booking/commission-settlement/create`; `/booking/commission-settlement/submit`; `/booking/commission-settlement/approve`; `/booking/commission-settlement/reject`; `/booking/commission-settlement/pay`; `/booking/commission-settlement/log-list`; `/booking/commission-settlement/notify-outbox-page`; `/booking/commission-settlement/notify-outbox-retry`; `/booking/commission-settlement/notify-outbox-batch-retry`; `TechnicianCommissionSettlementController` | ACTIVE_ADMIN | `N/A（当前未见独立产品 PRD）` | 缺失 | 是 | 已有后台页与完整后台操作链路，但缺产品 PRD |
-| BO-004 | Finance Ops | 技师提成明细 / 计提管理 | `N/A（当前后台页真值未单独核出）` | `TechnicianCommissionController` | ACTIVE_ADMIN | `N/A（当前未见独立产品 PRD）` | 缺失 | 是 | 后端 controller 已存在，但产品层真值与页面职责未补齐 |
+| BO-001 | Finance Ops | 四账对账 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/fourAccountReconcile/index.vue` | `/booking/four-account-reconcile/page`; `/booking/four-account-reconcile/get`; `/booking/four-account-reconcile/summary`; `/booking/four-account-reconcile/refund-commission-audit-page`; `/booking/four-account-reconcile/refund-audit-summary`; `/booking/four-account-reconcile/refund-commission-audit/sync-tickets`; `/booking/four-account-reconcile/run`; `FourAccountReconcileController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | 完整 | 否 | PRD 已补齐；当前重点转为对账降级提示、工单同步与差额解释的一致执行 |
+| BO-002 | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/refundNotifyLog/index.vue` | `/booking/refund-notify-log/page`; `/booking/refund-notify-log/replay`; `/booking/refund-notify-log/replay-due`; `/booking/refund-notify-log/replay-run-log/page`; `/booking/refund-notify-log/replay-run-log/detail/page`; `/booking/refund-notify-log/replay-run-log/detail/get`; `/booking/refund-notify-log/replay-run-log/get`; `/booking/refund-notify-log/replay-run-log/summary`; `/booking/refund-notify-log/replay-run-log/sync-tickets`; `BookingRefundNotifyLogController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | 否 | PRD 已补齐；当前重点转为 warning / partial-fail / ticketSyncStatus 的执行一致性 |
+| BO-003 | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/outbox/index.vue` | `/booking/commission-settlement/page`; `/booking/commission-settlement/get`; `/booking/commission-settlement/create`; `/booking/commission-settlement/submit`; `/booking/commission-settlement/approve`; `/booking/commission-settlement/reject`; `/booking/commission-settlement/pay`; `/booking/commission-settlement/log-list`; `/booking/commission-settlement/notify-outbox-page`; `/booking/commission-settlement/notify-outbox-retry`; `/booking/commission-settlement/notify-outbox-batch-retry`; `TechnicianCommissionSettlementController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | 否 | PRD 已补齐；当前重点转为审核 SLA、打款凭证和通知重试规则执行 |
+| BO-004 | Finance Ops | 技师提成明细 / 计提管理 | `N/A（当前未核到独立后台页面文件）` | `GET /booking/commission/list-by-technician`; `GET /booking/commission/list-by-order`; `GET /booking/commission/pending-amount`; `POST /booking/commission/settle`; `POST /booking/commission/batch-settle`; `GET /booking/commission/config/list`; `POST /booking/commission/config/save`; `DELETE /booking/commission/config/delete`; `TechnicianCommissionController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 较完整 | 部分 | PRD 已补齐，但独立后台页面真值本轮未核出，仍不能把该能力写成“页面闭环完成” |
 
 ## 5. 当前阻断项汇总
 
@@ -88,7 +88,7 @@
 8. Promotion 砍价：`BF-019`
 9. Content 文章列表 / 分类 / 回写：`BF-027`
 10. Reserved 三类规划能力：`BF-029` ~ `BF-031`
-11. 后台运营财务闭环 PRD 缺失：`BO-001` ~ `BO-004`
+11. 技师提成管理独立页面真值仍未核出：`BO-004`
 
 ### 5.2 不阻断存量主链，但阻断升为 ACTIVE / Frozen 的缺口
 1. Product 互动链路：`BF-016`
@@ -99,7 +99,7 @@
 ## 6. 结论
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
 2. 当前最强阻断不在首页、交易、地址、签到等已冻结主链，而在 booking、member 缺页能力、reserved 规划能力和后台运营财务闭环。
-3. 后台运营财务闭环是当前最明确的 PRD 空白域：功能已存在、后台页已存在、接口已存在，但产品层 PRD 缺失。
+3. 后台运营财务闭环的 PRD 空白已在本批补齐，当前剩余问题转为：佣金管理独立页面真值与执行边界仍需继续收口。
 4. 技师动态当前只有 product policy，没有完整 PRD；如果后续要推进开发，需要先从 policy 升级为完整 PRD。
 
 ## 7. 主要依据

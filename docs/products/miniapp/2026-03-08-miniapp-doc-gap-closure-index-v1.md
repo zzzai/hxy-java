@@ -253,15 +253,28 @@
 - Ready: 1
 - Draft: 0
 
-## 18. Current Snapshot (2026-03-12)
+## 18. 2026-03-12 Finance Ops PRD Batch（A）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | Ready | 补齐四账对账产品 PRD，收口后台页面、对账运行、汇总与退款审计能力 |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | Ready | 补齐退款回调重放产品 PRD，收口原始日志、重放、运行日志与工单同步口径 |
+| 3 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | Ready | 补齐技师提成与结算产品 PRD，收口佣金记录、结算、审核、打款、通知补偿口径 |
+
+### 18.1 状态汇总（03-12 Finance Ops PRD Batch）
+- Frozen: 0
+- Ready: 3
+- Draft: 0
+
+## 19. Current Snapshot (2026-03-12)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`37 Ready`
+- 当前已交付准备态文档：`40 Ready`
 - 当前已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 37
+  - Ready: 40
   - Draft: 0
 - 说明：
-  - 03-12 新增的业务功能真值台账把“业务功能清单 / 页面接口真值 / PRD 完整度 / 是否阻断开发”统一到单一文档。
-  - 当前主要缺口已经进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力，以及后台运营财务闭环 PRD 缺失。
+  - 03-12 已完成业务功能真值台账与 Finance Ops 三份独立 PRD 的补齐。
+  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力，以及技师提成管理独立页面真值未核出。
   - 未发生任何既有 Frozen 文档回退。
