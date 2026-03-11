@@ -178,6 +178,8 @@
 29. `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
 30. `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
 31. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
+32. `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
+33. `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
 
 ### 10.2 当前保持 Ready 的原因
 1. Booking 域仍存在前端 / 后端 / 文档三方 method + path 不一致：
@@ -194,7 +196,7 @@
    - `/pages/profile/assets`
    - `/pages/user/tag`
 4. `/member/asset-ledger/page` 仍为 `PLANNED_RESERVED`，不得误升 `ACTIVE`。
-5. Content / Brokerage / Product-Catalog / Marketing Expansion 的 B/C/D 文档包已全部正式提交，但这些域的 capability 仍保留在 `Ready / PLANNED_RESERVED / ACTIVE_BE_ONLY` 边界：
+5. Content / Brokerage / Product-Catalog / Marketing Expansion 的文档包已全部正式提交，且 brokerage / product 已补齐独立 SOP，但这些域的 capability 仍保留在 `Ready / PLANNED_RESERVED / ACTIVE_BE_ONLY` 边界：
    - content 域当前只允许把 DIY 模板/自定义页视为 `ACTIVE`；聊天发送、文章详情、FAQ 壳跳转仍按 `PLANNED_RESERVED` 管理；
    - brokerage 域 contract 仍明确“页面可访问 != capability 已上线”，提现成功只代表建单成功，不代表到账成功；
    - product 域必须继续拆分 `search-lite = GET /product/spu/page` 与 `search-canonical = GET /product/search/page (BLOCKED)`；
@@ -204,7 +206,7 @@
 ### 10.3 当前冻结门禁判断
 1. 03-09 `Frozen` 基线保持不变，不回退。
 2. 03-10 当前终审结论：`Frozen Candidate = 0`。
-3. 03-10 已正式提交文档共 `31 Ready`，当前无 `Draft`；但这些文档仍只允许停留在 `Ready`，不得直接升为 `Frozen Candidate`。
+3. 当前已正式提交文档共 `33 Ready`，当前无 `Draft`；但这些文档仍只允许停留在 `Ready`，不得直接升为 `Frozen Candidate`。
 4. 待以下条件满足后，才可发起下一轮 Frozen 评审：
    - A：member route truth 与 booking route/API truth 收口完成；
    - booking 旧路径与旧方法从 FE 联调和发布 allowlist 中清除；

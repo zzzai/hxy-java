@@ -32,8 +32,8 @@
 | Member Account & Assets | Ready | 登录/注册、个人资料、地址、钱包、积分、签到；等级/资产总览/标签为保留边界 | Full | Full | Full | Full | Full | Full | 94 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 缺页；`/member/asset-ledger/page` 仍是 `PLANNED_RESERVED` | P0 |
 | Booking & Technician Service | Still Blocked | 预约列表/详情、技师详情查询为当前真值；创建/取消/加钟仍阻断 | Full | Full | Full | Full | Full | Full | 92 | FE/BE `method + path` 漂移未清除；旧路径仍可能被误放进 allowlist | P0 |
 | Content / DIY / Customer Service | Ready | DIY 模板/自定义页已可执行；聊天、文章正文、FAQ 壳页、WebView 已有正式文档边界 | Full | Full | Full | Full | Full | Full | 91 | FAQ 只是壳页；聊天发送失败必须 fail-close；文章列表/分类/已读回写仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED` | P1 |
-| Brokerage / Distribution | Ready | 分销中心、钱包、提现、团队、排行、推广订单、推广商品均已形成正式文档边界 | Full | Full | Full | Full | Partial | Full | 90 | 缺少独立客服 SOP；申诉/撤回/取消提现仍缺页；`brokerageOrderCount` 与前端 `item.orderCount` 存在字段对齐风险 | P1 |
-| Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Partial | Full | 90 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
+| Brokerage / Distribution | Ready | 分销中心、钱包、提现、团队、排行、推广订单、推广商品均已形成正式文档边界 | Full | Full | Full | Full | Full | Full | 95 | 申诉/撤回/取消提现仍缺页；`brokerageOrderCount` 与前端 `item.orderCount` 存在字段对齐风险 | P1 |
+| Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
 | Marketing Expansion | Ready | 秒杀、拼团、满减送、商品营销聚合已形成正式文档；整域仍按 `PLANNED_RESERVED` 管理 | Full | Full | Full | Full | Full | Full | 89 | `type=2 bargain` 只能隐藏或忽略；砍价仍无 FE route/API 绑定；整域不能因页面可访问就记为 `ACTIVE` | P1 |
 | Reserved Expansion（Gift / Referral / Feed） | Ready | 激活 checklist、灰度验收、误发布处置与告警路由均已齐备 | Full | Full | Full | Full | Full | Full | 92 | 仍无真实页面、controller、运行样本；治理文档不能替代 runtime 闭环 | P0 |
 
@@ -67,7 +67,10 @@
 1. B 侧已经补齐：content、brokerage、product-catalog、marketing-expansion PRD。
 2. C 侧已经补齐：booking 用户 API alignment、content、brokerage、product-catalog、marketing-expansion contract，并扩展了 canonical errorCode register。
 3. D 侧已经补齐：domain release acceptance matrix、domain alert owner routing、content SOP、brokerage runbook、product KPI/alerting、marketing ops playbook、reserved activation checklist 和灰度 runbook。
-4. 因此 03-10 的问题已从“缺文档”转为“capability scope 与 runtime truth 继续收口”。
+4. A 侧已在 03-11 继续补齐：
+   - `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
+   - `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
+5. 因此当前问题已从“缺文档”转为“capability scope 与 runtime truth 继续收口”。
 
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
@@ -86,12 +89,12 @@
 ## 6. P1 收口顺序
 1. `Alias route 持续清理`
    - `/pages/public/login`、`/pages/user/index`、`/pages/user/sign-in`、`/pages/search/index`、`/pages/booking/list` 不再出现在新增真值文档。
-2. `Catalog 细粒度运行口径补强`
-   - 单独补齐评论/收藏/浏览历史的 SOP 和更细的 acceptance evidence。
-3. `Brokerage 客服 SOP 补齐`
-   - 在 runbook 之外，单独固化提现失败、处理中、到账确认、人工复核的客服话术。
-4. `Marketing Expansion capability freeze 预评估`
+2. `Catalog 细粒度 acceptance evidence 补强`
+   - 当前客户恢复 SOP 已补齐，后续重点转为补齐更多可回放验收样本。
+3. `Marketing Expansion capability freeze 预评估`
    - 在不误伤 `type=2 bargain`、不误升砍价的前提下，评估秒杀/拼团/满减送是否具备后续冻结候选条件。
+4. `Brokerage 资金类样本库补强`
+   - 当前客服 SOP 已补齐，后续重点转为补齐提现处理中、到账确认、字段错位的验收样本。
 
 ## 7. 03-10 终审状态判定
 
@@ -106,7 +109,7 @@
 | Reserved Activation | Ready | 治理闭环完整，但 runtime 仍未闭环 |
 
 ## 8. 结论
-1. 03-10 业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 31`，`Draft = 0`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 33`，`Draft = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
 4. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved 和 mixed-scope domains 的边界继续守住。

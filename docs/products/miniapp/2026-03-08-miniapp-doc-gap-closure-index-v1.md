@@ -204,16 +204,28 @@
 - Ready: 1
 - Draft: 0
 
-## 14. Current Snapshot (2026-03-11)
+## 14. 2026-03-11 Operations SOP Batch（A）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P1 | A | `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` | Ready | 补齐分销域独立客服 / 资金解释 / 提现状态处理 SOP |
+| 2 | P1 | A | `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` | Ready | 补齐商品目录与互动域独立恢复 SOP，锁定 `search-lite/canonical` 分池与互动失败口径 |
+
+### 14.1 状态汇总（03-11 SOP Batch）
+- Frozen: 0
+- Ready: 2
+- Draft: 0
+
+## 15. Current Snapshot (2026-03-11)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 03-10 已交付准备态文档：`31 Ready`
-- 03-10 已登记待补文档：`0 Draft`
+- 当前已交付准备态文档：`33 Ready`
+- 当前已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 31
+  - Ready: 33
   - Draft: 0
 - 说明：
-  - 03-10 文档已完成从“缺口盘点”到“剩余域产品/契约/验收/告警文档正式落盘”的闭环。
+  - 03-10 + 03-11 文档已完成从“缺口盘点”到“产品/契约/验收/告警/SOP 正式落盘”的闭环。
   - 当前剩余问题已从“缺文档”转为“冻结边界与 runtime scope 是否继续升级”的问题。
   - Booking 仍是唯一明确 `Still Blocked` 的域，其余新增域已达到 `Ready`，但尚未进入 `Frozen Candidate`。
   - 未发生任何既有 Frozen 文档回退。

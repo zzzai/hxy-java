@@ -5,7 +5,7 @@
 - 适用范围：仅覆盖小程序用户侧与后端 app API 相关的产品、契约、SOP、Runbook 文档，不涉及 overlay 页面和业务代码。
 - 当前原则：
   1. 03-09 `Frozen` 基线不回退。
-  2. 03-10 文档现已全部正式落盘，当前统一处于 `Ready` 评审层；是否进入 `Frozen Candidate` 仍取决于 route/API truth 与 scope gating。
+  2. 03-10 + 03-11 文档现已全部正式落盘，当前统一处于 `Ready` 评审层；是否进入 `Frozen Candidate` 仍取决于 route/API truth 与 scope gating。
   3. 任何业务开发、联调、灰度前，必须先具备对应域的产品文档、契约文档和最小运行文档。
 
 ## 2. 当前剩余阻断判断
@@ -22,9 +22,9 @@
 1. Content / DIY / Customer Service
    - PRD、contract、SOP、验收矩阵、告警路由已齐，当前主要剩“是否纳入冻结候选”的范围判断。
 2. Brokerage / Distribution
-   - PRD、contract、runbook、验收矩阵、告警路由已齐，当前主要剩“是否纳入冻结候选”的范围判断。
+   - PRD、contract、runbook、验收矩阵、告警路由与独立客服 SOP 已齐，当前主要剩“是否纳入冻结候选”的范围判断。
 3. Product / Search / Catalog
-   - `search-lite` 与 `search-canonical` 已拆清，catalog interaction 文档已齐，当前主要剩 capability scope 判断。
+   - `search-lite` 与 `search-canonical` 已拆清，catalog interaction 文档与独立恢复 SOP 已齐，当前主要剩 capability scope 判断。
 4. Marketing Expansion
    - PRD、contract、ops playbook、验收矩阵、告警路由已齐，但 contract 明确整域当前不直接升 `ACTIVE`。
 
@@ -62,6 +62,8 @@
 | 19 | P0 | `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md` | D | #5-#18 | 否 | Ready | 跨域验收矩阵已交付 |
 | 20 | P0 | `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | D | #5-#19 | 否 | Ready | 跨域告警路由与 owner/SLA 已交付 |
 | 21 | P0 | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md` | A | #1-#20 | 否 | Ready | A 侧终审文档；当前结论 `Frozen Candidate = 0` |
+| 22 | P1 | `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` | A | #8 #9 #10 #19 #20 | 否 | Ready | 补齐分销域独立客服/资金解释 SOP，关闭“申请成功=到账成功”类文档缺口 |
+| 23 | P1 | `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` | A | #11 #12 #13 #19 #20 | 否 | Ready | 补齐商品目录与互动域独立恢复 SOP，关闭 `search-lite/canonical` 混算与互动伪成功类文档缺口 |
 
 ## 5. Ready / Frozen Candidate / Frozen 判定条件
 
@@ -106,7 +108,7 @@
 4. 只有冻结边界评审完成后，才进入对应域开发或灰度动作。
 
 ## 8. 当前结论
-1. 03-10 本批文档缺口已经补齐到“全部正式落盘”的状态。
+1. 03-10 + 03-11 当前文档缺口已经收敛到“核心文档全部正式落盘”的状态。
 2. 当前问题已从“缺文档”转为“runtime truth 与冻结边界未闭环”。
 3. 真正阻断当前后续开发的是：booking 旧 path/method 未定、member 缺页能力未落地、reserved runtime 未实现。
-4. 本计划继续作为 03-10 文档治理总入口，但当前重点已变成终审与冻结候选评估，而不是继续补缺文档。
+4. 后续文档工作将以补验收样本、补运行证据为主，而不再是补 PRD/contract/SOP 基础件。

@@ -71,6 +71,8 @@
 - `ED-47` `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md`
 - `ED-48` `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`
 - `ED-49` `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
+- `ED-50` `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
+- `ED-51` `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -131,8 +133,8 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-PRODUCT-001 | product.catalog-browse | `/pages/index/category`; `/pages/goods/list`; `/pages/goods/index` | `GET /product/category/list`; `GET /product/spu/page`; `GET /product/spu/get-detail`; `GET /trade/order/settlement-product` | ACTIVE | P0 | RB1-P0 | Product Domain Owner | `ED-07/ED-10/ED-11/ED-41/ED-46/ED-48/ED-49` | 商品分类、商品列表、商品详情与 `search-lite` 主链路是真实 `ACTIVE` |
-| CAP-PRODUCT-002 | product.detail-comment-collect-history | `/pages/user/goods-collect`; `/pages/user/goods-log`; `/pages/goods/comment/list`; `/pages/goods/comment/add` | `GET /product/comment/page`; `GET /product/favorite/page`; `GET /product/favorite/exits`; `POST /product/favorite/create`; `DELETE /product/favorite/delete`; `GET /product/browse-history/page`; `DELETE /product/browse-history/delete`; `DELETE /product/browse-history/clean`; `POST /trade/order/item/create-comment` | PLANNED_RESERVED | P1 | RB2-P1 | Product Domain Owner | `ED-11/ED-41/ED-46/ED-48/ED-49` | contract 明确评论/收藏/足迹整体仍停留在 Ready / `PLANNED_RESERVED`，不得因页面已可访问就升 `ACTIVE` |
+| CAP-PRODUCT-001 | product.catalog-browse | `/pages/index/category`; `/pages/goods/list`; `/pages/goods/index` | `GET /product/category/list`; `GET /product/spu/page`; `GET /product/spu/get-detail`; `GET /trade/order/settlement-product` | ACTIVE | P0 | RB1-P0 | Product Domain Owner | `ED-07/ED-10/ED-11/ED-41/ED-46/ED-48/ED-49/ED-51` | 商品分类、商品列表、商品详情与 `search-lite` 主链路是真实 `ACTIVE`；03-11 已补用户恢复 SOP，明确 `search-lite` 只能走 `/product/spu/page` |
+| CAP-PRODUCT-002 | product.detail-comment-collect-history | `/pages/user/goods-collect`; `/pages/user/goods-log`; `/pages/goods/comment/list`; `/pages/goods/comment/add` | `GET /product/comment/page`; `GET /product/favorite/page`; `GET /product/favorite/exits`; `POST /product/favorite/create`; `DELETE /product/favorite/delete`; `GET /product/browse-history/page`; `DELETE /product/browse-history/delete`; `DELETE /product/browse-history/clean`; `POST /trade/order/item/create-comment` | PLANNED_RESERVED | P1 | RB2-P1 | Product Domain Owner | `ED-11/ED-41/ED-46/ED-48/ED-49/ED-51` | contract 明确评论/收藏/足迹整体仍停留在 Ready / `PLANNED_RESERVED`，03-11 恢复 SOP 已补齐“删除失败保持旧状态”“评论必须全部成功后才允许离页”口径，但不能因页面已可访问就升 `ACTIVE` |
 | CAP-PRODUCT-003 | product.search-canonical | `N/A（当前无真实用户页）` | `GET /product/search/page` | PLANNED_RESERVED | P2 | RB3-P2 | Search Owner | `ED-07/ED-11/ED-41/ED-46/ED-48/ED-49` | canonical search 仍受保留能力门禁；`1008009904` 只能绑定 canonical，不得污染 lite |
 
 ### 5.4 Promotion / Growth
@@ -160,7 +162,7 @@
 | CAP-CONTENT-001 | content.diy-template-page | `App 初始化`; `/pages/index/page` | `GET /promotion/diy-template/used`; `GET /promotion/diy-template/get`; `GET /promotion/diy-page/get` | ACTIVE | P1 | RB2-P1 | Content Ops Owner | `ED-32/ED-39/ED-44/ED-48/ED-49` | DIY 模板与自定义页已有真实入口、contract 和验收矩阵，可作为当前 content 域唯一明确 `ACTIVE` 能力 |
 | CAP-CONTENT-002 | content.chat-article-faq-shell | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `GET /promotion/kefu-message/list`; `POST /promotion/kefu-message/send`; `GET /promotion/article/get` | PLANNED_RESERVED | P1 | RB2-P1 | Content Ops Owner | `ED-32/ED-39/ED-44/ED-48/ED-49` | 文档包已齐，但 contract 继续把聊天发送、消息列表、文章详情、FAQ 壳页固定在 `PLANNED_RESERVED` 口径；不得伪成功 |
 | CAP-CONTENT-003 | content.article-list-category-be-only | `N/A（当前无真实用户页）` | `GET /promotion/article/list`; `GET /promotion/article/page`; `GET /promotion/article-category/list`; `PUT /promotion/article/add-browse-count`; `PUT /promotion/kefu-message/update-read-status` | PLANNED_RESERVED | P2 | RB3-P2 | Content Ops Owner | `ED-39/ED-44/ED-48/ED-49` | 后端存在但前端未消费，统一按保留能力管理 |
-| CAP-BROKERAGE-001 | brokerage.runtime-pages | `/pages/commission/index`; `/pages/commission/wallet`; `/pages/commission/withdraw`; `/pages/commission/team`; `/pages/commission/commission-ranking`; `/pages/commission/promoter`; `/pages/commission/order`; `/pages/commission/goods` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P1 | RB2-P1 | Brokerage Domain Owner | `ED-33/ED-40/ED-45/ED-48/ED-49` | 文档包已齐，但 contract 继续要求整域保持 `PLANNED_RESERVED`；提现申请成功仅代表建单成功，不代表到账成功 |
+| CAP-BROKERAGE-001 | brokerage.runtime-pages | `/pages/commission/index`; `/pages/commission/wallet`; `/pages/commission/withdraw`; `/pages/commission/team`; `/pages/commission/commission-ranking`; `/pages/commission/promoter`; `/pages/commission/order`; `/pages/commission/goods` | `/trade/brokerage-user/*`; `/trade/brokerage-record/*`; `/trade/brokerage-withdraw/*` | PLANNED_RESERVED | P1 | RB2-P1 | Brokerage Domain Owner | `ED-33/ED-40/ED-45/ED-48/ED-49/ED-50` | 文档包已齐；03-11 已补客服/资金 SOP，明确 `withdrawPrice / brokeragePrice / frozenPrice` 与“提现申请成功仅代表建单成功，不代表到账成功”，但整域仍保持 `PLANNED_RESERVED` |
 
 ### 5.7 Reserved Expansion Domains
 
