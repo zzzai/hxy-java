@@ -266,15 +266,28 @@
 - Ready: 3
 - Draft: 0
 
-## 19. Current Snapshot (2026-03-12)
+## 19. 2026-03-12 Core Trade / Pay / After-sale PRD Batch（A）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-trade-checkout-order-prd-v1.md` | Ready | 把购物车、结算、下单、订单生命周期从服务蓝图拆成独立交易 PRD |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-pay-submit-result-prd-v1.md` | Ready | 把支付提交、支付结果、支付单查询和渠道获取拆成独立支付 PRD |
+| 3 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-after-sale-refund-prd-v1.md` | Ready | 把售后申请、详情、日志、回寄、退款进度拆成独立售后退款 PRD |
+
+### 19.1 状态汇总（03-12 Core Trade / Pay / After-sale PRD Batch）
+- Frozen: 0
+- Ready: 3
+- Draft: 0
+
+## 20. Current Snapshot (2026-03-12)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`40 Ready`
+- 当前已交付准备态文档：`43 Ready`
 - 当前已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 40
+  - Ready: 43
   - Draft: 0
 - 说明：
-  - 03-12 已完成业务功能真值台账与 Finance Ops 三份独立 PRD 的补齐。
-  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力，以及技师提成管理独立页面真值未核出。
+  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD，以及 core trade / pay / after-sale 三份独立 PRD 的补齐。
+  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力、technician-feed 仍是 policy、以及技师提成管理独立页面真值未核出。
   - 未发生任何既有 Frozen 文档回退。
