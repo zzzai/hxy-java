@@ -74,6 +74,7 @@
 1. 只吸收当前分支真实存在且已正式提交的 03-10 文档。
 2. 03-09 `Frozen` 基线绝不回退。
 3. 03-10 只有在“真实 route/API/contract/runbook 全闭环”时，才允许进入 `Frozen Candidate`。
+4. 03-11 新增 blocker checklist 只作为 gate evidence，不改变当前域状态结论。
 
 ### 7.2 03-10 目标域决策状态
 
@@ -89,7 +90,7 @@
 
 ### 7.3 当前门禁结论
 1. 03-10 本批新增 `Frozen Candidate = 0`。
-2. 03-10 `Ready` 文档共 `31` 份，可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
+2. 截至 2026-03-11，03-10/03-11 `Ready` 文档共 `36` 份，可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
 3. 若任何窗口把以下对象误标为 `ACTIVE`、`Frozen Candidate` 或准发布范围，直接触发 No-Go：
    - `/pages/user/level`
    - `/pages/profile/assets`
@@ -106,4 +107,5 @@
    - 在 `miniapp.gift-card / miniapp.referral / miniapp.technician-feed.audit = off` 时仍命中 `RESERVED_DISABLED`
 5. 当前总体决策保持：
    - 03-09 Frozen 基线仍可按既有 `Go with Gate` 规则继续执行；
-   - 03-10 新增域全部停留在文档 `Ready` 层，不构成新增签发范围。
+   - 03-10 新增域全部停留在文档 `Ready` 层，不构成新增签发范围；
+   - 03-11 booking/member/reserved blocker checklist 只定义退出条件，不构成新增签发范围。

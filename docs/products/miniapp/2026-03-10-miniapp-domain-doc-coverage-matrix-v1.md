@@ -70,7 +70,11 @@
 4. A 侧已在 03-11 继续补齐：
    - `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
    - `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
-5. 因此当前问题已从“缺文档”转为“capability scope 与 runtime truth 继续收口”。
+5. A 侧已在 03-11 再补三份 blocker 文档：
+   - `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`
+   - `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`
+   - `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
+6. 因此当前问题已从“缺文档”转为“capability scope 与 runtime truth 继续收口”。
 
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
@@ -109,7 +113,8 @@
 | Reserved Activation | Ready | 治理闭环完整，但 runtime 仍未闭环 |
 
 ## 8. 结论
-1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 33`，`Draft = 0`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 36`，`Draft = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
-4. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved 和 mixed-scope domains 的边界继续守住。
+4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定。
+5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved 和 mixed-scope domains 的边界继续守住。

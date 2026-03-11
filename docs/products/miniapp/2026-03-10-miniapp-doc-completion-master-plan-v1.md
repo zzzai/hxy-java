@@ -17,6 +17,9 @@
    - 文档已经补齐，但 route truth 与 `ACTIVE / PLANNED_RESERVED / 缺页能力` 边界尚未完全落到页面实现上。
 3. Reserved Expansion Activation
    - checklist 与 gray runbook 已补齐，但 gift/referral/feed 仍无真实 runtime 页面与 controller。
+4. 03-11 blocker 清单
+   - booking runtime closure checklist、member missing-page activation checklist、reserved runtime readiness register 已补齐。
+   - 当前作用是把 blocker 变成可执行退出条件，不改变现有 `Ready / Still Blocked` 判定。
 
 ### 2.2 P1（文档已齐，等待范围与冻结评审）
 1. Content / DIY / Customer Service
@@ -64,6 +67,9 @@
 | 21 | P0 | `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md` | A | #1-#20 | 否 | Ready | A 侧终审文档；当前结论 `Frozen Candidate = 0` |
 | 22 | P1 | `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` | A | #8 #9 #10 #19 #20 | 否 | Ready | 补齐分销域独立客服/资金解释 SOP，关闭“申请成功=到账成功”类文档缺口 |
 | 23 | P1 | `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` | A | #11 #12 #13 #19 #20 | 否 | Ready | 补齐商品目录与互动域独立恢复 SOP，关闭 `search-lite/canonical` 混算与互动伪成功类文档缺口 |
+| 24 | P0 | `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md` | A | #3 #4 #21 | 否（阻断 Frozen Candidate） | Ready | 将 booking `Still Blocked` 固化为可执行退出清单 |
+| 25 | P0 | `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md` | A | #2 #21 | 否（阻断 Frozen Candidate） | Ready | 将 member 缺页能力固化为激活前置清单 |
+| 26 | P1 | `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` | A | #17 #18 #21 | 否（阻断激活） | Ready | 将 reserved runtime 缺项固化为 readiness register |
 
 ## 5. Ready / Frozen Candidate / Frozen 判定条件
 

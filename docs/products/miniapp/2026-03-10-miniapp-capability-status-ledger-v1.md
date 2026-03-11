@@ -73,6 +73,9 @@
 - `ED-49` `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`
 - `ED-50` `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
 - `ED-51` `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
+- `ED-52` `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`
+- `ED-53` `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`
+- `ED-54` `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -125,9 +128,9 @@
 | CAP-MEMBER-003 | member.address | `/pages/user/address/list`; `/pages/user/address/edit` | `GET /member/address/list`; `GET /member/address/get`; `GET /member/address/get-default`; `POST /member/address/create`; `PUT /member/address/update`; `DELETE /member/address/delete` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-01/ED-02/ED-04/ED-10/ED-21/ED-24` | 地址 CRUD 与默认地址规则已冻结；空地址返回 `[]/null` 有明确语义 |
 | CAP-MEMBER-004 | member.wallet-point | `/pages/user/wallet/money`; `/pages/user/wallet/score`; `/pages/coupon/list`; `/pages/activity/point/list` | `GET /pay/wallet/get`; `GET /pay/wallet-transaction/page`; `GET /member/point/record/page`; `GET /promotion/coupon/page`; `GET /promotion/point-activity/page` | ACTIVE | P0 | RB1-P0 | Member + Promotion Domain Owner | `ED-03/ED-06/ED-10/ED-11/ED-21/ED-24` | 钱包、积分、券、积分商城已属于真实用户能力 |
 | CAP-MEMBER-005 | member.sign-in | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page` | ACTIVE | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-26/ED-27/ED-28/ED-30` | 签到 route 与 contract 已校正；重复签到、积分上限等错误码已落盘 |
-| CAP-MEMBER-006 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-24/ED-30/ED-38` | `/pages/user/level` 缺页，等级链路不得按已上线页面表述 |
-| CAP-MEMBER-007 | member.asset-hub | `N/A（当前无真实 pageRoute）` | `GET /member/asset-ledger/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27/ED-30/ED-38` | `/pages/profile/assets` 缺页，且 `miniapp.asset.ledger` 仍受保护 |
-| CAP-MEMBER-008 | member.user-tag | `N/A（当前无真实 pageRoute）` | `N/A（当前无 app 端读取接口）` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-25/ED-30/ED-38` | `/pages/user/tag` 缺页，标签模块默认隐藏，不发未知 app API |
+| CAP-MEMBER-006 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-24/ED-30/ED-38/ED-53` | `/pages/user/level` 缺页；03-11 已补激活前置清单，等级链路不得按已上线页面表述 |
+| CAP-MEMBER-007 | member.asset-hub | `N/A（当前无真实 pageRoute）` | `GET /member/asset-ledger/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27/ED-30/ED-38/ED-53` | `/pages/profile/assets` 缺页，且 `miniapp.asset.ledger` 仍受保护；03-11 checklist 已固定退出条件 |
+| CAP-MEMBER-008 | member.user-tag | `N/A（当前无真实 pageRoute）` | `N/A（当前无 app 端读取接口）` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-25/ED-30/ED-38/ED-53` | `/pages/user/tag` 缺页，标签模块默认隐藏，不发未知 app API；03-11 checklist 已固定激活门槛 |
 
 ### 5.3 Product / Search / Catalog
 
@@ -151,9 +154,9 @@
 |---|---|---|---|---|---|---|---|---|---|
 | CAP-BOOKING-001 | booking.query | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-03/ED-05/ED-10/ED-31/ED-43` | 预约列表/详情的查询链路保持真实 `ACTIVE` |
 | CAP-BOOKING-002 | booking.technician-detail | `/pages/booking/technician-detail` | `GET /booking/technician/get` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-31/ED-43` | 技师详情 path 与 controller 对齐，可单独视作查询侧 `ACTIVE` |
-| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/order-confirm` | 目标口径应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43` | 前端仍发 `list-by-store` / `time-slot/list`，create 上游未闭环，整条创建链路不得升 `ACTIVE` |
-| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | 目标口径应为 `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43` | 前端仍发 `PUT /booking/order/cancel`；方法不一致，继续阻断 |
-| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon` | 目标口径应为 `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43` | 前端 `/booking/addon/create` 与后端 `/app-api/booking/addon/create` 不一致，继续阻断 |
+| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/order-confirm` | 目标口径应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52` | 前端仍发 `list-by-store` / `time-slot/list`，create 上游未闭环；03-11 checklist 已固定退出条件，整条创建链路不得升 `ACTIVE` |
+| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | 目标口径应为 `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52` | 前端仍发 `PUT /booking/order/cancel`；方法不一致，继续阻断 |
+| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon` | 目标口径应为 `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52` | 前端 `/booking/addon/create` 与后端 `/app-api/booking/addon/create` 不一致；03-11 checklist 已固定不可越级放量规则 |
 
 ### 5.6 Content / Service / Brokerage
 
@@ -168,9 +171,9 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-RESERVED-001 | gift-card | `/pages/gift-card/*`（未实现） | `/promotion/gift-card/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Trade Domain Owner | `ED-13/ED-14/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49` | 治理与灰度验收文档已齐，但前后端仍未落地，且 `miniapp.gift-card=off` |
-| CAP-RESERVED-002 | referral | `/pages/referral/*`（未实现） | `/promotion/referral/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Promotion Domain Owner | `ED-13/ED-15/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49` | 治理与灰度验收文档已齐，但前后端仍未落地，且 `miniapp.referral=off` |
-| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49` | 治理与灰度验收文档已齐，但前后端仍未落地，且 `miniapp.technician-feed.audit=off` |
+| CAP-RESERVED-001 | gift-card | `/pages/gift-card/*`（未实现） | `/promotion/gift-card/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Trade Domain Owner | `ED-13/ED-14/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.gift-card=off` 下的 No-Go 证据 |
+| CAP-RESERVED-002 | referral | `/pages/referral/*`（未实现） | `/promotion/referral/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Promotion Domain Owner | `ED-13/ED-15/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.referral=off` 下的 No-Go 证据 |
+| CAP-RESERVED-003 | technician-feed | `/pages/technician/feed`（未实现） | `/booking/technician/feed/*`（未实现） | PLANNED_RESERVED | P2 | RB3-P2 | Booking + Content Ops Owner | `ED-13/ED-16/ED-12/ED-19/ED-36/ED-37/ED-48/ED-49/ED-54` | 治理与灰度验收文档已齐，但前后端仍未落地；03-11 readiness register 已固定 `miniapp.technician-feed.audit=off` 下的 No-Go 证据 |
 
 ## 6. Deprecated 路由别名（不再作为执行真值）
 

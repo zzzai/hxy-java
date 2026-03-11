@@ -217,15 +217,27 @@
 - Draft: 0
 
 ## 15. Current Snapshot (2026-03-11)
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md` | Ready | 将 booking `Still Blocked` 收口为可执行退出清单 |
+| 2 | P0 | A | `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md` | Ready | 将 member 缺页能力收口为激活前置清单 |
+| 3 | P1 | A | `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` | Ready | 将 reserved runtime 缺项固化为统一 readiness register |
+
+### 15.1 状态汇总（03-11 Runtime Blocker Batch）
+- Frozen: 0
+- Ready: 3
+- Draft: 0
+
+## 16. Current Snapshot (2026-03-11)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`33 Ready`
+- 当前已交付准备态文档：`36 Ready`
 - 当前已登记待补文档：`0 Draft`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 33
+  - Ready: 36
   - Draft: 0
 - 说明：
-  - 03-10 + 03-11 文档已完成从“缺口盘点”到“产品/契约/验收/告警/SOP 正式落盘”的闭环。
+  - 03-10 + 03-11 文档已完成从“缺口盘点”到“产品/契约/验收/告警/SOP/阻断清单正式落盘”的闭环。
   - 当前剩余问题已从“缺文档”转为“冻结边界与 runtime scope 是否继续升级”的问题。
   - Booking 仍是唯一明确 `Still Blocked` 的域，其余新增域已达到 `Ready`，但尚未进入 `Frozen Candidate`。
   - 未发生任何既有 Frozen 文档回退。

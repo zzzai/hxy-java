@@ -180,6 +180,9 @@
 31. `docs/products/miniapp/2026-03-10-miniapp-doc-completion-final-review-v1.md`
 32. `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`
 33. `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`
+34. `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`
+35. `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`
+36. `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
 
 ### 10.2 当前保持 Ready 的原因
 1. Booking 域仍存在前端 / 后端 / 文档三方 method + path 不一致：
@@ -206,12 +209,13 @@
 ### 10.3 当前冻结门禁判断
 1. 03-09 `Frozen` 基线保持不变，不回退。
 2. 03-10 当前终审结论：`Frozen Candidate = 0`。
-3. 当前已正式提交文档共 `33 Ready`，当前无 `Draft`；但这些文档仍只允许停留在 `Ready`，不得直接升为 `Frozen Candidate`。
+3. 当前已正式提交文档共 `36 Ready`，当前无 `Draft`；但这些文档仍只允许停留在 `Ready`，不得直接升为 `Frozen Candidate`。
 4. 待以下条件满足后，才可发起下一轮 Frozen 评审：
    - A：member route truth 与 booking route/API truth 收口完成；
    - booking 旧路径与旧方法从 FE 联调和发布 allowlist 中清除；
    - member 缺页能力不再被写成已上线页面；
    - content / brokerage / product / marketing / reserved 的 capability scope 与 release decision 继续保持一致；
+   - 03-11 blocker checklist 中的 booking/member/reserved 退出条件全部满足；
    - 索引、capability ledger、coverage matrix 与 release gate 引用路径同步完成。
 
 ### 10.4 03-10 目标域终审判定
