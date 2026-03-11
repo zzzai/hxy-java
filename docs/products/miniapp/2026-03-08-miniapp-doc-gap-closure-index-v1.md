@@ -241,3 +241,27 @@
   - 当前剩余问题已从“缺文档”转为“冻结边界与 runtime scope 是否继续升级”的问题。
   - Booking 仍是唯一明确 `Still Blocked` 的域，其余新增域已达到 `Ready`，但尚未进入 `Frozen Candidate`。
   - 未发生任何既有 Frozen 文档回退。
+
+## 17. 2026-03-12 Business Function Ledger Batch（A）
+
+| # | Priority | Owner Window | Document | Status | Notes |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md` | Ready | 收口前后端业务功能清单、页面/API 真值、PRD 完整度与开发阻断判断 |
+
+### 17.1 状态汇总（03-12 Business Function Ledger Batch）
+- Frozen: 0
+- Ready: 1
+- Draft: 0
+
+## 18. Current Snapshot (2026-03-12)
+- 03-09 冻结基线保持不变：`39/39 Frozen`
+- 当前已交付准备态文档：`37 Ready`
+- 当前已登记待补文档：`0 Draft`
+- 当前累计状态：
+  - Frozen: 39
+  - Ready: 37
+  - Draft: 0
+- 说明：
+  - 03-12 新增的业务功能真值台账把“业务功能清单 / 页面接口真值 / PRD 完整度 / 是否阻断开发”统一到单一文档。
+  - 当前主要缺口已经进一步收敛为 booking 真值漂移、member 缺页能力、reserved 规划能力，以及后台运营财务闭环 PRD 缺失。
+  - 未发生任何既有 Frozen 文档回退。
