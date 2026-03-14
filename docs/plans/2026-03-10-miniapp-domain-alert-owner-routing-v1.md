@@ -1,8 +1,8 @@
 # MiniApp Domain Alert Owner Routing v1 (2026-03-10)
 
 ## 1. 目标
-- 把 `content / brokerage / catalog / marketing-expansion / reserved-expansion` 的告警 owner、升级链、SLA、人工接管入口统一成单一真值。
-- 本文补充 `docs/plans/2026-03-09-miniapp-alert-routing-and-oncall-sla-v1.md`，只收口剩余域和混合 `ACTIVE / PLANNED_RESERVED` 场景。
+- 把 `content / brokerage / catalog / marketing-expansion / reserved-expansion / finance-ops-admin` 的告警 owner、升级链、SLA、人工接管入口统一成单一真值。
+- 本文补充 `docs/plans/2026-03-09-miniapp-alert-routing-and-oncall-sla-v1.md`，只收口剩余域和混合 `ACTIVE / PLANNED_RESERVED / ACTIVE_ADMIN` 场景。
 
 ## 2. 统一规则
 - 五键固定为：`runId/orderId/payRefundId/sourceBizNo/errorCode`。
@@ -37,6 +37,9 @@
 | `reserved-expansion` | `P0` | 未完成页面/controller/激活 checklist 却越级改 `ACTIVE` 或直接进灰度 | 发布负责人 + 对应域 Owner | 发布值班 -> 对应域 Owner -> SRE -> 技术/业务负责人 | `5m / 15m / 4h` | `Activation Checklist` 第 3/5/7 节 + capability ledger 回退 + 立即移出发布范围 | `runId=发布/巡检批次`；`orderId/payRefundId/sourceBizNo=0`；`errorCode=0` |
 | `reserved-expansion` | `P1` | `RESERVED_DISABLED` 误返回、灰度阶段指标越阈值 | 对应域 on-call + SRE | SRE -> 对应域 on-call -> 发布负责人 | `15m / 1h / 24h` | `Gray Acceptance Runbook` 第 6/8 节：关闭 `miniapp.gift-card` / `miniapp.referral` / `miniapp.technician-feed.audit`，回退上一阶段 | `runId=灰度/巡检批次`；`orderId/payRefundId/sourceBizNo=有值透传，无值填 0`；`errorCode=保留码真实值` |
 | `reserved-expansion` | `P2` | 样本量不足、轻微指标波动、局部投诉抬头 | 对应域 Owner | 指标 Owner -> 域负责人 | `30m / 4h / 72h` | 保持当前灰度阶段不放量，继续补样本或人工复核 | `runId=灰度批次`；无业务主键填 `0` |
+| `finance-ops-admin` | `P0` | `BO-004` 任一写接口返回成功但读后未变；`BO-003` 页面样本被拿来冲抵 `/booking/commission/*`；批量结算伪成功 | 财务负责人 + Booking Admin on-call + 发布负责人 | 财务运营值班 -> 财务负责人 -> Booking Admin on-call -> 发布负责人 | `5m / 15m / 4h` | 冻结 `settle/batch-settle/config save/delete`，切回 `query-only` 或 `single-review-only` | `technicianId/storeId/orderId/commissionId/settlementId/runId/sourceBizNo/errorCode` 有值透传，无值填 `0`；读后未变时 `errorCode` 仍填真实返回值，禁止自造 |
+| `finance-ops-admin` | `P1` | 待结算金额与明细合计不一致；配置保存后出现重复 `storeId+commissionType`；配置删除残留；权限点集中失败 | 财务负责人 / Booking Admin on-call | 财务运营值班 -> 财务负责人 -> Booking Admin on-call | `15m / 1h / 24h` | 暂停批量结算，冻结配置变更，人工按门店回读核对 | 同上；配置类告警 `sourceBizNo=0` 合法 |
+| `finance-ops-admin` | `P2` | 单技师空态争议、单门店空配置争议、局部查询失败 | 财务运营支撑 | 财务运营值班 -> 财务负责人 | `30m / 4h / 72h` | 保持查询能力，转人工复核，不放大到页面成功样本 | 同上；查询空态可填 `errorCode=0`，不得误报成功 |
 
 ## 5. 人工接管入口索引
 
@@ -47,6 +50,7 @@
 | `catalog` | `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` 第 `7` 节 |
 | `marketing-expansion` | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` 的 `MKT-04/MKT-05/MKT-07` |
 | `reserved-expansion` | `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` 第 `6/7` 节；`docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md` 第 `6/8/10` 节 |
+| `finance-ops-admin` | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md` 第 `4/5/7` 节；`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md` 第 `6/7/8/9` 节 |
 
 ## 6. 验收标准
 1. 五个业务域都能映射到唯一主责、升级链和人工接管入口。
