@@ -8,6 +8,7 @@
   - 本文不覆盖 `BO-003 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿`；该部分继续由 `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` 负责。
   - 当前在审查范围内未核到独立后台页面文件，也未核到独立前端 API 文件。
   - 因此本文定义的是“后台运营能力与页面真值边界”，不是“页面已闭环上线说明”。
+  - 所有写接口必须按“写后回读确认”定义结果，`Boolean true` 不能直接当成业务完成。
 - 真值输入：
   - `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md`
   - `docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md`
@@ -59,6 +60,8 @@
 
 ### 3.3 页面真值口径
 - `BO-004` 当前是“真实后台运营能力已存在，但独立页面真值待核”的状态。
+- 当前只认 `TechnicianCommissionController` 的 8 条真实 `/booking/commission/*` 接口，不认任何猜测性页面 path。
+- 不得把 `commission-settlement/index.vue`、`commission-settlement/outbox/index.vue` 反推成 BO-004 页面。
 - 本文不能被用于证明：
   - 已存在 BO-004 独立后台页面；
   - 已存在 BO-004 独立后台菜单 path；
@@ -82,6 +85,19 @@
 - `settle`、`batch-settle`、`config/save`、`config/delete` 当前都只返回 `Boolean` 结果。
 - `settle` / `batch-settle` 当前 controller 不返回逐条结果明细。
 - `config/save` 当前 controller 不区分 create/update 的独立 path，只以 `id` 是否为空判断。
+
+### 4.2 合法空态与写后回读总则
+- 当前必须承认以下都是合法空态，不得误判为失败：
+  - `GET /booking/commission/list-by-technician => []`
+  - `GET /booking/commission/list-by-order => []`
+  - `GET /booking/commission/pending-amount => 0`
+  - `GET /booking/commission/config/list => []`
+- 当前必须承认以下是统一写规则：
+  - `POST /booking/commission/settle`
+  - `POST /booking/commission/batch-settle`
+  - `POST /booking/commission/config/save`
+  - `DELETE /booking/commission/config/delete`
+- 上述 4 条写接口都必须按“写后回读确认”定义产品结果，不能把 `Boolean true` 直接等同为业务完成。
 
 ## 5. 关键字段真值
 
@@ -156,7 +172,7 @@
   - controller 仍返回 `true`
   - 不代表状态一定发生变更
 - 因此产品要求：
-  - 直结后必须以重新查询列表或明细作为结果确认依据；
+  - 直结后必须执行“写后回读确认”，以重新查询列表或明细作为结果确认依据；
   - 不能把 `true` 直接渲染成“已完成结算闭环”。
 
 ### 6.5 批量结算
@@ -168,7 +184,7 @@
   - 只返回 `Boolean true`。
 - 当前接口更像“批量直结执行器”，不是“批量结算审批任务”。
 - 产品要求：
-  - 批量执行后必须重新拉取技师列表或待结算金额校验结果；
+  - 批量执行后必须执行“写后回读确认”，重新拉取技师列表或待结算金额校验结果；
   - 不得把它与 BO-003 的“创建结算单 -> 审核 -> 打款”混写。
 
 ### 6.6 佣金配置
@@ -196,13 +212,13 @@
 - `fixedAmount` 可选。
 - `id` 有值表示更新；`id` 为空表示新增。
 - 当前 controller 没有单独的“新增”或“更新” path，也没有返回新配置实体。
-- 当前返回 `true` 仅表示请求已执行，不等于前端已拿到最终列表快照。
+- 当前返回 `true` 仅表示请求已执行，不等于前端已拿到最终列表快照；保存后必须“写后回读确认”。
 
 ### 6.9 删除配置
 - 必须传 `id`。
 - 当前真实语义是按主键删除。
 - 当前 controller 不返回被删对象，也不返回剩余列表。
-- 删除后需要重新调用 `GET /booking/commission/config/list` 校验结果。
+- 删除后必须执行“写后回读确认”，重新调用 `GET /booking/commission/config/list` 校验结果。
 
 ## 7. 审计字段与留痕要求
 
@@ -266,7 +282,20 @@
 - BO-003 的 `createSettlement` 虽然消费 `commissionIds`，但“选择哪些佣金记录、怎么看待结算金额、如何维护佣金配置”属于 BO-004。
 - BO-003 页面存在，不能反推 BO-004 页面也存在。
 
-## 9. 非目标
+## 9. 产品侧最终标签
+
+| 能力 | Doc Closed | Engineering Blocked | Can Develop | Cannot Release |
+|---|---|---|---|---|
+| BO-004 `/booking/commission/*` 8 条接口边界 | Yes | No | Yes | Yes |
+| BO-004 独立后台页面文件 | Yes | No | Yes | Yes |
+| BO-004 独立前端 API 文件 | Yes | No | Yes | Yes |
+| BO-004 写接口结果判定（写后回读确认） | Yes | No | Yes | Yes |
+
+说明：
+- `Can Develop` 仅表示产品真值已固定，可继续补页面、补前端 API、补读后确认流程。
+- `Cannot Release` 表示在独立页面、独立 API 文件、写后回读样本全部补齐前，BO-004 仍不得写成可放量。
+
+## 10. 非目标
 - 不定义 BO-003 的结算单审批、驳回、打款、通知补偿细节。
 - 不定义后台页面 path、菜单 path、路由注册、权限菜单树。
 - 不定义手工创建佣金记录、手工冲正、人工补录计提记录页面。
