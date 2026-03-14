@@ -17,8 +17,8 @@
    - `Store`：11 项
    - `Trade Ops`：3 项
 3. 当前文档状态：
-   - `较完整`：门店主数据 / 分类 / 标签 / 标签组 / 门店商品 SPU / 门店 SKU
-   - `部分完整`：SPU 总部商品、模板生成、库存调整单、跨店调拨、生命周期治理、售后运营、复核工单、SLA 路由
+   - `完整`：门店主数据 / 分类 / 标签 / 标签组、SPU 总部商品、模板生成、门店商品 SPU / SKU、库存调整单、跨店调拨、生命周期治理、售后运营、复核工单、SLA 路由
+   - `剩余待补`：后台统一字段字典、contract、runbook 等配套文档
 4. 本计划的目标不是继续堆计划文档，而是产出“能作为产品输入直接使用的正式 PRD”。
 
 ## 3. 缺口分级规则
@@ -32,15 +32,15 @@
 |---|---|---|---|---|---|---|---|---|
 | P0 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | `ADM-001` `ADM-002` | B | `mall/product/spu/index.vue`; `mall/product/spu/form/index.vue`; `mall/product/template/index.vue`; `ProductSpuController`; `ProductServiceSpuController`; `ProductPhysicalSpuController`; `ProductTemplateGenerateController` | `hxy/01_product/HXY-瑞幸双商品体系对标-RuoYi落地方案-v1-2026-02-22.md`; `hxy/linshi/荷小悦O2O多门店（服务+实物）SPU_SKU多门店完整结构说明（最新完整版）.md`; `docs/plans/2026-03-01-hxy-sku-template-api-draft.md`; `docs/plans/2026-03-02-p0-template-booking-ci-design.md` | A 先补页面/API/Controller 真值摘要 | 否 | 已完成（2026-03-15 已正式落盘）；当前转为后续文档的上游词典 |
 | P0 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | `ADM-007` `ADM-008` | B | `mall/product/store/spu/index.vue`; `mall/product/store/sku/index.vue`; `storeSpu.ts`; `storeSku.ts`; `ProductStoreSpuController`; `ProductStoreSkuController` | `hxy/linshi/荷小悦O2O多门店（服务+实物）SPU_SKU多门店完整结构说明（最新完整版）.md`; `docs/plans/2026-03-01-store-sku-chain-priority-plan.md`; `docs/plans/2026-03-01-hxy-next-delivery-plan.md` | 依赖总部商品 / 模板 PRD 的术语和边界 | 否 | 已完成（2026-03-15 已正式落盘）；当前转为库存调整 / 调拨 / 生命周期 PRD 的上游词典 |
-| P0 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | `ADM-009` `ADM-010` | B | `mall/store/stockAdjustOrder/index.vue`; `mall/store/transferOrder/index.vue`; `storeSkuStockAdjustOrder.ts`; `storeSkuTransferOrder.ts`; `ProductStoreSkuController` | `hxy/00_governance/HXY-架构决策记录-ADR-v1.md`; `hxy/07_memory_archive/handoffs/2026-03-06/store-sku-stock-adjust-order-window-a.md`; `hxy/07_memory_archive/handoffs/2026-03-06/window-a-p1-stock-transfer-four-account-summary.md` | 依赖门店 SKU 运营 PRD | 部分 | 库存调整/调拨已是独立审批页面，不能长期只靠 ADR 和 handoff |
-| P0 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | `ADM-011` `ADM-012` `ADM-013` | B | `mall/store/lifecycleBatchLog/index.vue`; `mall/store/lifecycleChangeOrder/index.vue`; `mall/store/lifecycleRecheckLog/index.vue`; `lifecycleBatchLog.ts`; `lifecycleChangeOrder.ts`; `lifecycleRecheckLog.ts`; `ProductStoreLifecycleBatchLogController`; `ProductStoreLifecycleRecheckLogController`; `ProductStoreController` | `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md`; `hxy/00_governance/HXY-架构决策记录-ADR-v1.md`; `hxy/01_product/HXY-门店管理产品设计-万店版-v1-2026-02-28.md` | 依赖门店主数据 PRD统一术语 | 部分 | 生命周期治理已经有页面与规则，但还缺统一产品口径 |
-| P0 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | `ADM-014` `ADM-015` `ADM-016` | B | `mall/trade/afterSale/index.vue`; `mall/trade/afterSale/detail/index.vue`; `mall/trade/reviewTicket/index.vue`; `mall/trade/reviewTicketRoute/index.vue`; `AfterSaleController`; `AfterSaleReviewTicketController`; `AfterSaleReviewTicketRouteController` | `hxy/03_payment/HXY-退款分层策略与工单升级规则-v1-2026-02-22.md`; `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md` | 依赖退款规则与工单 SLA 设计现状 | 部分 | 售后后台管理已实装，但当前只有规则文档和设计稿，缺正式产品 PRD |
+| P0 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | `ADM-009` `ADM-010` | B | `mall/store/stockAdjustOrder/index.vue`; `mall/store/transferOrder/index.vue`; `storeSkuStockAdjustOrder.ts`; `storeSkuTransferOrder.ts`; `ProductStoreSkuController` | `hxy/00_governance/HXY-架构决策记录-ADR-v1.md`; `hxy/07_memory_archive/handoffs/2026-03-06/store-sku-stock-adjust-order-window-a.md`; `hxy/07_memory_archive/handoffs/2026-03-06/window-a-p1-stock-transfer-four-account-summary.md` | 依赖门店 SKU 运营 PRD | 否 | 已完成（2026-03-15 已正式落盘）；当前转为后续 contract / runbook 的上游 PRD |
+| P0 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | `ADM-011` `ADM-012` `ADM-013` | B | `mall/store/lifecycleBatchLog/index.vue`; `mall/store/lifecycleChangeOrder/index.vue`; `mall/store/lifecycleRecheckLog/index.vue`; `lifecycleBatchLog.ts`; `lifecycleChangeOrder.ts`; `lifecycleRecheckLog.ts`; `ProductStoreLifecycleBatchLogController`; `ProductStoreLifecycleRecheckLogController`; `ProductStoreController` | `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md`; `hxy/00_governance/HXY-架构决策记录-ADR-v1.md`; `hxy/01_product/HXY-门店管理产品设计-万店版-v1-2026-02-28.md` | 依赖门店主数据 PRD统一术语 | 否 | 已完成（2026-03-15 已正式落盘）；当前转为后续字段字典 / runbook / contract 的上游 PRD |
+| P0 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | `ADM-014` `ADM-015` `ADM-016` | B | `mall/trade/afterSale/index.vue`; `mall/trade/afterSale/detail/index.vue`; `mall/trade/reviewTicket/index.vue`; `mall/trade/reviewTicketRoute/index.vue`; `AfterSaleController`; `AfterSaleReviewTicketController`; `AfterSaleReviewTicketRouteController` | `hxy/03_payment/HXY-退款分层策略与工单升级规则-v1-2026-02-22.md`; `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md` | 依赖退款规则与工单 SLA 设计现状 | 否 | 已完成（2026-03-15 已正式落盘）；当前转为后续 contract / runbook 的上游 PRD |
 
 ## 5. P1 PRD / 产品归档 Backlog（建议本轮一并补）
 
 | 优先级 | 目标文档 | 覆盖能力 | Owner 窗口 | 主要代码真值 | 主要上游文档 | 当前是否阻断开发 | 说明 |
 |---|---|---|---|---|---|---|---|
-| P1 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | `ADM-003` `ADM-004` `ADM-005` `ADM-006` | B | `mall/store/index.vue`; `mall/store/category/index.vue`; `mall/store/tag/index.vue`; `mall/store/tag-group/index.vue`; `ProductStoreController`; `ProductStoreCategoryController`; `ProductStoreTagController`; `ProductStoreTagGroupController` | `hxy/01_product/HXY-门店管理产品设计-万店版-v1-2026-02-28.md`; `hxy/01_product/HXY-总部门店权责利模型-v1-2026-02-22.md` | 否 | 这些能力已有较完整产品设计，但尚未转成当前正式 PRD 体例 |
+| P1 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | `ADM-003` `ADM-004` `ADM-005` `ADM-006` | B | `mall/store/index.vue`; `mall/store/category/index.vue`; `mall/store/tag/index.vue`; `mall/store/tag-group/index.vue`; `ProductStoreController`; `ProductStoreCategoryController`; `ProductStoreTagController`; `ProductStoreTagGroupController` | `hxy/01_product/HXY-门店管理产品设计-万店版-v1-2026-02-28.md`; `hxy/01_product/HXY-总部门店权责利模型-v1-2026-02-22.md` | 否 | 已完成（2026-03-15 已正式落盘）；当前转为字段字典和 contract/runbook 的上游 PRD |
 | P1 | `docs/products/2026-03-15-hxy-admin-product-store-trade-page-api-field-dictionary-v1.md` | P0/P1 全覆盖 | A/B | 以上后台页面与 API 文件全集 | 以上所有正式 PRD | 部分 | 作为后台统一字段字典，支撑后续 contract / QA / runbook 口径 |
 
 ## 6. 非 PRD 跟进件（PRD 落盘后再补）
@@ -57,11 +57,9 @@
    - 原因：它定义总部商品主数据和模板边界，是后面 `store-spu / store-sku` 文档的上游词典。
 2. 再出 `hxy-admin-store-product-mapping-and-sku-ops-prd`。
    - 原因：它决定门店商品映射、价库存、库存流水、批量调整的核心业务边界。
-3. 然后并行补：
-   - `hxy-admin-store-stock-adjust-and-transfer-prd`
-   - `hxy-admin-store-lifecycle-governance-prd`
-   - `hxy-admin-after-sale-review-ticket-prd`
-4. 最后再由 A/C/D 吸收进字段字典、contract、runbook。
+3. 库存调整/调拨、生命周期治理、售后后台运营三份 P0 PRD 已于 2026-03-15 全部落盘。
+4. 门店主数据治理 P1 PRD 也已于 2026-03-15 落盘。
+5. 下一步再由 A/C/D 吸收进字段字典、contract、runbook。
 
 ## 8. 固定原则
 1. 不允许再把历史 `hxy/linshi`、ADR、handoff 直接当成正式 PRD 的替代品。
@@ -71,5 +69,8 @@
 
 ## 9. 最终结论
 1. 当前项目已经具备“全项目功能台账”与“后台 PRD 缺口清单”两层单一真值。
-2. 后台真正缺的不是工程功能，而是正式 PRD 归档。
-3. 如果要把项目推进到“全项目文档先行、再开发”的一致状态，下一步必须按本计划优先补齐 `product / store / trade` 后台 PRD。
+2. 后台 P0 与核心 P1 真正缺的不是工程功能，而是正式 PRD 归档；该缺口已在本轮主能力层面收口完成。
+3. 如果要把项目推进到“全项目文档先行、再开发”的一致状态，下一步应转向：
+   - 后台字段字典
+   - `product / store / trade` 后台 contract
+   - `product / store / trade` 后台 runbook
