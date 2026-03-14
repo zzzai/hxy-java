@@ -3,6 +3,10 @@
 ## 0. 文档定位
 - 目标：把小程序 content / customer-service 域收口到“真实路由、真实 app API、真实用户入口”口径，供产品、前端、后端、客服、运营直接执行。
 - 分支：`feat/ui-four-account-reconcile-ops`
+- 本文当前只覆盖：
+  - `BF-025`：DIY 模板 / 自定义页
+  - `BF-026`：聊天 / 文章详情 / FAQ 壳页 / WebView
+  - `BF-027` 已拆到 `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`
 - 约束：
   - 只使用当前运行中的 uniapp 页面、真实 app controller、真实请求路径。
   - 不把原型 alias route、规划页名、历史 FAQ 数据页写成冻结真值。
@@ -26,21 +30,19 @@
 - 不新增用户侧文章中心、FAQ 搜索、客服会话列表页。
 - 不改写 `sheep.$api.data.faq()` 旧壳逻辑，不把它升级成冻结能力。
 - 不把 H5 外链 WebView 当成文章中心或 FAQ 正式承接页。
+- 不再承担 BF-027 的文章列表 / 分类 / 浏览回写 / 已读回写真值冻结。
 
 ## 2. 域能力总览
 
 | 能力 | 真实页面 / 入口 | 状态 | 真实 API | 结论 |
 |---|---|---|---|---|
-| 客服聊天 | `/pages/chat/index` | `ACTIVE` | `GET /promotion/kefu-message/list` `POST /promotion/kefu-message/send` | 商品详情、售后申请/详情、工具菜单均可进入 |
-| 文章 / 富文本 | `/pages/public/richtext` | `ACTIVE` | `GET /promotion/article/get` | 真实承接文章正文，按 `id` 或 `title` 拉取 |
-| FAQ 壳页 | `/pages/public/faq` | `ACTIVE`（仅 route 壳） | 当前真实链路不消费 app FAQ API | `onLoad` 立即跳 `/pages/public/richtext?title=常见问题` |
-| WebView 外链 | `/pages/public/webview` | `ACTIVE` | 无内容域 app API | 仅承接编码后的 `url` 参数 |
+| 客服聊天 | `/pages/chat/index` | `PLANNED_RESERVED` | `GET /promotion/kefu-message/list` `POST /promotion/kefu-message/send` | 商品详情、售后申请/详情、工具菜单均可进入，但 capability 仍未进入当前正式 `ACTIVE` 发布集 |
+| 文章 / 富文本 | `/pages/public/richtext` | `PLANNED_RESERVED` | `GET /promotion/article/get` | 真实承接文章正文，按 `id` 或 `title` 拉取，但能力治理仍归 BF-026 |
+| FAQ 壳页 | `/pages/public/faq` | `PLANNED_RESERVED`（仅 route 壳） | 当前真实链路不消费 app FAQ API | `onLoad` 立即跳 `/pages/public/richtext?title=常见问题` |
+| WebView 外链 | `/pages/public/webview` | `PLANNED_RESERVED` | 无内容域 app API | 仅承接编码后的 `url` 参数，不作为文章中心 |
 | DIY 首页模板 | App 启动阶段 | `ACTIVE` | `GET /promotion/diy-template/used` | 不是单独 route，而是应用初始化能力 |
 | DIY 模板预览 | App 启动阶段（预览） | `ACTIVE` | `GET /promotion/diy-template/get` | 指定模板预览时使用 |
 | DIY 自定义页 | `/pages/index/page?id=` | `ACTIVE` | `GET /promotion/diy-page/get` | 小程序 scene 预览也走同一接口 |
-| 文章列表 / 分类列表 | 当前无真实用户页 | `PLANNED_RESERVED` | `GET /promotion/article/list` `GET /promotion/article/page` `GET /promotion/article-category/list` | 后端 app API 已存在，但用户侧未消费 |
-| 文章浏览量回写 | 当前无真实用户动作 | `PLANNED_RESERVED` | `PUT /promotion/article/add-browse-count` | 后端存在，前端未调用 |
-| 客服已读回写 | 当前无真实用户动作 | `PLANNED_RESERVED` | `PUT /promotion/kefu-message/update-read-status` | 后端存在，前端未调用 |
 
 ## 3. 用户场景与页面流转
 
@@ -82,17 +84,14 @@
 |---|---|---|---|---|
 | `/pages/chat/index` | `POST /promotion/kefu-message/send` | `contentType` `content` | `Long id` | 发送文本 / 图片 / 商品 / 订单消息 |
 | `/pages/chat/index` | `GET /promotion/kefu-message/list` | `conversationId?` `createTime?` `limit` | `id` `conversationId` `senderId` `senderAvatar` `senderType` `receiverId` `receiverType` `contentType` `content` `readStatus` `createTime` | 历史消息与增量刷新 |
-| 当前无用户页消费 | `PUT /promotion/kefu-message/update-read-status` | `conversationId` | `Boolean` | 后端存在，当前前端未回写已读 |
 
-### 5.2 文章 / FAQ / 富文本
+### 5.2 文章正文 / FAQ 壳页 / WebView 边界
 
 | 页面 | API | 请求字段 | 响应字段 | 页面使用 |
 |---|---|---|---|---|
 | `/pages/public/richtext` | `GET /promotion/article/get` | `id?` `title?` | `id` `title` `author` `categoryId` `picUrl` `introduction` `content` `createTime` `browseCount` `spuId` | 当前页面只消费 `title` 和 `content` |
-| 当前无用户页消费 | `GET /promotion/article/list` | `recommendHot?` `recommendBanner?` | `AppArticleRespVO[]` | 后端已存在，用户侧无列表页 |
-| 当前无用户页消费 | `GET /promotion/article/page` | `pageNo` `pageSize` 等 | `PageResult<AppArticleRespVO>` | 后端已存在，用户侧无分页页 |
-| 当前无用户页消费 | `GET /promotion/article-category/list` | 无 | `id` `name` `picUrl` | 后端已存在，用户侧无分类页 |
-| 当前无用户页消费 | `PUT /promotion/article/add-browse-count` | `id` | `Boolean` | 文章页当前未主动回写浏览量 |
+| `/pages/public/faq` | 当前无独立 FAQ app API | 无 | 无 | 只做壳页跳转，不承接 FAQ 列表数据 |
+| `/pages/public/webview` | 当前无内容域 app API | `url` | 无 | 只承接外链，不承接文章列表与分类 |
 
 ### 5.3 DIY 模板与自定义页
 
@@ -105,20 +104,17 @@
 ## 6. `ACTIVE / PLANNED_RESERVED / 缺页能力` 分层
 
 ### 6.1 `ACTIVE`
-- `/pages/chat/index` 聊天发送、历史消息拉取、工具消息发送。
-- `/pages/public/richtext` 文章正文承接。
-- `/pages/public/faq` 作为 FAQ 壳页跳文章正文。
-- `/pages/public/webview` 外链承接。
 - DIY 模板装载与 `/pages/index/page?id=` 自定义页渲染。
 
 ### 6.2 `PLANNED_RESERVED`
-- 用户侧文章列表、文章分页、文章分类。
-- 文章浏览量显式回写。
-- 客服会话已读回写。
+- `/pages/chat/index` 聊天发送、历史消息拉取、工具消息发送。
+- `/pages/public/richtext` 文章正文承接。
+- `/pages/public/faq` FAQ 壳页跳文章正文。
+- `/pages/public/webview` 外链承接。
 - FAQ 独立数据页能力；当前不能把旧 `sheep.$api.data.faq()` 当成发布真值。
+- BF-027 的文章列表 / 分类 / 浏览回写 / 已读回写，已拆到独立 PRD 管理，当前仍不得误升上线。
 
 ### 6.3 缺页能力
-- 用户侧文章中心页、文章分类页、专题页。
 - FAQ 搜索页、FAQ 条目详情页。
 - 客服会话列表页、未读角标页、历史会话页。
 - DIY 页面集合导航页与“最近访问页面”页。
@@ -130,7 +126,6 @@
 | `1013019000 KEFU_CONVERSATION_NOT_EXISTS` | 历史消息拉取 / 发送消息时会话失效 | 提示用户返回上一页后重新进入客服；保留未发送文本供再次发送 | 不允许提示“消息已发送” |
 | `1013020000 KEFU_MESSAGE_NOT_EXISTS` | 单条消息刷新失败 | 下拉刷新一次，保留已展示消息列表 | 不清空会话、不弹成功态 |
 | `1013016000 ARTICLE_NOT_EXISTS` | 富文本按 `id/title` 取文章失败 | 回退上一页；FAQ 场景回退到帮助入口并提供转客服动作 | 不允许白屏后保持“文章已打开”标题 |
-| `1013015000 ARTICLE_CATEGORY_NOT_EXISTS` | 未来文章分类页 | 隐藏对应分类并回退默认内容流 | 仅规划态可用，当前返回即视为误接 |
 | WebView 加载失败（无业务码） | H5 外链打不开 | 返回上一页，允许再次进入 | 不得冒充为文章内容成功打开 |
 
 ## 8. 降级语义与禁止伪成功规则
@@ -153,14 +148,14 @@
 
 | 判断项 | 结论 | 说明 |
 |---|---|---|
-| 已上线 route 的维护开发是否阻断 | `否` | `/pages/chat/index`、`/pages/public/richtext`、DIY 模板/页面已有真实前后端闭环 |
-| 把后端已存在但前端未消费能力直接纳入开发是否阻断 | `是` | 文章列表 / 分类 / FAQ 独立页 / 已读回写均缺真实用户页与验收口径 |
-| 按当前已上线能力发布是否阻断 | `否` | 仅限聊天、文章正文、FAQ 壳跳转、DIY 模板 / 自定义页 |
-| 把 `PLANNED_RESERVED` 或缺页能力误报为上线能力是否阻断发布 | `是` | 会造成 FAQ、文章中心、客服会话管理的假冻结和假验收 |
+| 已有 route 的维护开发是否阻断 | `否` | BF-025 的 DIY 能力为 `ACTIVE`；BF-026 的聊天 / 文章详情 / FAQ 壳页 / WebView 虽可运行，但仍按 `PLANNED_RESERVED` 治理 |
+| 把 BF-027 后端已存在但前端未消费能力直接纳入开发是否阻断 | `是` | 文章列表 / 分类 / 浏览回写 / 已读回写已拆到独立 PRD，当前仍缺真实用户页与验收口径 |
+| 按当前已确认能力发布是否阻断 | `否` | 只允许把 BF-025 记入当前明确 `ACTIVE` 范围；BF-026 继续按保留能力治理 |
+| 把 `PLANNED_RESERVED` 或缺页能力误报为上线能力是否阻断发布 | `是` | 会造成聊天、FAQ、文章中心、客服会话管理的假冻结和假验收 |
 
 ## 10. 验收清单
 - [ ] `/pages/chat/index` 仅以 `send/list` 两条真实 app API 作为冻结口径。
 - [ ] `/pages/public/faq` 在文档中被明确标记为“FAQ 壳页 -> richtext 跳转”，不是 FAQ 正式数据页。
-- [ ] 文档明确区分“真实用户入口”和“后端已存在但前端未消费”的内容能力。
+- [ ] BF-027 的文章列表 / 分类 / 浏览回写 / 已读回写已拆到独立真值文档。
 - [ ] 错误码与恢复动作覆盖聊天、文章、FAQ、DIY 四类场景。
 - [ ] 降级规则明确禁止伪成功，尤其是聊天发送成功和文章打开成功的误提示。
