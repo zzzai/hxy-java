@@ -77,6 +77,7 @@
 - `ED-53` `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`
 - `ED-54` `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
 - `ED-55` `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md`
+- `ED-56` `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -107,6 +108,20 @@
 3. 收藏状态真实路径是 `GET /product/favorite/exits`，不得在文档或联调口径中擅自更正为 `/exists`。
 4. 分销资金字段真值固定为：`withdrawPrice`、`brokeragePrice`、`frozenPrice`；团队页后端字段是 `brokerageOrderCount`。
 5. 本批 contract 没有新增服务端 `degraded/degradeReason` 字段；所有 fail-open/fail-close 继续按显式 errorCode、空列表、`null` 和 runbook 人工动作收口。
+
+### 4.4 03-14 最终阻断集成结论
+1. 当前“缺文档”问题已经清零，但 capability 台账仍必须区分“文档已闭环”和“工程未闭环”。
+2. 当前唯一域级 `Still Blocked` 仍是 booking，对应 create / cancel / addon 三条链路的 FE/BE `method + path` 漂移。
+3. 当前唯一明确的 finance-ops capability blocker 仍是 `BO-004`：
+   - 只核到 `/booking/commission/*` controller truth
+   - 未核到独立后台页面文件
+   - 未核到独立前端 API 文件
+   - 写接口存在 `true` 但 no-op / 伪成功 风险
+4. member / reserved 当前不属于“缺文档”，但属于“禁止误升为 runtime 已上线”的守门项：
+   - `/pages/user/level`
+   - `/pages/profile/assets`
+   - `/pages/user/tag`
+   - `gift-card / referral / technician-feed`
 
 ## 5. 能力清单
 
@@ -193,3 +208,4 @@
 5. content / brokerage / product-interaction / marketing-expansion 当前都必须按 contract 维持在 `PLANNED_RESERVED` 或混合 scope 管理；FAQ 壳页、收藏 typo path、`type=2 bargain`、提现到账口径都不得漂移。
 6. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，只能按治理和灰度门禁管理，不得算进发布已上线能力。
 7. 03-10 终审结论保持：`Frozen Candidate = 0`。
+8. 03-14 最终阻断集成结论保持：`可进入真值修复开发，不可把 blocker scope 直接纳入放量范围`。

@@ -109,3 +109,24 @@
    - 03-09 Frozen 基线仍可按既有 `Go with Gate` 规则继续执行；
    - 03-10 新增域全部停留在文档 `Ready` 层，不构成新增签发范围；
    - 03-11 booking/member/reserved blocker checklist 只定义退出条件，不构成新增签发范围。
+
+## 8. 03-14 Runtime Blocker Final Integration
+
+### 8.1 当前项目级决策
+- 对 03-09 Frozen 基线：继续保持 `Go with Gate`。
+- 对剩余 blocker scope：统一按 `No-Go for Release` 管理。
+- 对真值修复开发：统一按 `Go for Engineering Closure` 管理。
+
+### 8.2 剩余 blocker scope 决策表
+
+| scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
+|---|---|---|---|---|---|
+| Booking | 文档已闭环 | FE/BE `method + path` 未收口 | Go for Engineering Closure | No-Go | 仍使用 `GET /booking/technician/list-by-store`、`GET /booking/time-slot/list`、`PUT /booking/order/cancel`、`POST /booking/addon/create` 或旧 path 仍在 allowlist |
+| Member 缺页能力 | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未实现 | Go for Engineering Closure | No-Go | 把上述缺页能力写成 `ACTIVE`、可发布页面或新增签发范围 |
+| Reserved runtime | 文档已闭环 | gift / referral / technician-feed 仍无 runtime 落地 | Go for Engineering Closure | No-Go | 因治理文档完整就把 gift/referral/feed 当成已上线能力，或 `RESERVED_DISABLED` 关闭态仍命中 |
+| `BO-004` Finance Ops Admin | 文档已闭环 | 仅接口闭环 + 页面真值待核 | Go for Engineering Closure | No-Go | 未核到独立后台页面文件 / 独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 BO-004 页面 |
+
+### 8.3 当前最终门禁结论
+1. 当前项目不再存在“缺文档导致的 No-Go”。
+2. 当前项目仍存在“工程真值阻断导致的 No-Go”。
+3. 若进入下一阶段开发，只允许围绕 blocker scope 做真值修复与实现闭环，不得把 blocker scope 当成现成放量能力。

@@ -101,6 +101,9 @@
    - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`
    - `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`
 4. 因此 03-14 Finance Ops Admin 当前不再存在 `Pending formal window output`，问题已从“待提交”切到“页面/API 真值仍未闭环”。
+5. 03-14 已新增：
+   - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
+   - 用于把“文档已闭环 / 工程未闭环 / 可开发但不可放量”的最终判断固化为项目级单一真值
 
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
@@ -143,8 +146,9 @@
 | Finance Ops Admin | Ready | A/B/C/D 文档包均已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
 
 ## 8. 结论
-1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 54`，`Draft = 0`，`Pending formal window output = 0`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 55`，`Draft = 0`，`Pending formal window output = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
 4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review 和 03-14 的 controller-only contract 也都只固定“接口闭环不等于页面闭环”。
 5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
+6. 当前项目级最终判断已经补齐：`文档已闭环`，但 blocker scope 仍只允许“进入真值修复开发”，不允许直接“进入放量”。

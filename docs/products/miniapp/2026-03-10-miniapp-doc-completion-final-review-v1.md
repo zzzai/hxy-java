@@ -50,7 +50,7 @@
    - Reserved Activation 只有治理闭环，没有 runtime 闭环。
 
 ## 6. 文档级状态汇总
-- 当前分支正式提交文档：`54 Ready`
+- 当前分支正式提交文档：`55 Ready`
 - 当前分支待补正式文档：`0 Draft`
 - 当前分支待正式窗口输出：`0 Pending formal window output`
 - 额外说明：
@@ -58,10 +58,12 @@
   - `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` 与 `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` 已补齐 brokerage / product 独立 SOP。
   - `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`、`docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`、`docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` 已把 booking/member/reserved 的 blocker 收口成可执行退出条件。
   - `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md` 已把 `BO-004` 固定为“仅接口闭环 + 页面真值待核”。
+  - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` 已把最终 blocker scope 固化为 Booking、BO-004、Member 缺页、Reserved runtime 四类。
   - `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`、`docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`、`docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md`、`docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` 已正式提交，BF-027 独立文档包已进入 `Ready`。
   - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md` 已把 `BO-003 / BO-004` 的单一真值边界固定下来。
   - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md` 已正式提交，并把 `BO-004` 固定为 controller-only contract。
   - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`、`docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`、`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md` 已正式提交，Finance Ops Admin 03-14 文档包已全部进入 `Ready`。
+  - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` 已把“文档已闭环 / 工程未闭环 / 可开发但不可放量”的最终判断固化下来。
   - 上述增量都属于 Ready 输入，不构成 03-09 Frozen 基线回退。
 
 ## 7. “先文档后开发”的最新执行顺序
@@ -71,7 +73,8 @@
 4. 再之后才允许把对应域从“文档完备”推进到“开发或放量”。
 
 ## 8. 最终结论
-1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `54 Ready / 0 Draft / 0 Pending formal window output`。
+1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `55 Ready / 0 Draft / 0 Pending formal window output`。
 2. 当前剩余问题主要来自冻结边界和 runtime scope 管理，而不是大面积 PRD 空白。
-3. Booking 仍是唯一明确 `Still Blocked` 的域；`Finance Ops Admin` 已进入 A 侧 Ready 审查，但 `BO-004` 仍不能写成页面闭环完成。
-4. 03-09 `Frozen` 基线继续保持唯一冻结发布基线；当前新增文档停留在 `Ready` 或 `Pending formal window output` 评审层。
+3. Booking 仍是唯一明确 `Still Blocked` 的域；`Finance Ops Admin` 域级文档已完整，但 `BO-004` 仍不能写成页面闭环完成。
+4. 03-09 `Frozen` 基线继续保持唯一冻结发布基线；当前新增文档停留在 `Ready` 评审层，当前 `Pending formal window output = 0`。
+5. 当前最准确的项目判断已经变成：`文档已闭环`、`工程未完全闭环`、`可进入真值修复开发`、`不可对 blocker scope 直接放量`。

@@ -99,9 +99,10 @@
 ## 6. 结论
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
 2. 当前最强阻断不在首页、交易、地址、签到等已冻结主链，而在 booking、member 缺页能力、reserved 规划能力和后台运营财务闭环。
-3. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口。
+3. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口；该能力当前可进入真值修复开发，但不可直接作为放量依据。
 4. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
 5. `BO-004` 已新增后台页面真值审查文档、独立 PRD、03-14 closure review、controller-only contract、SOP 与 runbook，当前单一结论是“仅接口闭环 + 页面真值待核”，不是“后台页面已完全闭环”。
+6. `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` 已把 `Booking / BO-004 / Member 缺页 / Reserved runtime` 的最终阻断口径统一固定为“可进入真值修复开发，不可直接放量”。
 
 ## 7. 主要依据
 - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
@@ -110,6 +111,7 @@
 - `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md`
 - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md`
 - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
+- `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
 - `yudao-mall-uniapp/pages.json`
 - `yudao-mall-uniapp/sheep/api/`
 - `ruoyi-vue-pro-master/**/controller/app/`

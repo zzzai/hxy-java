@@ -387,3 +387,29 @@
   - 03-14 Finance Ops Admin 的 A/B/C/D 文档已全部正式提交并纳入主索引。
   - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现，以及 `BO-004` 的独立后台页面文件与独立前端 API 文件仍未核出。
   - 未发生任何既有 Frozen 文档回退。
+
+## 29. 2026-03-14 Runtime Blocker Final Integration Batch（A）
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` | Ready | 固定“文档缺口 = 0、工程真值阻断仍在”的最终清单；只允许保留 Booking、BO-004、Member 缺页、Reserved runtime 四类阻断 |
+
+### 29.1 状态汇总（03-14 Runtime Blocker Final Integration Batch）
+- Frozen: 0
+- Ready: 1
+- Draft: 0
+
+## 30. Current Snapshot (2026-03-14)
+- 03-09 冻结基线保持不变：`39/39 Frozen`
+- 当前已交付准备态文档：`55 Ready`
+- 当前已登记待补文档：`0 Draft`
+- 当前已登记待正式窗口输出：`0 Pending formal window output`
+- 当前累计状态：
+  - Frozen: 39
+  - Ready: 55
+  - Draft: 0
+  - Pending formal window output: 0
+- 说明：
+  - 03-14 Runtime Blocker Final Integration 已新增并纳入主索引，当前“缺文档”问题已经清零。
+  - 当前剩余问题已完全收敛为工程真值阻断：Booking 域级阻断、BO-004 能力级阻断、Member 缺页能力误升风险、Reserved runtime 未实现误升风险。
+  - 未发生任何既有 Frozen 文档回退。
