@@ -40,6 +40,41 @@
   - `GET /booking/commission/config/list`
   - `POST /booking/commission/config/save`
   - `DELETE /booking/commission/config/delete`
+- 权限键真值：
+  - 查询类：`booking:commission:query`
+  - 结算类：`booking:commission:settle`
+  - 配置类：`booking:commission:config`
+- 接口字段真值补充：
+  - `GET /booking/commission/list-by-technician`
+    - query：`technicianId`
+    - response：`list[]:{id,technicianId,orderId,orderItemId,serviceOrderId,userId,storeId,commissionType,baseAmount,commissionRate,commissionAmount,status,sourceBizNo,settlementId,settlementTime,createTime}`
+    - 空列表 `[]` 合法
+  - `GET /booking/commission/list-by-order`
+    - query：`orderId`
+    - response：同 `TechnicianCommissionRespVO`
+    - 空列表 `[]` 合法
+  - `GET /booking/commission/pending-amount`
+    - query：`technicianId`
+    - response：`Integer`
+    - `0` 金额合法
+  - `POST /booking/commission/settle`
+    - query：`commissionId`
+    - response：`true`
+    - 当前 service 对不存在或非待结算记录静默返回，不形成稳定 admin 专属错误码
+  - `POST /booking/commission/batch-settle`
+    - query：`technicianId`
+    - response：`true`
+    - 待结算列表为空时当前仍返回 `true`
+  - `GET /booking/commission/config/list`
+    - query：`storeId`
+    - response：`list[]:{id,storeId,commissionType,rate,fixedAmount,createTime,updateTime,creator,updater,deleted}`
+    - 空列表 `[]` 合法
+  - `POST /booking/commission/config/save`
+    - body：`{id?,storeId,commissionType,rate,fixedAmount?}`
+    - response：`true`
+  - `DELETE /booking/commission/config/delete`
+    - query：`id`
+    - response：`true`
 - 当前审查结论：接口真实存在，但在限定审查范围内没有找到与之直接绑定的后台页面文件或前端 API 文件。
 
 ### 4.2 `TechnicianCommissionSettlementController`
@@ -71,10 +106,10 @@
 | 打款 | `commission-settlement/index.vue` | `commissionSettlement.ts` | `TechnicianCommissionSettlementController` | `POST /booking/commission-settlement/pay` | 已闭环 |
 | 操作日志查看 | `commission-settlement/index.vue` | `commissionSettlement.ts` | `TechnicianCommissionSettlementController` | `GET /booking/commission-settlement/log-list` | 已闭环 |
 | 通知出站分页 / 重试 | `commission-settlement/outbox/index.vue` | `commissionSettlement.ts` | `TechnicianCommissionSettlementController` | `GET /booking/commission-settlement/notify-outbox-page`; `POST /booking/commission-settlement/notify-outbox-batch-retry` | 已闭环 |
-| 技师佣金明细 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/list-by-technician`; `GET /booking/commission/list-by-order` | 未闭环 |
-| 待结算金额 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/pending-amount` | 未闭环 |
-| 单条 / 批量结算 | `未核出` | `未核出` | `TechnicianCommissionController` | `POST /booking/commission/settle`; `POST /booking/commission/batch-settle` | 未闭环 |
-| 门店佣金配置 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/config/list`; `POST /booking/commission/config/save`; `DELETE /booking/commission/config/delete` | 未闭环 |
+| 技师佣金明细 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/list-by-technician?technicianId`; `GET /booking/commission/list-by-order?orderId`；response 为 `TechnicianCommissionRespVO[]` | 未闭环 |
+| 待结算金额 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/pending-amount?technicianId`；response=`Integer`，`0` 合法 | 未闭环 |
+| 单条 / 批量结算 | `未核出` | `未核出` | `TechnicianCommissionController` | `POST /booking/commission/settle?commissionId`; `POST /booking/commission/batch-settle?technicianId`；response=`true` | 未闭环 |
+| 门店佣金配置 | `未核出` | `未核出` | `TechnicianCommissionController` | `GET /booking/commission/config/list?storeId`; `POST /booking/commission/config/save(body:{id?,storeId,commissionType,rate,fixedAmount?})`; `DELETE /booking/commission/config/delete?id` | 未闭环 |
 
 ## 6. 对 BO-003 / BO-004 的单一真值判断
 
