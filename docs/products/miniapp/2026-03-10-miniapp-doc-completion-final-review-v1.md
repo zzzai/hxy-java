@@ -4,7 +4,7 @@
 - 目标：对当前分支 03-10/03-11/03-12 已正式提交的文档做终审，给出 `Draft / Ready / Frozen Candidate / Still Blocked` 判定，并形成后续开发前的单一真值结论。
 - 评审边界：
   - 03-09 `Frozen` 基线绝不回退。
-  - 只吸收当前分支真实存在且已正式提交的文档；未正式提交的 03-12 B/C/D 目标文档只能登记为 `Pending formal window output`。
+  - 只吸收当前分支真实存在且已正式提交的文档；未正式提交的目标文档只能登记为 `Pending formal window output`，本次 03-12 `BF-027` 独立文档已正式提交，可纳入 `Ready`。
   - 业务代码、overlay 页面、原型 alias route 不进入本次判定真值。
 
 ## 2. 状态定义
@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|
 | Member | Ready | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-page-api-field-dictionary-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-user-facing-errorcopy-v1.md`; `docs/contracts/2026-03-10-miniapp-member-domain-contract-v1.md`; `docs/contracts/2026-03-10-miniapp-active-vs-planned-api-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md`; `docs/plans/2026-03-10-miniapp-active-planned-gate-runbook-v1.md`; `docs/plans/2026-03-10-miniapp-member-domain-sla-routing-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md`; `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md` | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 仍无真实页面；`/member/asset-ledger/page` 仍是 `PLANNED_RESERVED` | A/B/C/D | 页面真实落地，route truth 全部回填到 PRD/contract，且资产总账接口形成真实 controller + 前端承接 |
 | Booking | Still Blocked | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`; `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`; `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md` | `GET /booking/technician/list-by-store`、`GET /booking/time-slot/list`、`PUT /booking/order/cancel`、`POST /booking/addon/create` 与后端真实 controller 不一致 | A/C | 前后端 method/path 真正收口，且旧 path 从联调与发布口径中移除后再重审 |
-| Content / Customer Service | Ready | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md（Pending formal window output）`; `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md（Pending formal window output）`; `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md（Pending formal window output）`; `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md（Pending formal window output）` | 当前 active scope 只到聊天、文章正文、FAQ 壳跳转、DIY 模板/自定义页；文章列表/分类/浏览量回写/已读回写仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED`，且 03-12 独立文档仍待 B/C/D 正式提交 | A/B/C/D | 若要进入 Frozen Candidate，需先确认内容域当前 scope 是否允许冻结到 Ready 集之外，并等待 03-12 独立 list/category/writeback 文档正式提交 |
+| Content / Customer Service | Ready | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-sop-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`; `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md`; `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` | 当前 active scope 只到聊天、文章正文、FAQ 壳跳转、DIY 模板/自定义页；文章列表/分类/浏览量回写/已读回写虽已完成独立文档拆分，但当前仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED` | A/B/C/D | 若要进入 Frozen Candidate，需先确认内容域当前 scope 是否允许冻结到 Ready 集之外，并继续守住 BF-026 / BF-027 的真值分层 |
 | Brokerage | Ready | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md`; `docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md`; `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | 申请页、申诉页、撤回/取消提现页仍是缺页能力；当前 doc pack 只冻结真实八个页面与辅助 API | A/B/C/D | 若要进入 Frozen Candidate，需先确认分销域是否纳入当前发布范围，并保持缺页能力不被误升为 Active |
 | Product / Search / Catalog | Ready | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md`; `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`; `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | `search-lite` 与 `search-canonical` 已拆清，但 canonical search / catalog version guard 仍是 `BLOCKED`；评论/收藏/足迹链路保持 `PLANNED_RESERVED` | A/B/C/D | 若要进入 Frozen Candidate，需先确认现网 scope 是否只冻结 lite/browse/detail，或同步调整 capability ledger |
 | Marketing Expansion | Ready | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | 秒杀/拼团/满减送虽有真实页面与接口，但 contract 仍明确整域不直接升 `ACTIVE`；砍价仍是 `ACTIVE_BE_ONLY` | A/B/C/D | 若要进入 Frozen Candidate，需先确认营销扩展是否进入当前发布口径，而非继续停留在 `PLANNED_RESERVED` |
@@ -50,25 +50,25 @@
    - Reserved Activation 只有治理闭环，没有 runtime 闭环。
 
 ## 6. 文档级状态汇总
-- 当前分支正式提交文档：`45 Ready`
+- 当前分支正式提交文档：`49 Ready`
 - 当前分支待补正式文档：`0 Draft`
-- 当前分支待正式窗口输出：`4 Pending formal window output`
+- 当前分支待正式窗口输出：`0 Pending formal window output`
 - 额外说明：
   - `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 已在当前分支补充 content / brokerage / catalog / marketing 相关错误码锚点。
   - `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` 与 `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` 已补齐 brokerage / product 独立 SOP。
   - `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`、`docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md`、`docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` 已把 booking/member/reserved 的 blocker 收口成可执行退出条件。
   - `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md` 已把 `BO-004` 固定为“仅接口闭环 + 页面真值待核”。
-  - 03-12 `content article list/category/writeback` 四份 B/C/D 目标文档在当前分支尚未正式提交，只能登记为 `Pending formal window output`。
+  - `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`、`docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`、`docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md`、`docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` 已正式提交，BF-027 独立文档包已进入 `Ready`。
   - 上述增量都属于 Ready 输入，不构成 03-09 Frozen 基线回退。
 
 ## 7. “先文档后开发”的最新执行顺序
 1. A 已完成 03-10 B/C/D 文档整合集成与终审，并在 03-11 补齐 blocker checklist；03-12 已补 Finance Ops Admin truth review。
-2. 下一步优先关闭 booking 真值漂移、member 缺页能力边界、reserved runtime 缺项，以及 `content article list/category/writeback` 的 03-12 待正式窗口输出。
+2. 下一步优先关闭 booking 真值漂移、member 缺页能力边界、reserved runtime 缺项，并继续守住 BF-027 独立文档拆分后的 content scope 边界。
 3. 仅在 capability ledger、release decision、freeze review 与 03-11 blocker checklist 重新评估后，才决定是否出现首批 `Frozen Candidate`。
 4. 再之后才允许把对应域从“文档完备”推进到“开发或放量”。
 
 ## 8. 最终结论
-1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `45 Ready / 0 Draft / 4 Pending formal window output`。
+1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `49 Ready / 0 Draft / 0 Pending formal window output`。
 2. 当前剩余问题主要来自冻结边界和 runtime scope 管理，而不是大面积 PRD 空白。
 3. Booking 仍是唯一明确 `Still Blocked` 的域；`Finance Ops Admin` 已进入 A 侧 Ready 审查，但 `BO-004` 仍不能写成页面闭环完成。
-4. 03-09 `Frozen` 基线继续保持唯一冻结发布基线；当前新增文档全部停留在 `Ready` 或 `Pending formal window output` 评审层。
+4. 03-09 `Frozen` 基线继续保持唯一冻结发布基线；当前新增文档全部停留在 `Ready` 评审层。

@@ -301,28 +301,29 @@
 - Ready: 1
 - Draft: 0
 
-## 22. 2026-03-12 Pending Formal Window Output Register
+## 22. 2026-03-12 Content Article List / Category / Writeback Batch（B/C/D）
 
 | 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
 |---|---|---|---|---|---|
-| 1 | P0 | B | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
-| 2 | P0 | C | `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
-| 3 | P0 | D | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
-| 4 | P0 | D | `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
+| 1 | P0 | B | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | Ready | 将 BF-027 从混合 content/customer-service PRD 中拆成独立产品真值 |
+| 2 | P0 | C | `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md` | Ready | 将 BF-027 五个真实接口拆成独立 contract，并把错误码锚点收口到真实范围 |
+| 3 | P0 | D | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md` | Ready | 固化 BF-027 空态、写回失败、客服话术与前台边界 |
+| 4 | P0 | D | `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` | Ready | 固化 BF-027 监控、告警、放量、回滚与合法空态判定 |
 
-### 22.1 状态汇总（03-12 Pending Formal Window Output Register）
-- Pending formal window output: 4
+### 22.1 状态汇总（03-12 Content Article List / Category / Writeback Batch）
+- Frozen: 0
+- Ready: 4
+- Draft: 0
 
 ## 23. Current Snapshot (2026-03-12)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`45 Ready`
+- 当前已交付准备态文档：`49 Ready`
 - 当前已登记待补文档：`0 Draft`
-- 当前已登记待正式窗口输出：`4 Pending formal window output`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 45
+  - Ready: 49
   - Draft: 0
 - 说明：
-  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD、core trade / pay / after-sale 三份独立 PRD、technician-feed 独立 PRD，以及 `BO-004` 后台页面真值审查。
-  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现、`BF-027` 独立 03-12 文档待正式窗口输出，以及 `BO-004` 仍仅接口闭环。
+  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD、core trade / pay / after-sale 三份独立 PRD、technician-feed 独立 PRD、`BO-004` 后台页面真值审查，以及 BF-027 独立 PRD / contract / SOP / runbook。
+  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现，以及 `BO-004` 仍仅接口闭环。
   - 未发生任何既有 Frozen 文档回退。

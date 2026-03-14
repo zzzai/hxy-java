@@ -31,7 +31,7 @@
 | Coupon / Point / Home-Growth Core | Frozen | 领券、券列表/详情、积分商城、首页增长基线 | Full | Full | Full | Full | Full | Full | 93 | `miniapp.home.context-check` 仍是门禁能力，不能与已上线入口混写 | P1 |
 | Member Account & Assets | Ready | 登录/注册、个人资料、地址、钱包、积分、签到；等级/资产总览/标签为保留边界 | Full | Full | Full | Full | Full | Full | 94 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 缺页；`/member/asset-ledger/page` 仍是 `PLANNED_RESERVED` | P0 |
 | Booking & Technician Service | Still Blocked | 预约列表/详情、技师详情查询为当前真值；创建/取消/加钟仍阻断 | Full | Full | Full | Full | Full | Full | 92 | FE/BE `method + path` 漂移未清除；旧路径仍可能被误放进 allowlist | P0 |
-| Content / DIY / Customer Service | Ready | DIY 模板/自定义页已可执行；聊天、文章正文、FAQ 壳页、WebView 已有正式文档边界 | Full | Full | Full | Full | Full | Full | 91 | FAQ 只是壳页；聊天发送失败必须 fail-close；文章列表/分类/已读回写仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED`；03-12 独立 list/category/writeback 文档仍是 `Pending formal window output` | P0 |
+| Content / DIY / Customer Service | Ready | DIY 模板/自定义页已可执行；聊天、文章正文、FAQ 壳页、WebView 已有正式文档边界 | Full | Full | Full | Full | Full | Full | 94 | FAQ 只是壳页；聊天发送失败必须 fail-close；BF-027 独立文档已落盘，但文章列表/分类/已读回写仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED` | P1 |
 | Brokerage / Distribution | Ready | 分销中心、钱包、提现、团队、排行、推广订单、推广商品均已形成正式文档边界 | Full | Full | Full | Full | Full | Full | 95 | 申诉/撤回/取消提现仍缺页；`brokerageOrderCount` 与前端 `item.orderCount` 存在字段对齐风险 | P1 |
 | Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
 | Marketing Expansion | Ready | 秒杀、拼团、满减送、商品营销聚合已形成正式文档；整域仍按 `PLANNED_RESERVED` 管理 | Full | Full | Full | Full | Full | Full | 89 | `type=2 bargain` 只能隐藏或忽略；砍价仍无 FE route/API 绑定；整域不能因页面可访问就记为 `ACTIVE` | P1 |
@@ -89,7 +89,7 @@
    - `docs/products/miniapp/2026-03-12-miniapp-after-sale-refund-prd-v1.md`
    - `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md`
    - `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md`
-2. 03-12 当前仍未正式提交、只能登记为 `Pending formal window output` 的文档：
+2. B/C/D 侧已正式补齐 BF-027 独立文档包：
    - `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`
    - `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`
    - `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md`
@@ -108,9 +108,9 @@
 4. `03-10 Ready 域 capability scope 继续收口`
    - content / brokerage / product / marketing 继续按 contract 明示的 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 管理。
    - 解除条件：A 侧 capability ledger、freeze review、release decision 一致升级，而不是单点误升。
-5. `Content article list/category/writeback 独立文档正式提交`
-   - 当前只能按 03-10 content doc 的混合边界执行。
-   - 解除条件：B/C/D 的 03-12 独立 PRD/contract/SOP/runbook 全部正式提交并回填主索引。
+5. `Finance Ops Admin 页面真值继续收口`
+   - 当前 `BO-004` 仍只有 controller 接口真值，没有独立后台页面文件和独立 API 文件证据。
+   - 解除条件：独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据全部核出。
 
 ## 6. P1 收口顺序
 1. `Alias route 持续清理`
@@ -136,8 +136,8 @@
 | Finance Ops Admin | Ready | A 侧 PRD 与 truth review 已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
 
 ## 8. 结论
-1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 45`，`Draft = 0`，另有 `4 Pending formal window output`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 49`，`Draft = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
 4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review 也只固定“接口闭环不等于页面闭环”。
-5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved、content list/category/writeback，以及 finance-ops admin mixed-scope 的边界继续守住。
+5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
