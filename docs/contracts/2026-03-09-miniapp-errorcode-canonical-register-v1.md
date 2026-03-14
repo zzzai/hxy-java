@@ -70,6 +70,7 @@
 | 1013014001 | BARGAIN_HELP_CREATE_FAIL_RECORD_SELF | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户尝试给自己的砍价记录助力 | 停止当前操作并提示分享给好友 | 营销负责人确认自助力守卫持续生效 | 已生效 | - |
 | 1013014002 | BARGAIN_HELP_CREATE_FAIL_LIMIT | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户已达到当前活动助力上限 | 停止重试，改为等待他人助力 | 营销负责人核验助力限次配置 | 已生效 | - |
 | 1013014004 | BARGAIN_HELP_CREATE_FAIL_HELP_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 用户已为当前记录助力过 | 刷新助力列表，不重复提交 | 营销负责人排查助力幂等与分享链路重复点击 | 已生效 | - |
+| 1013016000 | ARTICLE_NOT_EXISTS | promotion/content | ACTIVE | FAIL_OPEN | P2 | NO_AUTO_RETRY | 文章浏览量回写时目标文章不存在 | 忽略统计回写失败，继续阅读正文；不自动重试 | 内容域核验文章上下架状态与 browse-count 入参来源 | 已生效 | - |
 | 1013019000 | KEFU_CONVERSATION_NOT_EXISTS | promotion | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 标记已读或拉取会话时会话不存在 | 刷新会话列表并重新进入会话 | 客服域核验会话建链与清理策略 | 已生效 | - |
 | 1030001000 | TECHNICIAN_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 技师不存在 | 更换技师 | 预约域核验技师数据 | 已生效 | - |
 | 1030001001 | TECHNICIAN_DISABLED | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 技师已禁用 | 更换技师 | 预约域核验启停状态 | 已生效 | - |
