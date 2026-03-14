@@ -7,6 +7,7 @@
   - 不接受 wildcard API、`TBD_*`、基于返回文案的分支判断。
   - 前端未绑定但后端已存在的接口显式记为 `ACTIVE_BE_ONLY`。
   - 旧路径一旦和真实 controller 不一致，固定记为 `BLOCKED`，不得模糊表述。
+  - `Doc Closed / Contract Closed` 只代表文档与契约口径冻结；旧 path 仍是 runtime 阻断，不因文档完整而消失。
 - 真值输入：
   - 前端 API：`yudao-mall-uniapp/sheep/api/trade/booking.js`
   - 后端 controller：
@@ -18,6 +19,7 @@
     - `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`
     - `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
     - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
+    - `docs/contracts/2026-03-14-miniapp-runtime-blocker-contract-closure-v1.md`
 
 ## 2. 状态定义
 - `ACTIVE`：当前前端调用方与真实 controller `method + path` 一致，且允许进入当前发布口径。
@@ -54,14 +56,28 @@
 
 ## 5. 明确禁止进入 `ACTIVE` 的旧路径
 
-| legacy method + path | 当前前端调用方 | canonical 替代 | 状态 | 阻断原因 | 发布口径 |
-|---|---|---|---|---|---|
-| `GET /booking/technician/list-by-store` | `BookingApi.getTechnicianList` | `GET /booking/technician/list` | `BLOCKED` | 后端 app controller 不存在该 path | 不得进入 allowlist、网关转发白名单或 frozen API 清单 |
-| `GET /booking/time-slot/list` | `BookingApi.getTimeSlots` | `GET /booking/slot/list-by-technician` | `BLOCKED` | path 与语义均漂移；真实 controller 在 `/booking/slot/*` | 不得进入 `ACTIVE`，不得在 FE/PRD 中继续作为时段真值 |
-| `PUT /booking/order/cancel` | `BookingApi.cancelOrder` | `POST /booking/order/cancel` | `BLOCKED` | method、参数承载方式、字段名均不一致 | 任何 cancel 联调、网关签名、缓存策略都只能按 `POST` 版本执行 |
-| `POST /booking/addon/create` | `BookingApi.createAddonOrder` | `POST /app-api/booking/addon/create` | `BLOCKED` | 缺少 `/app-api` 前缀，无法定位真实 controller | add-on 能力在前端改绑前一律不得记为已上线 |
+| legacy method + path | 当前前端调用方 | canonical 替代 | 状态 | 阻断原因 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked | 发布口径 |
+|---|---|---|---|---|---|---|---|---|---|
+| `GET /booking/technician/list-by-store` | `BookingApi.getTechnicianList` | `GET /booking/technician/list` | `BLOCKED` | 后端 app controller 不存在该 path | `Yes` | `Yes` | `Yes` | `Yes` | 不得进入 allowlist、网关转发白名单或 frozen API 清单 |
+| `GET /booking/time-slot/list` | `BookingApi.getTimeSlots` | `GET /booking/slot/list-by-technician` | `BLOCKED` | path 与语义均漂移；真实 controller 在 `/booking/slot/*` | `Yes` | `Yes` | `Yes` | `Yes` | 不得进入 `ACTIVE`，不得在 FE/PRD 中继续作为时段真值 |
+| `PUT /booking/order/cancel` | `BookingApi.cancelOrder` | `POST /booking/order/cancel` | `BLOCKED` | method、参数承载方式、字段名均不一致 | `Yes` | `Yes` | `Yes` | `Yes` | 任何 cancel 联调、网关签名、缓存策略都只能按 `POST` 版本执行 |
+| `POST /booking/addon/create` | `BookingApi.createAddonOrder` | `POST /app-api/booking/addon/create` | `BLOCKED` | 缺少 `/app-api` 前缀，无法定位真实 controller | `Yes` | `Yes` | `Yes` | `Yes` | add-on 能力在前端改绑前一律不得记为已上线 |
 
-## 6. Booking 链路 canonical 结论
+## 6. 03-14 Runtime Blocker Closure Ledger
+
+| 阻断能力 | canonical contract | 当前真实阻断证据 | 不得误升的能力口径 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
+|---|---|---|---|---|---|---|---|
+| `booking.technician-select` | `GET /booking/technician/list` | FE 仍调用 `GET /booking/technician/list-by-store`；真实 controller 仅有 `GET /booking/technician/list` | `/pages/booking/technician-list` 不得写成已闭环或 `ACTIVE` | `Yes` | `Yes` | `Yes` | `Yes` |
+| `booking.slot-select` | `GET /booking/slot/list-by-technician` | FE 仍调用 `GET /booking/time-slot/list`；真实时段 controller 在 `/booking/slot/*` | `/pages/booking/technician-detail` 的时段选择不得写成已闭环或 `ACTIVE` | `Yes` | `Yes` | `Yes` | `Yes` |
+| `booking.create-chain` | `GET /booking/technician/list` + `GET /booking/slot/list-by-technician` + `POST /booking/order/create` | `POST /booking/order/create` 本身已对齐，但上游技师列表/时段列表仍卡在 legacy path | `booking.create` 不得因为 create 接口单点对齐就升为 `ACTIVE` | `Yes` | `Yes` | `Yes` | `Yes` |
+| `booking.cancel` | `POST /booking/order/cancel` + query:`id`,`reason?` | FE 仍走 `PUT /booking/order/cancel` + body:`id`,`cancelReason` | `/pages/booking/order-list`、`/pages/booking/order-detail` 的取消能力不得升 `ACTIVE` | `Yes` | `Yes` | `Yes` | `Yes` |
+| `booking.addon` | `POST /app-api/booking/addon/create` | FE 仍走 `POST /booking/addon/create`，缺少 `/app-api` 前缀 | `/pages/booking/addon` 不得写成已上线或放量中 | `Yes` | `Yes` | `Yes` | `Yes` |
+
+说明：
+- `GET /booking/order/get`、`GET /booking/order/list` 这类查询接口仍按本文件第 4 节维持 `ACTIVE`，不属于本批 runtime blocker。
+- 旧 path 阻断项继续保留在第 5 节，后续文档不能因为“contract 已写清”而删除这些阻断条目。
+
+## 7. Booking 链路 canonical 结论
 1. `technician list`
    - canonical：`GET /booking/technician/list`
    - 结论：当前 FE 旧 path 被 `BLOCKED`，因此整条技师选择链路仍是 `PLANNED_RESERVED`
@@ -84,8 +100,10 @@
 7. `get-by-order-no`
    - canonical：`GET /booking/order/get-by-order-no`
    - 结论：真实后端存在但当前 FE 未绑定，状态固定为 `ACTIVE_BE_ONLY`
+8. `03-14 blocker closure`
+   - 结论：`Booking` 的 legacy path 阻断项只算 `Doc Closed / Contract Closed`，不算 runtime 已证实；开发与放量仍继续阻断。
 
-## 7. 跨窗口联调约束
+## 8. 跨窗口联调约束
 - 只按 `errorCode` 分支，不按返回文案分支。
 - `cancelOrder` 字段冲突必须显式处理：
   - FE 旧字段：`cancelReason`
@@ -98,3 +116,4 @@
   - `addonType=1(加钟)`：`parentOrderId + spuId + skuId`
   - `addonType=2(升级)`：`parentOrderId + skuId`
   - `addonType=3(加项目)`：`parentOrderId + spuId + skuId`
+- 旧 path 阻断项必须继续出现在联调清单、发布门禁和 freeze review 中，不得因本文件已完整描述而移除。

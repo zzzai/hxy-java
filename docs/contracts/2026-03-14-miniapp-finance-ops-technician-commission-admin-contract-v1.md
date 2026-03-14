@@ -6,6 +6,7 @@
   - 仅基于当前真实 controller、当前限定审查范围内的后台 API 文件、当前限定审查范围内的后台页面文件、已落盘文档判定。
   - 禁止把 `commission-settlement/index.vue`、`commission-settlement/outbox/index.vue`、`commissionSettlement.ts` 的绑定关系反推到 `/booking/commission/*`。
   - 如未核到稳定 admin 专属错误码，不得杜撰、影射或提前登记错误码。
+  - `controller` 存在不等于 runtime 已验证通过；`true` 返回也不等于真实生效。
 - 真值输入：
   - 后端 controller：
     - `ruoyi-vue-pro-master/yudao-module-mall/yudao-module-booking/src/main/java/com/hxy/module/booking/controller/admin/TechnicianCommissionController.java`
@@ -40,20 +41,30 @@
   - 不代表后台前端绑定已存在
   - 不代表 BO-004 已形成独立页面闭环
 
-## 3. Controller-Only Contract Matrix
+## 3. 03-14 Final Blocker Closure Ledger
+
+| 阻断项 | 当前固定真值 | 明确禁止的误写 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
+|---|---|---|---|---|---|---|
+| `/booking/commission/*` 只认 controller-only truth | 只核到 `TechnicianCommissionController`；未核到独立 admin page/API binding | 不能借 `commissionSettlement.ts` 或 `commission-settlement/*.vue` 给 BO-004 | `Yes` | `Yes` | `Yes` | `Yes` |
+| 查询空态语义 | `list-by-technician` / `list-by-order` / `config/list` 的 `[]` 合法；`pending-amount=0` 合法 | 不能把 `[]` / `0` 写成错误、降级或阻断态 | `Yes` | `Yes` | `Yes` | `Yes` |
+| 写接口 `true` 语义 | `settle` / `batch-settle` / `config/save` / `config/delete` 当前都不能写成稳定 fail-close | 不能把 `true` 直接写成“真实生效已证实” | `Yes` | `Yes` | `Yes` | `Yes` |
+| admin 错误码锚点 | 当前无稳定 admin 专属错误码锚点；`1030007000/1030007001` 无真实对外暴露证据 | 不能把 `COMMISSION_NOT_EXISTS`、`COMMISSION_ALREADY_SETTLED` 写进稳定 contract 锚点或 canonical register | `Yes` | `Yes` | `Yes` | `Yes` |
+| 降级字段锚点 | 当前无服务端 `degraded=true / degradeReason` 证据 | 不能把 BO-004 写成已有稳定降级协议 | `Yes` | `Yes` | `Yes` | `Yes` |
+
+## 4. Controller-Only Contract Matrix
 
 | 场景 | method + path | permissionKey | request/query/body 真值 | response 字段真值 | 合法空态/成功态 | fail-close 判定 | 错误码证据 | 说明 |
 |---|---|---|---|---|---|---|---|---|
 | 获取技师佣金列表 | `GET /booking/commission/list-by-technician` | `booking:commission:query` | query:`technicianId(Long, required)` | `list[]:{id,technicianId,orderId,orderItemId,serviceOrderId,userId,storeId,commissionType,baseAmount,commissionRate,commissionAmount,status,sourceBizNo,settlementId,settlementTime,createTime}` | 空列表 `[]` 合法；无分页；按 `createTime DESC` 返回 | 否。查询空列表不阻断 | 当前未核到稳定 admin 专属错误码 | 真实返回类型是 `List<TechnicianCommissionRespVO>` |
 | 获取订单佣金记录 | `GET /booking/commission/list-by-order` | `booking:commission:query` | query:`orderId(Long, required)` | `list[]:{id,technicianId,orderId,orderItemId,serviceOrderId,userId,storeId,commissionType,baseAmount,commissionRate,commissionAmount,status,sourceBizNo,settlementId,settlementTime,createTime}` | 空列表 `[]` 合法；无分页；当前 mapper 未显式排序 | 否。查询空列表不阻断 | 当前未核到稳定 admin 专属错误码 | 真实返回类型是 `List<TechnicianCommissionRespVO>` |
-| 获取技师待结算佣金总额 | `GET /booking/commission/pending-amount` | `booking:commission:query` | query:`technicianId(Long, required)` | `Integer pendingAmount` | `0` 为合法返回；表示当前没有待结算金额 | 否。`0` 不应被解释为异常 | 当前未核到稳定 admin 专属错误码 | service 以待结算列表求和，`commissionAmount=null` 按 `0` 累加 |
+| 获取技师待结算佣金总额 | `GET /booking/commission/pending-amount` | `booking:commission:query` | query:`technicianId(Long, required)` | `Integer pendingAmount` | `0` 为合法返回；表示当前没有待结算金额 | 否。`0` 不应被解释为异常 | 当前未核到稳定 admin 专属错误码 | service 以待结算列表求和，`commissionAmount=null` 按 `0` 累加；`0` 不是降级字段替代品 |
 | 结算单条佣金 | `POST /booking/commission/settle` | `booking:commission:settle` | query:`commissionId(Long, required)` | `true` | `true` 是唯一成功体 | 否。当前 controller/service 对“不存在记录”或“非待结算状态”不会报业务错，而是静默返回 `true` | 当前未核到稳定 admin 专属错误码 | 不能把该接口写成稳定 fail-close；底层运行时异常除外 |
 | 按技师批量结算 | `POST /booking/commission/batch-settle` | `booking:commission:settle` | query:`technicianId(Long, required)` | `true` | `true` 是唯一成功体；无待结算记录时仍返回 `true` | 否。当前无待结算列表时静默成功 | 当前未核到稳定 admin 专属错误码 | 不能把“批量结算 0 条”写成错误 |
 | 获取门店佣金配置列表 | `GET /booking/commission/config/list` | `booking:commission:query` | query:`storeId(Long, required)` | `list[]:{id,storeId,commissionType,rate,fixedAmount,createTime,updateTime,creator,updater,deleted}` | 空列表 `[]` 合法 | 否。查询空列表不阻断 | 当前未核到稳定 admin 专属错误码 | controller 直接返回 `List<TechnicianCommissionConfigDO>` |
 | 保存门店佣金配置 | `POST /booking/commission/config/save` | `booking:commission:config` | body(JSON):`id?`,`storeId(Long, required)`,`commissionType(Integer, required)`,`rate(BigDecimal, required)`,`fixedAmount(Integer, optional)` | `true` | `true` 是唯一成功体 | 否。缺少必填字段会被 `@Valid` 阻断，但更新不存在 `id` 当前不会显式报业务错 | 当前未核到稳定 admin 专属错误码 | `id=null` 走 insert；`id!=null` 走 updateById |
 | 删除门店佣金配置 | `DELETE /booking/commission/config/delete` | `booking:commission:config` | query:`id(Long, required)` | `true` | `true` 是唯一成功体 | 否。当前 `deleteById` 未校验删除行数 | 当前未核到稳定 admin 专属错误码 | 删除不存在 `id` 也不形成稳定业务错误锚点 |
 
-## 4. 空态、金额与写操作语义
+## 5. 空态、金额与写操作语义
 - 合法空态：
   - `GET /booking/commission/list-by-technician` -> `[]`
   - `GET /booking/commission/list-by-order` -> `[]`
@@ -74,8 +85,11 @@
   - `DELETE /booking/commission/config/delete`
     - 当前不是稳定 fail-close
     - `id` 不存在时未见 controller/service 显式报错
+- 结论：
+  - `true` 只表示当前请求路径返回成功包，不等于“记录已真实变更并被后续 runtime 证据确认”。
+  - BO-004 当前验收口径只能是 `controller-only contract`，不能写成“runtime 已稳定验证通过”。
 
-## 5. 错误码证据结论
+## 6. 错误码证据结论
 - 当前未核到稳定 admin 专属错误码。
 - 虽然 `com.hxy.module.booking.enums.ErrorCodeConstants` 定义了：
   - `COMMISSION_NOT_EXISTS(1030007000)`
@@ -86,7 +100,7 @@
   - `batchSettleByTechnician` 对空列表直接完成
 - 因此本 contract 不把这些错误码登记为 BO-004 的稳定 contract 锚点，也不更新 canonical error register。
 
-## 6. 与 `commission-settlement` 契约的拆分边界
+## 7. 与 `commission-settlement` 契约的拆分边界
 - 本文只覆盖 `TechnicianCommissionController`：
   - `/booking/commission/*`
 - 本文不覆盖 `TechnicianCommissionSettlementController`：
@@ -96,7 +110,7 @@
   - 不能因为 `commission-settlement/index.vue` 已闭环，就写成 BO-004 页面也已闭环
   - 不能把 BO-003 的审批、打款、通知出站字段映射复用为 BO-004 contract 真值
 
-## 7. 对主台账 / 联调的固定口径
+## 8. 对主台账 / 联调的固定口径
 - BO-004 当前只能写成：
   - `TechnicianCommissionController` 接口真实存在
   - admin page/API binding 未核出
@@ -104,3 +118,6 @@
 - 在后续独立页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据全部核出前：
   - 不得把 BO-004 改写成“后台页面闭环完成”
   - 不得把 `commission-settlement` 的绑定证据借给 BO-004
+  - 不得把 `settle / batch-settle / config/save / config/delete` 写成稳定 fail-close
+  - 不得把 `COMMISSION_NOT_EXISTS(1030007000)`、`COMMISSION_ALREADY_SETTLED(1030007001)` 写成稳定 contract 锚点
+  - 不得把“controller 存在”写成“runtime 已验证通过”

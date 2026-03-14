@@ -7,6 +7,7 @@
   - 未注册错误码禁止对外返回。
   - `RESERVED_DISABLED` 错误码必须满足“开关 on + 命中灰度范围”才允许返回。
   - 所有错误码必须显式声明 `failureMode`（`FAIL_OPEN` 或 `FAIL_CLOSE`）。
+  - 模块常量、治理文档或 switch 存在，不等于 canonical register 自动生效，也不等于对应 runtime capability 已上线。
 
 ## 2. 分类定义
 - `FAIL_CLOSE`：业务冲突/资金一致性/库存冲突/状态非法，必须阻断。
@@ -92,6 +93,15 @@
 | 1013009902 | REFERRAL_REWARD_LEDGER_MISMATCH | promotion/member | RESERVED_DISABLED | FAIL_OPEN | P1 | BG_RETRY_JOB | 邀请奖励账本不一致 | 展示到账处理中 | 若禁用态返回，立即回滚并开 P1 | `miniapp.referral=on` 且对账灰度开启 | 默认禁用 |
 | 1030009901 | TECHNICIAN_FEED_AUDIT_BLOCKED | booking/content | RESERVED_DISABLED | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 技师动态审核阻断 | 内容不可见并提示审核中 | 若禁用态返回，立即回滚并开 P1 | `miniapp.technician-feed.audit=on` 且命中灰度 | 默认禁用 |
 
+## 3.1 2026-03-14 BO-004 No-Add 说明
+- 本批未为 `BO-004 /booking/commission/*` 新增 canonical 错误码。
+- 原因固定为：
+  - 当前只核到 `TechnicianCommissionController` 的 controller-only contract，未核到独立 admin page/API binding，runtime capability 仍未证实。
+  - `COMMISSION_NOT_EXISTS(1030007000)`、`COMMISSION_ALREADY_SETTLED(1030007001)` 当前只存在于模块常量；在 `TechnicianCommissionController -> TechnicianCommissionServiceImpl` 的真实对外路径里，未核到稳定抛出与稳定暴露证据。
+  - `POST /booking/commission/settle`、`POST /booking/commission/batch-settle` 当前可能 `true` + no-op；这不足以形成稳定错误码锚点。
+  - 当前也没有该路径的服务端 `degraded=true / degradeReason` 证据。
+- 因此 canonical register 本批保持“不新增、不影射、不提前登记”的口径；若后续出现真实对外暴露证据，再另行评审是否登记。
+
 ## 4. 预留码段
 - Product：`1_008_099_001` ~ `1_008_099_099`
 - Member：`1_004_099_001` ~ `1_004_099_099`
@@ -133,4 +143,5 @@
   1. 契约冻结 + 回归用例覆盖（happy/error/degrade）
   2. 客服 SOP 与运营处置演练通过
   3. 灰度 `5% -> 20% -> 50% -> 100%` 无新增 P0
+- `RESERVED_DISABLED` 错误码被登记，只表示治理锚点已固定；若真实页面、真实 controller、真实前端绑定或运行样本缺失，对应 capability 仍继续 `PLANNED_RESERVED / Release Blocked`。
 - 任一 `RESERVED_DISABLED` 在禁用态返回：固定按 P1 处理。

@@ -8,6 +8,7 @@
 ## 2. 状态边界
 - `ACTIVE`：当前分支已有 controller 落地的接口。
 - `PLANNED_RESERVED`：仅保留精确预留接口，不得进入当前发布口径。
+- 本文件中的 `ACTIVE` 仅表示 API/controller truth；若真实 `pageRoute`、页面文件或页面入口缺失，仍不得外推为 `ACTIVE page capability`。
 - 本版不纳入范围的 auth 辅助接口：`GET /member/auth/social-auth-redirect`、`POST /member/auth/create-weixin-jsapi-signature`。
 
 ## 3. 契约明细
@@ -66,15 +67,29 @@
 |---|---|---|---|---|---|---|
 | `GET /member/asset-ledger/page` | `PLANNED_RESERVED` | `memberId`、`assetType?`、`pageNo`、`pageSize` | `list[]:{ledgerId,assetType,bizType,amount,balanceAfter,sourceBizNo,runId}`、`total`、`degraded`、`degradeReason?` | `USER_NOT_EXISTS(1004001000)`、`POINT_RECORD_BIZ_NOT_SUPPORT(1004008000)`、`COUPON_NOT_EXISTS(1013005000)`、`MINIAPP_ASSET_LEDGER_MISMATCH(1004009901, RESERVED_DISABLED)` | 主语义为 `FAIL_OPEN`：聚合口径不一致时返回局部账本 + `degraded=true`；会员身份无效仍 `FAIL_CLOSE` | 本接口仅为预留契约，受 `miniapp.asset.ledger` 保护；未落地 controller 前不得进入 `ACTIVE` 发布口径；响应字段只能增量追加，不得替换现有积分/券分页接口 |
 
-## 4. 跨接口兼容约束
+## 4. 缺页能力与 `ACTIVE page capability` 边界
+
+| 缺页能力 | 真实 pageRoute / 页面文件 | 仍可保留的 API/字段真值 | 明确禁止误写为 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
+|---|---|---|---|---|---|---|---|
+| 等级页 `/pages/user/level` | `N/A`；当前分支无 `pages/user/level.vue`，`pages.json` 也无入口 | `GET /member/level/list`、`GET /member/experience-record/page`；`list[]:{name,level,experience,discountPercent,icon,backgroundUrl}`、`list[]:{title,experience,description,createTime}`、`total` | “等级页已上线”“等级页是 `ACTIVE page capability`” | `Yes` | `Yes` | `Yes` | `Yes` |
+| 统一资产总账 `/pages/profile/assets` | `N/A`；当前分支无 `pages/profile/assets.vue`，`pages.json` 也无入口 | `GET /member/asset-ledger/page` 的预留契约；`list[]:{ledgerId,assetType,bizType,amount,balanceAfter,sourceBizNo,runId}`、`total`、`degraded`、`degradeReason?` | “资产总览页已上线”“资产总账字段已 runtime 生效” | `Yes` | `Yes` | `Yes` | `Yes` |
+| 标签页 `/pages/user/tag` | `N/A`；当前分支无 `pages/user/tag.vue`，也无 app 端读取 controller | `N/A`；当前没有稳定 app 标签读取字段真值 | “标签页已上线”“标签能力已有 app runtime contract” | `Yes` | `Yes` | `Yes` | `Yes` |
+
+说明：
+- `GET /member/level/list` 与 `GET /member/experience-record/page` 仍是 `ACTIVE API`，但只能写成 `API/controller truth`，不能借此宣称等级页 capability 已闭环。
+- `GET /member/asset-ledger/page` 的 `degraded/degradeReason` 仍是预留契约字段，不得被误写为当前已对外生效的稳定 runtime page 字段。
+
+## 5. 跨接口兼容约束
 - 错误驱动必须按数值码，不按 message 文本分支。
 - `PageResult` 结构固定为 `list[] + total`；不得在本版引入新的分页包装。
 - `CommonResult` 与 CRMEB 兼容包并存：
   - 标准会员接口使用 `CommonResult`.
   - `/api/front/wechat/authorize/program/login` 固定使用 `CrmebCompatResult`。
 - 任何 `PLANNED_RESERVED` 接口不得被前端当作已上线能力默认调用。
+- 任何缺页能力不得因 API 字段已落入 contract，就被统计为 `ACTIVE page capability`。
 
-## 5. 发布联调约束
+## 6. 发布联调约束
 - A 窗口：统一把登录态、`openid`、`degraded`、`errorCode` 当成显式字段，不得靠 message 猜测状态。
 - B 窗口：对地址 `null/[]`、签到 `0/0/false`、CRMEB `code=500` 三类返回必须有稳定 UI 分支。
 - D 窗口：门禁区分 `ACTIVE` 与 `PLANNED_RESERVED`；`/member/asset-ledger/page` 未落 controller 前一律阻断。
+- A/B/D 都不得把 `/member/level/list`、`/member/experience-record/page`、`/member/asset-ledger/page` 写成“已闭环页面能力”；这些只能按本文件第 4 节继续视为 blocked page capability。
