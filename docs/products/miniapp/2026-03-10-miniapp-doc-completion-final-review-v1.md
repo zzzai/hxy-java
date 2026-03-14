@@ -39,7 +39,7 @@
 | Product / Search / Catalog | Ready | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md`; `docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md`; `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | `search-lite` 与 `search-canonical` 已拆清，但 canonical search / catalog version guard 仍是 `BLOCKED`；评论/收藏/足迹链路保持 `PLANNED_RESERVED` | A/B/C/D | 若要进入 Frozen Candidate，需先确认现网 scope 是否只冻结 lite/browse/detail，或同步调整 capability ledger |
 | Marketing Expansion | Ready | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md`; `docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` | 秒杀/拼团/满减送虽有真实页面与接口，但 contract 仍明确整域不直接升 `ACTIVE`；砍价仍是 `ACTIVE_BE_ONLY` | A/B/C/D | 若要进入 Frozen Candidate，需先确认营销扩展是否进入当前发布口径，而非继续停留在 `PLANNED_RESERVED` |
 | Reserved Activation | Ready | `docs/products/miniapp/2026-03-09-miniapp-feature-priority-alignment-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-technician-feed-product-policy-v1.md`; `docs/contracts/2026-03-09-miniapp-reserved-disabled-gate-spec-v1.md`; `docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`; `docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`; `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md`; `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md`; `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` | gift/referral/feed 当前仍无真实 route/API/runtime 实现，治理文档不能替代实现闭环 | A/C/D | 仅当真实页面、真实 API、开关审批、灰度验证、误发布告警全部闭环时，才可评估下一轮 Frozen Candidate |
-| Finance Ops Admin | Ready | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md`; `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md（Pending formal window output）`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md（Pending formal window output）`; `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md（Pending formal window output）` | 四账对账、退款回调重放、结算审批页面真值已核出；`BO-004` 当前只有 `TechnicianCommissionController` 接口真值，且 03-14 C 侧 contract 已正式提交，但整体仍是“仅接口闭环 + 页面真值待核” | A/B/C/D | 仅当独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 绑定证据全部核出，且 03-14 独立 PRD 与 D 侧 SOP/runbook 正式提交后，才可改写 `BO-004` 为页面闭环 |
+| Finance Ops Admin | Ready | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`; `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`; `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md` | 四账对账、退款回调重放、结算审批页面真值已核出；`BO-004` 的独立 PRD / contract / SOP / runbook 均已正式提交，但整体仍只是“仅接口闭环 + 页面真值待核” | A/B/C/D | 仅当独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 绑定证据全部核出后，才可改写 `BO-004` 为页面闭环 |
 
 ## 5. 当前批次 Frozen Candidate 判定
 1. 当前结论：**本批新增 Frozen Candidate = 0**。
@@ -50,9 +50,9 @@
    - Reserved Activation 只有治理闭环，没有 runtime 闭环。
 
 ## 6. 文档级状态汇总
-- 当前分支正式提交文档：`51 Ready`
+- 当前分支正式提交文档：`54 Ready`
 - 当前分支待补正式文档：`0 Draft`
-- 当前分支待正式窗口输出：`3 Pending formal window output`
+- 当前分支待正式窗口输出：`0 Pending formal window output`
 - 额外说明：
   - `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md` 已在当前分支补充 content / brokerage / catalog / marketing 相关错误码锚点。
   - `docs/products/miniapp/2026-03-11-miniapp-brokerage-customer-service-sop-v1.md` 与 `docs/products/miniapp/2026-03-11-miniapp-product-catalog-customer-recovery-sop-v1.md` 已补齐 brokerage / product 独立 SOP。
@@ -61,17 +61,17 @@
   - `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md`、`docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`、`docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md`、`docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` 已正式提交，BF-027 独立文档包已进入 `Ready`。
   - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md` 已把 `BO-003 / BO-004` 的单一真值边界固定下来。
   - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md` 已正式提交，并把 `BO-004` 固定为 controller-only contract。
-  - 03-14 Finance Ops Admin 的 B 侧独立 PRD 与 D 侧 SOP/runbook 在当前分支尚未正式提交，只能登记为 `Pending formal window output`。
+  - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`、`docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`、`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md` 已正式提交，Finance Ops Admin 03-14 文档包已全部进入 `Ready`。
   - 上述增量都属于 Ready 输入，不构成 03-09 Frozen 基线回退。
 
 ## 7. “先文档后开发”的最新执行顺序
 1. A 已完成 03-10 B/C/D 文档整合集成与终审，并在 03-11 补齐 blocker checklist；03-12 已补 Finance Ops Admin truth review。
-2. 下一步优先关闭 booking 真值漂移、member 缺页能力边界、reserved runtime 缺项，并推动 Finance Ops Admin 的 03-14 独立 PRD 与 D 侧 SOP / runbook 正式提交。
+2. 下一步优先关闭 booking 真值漂移、member 缺页能力边界、reserved runtime 缺项，并继续核出 Finance Ops Admin `BO-004` 的独立后台页面文件与独立前端 API 文件。
 3. 仅在 capability ledger、release decision、freeze review 与 03-11 blocker checklist 重新评估后，才决定是否出现首批 `Frozen Candidate`。
 4. 再之后才允许把对应域从“文档完备”推进到“开发或放量”。
 
 ## 8. 最终结论
-1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `51 Ready / 0 Draft / 3 Pending formal window output`。
+1. 当前主干文档缺口已经收敛到“绝大多数核心文档已正式落盘”的状态，当前 `54 Ready / 0 Draft / 0 Pending formal window output`。
 2. 当前剩余问题主要来自冻结边界和 runtime scope 管理，而不是大面积 PRD 空白。
 3. Booking 仍是唯一明确 `Still Blocked` 的域；`Finance Ops Admin` 已进入 A 侧 Ready 审查，但 `BO-004` 仍不能写成页面闭环完成。
 4. 03-09 `Frozen` 基线继续保持唯一冻结发布基线；当前新增文档停留在 `Ready` 或 `Pending formal window output` 评审层。

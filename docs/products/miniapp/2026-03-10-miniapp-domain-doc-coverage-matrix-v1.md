@@ -36,7 +36,7 @@
 | Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
 | Marketing Expansion | Ready | 秒杀、拼团、满减送、商品营销聚合已形成正式文档；整域仍按 `PLANNED_RESERVED` 管理 | Full | Full | Full | Full | Full | Full | 89 | `type=2 bargain` 只能隐藏或忽略；砍价仍无 FE route/API 绑定；整域不能因页面可访问就记为 `ACTIVE` | P1 |
 | Reserved Expansion（Gift / Referral / Feed） | Ready | 激活 checklist、灰度验收、误发布处置与告警路由均已齐备 | Full | Full | Full | Full | Full | Full | 92 | 仍无真实页面、controller、运行样本；治理文档不能替代 runtime 闭环 | P0 |
-| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；`BO-004` 仅核到 controller 接口真值，且 03-14 controller-only contract 已提交 | Full | Full | Partial | Partial | Pending formal window output | Pending formal window output | 72 | `BO-004` 未核到独立后台页面文件和独立 API 文件；B 侧独立 PRD 尚缺，D 侧 SOP / runbook 未正式提交；当前只能记“仅接口闭环 + 页面真值待核” | P0 |
+| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；`BO-004` 独立 PRD / contract / SOP / runbook 已齐，但当前仍仅核到 controller 接口真值 | Full | Full | Partial | Partial | Full | Full | 86 | `BO-004` 未核到独立后台页面文件和独立 API 文件；写接口仍存在 `true` 但 no-op 风险，必须坚持写后回读 | P0 |
 
 ## 4. 域级判断与说明
 
@@ -96,11 +96,11 @@
    - `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md`
 3. 03-14 Finance Ops Admin 当前分支已正式补齐：
    - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md`
-   - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
-4. 03-14 Finance Ops Admin 仍待正式窗口输出：
    - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`
+   - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
    - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`
    - `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`
+4. 因此 03-14 Finance Ops Admin 当前不再存在 `Pending formal window output`，问题已从“待提交”切到“页面/API 真值仍未闭环”。
 
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
@@ -140,10 +140,10 @@
 | Product / Search / Catalog | Ready | 文档包完整，但 `search-lite`、canonical search、互动链路必须分层 |
 | Marketing Expansion | Ready | 文档包完整，但整域继续按 `PLANNED_RESERVED` 管理 |
 | Reserved Activation | Ready | 治理闭环完整，但 runtime 仍未闭环 |
-| Finance Ops Admin | Ready | A 侧 PRD / truth review 与 C 侧 controller-only contract 已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
+| Finance Ops Admin | Ready | A/B/C/D 文档包均已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
 
 ## 8. 结论
-1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 51`，`Draft = 0`，`Pending formal window output = 3`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 54`，`Draft = 0`，`Pending formal window output = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
 4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review 和 03-14 的 controller-only contract 也都只固定“接口闭环不等于页面闭环”。
