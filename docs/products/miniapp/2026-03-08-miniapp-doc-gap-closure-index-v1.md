@@ -290,15 +290,39 @@
 - Ready: 1
 - Draft: 0
 
-## 21. Current Snapshot (2026-03-12)
+## 21. 2026-03-12 Commission Admin Truth Batch（A）
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-12-miniapp-technician-commission-admin-page-truth-review-v1.md` | Ready | 审查 `BO-004` 后台页面真值，固定为“仅接口闭环 + 页面真值待核” |
+
+### 21.1 状态汇总（03-12 Commission Admin Truth Batch）
+- Frozen: 0
+- Ready: 1
+- Draft: 0
+
+## 22. 2026-03-12 Pending Formal Window Output Register
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P0 | B | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
+| 2 | P0 | C | `docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
+| 3 | P0 | D | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-sop-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
+| 4 | P0 | D | `docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` | Pending formal window output | 当前分支尚无正式提交；不能纳入 Ready 统计 |
+
+### 22.1 状态汇总（03-12 Pending Formal Window Output Register）
+- Pending formal window output: 4
+
+## 23. Current Snapshot (2026-03-12)
 - 03-09 冻结基线保持不变：`39/39 Frozen`
-- 当前已交付准备态文档：`44 Ready`
+- 当前已交付准备态文档：`45 Ready`
 - 当前已登记待补文档：`0 Draft`
+- 当前已登记待正式窗口输出：`4 Pending formal window output`
 - 当前累计状态：
   - Frozen: 39
-  - Ready: 44
+  - Ready: 45
   - Draft: 0
 - 说明：
-  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD、core trade / pay / after-sale 三份独立 PRD，以及 technician-feed 独立 PRD 的补齐。
-  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现，以及技师提成管理独立页面真值未核出。
+  - 03-12 已完成业务功能真值台账、Finance Ops 三份独立 PRD、core trade / pay / after-sale 三份独立 PRD、technician-feed 独立 PRD，以及 `BO-004` 后台页面真值审查。
+  - 当前主要缺口已进一步收敛为 booking 真值漂移、member 缺页能力、reserved runtime 未实现、`BF-027` 独立 03-12 文档待正式窗口输出，以及 `BO-004` 仍仅接口闭环。
   - 未发生任何既有 Frozen 文档回退。
