@@ -2,7 +2,7 @@
 
 ## Scope
 - Window: A（CTO / 集成窗口）
-- Branch: `window-d-booking-runtime-runbook-20260315`
+- Branch: `window-a-booking-runtime-release-integration-20260315`
 - Batch target:
   - booking runtime 最终集成评审
   - capability / business / release / checklist 四份主文档回写
@@ -41,10 +41,10 @@
   - `fa37cbce92 test(booking): freeze failure branch behavior`
   - `70bd89c07c test(booking): add miniapp runtime gate`
   - `aa2c13e7cc ci(booking): integrate runtime gate into shared chain`
-- 当前分支未见独立 B/C/D 2026-03-15 正式 handoff：
-  - 窗口B：`Pending formal window output`
-  - 窗口C：`Pending formal window output`
-  - 窗口D：`Pending formal window output`
+- 当前分支已正式吸收的 2026-03-15 窗口产出：
+  - 窗口B：`36babd984e docs(booking): close runtime acceptance and recovery prd`
+  - 窗口C：`39a5e7d4ac docs: close booking runtime contract evidence`
+  - 窗口D：`460380893c docs(booking): close runtime release runbook gate`
 
 ## Verification
 - `node --test yudao-mall-uniapp/tests/booking-api-alignment.test.mjs`

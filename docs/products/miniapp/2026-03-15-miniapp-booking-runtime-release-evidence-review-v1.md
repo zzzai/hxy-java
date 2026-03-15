@@ -17,10 +17,16 @@
   - `fa37cbce92 test(booking): freeze failure branch behavior`
   - `70bd89c07c test(booking): add miniapp runtime gate`
   - `aa2c13e7cc ci(booking): integrate runtime gate into shared chain`
-- 2026-03-15 当前分支未见独立 B/C/D 正式 handoff 文件：
-  - 窗口B：`Pending formal window output`
-  - 窗口C：`Pending formal window output`
-  - 窗口D：`Pending formal window output`
+- 已正式吸收的 2026-03-15 窗口产出：
+  - 窗口B：`36babd984e docs(booking): close runtime acceptance and recovery prd`
+    - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+    - `hxy/07_memory_archive/handoffs/2026-03-15/booking-runtime-product-window-b.md`
+  - 窗口C：`39a5e7d4ac docs: close booking runtime contract evidence`
+    - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
+    - `hxy/07_memory_archive/handoffs/2026-03-15/booking-runtime-contract-window-c.md`
+  - 窗口D：`460380893c docs(booking): close runtime release runbook gate`
+    - `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
+    - `hxy/07_memory_archive/handoffs/2026-03-15/booking-runtime-runbook-window-d.md`
 
 ## 2. 最终结论
 
@@ -77,7 +83,7 @@
 1. 缺少 create / cancel / addon 的发布级 success + failure 样本包，无法证明写链路已具备真实 release proof。
 2. 缺少 allowlist / 巡检日志 / 运行回放证据，无法把 static PASS 外推为放量结论。
 3. booking runtime gate 的设计目标就是固定 `Doc Closed + Can Develop + Cannot Release`，当前没有任何已提交证据把该结论改成 `can_release=YES`。
-4. 当前分支没有独立 B/C/D 2026-03-15 正式 handoff，可吸收的窗口补充发布签发证据仍为 `Pending formal window output`。
+4. 当前分支已正式具备 B 产品、C contract、D runbook 三类窗口产出；这些产出共同确认的仍是“query-only active，write-chain blocked”，而不是 `can_release=YES`。
 
 ## 8. 当前是否可开发 / 是否可放量
 - 当前可开发：
@@ -96,12 +102,15 @@
    - `PUT /booking/order/cancel`
    - `POST /booking/addon/create`
 4. 把 query-only `ACTIVE` 范围与 write-chain blocker 混写，用查询页对齐去冲抵 create / cancel / addon 的发布证据缺口。
-5. 吸收未正式提交的窗口产出作为发布依据，而不是标记为 `Pending formal window output`。
+5. 吸收未正式提交的后续窗口增量作为发布依据，而不是维持“只认当前分支已正式提交产出”的边界。
 
 ## 10. booking 最终单一真值引用
 - booking 当前 release 状态、query/write scope、No-Go 条件统一只认：
   - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
 - 若需要字段、canonical method/path、errorCode 细节，本文继续下钻引用：
+  - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
+  - `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
   - `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
   - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
   - `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`

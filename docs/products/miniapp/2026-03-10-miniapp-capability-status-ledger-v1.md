@@ -79,6 +79,9 @@
 - `ED-55` `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md`
 - `ED-56` `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
 - `ED-57` `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
+- `ED-58` `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+- `ED-59` `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
+- `ED-60` `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -172,11 +175,11 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-BOOKING-001 | booking.query-order | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-03/ED-05/ED-10/ED-31/ED-43/ED-57` | 预约列表/详情查询继续属于真实 `ACTIVE`；但同页 cancel / addon 仍按写链 blocker 管理 |
-| CAP-BOOKING-002 | booking.query-technician | `/pages/booking/technician-list`; `/pages/booking/technician-detail` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-31/ED-43/ED-52/ED-57` | 技师列表/详情/时段查询在当前分支代码已对齐并受 smoke + runtime gate 保护；该行只代表 query-only `ACTIVE`，不得冲抵 create 发布证据 |
-| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52/ED-57` | 当前代码与静态 gate 只证明 create 链已进入 `Doc Closed + Can Develop`；shared gate 仍固定 `can_release=NO`，缺少 live release sample/allowlist/巡检证据，整条创建链路不得升为 release-ready |
-| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52/ED-57` | canonical `POST + query(id,reason?)` 已对齐，失败分支也已冻结；但当前仍只有静态/UI 证据，没有发布级状态变更样本与回放证据，因此继续阻断放量 |
-| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon`; `/pages/booking/order-detail` | `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52/ED-57` | add-on path 已对齐且失败不再伪成功；但 shared gate 输出仍是 `can_release=NO`，缺少真实 success/failure 样本与订单关联核验证据，add-on 不得升为放量能力 |
+| CAP-BOOKING-001 | booking.query-order | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-03/ED-05/ED-10/ED-31/ED-43/ED-57/ED-58/ED-59/ED-60` | B/C/D 当前分支正式产出已确认订单查询面可作为 query-only `ACTIVE`；但同页 cancel / addon 仍按写链 blocker 管理 |
+| CAP-BOOKING-002 | booking.query-technician | `/pages/booking/technician-list`; `/pages/booking/technician-detail` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60` | 技师列表/详情/时段查询在当前分支代码已对齐，并被 B 产品、C contract、D runbook 一致确认为 query-only `ACTIVE`；该行不得冲抵 create 发布证据 |
+| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60` | B/C/D 当前分支正式产出已共同确认 create 链当前只能写成 `Doc Closed + Can Develop + Cannot Release`；shared gate 仍固定 `can_release=NO`，整条创建链路不得升为 release-ready |
+| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60` | canonical `POST + query(id,reason?)` 已对齐，B/C/D 正式产出也已确认失败分支与 runbook 边界；但当前仍缺发布级状态变更样本与回放证据，因此继续阻断放量 |
+| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon`; `/pages/booking/order-detail` | `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60` | add-on path 已对齐且失败不再伪成功；B/C/D 正式产出已共同确认 add-on 仍缺真实 success/failure 样本与订单关联核验证据，不能升为放量能力 |
 
 ### 5.6 Content / Service / Brokerage
 

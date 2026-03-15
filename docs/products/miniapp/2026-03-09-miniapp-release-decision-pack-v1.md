@@ -135,7 +135,10 @@
 
 ### 9.1 吸收边界
 1. 只吸收当前分支真实存在、已正式提交的 booking runtime 代码、测试、gate、shared-chain 接入证据。
-2. 2026-03-15 当前分支未见独立 B/C/D booking runtime 正式 handoff 文件，因此窗口补充口径统一记为 `Pending formal window output`。
+2. 2026-03-15 当前分支已正式具备 B/C/D booking runtime 窗口产出：
+   - B：`docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+   - C：`docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
+   - D：`docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
 3. 当前 booking release 状态的单一真值从本节开始，只认：
    - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
 
@@ -165,4 +168,4 @@
 1. 用 smoke test 或 runtime gate `PASS` 去冲抵 create / cancel / addon 的真实发布证据缺口。
 2. 把 query-only `ACTIVE` 范围外推成 booking 整域可放量。
 3. 在 capability ledger、business ledger、release pack、联调口径或巡检口径中重新引入旧 path/method。
-4. 吸收未正式提交的窗口产出作为 booking 发布依据，而不是标记为 `Pending formal window output`。
+4. 吸收未正式提交的后续窗口增量作为 booking 发布依据，而不是继续只认当前分支已正式提交产出。
