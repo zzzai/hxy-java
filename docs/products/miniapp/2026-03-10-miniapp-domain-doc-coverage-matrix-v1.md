@@ -36,7 +36,7 @@
 | Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
 | Marketing Expansion | Ready | 秒杀、拼团、满减送、商品营销聚合已形成正式文档；整域仍按 `PLANNED_RESERVED` 管理 | Full | Full | Full | Full | Full | Full | 89 | `type=2 bargain` 只能隐藏或忽略；砍价仍无 FE route/API 绑定；整域不能因页面可访问就记为 `ACTIVE` | P1 |
 | Reserved Expansion（Gift / Referral / Feed） | Ready | 激活 checklist、灰度验收、误发布处置与告警路由均已齐备 | Full | Full | Full | Full | Full | Full | 92 | 仍无真实页面、controller、运行样本；治理文档不能替代 runtime 闭环 | P0 |
-| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；`BO-004` 独立 PRD / contract / SOP / runbook 已齐，但当前仍仅核到 controller 接口真值 | Full | Full | Partial | Partial | Full | Full | 86 | `BO-004` 未核到独立后台页面文件和独立 API 文件；写接口仍存在 `true` 但 no-op 风险，必须坚持写后回读 | P0 |
+| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；03-15 已补 `BO-004` 独立 page/API binding truth review 与 evidence ledger，但结论仍是 controller-only truth | Full | Full | Partial | Partial | Full | Full | 86 | `BO-004` 独立后台页面文件和独立 API 文件仍 `未核出`；运行样本只到 service/test；发布证据 `未核出`；写接口仍存在 `true` 但 no-op 风险，必须坚持写后回读 | P0 |
 
 ## 4. 域级判断与说明
 
@@ -105,6 +105,24 @@
    - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
    - 用于把“文档已闭环 / 工程未闭环 / 可开发但不可放量”的最终判断固化为项目级单一真值
 
+### 4.7 03-15 Window E 专项证据新增情况
+1. 已新增：
+   - `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`
+   - `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
+2. 两份文档只基于真实 overlay 页面、真实 overlay API、真实 admin controller、真实 service 测试、真实脚本、真实已提交文档。
+3. 固定结论：
+   - `BO-004` 独立后台页面文件：`未核出`
+   - `BO-004` 独立后台 API 文件：`未核出`
+   - 运行样本只到 service/test
+   - 发布证据：`未核出`
+4. 因此 03-15 新增的是“专项真值证据包”，不是“`BO-004` 页面闭环升级”。
+5. `docs/products/2026-03-15-hxy-full-project-business-function-ledger-v1.md` 已同步回填“前台/后台功能 -> PRD -> contract/runbook”映射。
+6. 其中 `BO-004` 只认：
+   - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
+   - `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`
+   - `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
+7. 若 03-15 其他后台 PRD 未核到独立 contract/runbook，必须继续写 `未核出独立 contract/runbook`，不能借 `BO-004` 专项文档冲抵。
+
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
    - 清除 FE/BE 旧路径漂移。
@@ -119,8 +137,8 @@
    - content / brokerage / product / marketing 继续按 contract 明示的 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 管理。
    - 解除条件：A 侧 capability ledger、freeze review、release decision 一致升级，而不是单点误升。
 5. `Finance Ops Admin 页面真值继续收口`
-   - 当前 `BO-004` 仍只有 controller 接口真值，没有独立后台页面文件和独立 API 文件证据。
-   - 解除条件：独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据全部核出。
+   - 当前 `BO-004` 仍只有 controller 接口真值，没有独立后台页面文件、没有独立 API 文件、没有独立发布证据。
+   - 解除条件：独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据、独立发布证据全部核出。
 
 ## 6. P1 收口顺序
 1. `Alias route 持续清理`
@@ -149,6 +167,6 @@
 1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 55`，`Draft = 0`，`Pending formal window output = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
-4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review 和 03-14 的 controller-only contract 也都只固定“接口闭环不等于页面闭环”。
+4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review、03-14 的 controller-only contract、03-15 的 page/API binding truth review 与 evidence ledger 也都只固定“接口闭环不等于页面闭环，不等于 release-ready”。
 5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
 6. 当前项目级最终判断已经补齐：`文档已闭环`，但 blocker scope 仍只允许“进入真值修复开发”，不允许直接“进入放量”。

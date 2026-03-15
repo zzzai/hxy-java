@@ -1,7 +1,7 @@
-# HXY 全项目业务功能真值台账与 PRD 完整度 v1（2026-03-15）
+# HXY 全项目业务功能真值台账与文档完整度 v1（2026-03-15）
 
 ## 1. 目标与范围
-- 目标：把当前 HXY 项目的业务功能统一收口到“页面 / 入口真值 + API / Controller 真值 + 对应产品文档 + PRD 完整度 + 是否阻断开发”五个维度，形成全项目单一真值台账。
+- 目标：把当前 HXY 项目的业务功能统一收口到“页面 / 入口真值 + API / Controller 真值 + 对应 PRD + 对应 contract / runbook + 当前完整度 + 是否阻断开发”六个维度，形成全项目单一真值台账。
 - 统计范围：
   - 用户侧小程序：`yudao-mall-uniapp/pages.json`、`yudao-mall-uniapp/sheep/api/`、`ruoyi-vue-pro-master/**/controller/app/`
   - 管理后台：`ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/**`、`ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/**`、`ruoyi-vue-pro-master/yudao-module-mall/**/controller/admin/`
@@ -32,6 +32,11 @@
 - `部分`：不阻断存量维护，但阻断进一步冻结、放量、正式归档或跨团队协作。
 - `是`：当前缺口会直接阻断继续开发、联调、验收或发布。
 
+### 2.5 Contract / Runbook 配套
+- `已核实`：当前仓库内存在可直接引用的正式 `docs/contracts/**` 或 `docs/plans/**` 文档，且能与该功能真实页面/API/controller 对应。
+- `未核出`：在当前正式文档审查范围内未找到独立 contract 或独立 runbook；不得拿 design、implementation、handoff、历史 checklist 或其他功能的 contract/runbook 直接顶替。
+- 若只有域级发布矩阵、告警路由、ops playbook，而没有功能级 runbook，必须显式写“未核出独立 runbook”，不能偷换成“已闭环”。
+
 ## 3. 汇总结论
 - 当前共识别业务能力 `51` 项：
   - 小程序用户侧 `31` 项
@@ -42,7 +47,8 @@
   - `部分完整`：`0`
 - 当前最大正式 PRD 缺口已经从后台 P0 页面链路，收敛到：
   - `Booking` 域仍有 5 项能力处于“较完整但存在工程真值阻断 / 待进一步冻结”状态
-  - 后台统一字段字典、contract、runbook 等配套文档
+  - `ADM-001` ~ `ADM-016` 仍以正式 PRD 为主，独立 contract/runbook 多数 `未核出`
+- `BO-004` 已在 2026-03-15 新增独立专项 page/API binding truth review 与 evidence ledger，且已核到独立 contract/runbook；但结论不变：仍是 `仅接口闭环 + 页面真值待核`
 - 当前剩余工程真值阻断仍以既有项目结论为准：`Booking`、`BO-004`、`Member` 缺页能力、`Reserved` runtime 未实现，不因本文新增后台台账而改变。
 
 ## 4. 小程序用户侧业务功能清单
@@ -82,6 +88,21 @@
 | BF-030 | Reserved | 邀请有礼 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | 完整 | 是 | 只有规划 PRD，无 runtime 实现 |
 | BF-031 | Reserved | 技师动态 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 是 | PRD 已补齐，但当前仍无真实页面、无真实 app controller、无运行样本，继续阻断开发 |
 
+## 4.1 用户侧配套 Contract / Runbook 映射
+
+| 功能ID | 对应 Contract / Runbook | 当前配套结论 | 说明 |
+|---|---|---|---|
+| `BF-001` ~ `BF-005` | Contract：`docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`；Runbook：`未核出独立 runbook`，当前只核到 `docs/plans/2026-03-10-miniapp-domain-release-acceptance-matrix-v1.md` 与 `docs/plans/2026-03-10-miniapp-domain-alert-owner-routing-v1.md` 这类域级发布门禁文档 | 部分完整 | 有正式 contract，但功能级 runbook 未独立落盘，不能把域级矩阵写成单功能 runbook |
+| `BF-006` | Contract：`docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`；`docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md`；Runbook：`未核出独立 runbook` | 部分完整 | 首页装修接口来自 content contract，券/积分接口来自 canonical list；当前未核到独立 home-growth runbook |
+| `BF-007` ~ `BF-014` | Contract：`docs/contracts/2026-03-10-miniapp-member-domain-contract-v1.md`；Runbook：`docs/plans/2026-03-10-miniapp-member-domain-kpi-and-alerts-v1.md`；缺页能力补充：`docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md` | 完整 | 会员域 contract/runbook 配套已核实，缺页功能另有 blocker checklist 固定 |
+| `BF-015` ~ `BF-017` | Contract：`docs/contracts/2026-03-10-miniapp-product-catalog-contract-v1.md`；Runbook：`docs/plans/2026-03-10-miniapp-product-catalog-kpi-and-alerting-v1.md` | 完整 | 商品/搜索域 contract 与 KPI/runbook 已成对落盘 |
+| `BF-018` ~ `BF-019` | Contract：`docs/contracts/2026-03-10-miniapp-marketing-expansion-contract-v1.md`；Runbook：`未核出独立 runbook`，当前只核到 `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-ops-playbook-v1.md` | 部分完整 | 有正式 contract 和 ops playbook，但未核到独立 `docs/plans/**runbook**` |
+| `BF-020` ~ `BF-024` | Contract：`docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`；Runbook：`docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`；`docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md` | 完整 | booking 用户侧 contract/runbook 已核实，但 create/cancel/addon 仍受真值阻断 |
+| `BF-025` ~ `BF-026` | Contract：`docs/contracts/2026-03-10-miniapp-content-customer-service-contract-v1.md`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到 PRD/SOP/contract；未核到 content 主链独立 runbook |
+| `BF-027` | Contract：`docs/contracts/2026-03-12-miniapp-content-article-list-category-writeback-contract-v1.md`；Runbook：`docs/plans/2026-03-12-miniapp-content-article-list-category-writeback-runbook-v1.md` | 完整 | BF-027 的 contract/runbook 已独立冻结 |
+| `BF-028` | Contract：`docs/contracts/2026-03-10-miniapp-brokerage-domain-contract-v1.md`；Runbook：`docs/plans/2026-03-10-miniapp-brokerage-domain-runbook-v1.md` | 完整 | 分销域 contract/runbook 已核实 |
+| `BF-029` ~ `BF-031` | Contract：`docs/contracts/2026-03-09-miniapp-gift-card-domain-contract-v1.md`；`docs/contracts/2026-03-09-miniapp-referral-domain-contract-v1.md`；`docs/contracts/2026-03-09-miniapp-technician-feed-contract-v1.md`；Runbook：`docs/plans/2026-03-10-miniapp-reserved-expansion-gray-acceptance-runbook-v1.md`；激活门禁：`docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md` | 完整 | Reserved 三项能力已有 contract/runbook，但 runtime 仍未闭环 |
+
 ## 5. 管理后台业务功能清单
 
 | 功能ID | 业务域 | 业务功能 | 页面真值 | 接口 / Controller 真值 | 当前状态 | 对应 PRD | PRD 完整度 | 是否阻断开发 | 说明 |
@@ -89,7 +110,7 @@
 | BO-001 | Finance Ops | 四账对账 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/fourAccountReconcile/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/booking/fourAccountReconcile.ts`; `/booking/four-account-reconcile/*`; `FourAccountReconcileController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | 完整 | 否 | 已进入当前正式 PRD 体系，是后台财务运营真值的已闭环能力 |
 | BO-002 | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/refundNotifyLog/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/booking/refundNotifyLog.ts`; `/booking/refund-notify-log/*`; `BookingRefundNotifyLogController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | 否 | 已进入当前正式 PRD 体系 |
 | BO-003 | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/outbox/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/booking/commissionSettlement.ts`; `/booking/commission-settlement/*`; `TechnicianCommissionSettlementController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | 否 | 已进入当前正式 PRD 体系 |
-| BO-004 | Finance Ops | 技师提成明细 / 计提管理 | `未核出独立后台页面文件` | `GET /booking/commission/list-by-technician`; `GET /booking/commission/list-by-order`; `GET /booking/commission/pending-amount`; `POST /booking/commission/settle`; `POST /booking/commission/batch-settle`; `GET /booking/commission/config/list`; `POST /booking/commission/config/save`; `DELETE /booking/commission/config/delete`; `TechnicianCommissionController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | 部分 | 单一真值仍是“仅接口闭环 + 页面真值待核”，不得误写成后台页面闭环完成 |
+| BO-004 | Finance Ops | 技师提成明细 / 计提管理 | `未核出独立后台页面文件` | `GET /booking/commission/list-by-technician`; `GET /booking/commission/list-by-order`; `GET /booking/commission/pending-amount`; `POST /booking/commission/settle`; `POST /booking/commission/batch-settle`; `GET /booking/commission/config/list`; `POST /booking/commission/config/save`; `DELETE /booking/commission/config/delete`; `TechnicianCommissionController` | ACTIVE_ADMIN（controller-only） | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | 部分 | 独立 admin page/API binding truth 见 `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`；evidence ledger 见 `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`；当前独立后台 API 文件 `未核出`、运行样本只到 service/test、发布证据 `未核出`，不得误写成后台页面闭环或 release-ready |
 | ADM-001 | Product | 总部商品 SPU 管理 / 新增编辑 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/product/spu/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/product/spu/form/index.vue` | 页面直接请求 `/product/spu/*`、`/product/service-spu/*`、`/product/physical-spu/*`; `ProductSpuController`; `ProductServiceSpuController`; `ProductPhysicalSpuController` | ACTIVE_ADMIN | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 否 | 2026-03-15 已补正式 PRD；当前以后台 SPU 页面与运行时路径分流为产品真值 |
 | ADM-002 | Product | 商品模板校验 / SKU 自动生成 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/product/template/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/product/template.ts`; `/product/template/*`; `ProductTemplateGenerateController` | ACTIVE_ADMIN | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 否 | 2026-03-15 已补正式 PRD；当前产品口径固定为模板校验、SKU 预览、幂等提交联调能力 |
 | ADM-003 | Store | 门店主数据管理 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/store/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/store/store.ts`; `/product/store/*`; `ProductStoreController` | ACTIVE_ADMIN | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 否 | 2026-03-15 已补正式 PRD；门店主档、批量治理与准备度检查边界已统一 |
@@ -107,10 +128,26 @@
 | ADM-015 | Trade Ops | 售后人工复核工单 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/trade/reviewTicket/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/trade/reviewTicket/index.ts`; `/trade/after-sale/review-ticket/*`; `AfterSaleReviewTicketController` | ACTIVE_ADMIN | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | 否 | 2026-03-15 已补正式 PRD；工单池、单条收口和批量收口口径已统一 |
 | ADM-016 | Trade Ops | 售后工单 SLA 路由规则 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/trade/reviewTicketRoute/index.vue` | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/trade/reviewTicketRoute/index.ts`; `/trade/after-sale/review-ticket-route/*`; `AfterSaleReviewTicketRouteController` | ACTIVE_ADMIN | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | 否 | 2026-03-15 已补正式 PRD；规则作用域、页面实际调用能力和本地预览边界已统一 |
 
+## 5.1 管理后台配套 Contract / Runbook 映射
+
+| 功能ID | 对应 Contract / Runbook | 当前配套结论 | 说明 |
+|---|---|---|---|
+| `BO-001` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；`docs/plans/2026-03-08-finance-contract-freeze-checklist.md` 属于历史 checklist，不能直接顶替独立 contract/runbook |
+| `BO-002` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；不得把 `BO-004` 的 contract/runbook 借给退款回调重放 |
+| `BO-003` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD 与页面/API/controller 闭环；若后续补 contract/runbook，必须独立落盘，不能复用 `BO-004` 文档 |
+| `BO-004` | Contract：`docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`；Runbook：`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`；专项证据：`docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md` | 完整 | 这是当前后台清单里唯一已核到独立 contract/runbook 的专项，但仍只能写成 `仅接口闭环 + 页面真值待核` |
+| `ADM-001` ~ `ADM-002` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前已核到正式 PRD 和真实页面/API/controller，但未核到与 SPU / 模板能力一一对应的独立 contract/runbook |
+| `ADM-003` ~ `ADM-006` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到门店主数据治理 PRD；若后续补 contract/runbook，必须按 store 主数据域独立落盘 |
+| `ADM-007` ~ `ADM-008` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到门店商品映射 / SKU 运维 PRD；不得把库存审批或生命周期治理文档借用为本组 runbook |
+| `ADM-009` ~ `ADM-010` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到库存调整 / 调拨 PRD；没有独立 contract/runbook 就必须继续写 `未核出` |
+| `ADM-011` ~ `ADM-013` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前有 `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md` 与 `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-implementation.md`，但它们不是独立 contract/runbook |
+| `ADM-014` ~ `ADM-016` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；review ticket / route 相关 design 或 SQL 配置不能替代正式 contract/runbook |
+
 ## 6. 当前项目级结论
 1. 小程序主链与后台 `mall` 域的 P0 业务链路，当前都已经进入正式 PRD 体系。
 2. 管理后台并不是“没有功能”，而是“此前缺少系统性归档”；到本次为止，后台 `Product / Store / Supply Chain / Store Governance / Trade Ops` 主能力已完成正式 PRD 收口。
 3. 当前剩余文档短板主要集中在：
    - `Booking` 域 5 项能力仍为“较完整但未完全解除工程真值阻断”
-   - 后台统一字段字典、contract、runbook 三类配套文档
-4. 后续若要回答“全项目前后端有哪些功能、哪些文档完整、哪些仍是文档短板”，应以本文为根台账，而不是只引用 miniapp 子台账。
+   - 后台 `BO-001` ~ `BO-003` 与 `ADM-001` ~ `ADM-016` 仍未核到独立 contract/runbook
+4. `BO-004` 是当前后台清单里唯一已核到独立 contract/runbook 的专项，但这不改变它“仅接口闭环 + 页面真值待核”的结论。
+5. 后续若要回答“全项目前后端有哪些功能、哪些文档完整、哪些仍是文档短板”，应以本文为根台账，而不是只引用 miniapp 子台账。
