@@ -49,21 +49,21 @@
 | cancel | `cancelBookingOrderAndRefresh` 仅 `code===0` 刷新 | 失败时停留列表或详情页，不自动刷新 | 手动刷新或稍后重试 | cancel 失败自动刷新 |
 | addon | `submitAddonOrderAndGo` 仅 `code===0` 跳详情 | 失败时停留加钟页 | 重新选择 `addonType` 或返回详情页 | addon 失败跳详情 |
 
-### 4.3 Booking 关键错误码与页面结果
+### 4.3 Booking 当前稳定 errorCode / 结构态信号与页面结果
 
-| 错误码 | 真实页面场景 | 当前用户可见结果 | 恢复动作 | 备注 |
+| 错误码 / 信号 | 真实页面场景 | 当前用户可见结果 | 恢复动作 | 备注 |
 |---|---|---|---|---|
-| `TECHNICIAN_NOT_EXISTS(1030001000)` | 技师详情 / 时段查询失败 | 当前页无独立错误弹文案；停留当前页 | 返回技师列表重选技师 | 不自动跳转 |
-| `TECHNICIAN_DISABLED(1030001001)` | 技师不可服务 | 当前页无独立错误弹文案；停留当前页 | 返回技师列表重选技师 | 不自动跳转 |
 | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | 确认页提交失败 | 当前页无独立失败文案；停留确认页 | 返回技师详情页改选时段 | create 失败不跳详情 |
-| `SCHEDULE_CONFLICT(1030002001)` | 确认页提交失败 | 当前页无独立失败文案；停留确认页 | 返回技师详情页改选时段 | create 失败不跳详情 |
-| `TIME_SLOT_ALREADY_BOOKED(1030003002)` | 确认页提交失败 | 当前页无独立失败文案；停留确认页 | 返回技师详情页改选时段 | create 失败不跳详情 |
-| `BOOKING_ORDER_NOT_EXISTS(1030004000)` | 预约详情页 / add-on 母单读取失败 | `订单不存在` | 返回预约列表或重新进入当前页 | 真实空态文案已存在 |
-| `BOOKING_ORDER_STATUS_ERROR(1030004001)` | cancel 或 addon 提交失败 | 当前页无独立失败文案；停留当前页 | 手动刷新、稍后重试、或返回上一页 | cancel 失败不刷新；addon 失败不跳详情 |
+| `BOOKING_ORDER_NOT_EXISTS(1030004000)` | cancel 提交失败 / add-on 提交失败 | 当前页无独立失败文案；停留当前页 | 返回预约列表或重新进入当前页 | 只适用于写链路；不适用于 `GET /booking/order/get` |
+| `BOOKING_ORDER_STATUS_ERROR(1030004001)` | add-on 提交失败 | 当前页无独立失败文案；停留当前页 | 手动刷新、稍后重试、或返回上一页 | 当前只认 add-on 写链分支 |
+| `BOOKING_ORDER_CANNOT_CANCEL(1030004005)` | cancel 提交失败 | 当前页无独立失败文案；停留列表或详情页 | 手动刷新、稍后重试、或返回上一页 | cancel 失败不刷新 |
+| `BOOKING_ORDER_NOT_OWNER(1030004006)` | 详情查询越权 / cancel 越权 / add-on 越权 | 当前页无独立失败文案；停留当前页 | 返回预约列表或切换正确账号 | 只按 code 分支，不按 message |
+| `success(null)` | `GET /booking/order/get` 缺记录；`GET /booking/technician/get` 缺记录 | 详情 / 加钟当前呈现 `订单不存在` 或空结构；技师详情当前只保留现有空结构 | 返回列表后重新进入，或回上一页重选技师 | 当前不是稳定 errorCode，也不是 `degraded` |
 
 补充：
 - booking 当前六页没有独立 toast/error banner 文案池。
 - 因此 booking 侧“用户可见错误文案”当前必须写实为页面结构态和 helper 结果，不能虚构 toast。
+- `SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 当前没有稳定 runtime 抛出证据，不得再写成 booking create 的当前页面分支。
 
 ## 5. 降级文案规范（degraded 不伪成功）
 

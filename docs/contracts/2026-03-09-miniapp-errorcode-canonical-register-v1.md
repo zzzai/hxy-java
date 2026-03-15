@@ -35,9 +35,7 @@
 | 1008008000 | FAVORITE_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 重复收藏同一商品 | 保持当前收藏态，不重复提交 | 商品前台负责人核验幂等与收藏态同步 | 已生效 | - |
 | 1008008001 | FAVORITE_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 取消收藏时收藏记录不存在 | 刷新收藏列表后再操作 | 商品前台负责人排查收藏态脏读与并发删除 | 已生效 | - |
 | 1008009006 | STORE_SKU_STOCK_BIZ_KEY_CONFLICT | product | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 门店库存幂等冲突 | 刷新库存并重提 | 商品 on-call 排查并发/幂等 | 已生效 | - |
-| 1030002001 | SCHEDULE_CONFLICT | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 排班冲突 | 重选时段 | 预约排期负责人复核排班 | 已生效 | - |
 | 1030003001 | TIME_SLOT_NOT_AVAILABLE | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 时段不可预约 | 选择其他时段 | 检查时段实时性 | 已生效 | - |
-| 1030003002 | TIME_SLOT_ALREADY_BOOKED | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 时段被占用 | 重新选时段 | 监控时段抢占冲突率 | 已生效 | - |
 | 1030004000 | BOOKING_ORDER_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 取消/加项/退款回调时订单不存在 | 刷新预约列表后重试 | 预约域核验订单归属与清理异常引用 | 已生效 | - |
 | 1030004001 | BOOKING_ORDER_STATUS_ERROR | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 预约订单状态不允许当前操作 | 刷新订单状态后按当前可用动作继续 | 预约域排查状态流转与重复操作冲突 | 已生效 | - |
 | 1030004005 | BOOKING_ORDER_CANNOT_CANCEL | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 预约订单当前状态不允许取消 | 刷新订单状态后仅执行当前可用动作 | 预约域排查重复取消、状态滞后与回流顺序 | 已生效 | - |
