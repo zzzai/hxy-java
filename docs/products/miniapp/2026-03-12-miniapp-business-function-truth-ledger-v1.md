@@ -53,11 +53,11 @@
 | BF-017 | Product | 搜索 canonical | `N/A（当前无真实用户页）` | `GET /product/search/page`; `AppProductSpuController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | 完整 | 是 | 无真实用户页，且 `1008009904` 只允许绑定 canonical |
 | BF-018 | Promotion | 秒杀 / 拼团 / 满减送 / 活动聚合 | `/pages/goods/seckill`; `/pages/goods/groupon`; `/pages/activity/index`; `/pages/activity/groupon/*`; `/pages/activity/seckill/list` | `/promotion/activity/list-by-spu-id`; `/promotion/combination-*`; `/promotion/seckill-*`; `/promotion/reward-activity/get`; `AppActivityController`; `AppCombinationActivityController`; `AppCombinationRecordController`; `AppSeckillActivityController`; `AppSeckillConfigController`; `AppRewardActivityController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | 完整 | 部分 | 页面与接口存在，但整域仍被文档固定为保留范围 |
 | BF-019 | Promotion | 砍价 | `N/A（当前无真实用户页）` | `/promotion/bargain-activity/*`; `/promotion/bargain-record/*`; `/promotion/bargain-help/*`; `AppBargainActivityController`; `AppBargainRecordController`; `AppBargainHelpController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | 完整 | 是 | 当前仅后端存在，无前端页面与 API 绑定 |
-| BF-020 | Booking | 预约列表 / 预约详情 | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get`; `AppBookingOrderController` | ACTIVE | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md` | 较完整 | 否 | 查询链路当前可独立视为 `ACTIVE` |
-| BF-021 | Booking | 技师详情 | `/pages/booking/technician-detail` | `GET /booking/technician/get`; `AppTechnicianController` | ACTIVE | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md` | 较完整 | 否 | 技师详情已对齐 |
-| BF-022 | Booking | 预约创建 | `/pages/booking/technician-list`; `/pages/booking/order-confirm` | 目标真值应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create`; `AppTechnicianController`; `AppTimeSlotController`; `AppBookingOrderController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | 较完整 | 是 | FE 仍发 `list-by-store` / `time-slot/list`，method/path 漂移阻断继续开发 |
-| BF-023 | Booking | 预约取消 | `/pages/booking/order-list`; `/pages/booking/order-detail` | 目标真值应为 `POST /booking/order/cancel`; `AppBookingOrderController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | 较完整 | 是 | FE 仍发 `PUT /booking/order/cancel` |
-| BF-024 | Booking | 加钟 / 升级 | `/pages/booking/addon` | 目标真值应为 `POST /app-api/booking/addon/create`; `AppBookingAddonController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md` | 较完整 | 是 | FE 仍发 `/booking/addon/create`，与 BE 不一致 |
+| BF-020 | Booking | 预约列表 / 预约详情 | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get`; `AppBookingOrderController` | ACTIVE | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 较完整 | 否 | 当前只按 query-only `ACTIVE` 管理；同页 cancel / addon 动作不因查询面 `ACTIVE` 而自动可放量 |
+| BF-021 | Booking | 技师列表 / 技师详情 / 时段查询 | `/pages/booking/technician-list`; `/pages/booking/technician-detail` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `AppTechnicianController`; `AppTimeSlotController` | ACTIVE | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 较完整 | 否 | 当前分支代码已完成 canonical 绑定，并受 smoke/runtime gate 保护；但这只代表 create 上游查询输入已收口 |
+| BF-022 | Booking | 预约创建 | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create`; `AppTechnicianController`; `AppTimeSlotController`; `AppBookingOrderController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 较完整 | 部分 | 当前代码/测试/gate 已允许继续开发，但 shared chain 仍输出 `can_release=NO`；缺 success/failure release 样本包与巡检证据，create 继续阻断放量 |
+| BF-023 | Booking | 预约取消 | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel`; `AppBookingOrderController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 较完整 | 部分 | canonical 取消路径已对齐，失败分支也已冻结；当前只是不再阻断真值修复开发，仍继续阻断 release-ready / 放量 |
+| BF-024 | Booking | 加钟 / 升级 | `/pages/booking/addon` | `POST /app-api/booking/addon/create`; `AppBookingAddonController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 较完整 | 部分 | add-on 当前分支已对齐到 `/app-api` 前缀并冻结失败分支；但仍缺发布级 success/failure 样本和真实运行证据，不能当成可放量能力 |
 | BF-025 | Content | DIY 模板 / 自定义页 | `App 初始化`; `/pages/index/page` | `GET /promotion/diy-template/used`; `GET /promotion/diy-template/get`; `GET /promotion/diy-page/get`; `AppDiyTemplateController`; `AppDiyPageController` | ACTIVE | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | 完整 | 否 | 当前 content 域唯一明确 `ACTIVE` 能力 |
 | BF-026 | Content | 聊天 / 文章详情 / FAQ 壳页 / WebView | `/pages/chat/index`; `/pages/public/richtext`; `/pages/public/faq`; `/pages/public/webview` | `GET /promotion/kefu-message/list`; `POST /promotion/kefu-message/send`; `GET /promotion/article/get`; `AppKeFuMessageController`; `AppArticleController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | 完整 | 部分 | FAQ 只是壳页；聊天发送失败必须 fail-close；BF-027 已拆出独立 PRD，不能再当整域已上线 |
 | BF-027 | Content | 文章列表 / 分类 / 浏览回写 / 已读回写 | `N/A（当前无真实用户页）` | `GET /promotion/article/list`; `GET /promotion/article/page`; `GET /promotion/article-category/list`; `PUT /promotion/article/add-browse-count`; `PUT /promotion/kefu-message/update-read-status`; `AppArticleController`; `AppArticleCategoryController`; `AppKeFuMessageController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | 完整 | 是 | 5 条接口真值已独立冻结，但仍无真实用户页与真实用户动作，继续阻断产品化放量 |
@@ -77,10 +77,8 @@
 
 ## 5. 当前阻断项汇总
 
-### 5.1 直接阻断开发 / 联调 / 放量的缺口
-1. Booking 创建链路：`BF-022`
-2. Booking 取消链路：`BF-023`
-3. Booking 加钟升级链路：`BF-024`
+### 5.1 直接阻断放量 / Frozen Candidate 的缺口
+1. Booking 写链路：`BF-022` `BF-023` `BF-024`
 4. Member 等级页：`BF-012`
 5. Member 资产总览：`BF-013`
 6. Member 标签中心：`BF-014`
@@ -98,11 +96,11 @@
 
 ## 6. 结论
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
-2. 当前最强阻断不在首页、交易、地址、签到等已冻结主链，而在 booking、member 缺页能力、reserved 规划能力和后台运营财务闭环。
-3. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口；该能力当前可进入真值修复开发，但不可直接作为放量依据。
-4. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
-5. `BO-004` 已新增后台页面真值审查文档、独立 PRD、03-14 closure review、controller-only contract、SOP 与 runbook，当前单一结论是“仅接口闭环 + 页面真值待核”，不是“后台页面已完全闭环”。
-6. `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` 已把 `Booking / BO-004 / Member 缺页 / Reserved runtime` 的最终阻断口径统一固定为“可进入真值修复开发，不可直接放量”。
+2. 当前最强阻断不再是 booking 旧 path 漂移，而是 booking 写链路 release proof、member 缺页能力、reserved 规划能力和后台运营财务闭环。
+3. booking 当前已经形成清晰分拆：`technician-list / technician-detail / order-list / order-detail` 按 query-only `ACTIVE` 管理；`create / cancel / addon` 继续 `Can Develop / Cannot Release`。
+4. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口；该能力当前可进入真值修复开发，但不可直接作为放量依据。
+5. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
+6. `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md` 与 `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` 已把 `Booking / BO-004 / Member 缺页 / Reserved runtime` 的最终阻断口径统一固定为“可进入真值修复开发，不可直接放量”。
 
 ## 7. 主要依据
 - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
@@ -112,6 +110,7 @@
 - `docs/products/miniapp/2026-03-14-miniapp-finance-ops-admin-doc-closure-review-v1.md`
 - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
 - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
+- `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
 - `yudao-mall-uniapp/pages.json`
 - `yudao-mall-uniapp/sheep/api/`
 - `ruoyi-vue-pro-master/**/controller/app/`

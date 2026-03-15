@@ -81,7 +81,7 @@
 | 域 | 当前状态 | 发布决策含义 |
 |---|---|---|
 | Member | Ready | 文档输入可作为后续冻结评审依据，但缺页能力与 `PLANNED_RESERVED` API 仍阻断 Frozen Candidate |
-| Booking | Still Blocked | `create / cancel / addon` 未收口前，不得进入任何发布放量或冻结候选 |
+| Booking | `Doc Closed / Can Develop / Cannot Release` | query-only 范围可继续维护，但 create / cancel / addon 仍不得进入任何发布放量或冻结候选 |
 | Content / Customer Service | Ready | 文档包已齐，但能力边界仍受 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 约束，不能把聊天/文章/FAQ 壳页整体并入已发布范围 |
 | Brokerage | Ready | 文档包已齐，但“提现申请成功 != 到账成功”，申诉/撤回/取消提现仍是缺页能力，不进入放量范围 |
 | Product / Search / Catalog | Ready | 文档包已齐，但必须继续分离 `search-lite` 与 `search-canonical`，并把评论/收藏/历史维持在 `PLANNED_RESERVED` |
@@ -91,7 +91,7 @@
 ### 7.3 当前门禁结论
 1. 03-10 本批新增 `Frozen Candidate = 0`。
 2. 截至 2026-03-11，03-10/03-11 `Ready` 文档共 `36` 份，可作为下一轮冻结评审输入，但不能被当作放量或签发依据。
-3. 若任何窗口把以下对象误标为 `ACTIVE`、`Frozen Candidate` 或准发布范围，直接触发 No-Go：
+3. 若任何窗口把以下对象回退为旧真值，或误标为 `ACTIVE`、`Frozen Candidate`、准发布范围，直接触发 No-Go：
    - `/pages/user/level`
    - `/pages/profile/assets`
    - `/pages/user/tag`
@@ -121,7 +121,7 @@
 
 | scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
 |---|---|---|---|---|---|
-| Booking | 文档已闭环 | FE/BE `method + path` 未收口 | Go for Engineering Closure | No-Go | 仍使用 `GET /booking/technician/list-by-store`、`GET /booking/time-slot/list`、`PUT /booking/order/cancel`、`POST /booking/addon/create` 或旧 path 仍在 allowlist |
+| Booking | 文档已闭环 | canonical 代码已收口，shared chain 已接入 booking runtime gate，但 gate summary 仍固定 `can_release=NO`；create / cancel / addon 仍缺发布级运行证据 | Go for Engineering Closure | No-Go | 把 smoke/runtime gate `PASS` 误写成 release-ready；混淆 query-only 与 write-chain；回退到旧 path/method；或移除 shared chain 的 booking runtime gate |
 | Member 缺页能力 | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未实现 | Go for Engineering Closure | No-Go | 把上述缺页能力写成 `ACTIVE`、可发布页面或新增签发范围 |
 | Reserved runtime | 文档已闭环 | gift / referral / technician-feed 仍无 runtime 落地 | Go for Engineering Closure | No-Go | 因治理文档完整就把 gift/referral/feed 当成已上线能力，或 `RESERVED_DISABLED` 关闭态仍命中 |
 | `BO-004` Finance Ops Admin | 文档已闭环 | 仅接口闭环 + 页面真值待核 | Go for Engineering Closure | No-Go | 未核到独立后台页面文件 / 独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 BO-004 页面 |
@@ -130,3 +130,39 @@
 1. 当前项目不再存在“缺文档导致的 No-Go”。
 2. 当前项目仍存在“工程真值阻断导致的 No-Go”。
 3. 若进入下一阶段开发，只允许围绕 blocker scope 做真值修复与实现闭环，不得把 blocker scope 当成现成放量能力。
+
+## 9. 03-15 Booking Runtime Final Integration Review
+
+### 9.1 吸收边界
+1. 只吸收当前分支真实存在、已正式提交的 booking runtime 代码、测试、gate、shared-chain 接入证据。
+2. 2026-03-15 当前分支未见独立 B/C/D booking runtime 正式 handoff 文件，因此窗口补充口径统一记为 `Pending formal window output`。
+3. 当前 booking release 状态的单一真值从本节开始，只认：
+   - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
+
+### 9.2 当前 booking 结论
+1. booking 当前最终状态固定为：`Doc Closed / Can Develop / Cannot Release`。
+2. query-only `ACTIVE` 范围只认：
+   - `/pages/booking/technician-list`
+   - `/pages/booking/technician-detail`
+   - `/pages/booking/order-list`
+   - `/pages/booking/order-detail`
+3. write-chain blocker 只认：
+   - `POST /booking/order/create`
+   - `POST /booking/order/cancel`
+   - `POST /app-api/booking/addon/create`
+4. 这三条写链路当前可以继续开发，但不得写成 `Ready`、`Frozen Candidate`、`Go` 或可放量能力。
+
+### 9.3 Shared gate 证据
+1. `check_booking_miniapp_runtime_gate.sh` 当前成功输出仍固定：
+   - `doc_closed=YES`
+   - `can_develop=YES`
+   - `can_release=NO`
+   - `result=PASS`
+2. `run_ops_stageb_p1_local_ci.sh` 已把 booking runtime gate 接进 shared chain，且轻量运行时 `booking_miniapp_runtime_gate_rc=0`。
+3. 但 shared chain booking gate 的成功只代表“边界被守住”，不代表“写链路已 release-ready”。
+
+### 9.4 当前 Booking No-Go 条件
+1. 用 smoke test 或 runtime gate `PASS` 去冲抵 create / cancel / addon 的真实发布证据缺口。
+2. 把 query-only `ACTIVE` 范围外推成 booking 整域可放量。
+3. 在 capability ledger、business ledger、release pack、联调口径或巡检口径中重新引入旧 path/method。
+4. 吸收未正式提交的窗口产出作为 booking 发布依据，而不是标记为 `Pending formal window output`。

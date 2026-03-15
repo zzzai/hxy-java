@@ -78,21 +78,25 @@
 - `ED-54` `docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md`
 - `ED-55` `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md`
 - `ED-56` `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
+- `ED-57` `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
-### 4.1 已确认的 booking 前后端不一致
-1. 前端 `yudao-mall-uniapp/sheep/api/trade/booking.js` 当前仍调用：
-   - `GET /booking/technician/list-by-store`
-   - `GET /booking/time-slot/list`
-   - `PUT /booking/order/cancel`
-   - `POST /booking/addon/create`
-2. 后端真实 controller 为：
+### 4.1 已确认的 booking runtime 当前真值
+1. 前端 `yudao-mall-uniapp/sheep/api/trade/booking.js` 当前已固定为 canonical：
    - `GET /booking/technician/list`
-   - `GET /booking/slot/list` / `GET /booking/slot/list-by-technician`
+   - `GET /booking/slot/list-by-technician`
    - `POST /booking/order/cancel`
    - `POST /app-api/booking/addon/create`
-3. 因此 booking 的 create / cancel / addon 继续固定为 `PLANNED_RESERVED`，不得假 `ACTIVE`。
+2. `yudao-mall-uniapp/pages/booking/logic.js` 与 `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs` 已冻结写链失败分支：
+   - create 失败不跳详情
+   - cancel 失败不刷新
+   - addon 失败不跳详情
+3. `ruoyi-vue-pro-master/script/dev/check_booking_miniapp_runtime_gate.sh` 当前成功输出固定为：
+   - `doc_closed=YES`
+   - `can_develop=YES`
+   - `can_release=NO`
+4. 因此 booking 当前已经从“旧 path 漂移阻断”切到“query-only 可维护、write-chain 不可放量”的边界。
 
 ### 4.2 member 缺页能力与 route truth
 1. 当前真实用户页存在：`/pages/index/login`、`/pages/index/user`、`/pages/app/sign`、`/pages/user/address/list`、`/pages/user/wallet/money`、`/pages/user/wallet/score`。
@@ -111,7 +115,7 @@
 
 ### 4.4 03-14 最终阻断集成结论
 1. 当前“缺文档”问题已经清零，但 capability 台账仍必须区分“文档已闭环”和“工程未闭环”。
-2. 当前唯一域级 `Still Blocked` 仍是 booking，对应 create / cancel / addon 三条链路的 FE/BE `method + path` 漂移。
+2. 当前 booking 的最终 release blocker 已从“旧 path 漂移”转为“shared gate 已接入但 booking 输出仍固定 `can_release=NO`”；create / cancel / addon 仍缺发布级运行证据。
 3. 当前唯一明确的 finance-ops capability blocker 仍是 `BO-004`：
    - 只核到 `/booking/commission/*` controller truth
    - 未核到独立后台页面文件
@@ -168,11 +172,11 @@
 
 | capabilityId | domain | pageRoute | backendApi | status | priority | releaseBatch | owner | evidenceDoc | statusReason / Gate |
 |---|---|---|---|---|---|---|---|---|---|
-| CAP-BOOKING-001 | booking.query | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-03/ED-05/ED-10/ED-31/ED-43` | 预约列表/详情的查询链路保持真实 `ACTIVE` |
-| CAP-BOOKING-002 | booking.technician-detail | `/pages/booking/technician-detail` | `GET /booking/technician/get` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-31/ED-43` | 技师详情 path 与 controller 对齐，可单独视作查询侧 `ACTIVE` |
-| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/order-confirm` | 目标口径应为 `GET /booking/technician/list`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52` | 前端仍发 `list-by-store` / `time-slot/list`，create 上游未闭环；03-11 checklist 已固定退出条件，整条创建链路不得升 `ACTIVE` |
-| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | 目标口径应为 `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52` | 前端仍发 `PUT /booking/order/cancel`；方法不一致，继续阻断 |
-| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon` | 目标口径应为 `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52` | 前端 `/booking/addon/create` 与后端 `/app-api/booking/addon/create` 不一致；03-11 checklist 已固定不可越级放量规则 |
+| CAP-BOOKING-001 | booking.query-order | `/pages/booking/order-list`; `/pages/booking/order-detail` | `GET /booking/order/list`; `GET /booking/order/get` | ACTIVE | P0 | RB1-P0 | Booking Domain Owner | `ED-01/ED-03/ED-05/ED-10/ED-31/ED-43/ED-57` | 预约列表/详情查询继续属于真实 `ACTIVE`；但同页 cancel / addon 仍按写链 blocker 管理 |
+| CAP-BOOKING-002 | booking.query-technician | `/pages/booking/technician-list`; `/pages/booking/technician-detail` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-31/ED-43/ED-52/ED-57` | 技师列表/详情/时段查询在当前分支代码已对齐并受 smoke + runtime gate 保护；该行只代表 query-only `ACTIVE`，不得冲抵 create 发布证据 |
+| CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52/ED-57` | 当前代码与静态 gate 只证明 create 链已进入 `Doc Closed + Can Develop`；shared gate 仍固定 `can_release=NO`，缺少 live release sample/allowlist/巡检证据，整条创建链路不得升为 release-ready |
+| CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52/ED-57` | canonical `POST + query(id,reason?)` 已对齐，失败分支也已冻结；但当前仍只有静态/UI 证据，没有发布级状态变更样本与回放证据，因此继续阻断放量 |
+| CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon`; `/pages/booking/order-detail` | `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52/ED-57` | add-on path 已对齐且失败不再伪成功；但 shared gate 输出仍是 `can_release=NO`，缺少真实 success/failure 样本与订单关联核验证据，add-on 不得升为放量能力 |
 
 ### 5.6 Content / Service / Brokerage
 
