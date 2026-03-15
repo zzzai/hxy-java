@@ -1,80 +1,67 @@
 # MiniApp Booking User API Alignment v1 (2026-03-10)
 
 ## 1. 目标与真值来源
-- 目标：把 booking 用户侧当前真实 runtime 契约收口为单一真值，并把 legacy blocker 与 release gate 继续固定在文档层。
-- 本批只认以下 canonical truth：
-  - `GET /booking/technician/list`
-  - `GET /booking/slot/list-by-technician`
-  - `POST /booking/order/create`
-  - `GET /booking/order/get`
-  - `GET /booking/order/list`
-  - `POST /booking/order/cancel`
-  - `POST /app-api/booking/addon/create`
-- 真值输入：
-  - `yudao-mall-uniapp/sheep/api/trade/booking.js`
-  - `yudao-mall-uniapp/pages/booking/logic.js`
-  - `AppTechnicianController`
-  - `AppTimeSlotController`
-  - `AppBookingOrderController`
-  - `AppBookingAddonController`
-  - `yudao-mall-uniapp/tests/booking-api-alignment.test.mjs`
-  - `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs`
+- 目标：把 booking 用户侧当前真实 route/helper/controller 对齐状态写清，同时把“route 已对齐”和“页面已闭环”明确拆开。
+- 当前单一细表引用：
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
   - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
 
-## 2. 当前 runtime 对齐结论
+## 2. 当前 route / helper / controller 对齐结论
 
-| canonical truth | 当前 FE wrapper / helper | 当前 controller | runtime binding | release gate |
+| scope | 当前 FE wrapper / helper | 当前 controller | static route alignment | runtime field / shape alignment | Can Develop | Can Release |
+|---|---|---|---|---|---|---|
+| technician-list query | `BookingApi.getTechnicianList` / `loadTechnicianList` | `AppTechnicianController#getTechnicianList` | `Aligned` | `Drifted`：`title/specialties/status` 没有 backend 字段绑定 | Yes | No |
+| technician-detail query | `BookingApi.getTechnician` / `loadTechnicianDetail` | `AppTechnicianController#getTechnician` | `Aligned` | `Drifted`：查无记录是 `success(null)`；不得按 `1030001000/1030001001` 分支 | Yes | No |
+| technician-detail slot query | `BookingApi.getTimeSlots` / `loadTimeSlots` | `AppTimeSlotController#getTimeSlotsByTechnician` | `Aligned` | `Partially aligned`：详情页使用的字段可核出，但确认页依赖的 `duration/spuId/skuId` 没有响应绑定 | Yes | No |
+| order-list query | `BookingApi.getOrderList` | `AppBookingOrderController#getOrderList` | `Aligned` | `Drifted`：页面按 `data.list/data.total` 读取，controller 实际返回 `data[]`；`payOrderId` 未绑定 | Yes | No |
+| order-detail query | `BookingApi.getOrderDetail` / `goToOrderDetail` | `AppBookingOrderController#getOrder` | `Aligned` | `Drifted`：`success(null)` 是空结果；`payOrderId` 未绑定 | Yes | No |
+| create | `BookingApi.createOrder` / `submitBookingOrder*` | `AppBookingOrderController#createOrder` | `Aligned` | `Drifted`：确认页预读和请求体字段链路未闭环 | Yes | No |
+| cancel | `BookingApi.cancelOrder` / `cancelBookingOrder*` | `AppBookingOrderController#cancelOrder` | `Aligned` | `Partially aligned`：helper 行为冻结，但没有读后回写运行样本 | Yes | No |
+| addon | `BookingApi.createAddonOrder` / `submitAddonOrder*` | `AppBookingAddonController#createAddonOrder` | `Aligned` | `Drifted`：页面不提交 `spuId/skuId`，存在 `pseudo success / no-op risk` | Yes | No |
+
+## 3. 当前 helper 真值
+
+| helper | 当前真实行为 | 风险边界 |
+|---|---|---|
+| `loadTechnicianList` | 直接调用 `GET /booking/technician/list` | 只证明 route 对齐，不证明页面字段闭环 |
+| `loadTechnicianDetail` | 直接调用 `GET /booking/technician/get` | `success(null)` 只能当空结果 |
+| `loadTimeSlots` | 直接调用 `GET /booking/slot/list-by-technician` | 详情页和确认页对字段需求不一致 |
+| `submitBookingOrderAndGo` | 仅 `code===0` 跳详情 | 当前没有已提交证据证明页面能稳定拼出合法 `spuId` |
+| `cancelBookingOrderAndRefresh` | 仅 `code===0` 刷新一次 | 当前没有读后回写样本，不能把 `code=0` 直接写成成功 |
+| `submitAddonOrderAndGo` | 仅 `code===0` 跳详情 | add-on 页 payload 仍缺 `spuId/skuId` 绑定 |
+
+## 4. 当前 stable errorCode 与 failureMode
+
+| scope | 当前 stable errorCode | failureMode | retryClass | 当前真实口径 |
 |---|---|---|---|---|
-| `GET /booking/technician/list` | `BookingApi.getTechnicianList` / `loadTechnicianList` | `AppTechnicianController#getTechnicianList` | `Aligned` | `Cannot Release` |
-| `GET /booking/slot/list-by-technician` | `BookingApi.getTimeSlots` / `loadTimeSlots` | `AppTimeSlotController#getTimeSlotsByTechnician` | `Aligned` | `Cannot Release` |
-| `POST /booking/order/create` | `BookingApi.createOrder` / `submitBookingOrder*` | `AppBookingOrderController#createOrder` | `Aligned` | `Cannot Release` |
-| `GET /booking/order/get` | `BookingApi.getOrderDetail` / `goToOrderDetail` | `AppBookingOrderController#getOrder` | `Aligned` | `Query Runtime OK` |
-| `GET /booking/order/list` | `BookingApi.getOrderList` | `AppBookingOrderController#getOrderList` | `Aligned` | `Query Runtime OK` |
-| `POST /booking/order/cancel` | `BookingApi.cancelOrder` / `cancelBookingOrder*` | `AppBookingOrderController#cancelOrder` | `Aligned` | `Cannot Release` |
-| `POST /app-api/booking/addon/create` | `BookingApi.createAddonOrder` / `submitAddonOrder*` | `AppBookingAddonController#createAddonOrder` | `Aligned` | `Cannot Release` |
-
-说明：
-- `loadTechnicianDetail -> BookingApi.getTechnician -> GET /booking/technician/get` 仍是当前 helper 的真实引用关系，但它不是本批 release gate 的 canonical truth 条目。
-- 当前 legacy path / old method 已不再由 `booking.js` 发出；它们继续只作为 blocker 保留项存在于产品、freeze、release 文档。
-
-## 3. 页面 helper 与 API wrapper 真值
-
-| 页面 helper | API wrapper | 当前真实行为 |
-|---|---|---|
-| `loadTechnicianList` | `BookingApi.getTechnicianList` | 直接读取技师列表 |
-| `loadTechnicianDetail` | `BookingApi.getTechnician` | 直接读取技师详情；仅作为相邻 helper 真值 |
-| `loadTimeSlots` | `BookingApi.getTimeSlots` | 直接读取技师时段列表 |
-| `submitBookingOrder` | `BookingApi.createOrder` | 固定补 `dispatchMode: 1` |
-| `submitBookingOrderAndGo` | `submitBookingOrder` | `code === 0` 时跳转 `/pages/booking/order-detail` |
-| `cancelBookingOrder` | `BookingApi.cancelOrder` | 固定默认取消原因为 `用户主动取消` |
-| `cancelBookingOrderAndRefresh` | `cancelBookingOrder` | `code === 0` 时仅执行一次 `onSuccess()` |
-| `submitAddonOrder` | `BookingApi.createAddonOrder` | 直接提交 add-on payload |
-| `submitAddonOrderAndGo` | `submitAddonOrder` | `code === 0` 时跳转 `/pages/booking/order-detail` |
-
-## 4. 当前稳定 errorCode 与恢复口径
-
-| canonical truth | 当前稳定 errorCode 证据 | 当前真实恢复口径 |
-|---|---|---|
-| `GET /booking/technician/list` | `-`；controller/service 不做技师存在性校验，空列表 `[]` 合法 | `FAIL_OPEN` 空态；`NO_AUTO_RETRY`；无服务端 `degraded` |
-| `GET /booking/slot/list-by-technician` | `-`；当前 path 无 `technicianId` 有效性错误码守卫，空列表 `[]` 合法 | `FAIL_OPEN` 空态；`NO_AUTO_RETRY`；无服务端 `degraded` |
-| `POST /booking/order/create` | `TIME_SLOT_NOT_AVAILABLE(1030003001)`；当前 controller/service 链路无稳定 `SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 抛出证据 | `FAIL_CLOSE`；`NO_AUTO_RETRY`；失败后不跳转 |
-| `GET /booking/order/get` | `BOOKING_ORDER_NOT_OWNER(1030004006)`；订单不存在当前返回 `success(null)`，不是 `BOOKING_ORDER_NOT_EXISTS(1030004000)` | `FAIL_CLOSE` 仅限越权；不存在按 `null` 处理；无服务端 `degraded` |
-| `GET /booking/order/list` | `-`；空列表 `[]` 合法 | `FAIL_OPEN` 空态；`NO_AUTO_RETRY`；无服务端 `degraded` |
-| `POST /booking/order/cancel` | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)` | `FAIL_CLOSE`；失败不刷新；成功后 `REFRESH_ONCE` |
-| `POST /app-api/booking/addon/create` | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`TIME_SLOT_NOT_AVAILABLE(1030003001)`（加钟分支） | `FAIL_CLOSE`；`NO_AUTO_RETRY`；失败后不跳转 |
+| technician-list query | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | 合法空列表 `[]`；无 `degraded` |
+| technician-detail query | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | miss=`success(null)`；不是 `1030001000/1030001001` |
+| technician-detail slot query | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | 空列表合法；不是成功样本 |
+| order-list query | `-` | `FAIL_OPEN` | `REFRESH_ONCE` | `code=0` 但页面仍可能因 shape drift 渲染空态 |
+| order-detail query | `BOOKING_ORDER_NOT_OWNER(1030004006)` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | miss=`success(null)`；不是 `1030004000` |
+| create | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | 当前不得把 `1030002001/1030003002` 写成稳定 code |
+| cancel | `1030004000/1030004005/1030004006` | `FAIL_CLOSE` | `REFRESH_ONCE` | 成功才刷新一次；失败不刷新 |
+| addon | `1030003001/1030004000/1030004001/1030004006` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | upgrade 缺 `skuId` 也可能落 `1030004000`；add-item 存在 `pseudo success / no-op risk` |
 
 ## 5. 必须继续保留的 legacy blocker
+- `GET /booking/technician/list-by-store`
+- `GET /booking/time-slot/list`
+- `PUT /booking/order/cancel`
+- `POST /booking/addon/create`
 
-| legacy blocker | 当前代码状态 | blocker 仍保留的原因 |
-|---|---|---|
-| `GET /booking/technician/list-by-store` | 当前 `booking.js` 不再发出 | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`、`docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md`、`docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md` 仍把它记为 release blocker 输入 |
-| `GET /booking/time-slot/list` | 当前 `booking.js` 不再发出 | 仍是 BF-022 / freeze review 的 blocker 锚点，不能静默删除 |
-| `PUT /booking/order/cancel` | 当前 `booking.js` 不再发出 | 仍是 BF-023 / freeze review 的 blocker 锚点，不能静默删除 |
-| `POST /booking/addon/create` | 当前 `booking.js` 不再发出 | 仍是 BF-024 / freeze review 的 blocker 锚点，不能静默删除 |
+这些 legacy blocker 当前只能写成：
+- release blocker 保留项
+- truth ledger / freeze review 锚点
 
-## 6. 当前为什么仍是 `Cannot Release`
-1. `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md` 仍把 `booking.create-chain`、`booking.cancel`、`booking.addon-upgrade` 固定为 `Cannot Release=Yes`，并要求 legacy path/method 清零后才能放量。
-2. `docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md` 仍将 BF-022/BF-023/BF-024 标为 `PLANNED_RESERVED`，且阻断理由仍引用旧 path / old method。
-3. `docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md` 仍把 booking 域记为 `Still Blocked`，并要求旧 path/old method 从联调与 release allowlist 中清除后再发起下一轮 freeze。
-4. 当前自动化证据仅覆盖 wrapper/helper 对齐与成功/失败分支 smoke，不等于真实 release sample 已归档。
-5. 因此本文件当前只固定 contract truth，不改写窗口 A/B/D 的 release gate 结论。
+不能再写成：
+- 当前 frontend canonical path
+- 当前页面仍在调用的 method/path
+
+## 6. 当前为什么仍是 `Can Develop / Cannot Release`
+1. 当前 booking 只证明了 wrapper/helper/controller 的 route 对齐。
+2. 当前 booking 还没有证明 page -> response field、page -> request payload、写后回读 已闭环。
+3. 当前没有 create / cancel / addon 的发布级 success/failure 样本包。
+4. 当前没有服务端 `degraded=true / degradeReason` 证据。
+5. 因此本文件只能把 booking 写成：
+   - `Can Develop=Yes`
+   - `Can Release=No`

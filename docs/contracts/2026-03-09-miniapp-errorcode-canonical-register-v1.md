@@ -35,7 +35,7 @@
 | 1008008000 | FAVORITE_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 重复收藏同一商品 | 保持当前收藏态，不重复提交 | 商品前台负责人核验幂等与收藏态同步 | 已生效 | - |
 | 1008008001 | FAVORITE_NOT_EXISTS | product | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 取消收藏时收藏记录不存在 | 刷新收藏列表后再操作 | 商品前台负责人排查收藏态脏读与并发删除 | 已生效 | - |
 | 1008009006 | STORE_SKU_STOCK_BIZ_KEY_CONFLICT | product | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 门店库存幂等冲突 | 刷新库存并重提 | 商品 on-call 排查并发/幂等 | 已生效 | - |
-| 1030003001 | TIME_SLOT_NOT_AVAILABLE | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 时段不可预约 | 选择其他时段 | 检查时段实时性 | 已生效 | - |
+| 1030003001 | TIME_SLOT_NOT_AVAILABLE | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 时段不可预约 | 选择其他时段 | 检查时段实时性 | 已生效 | - |
 | 1030004000 | BOOKING_ORDER_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 取消/加项/退款回调时订单不存在 | 刷新预约列表后重试 | 预约域核验订单归属与清理异常引用 | 已生效 | - |
 | 1030004001 | BOOKING_ORDER_STATUS_ERROR | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 预约订单状态不允许当前操作 | 刷新订单状态后按当前可用动作继续 | 预约域排查状态流转与重复操作冲突 | 已生效 | - |
 | 1030004005 | BOOKING_ORDER_CANNOT_CANCEL | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 预约订单当前状态不允许取消 | 刷新订单状态后仅执行当前可用动作 | 预约域排查重复取消、状态滞后与回流顺序 | 已生效 | - |
@@ -102,19 +102,24 @@
   - 当前也没有该路径的服务端 `degraded=true / degradeReason` 证据。
 - 因此 canonical register 本批保持“不新增、不影射、不提前登记”的口径；若后续出现真实对外暴露证据，再另行评审是否登记。
 
-## 3.2 2026-03-15 Booking Runtime Evidence Update
-- 本批新增登记：
+## 3.2 2026-03-16 Booking Runtime Scope Clarification
+- 当前 booking runtime page contract 只允许稳定引用以下 booking code：
+  - `TIME_SLOT_NOT_AVAILABLE(1030003001)`
+  - `BOOKING_ORDER_NOT_EXISTS(1030004000)`
+  - `BOOKING_ORDER_STATUS_ERROR(1030004001)` 仅 add-on path
   - `BOOKING_ORDER_CANNOT_CANCEL(1030004005)`
   - `BOOKING_ORDER_NOT_OWNER(1030004006)`
-- 新增依据固定为：
-  - `AppBookingOrderController -> BookingOrderServiceImpl#cancelOrder` 对外稳定抛出 `1030004005/1030004006`
-  - `AppBookingOrderController -> BookingOrderServiceImpl#getOrderByUser` 对外稳定抛出 `1030004006`
-  - `AppBookingAddonController -> BookingAddonServiceImpl#validateParentOrder` 对外稳定抛出 `1030004006`
-- 本批明确不新增：
-  - `TECHNICIAN_NOT_EXISTS(1030001000)` 作为 `GET /booking/technician/get` 的 runtime code
-  - `SCHEDULE_CONFLICT(1030002001)` 作为当前 app create path 的 runtime code
-  - `TIME_SLOT_ALREADY_BOOKED(1030003002)` 作为当前 app create/add-on path 的 runtime code
-- 原因：以上 code 在当前 app controller/service 链路没有稳定对外抛出证据，禁止提前登记。
+- 当前 booking runtime page contract 禁止把以下 code 写成稳定运行分支：
+  - `TECHNICIAN_NOT_EXISTS(1030001000)`
+  - `TECHNICIAN_DISABLED(1030001001)`
+  - `SCHEDULE_CONFLICT(1030002001)`
+  - `TIME_SLOT_ALREADY_BOOKED(1030003002)`
+- 说明：
+  - `GET /booking/technician/get` 当前 miss 是 `success(null)`，不是 `1030001000/1030001001`
+  - `GET /booking/order/get` 当前 miss 是 `success(null)`，不是 `1030004000`
+  - add-on 页当前只提交 `parentOrderId,addonType`；`upgrade` 路径缺 `skuId` 时也可能落 `1030004000`，因此 downstream 文档不得把该码简化成“只表示母单不存在”
+  - 当前 booking runtime page contract 没有 `MANUAL_RETRY_3` 的已提交 helper / SOP / runbook 证据
+  - 当前没有已提交服务端 `degraded=true / degradeReason` 证据
 
 ## 4. 预留码段
 - Product：`1_008_099_001` ~ `1_008_099_099`

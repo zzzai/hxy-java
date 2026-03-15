@@ -2,108 +2,119 @@
 
 ## 1. 本批范围
 - 分支：`window-c-booking-runtime-contract-20260315`
-- 输出类型：仅更新 booking contract / errorCode 文档与新增 handoff；未改业务代码、未改 overlay 页面、未动 `.codex`、未改历史 handoff、未处理无关 modified/untracked。
+- 仅更新 booking contract / errorCode / API matrix 文档与当前 handoff。
+- 未改业务代码、未改 overlay 页面、未动 `.codex`、未改历史 handoff、未处理无关 modified/untracked。
 - 新增：
-  - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
-  - `hxy/07_memory_archive/handoffs/2026-03-15/booking-runtime-contract-window-c.md`
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
 - 更新：
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
   - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
   - `docs/contracts/2026-03-09-miniapp-errorcode-canonical-register-v1.md`
+  - `docs/contracts/2026-03-09-miniapp-release-api-canonical-list-v1.md`
+  - `hxy/07_memory_archive/handoffs/2026-03-15/booking-runtime-contract-window-c.md`
 
 ## 2. 当前固定结论
 
-### 2.1 Runtime canonical truth
-- `booking.js` 当前真实 method/path 已与 app controller 对齐：
+### 2.1 Canonical method/path
+- 当前 `booking.js` 与 app controller 的 canonical method/path 对齐项只认：
   - `GET /booking/technician/list`
+  - `GET /booking/technician/get`
   - `GET /booking/slot/list-by-technician`
-  - `POST /booking/order/create`
-  - `GET /booking/order/get`
   - `GET /booking/order/list`
+  - `GET /booking/order/get`
+  - `POST /booking/order/create`
   - `POST /booking/order/cancel`
   - `POST /app-api/booking/addon/create`
-- `pages/booking/logic.js` 当前 helper 也已对齐：
-  - `loadTechnicianList -> getTechnicianList`
-  - `loadTimeSlots -> getTimeSlots`
-  - `submitBookingOrder* -> createOrder`
-  - `cancelBookingOrder* -> cancelOrder`
-  - `submitAddonOrder* -> createAddonOrder`
-- 相邻但不在本批 release gate 的 helper 真值：
-  - `loadTechnicianDetail -> getTechnician -> GET /booking/technician/get`
+- 但“route 对齐”不等于“页面闭环”：
+  - technician 页仍有字段 drift
+  - order-list 仍有响应 shape drift
+  - order-confirm / addon 仍有请求体字段 drift
 
-### 2.2 Legacy blocker 固定保留
-- 以下 legacy path / old method 当前已不再由 `booking.js` 发出，但必须继续保留为 blocker：
-  - `GET /booking/technician/list-by-store`
-  - `GET /booking/time-slot/list`
-  - `PUT /booking/order/cancel`
-  - `POST /booking/addon/create`
-- 保留原因：
-  - 03-09 booking PRD 仍用它们作为 `Cannot Release` 条件
-  - 03-12 truth ledger 仍用它们阻断 BF-022/BF-023/BF-024
-  - 03-09 ready-to-frozen review 仍要求它们从联调与 allowlist 中清零
-  - 03-14 blocker closure 文档仍把它们作为 release blocker 保留项
-
-### 2.3 Stable errorCode 结论
-- 本批新增进入 canonical register：
-  - `BOOKING_ORDER_CANNOT_CANCEL(1030004005)`
-  - `BOOKING_ORDER_NOT_OWNER(1030004006)`
-- 当前 booking runtime 可确认的稳定 code：
+### 2.2 Stable errorCode
+- 当前 booking runtime page contract 只允许稳定引用：
   - `TIME_SLOT_NOT_AVAILABLE(1030003001)`
   - `BOOKING_ORDER_NOT_EXISTS(1030004000)`
   - `BOOKING_ORDER_STATUS_ERROR(1030004001)` 仅 add-on path
   - `BOOKING_ORDER_CANNOT_CANCEL(1030004005)`
   - `BOOKING_ORDER_NOT_OWNER(1030004006)`
-- 当前明确不能写成稳定 code：
-  - `TECHNICIAN_NOT_EXISTS(1030001000)` 不能用于 `GET /booking/technician/get`
-  - `SCHEDULE_CONFLICT(1030002001)` 不能用于当前 app create path
-  - `TIME_SLOT_ALREADY_BOOKED(1030003002)` 不能用于当前 app create/add-on path
-  - `BOOKING_ORDER_NOT_EXISTS(1030004000)` 不能用于 `GET /booking/order/get` miss
-  - `BOOKING_ORDER_STATUS_ERROR(1030004001)` 不能用于 `POST /booking/order/cancel`
+- 当前明确不能写成稳定 runtime code：
+  - `TECHNICIAN_NOT_EXISTS(1030001000)`
+  - `TECHNICIAN_DISABLED(1030001001)`
+  - `SCHEDULE_CONFLICT(1030002001)`
+  - `TIME_SLOT_ALREADY_BOOKED(1030003002)`
+- 特别说明：
+  - `GET /booking/order/get` miss 是 `success(null)`，不是 `1030004000`
+  - add-on 页当前缺 `skuId` 绑定时，`upgrade` 路径也可能落 `1030004000`
 
-### 2.4 Fail-open / fail-close / retry 口径
+### 2.3 Fail-open / fail-close / retry
 - `FAIL_OPEN`
   - `GET /booking/technician/list`
+  - `GET /booking/technician/get`
   - `GET /booking/slot/list-by-technician`
   - `GET /booking/order/list`
-  - 空列表 `[]` 合法，不走 errorCode 分支
 - `FAIL_CLOSE`
+  - `GET /booking/order/get` 的越权分支
   - `POST /booking/order/create`
   - `POST /booking/order/cancel`
   - `POST /app-api/booking/addon/create`
-  - service exception 直接阻断，helper 只在 `code === 0` 时继续
 - `NO_AUTO_RETRY`
-  - create 失败不跳转
-  - cancel 失败不刷新
-  - add-on 失败不跳转
+  - technician-list / technician-detail query
+  - technician slot query
+  - create
+  - order-detail query
+  - addon
 - `REFRESH_ONCE`
-  - 仅 `cancelBookingOrderAndRefresh` 在 `code === 0` 时执行一次 `onSuccess()`
-- 当前无服务端 `degraded=true / degradeReason` 证据
+  - order-list query 的人工刷新
+  - cancel 成功后的单次刷新
+- 当前 booking runtime page contract 没有 `MANUAL_RETRY_3` 的已提交证据。
+- 当前没有服务端 `degraded=true / degradeReason` 证据。
 
-### 2.5 为什么当前仍是 `Cannot Release`
-- 当前 runtime contract 已对齐，但 release gate 还没有被 A/B/D 侧重签。
-- 当前 booking 写链路仍被以下文档口径阻断：
-  - `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`
-  - `docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md`
-  - `docs/products/miniapp/2026-03-09-miniapp-ready-to-frozen-review-v1.md`
-- 当前自动化仅为 wrapper/helper smoke，不是 release sample pack。
+### 2.4 当前 No-Go 条件
+1. 把 controller-only path 写成页面闭环。
+2. 把 `[] / null / 0` 写成成功样本。
+3. 把 `code=0` 但写后未读到预期变化写成成功。
+4. 把 add-on `code=0` 的零价格空商品写入写成真实成功；它属于 `pseudo success / no-op risk`。
+5. 把 `1030001000/1030001001/1030002001/1030003002` 写成当前 booking runtime page 稳定 code。
+6. 把 helper smoke、runtime gate `PASS` 或 shared chain `rc=0` 外推成 release-ready。
 
-## 3. 给窗口 A / B / D 的联调注意点
+## 3. 给窗口 A / B / D / E 的联调注意点
 
 ### 3.1 给窗口 A
-- A 侧可以把 booking runtime contract 改写为“当前 FE wrapper 与 app controller 已对齐”，但不能直接改成 `Release OK`。
-- 旧 blocker 四项必须继续留在 capability / freeze / allowlist，直到 A 完成 release gate 重签。
-- `GET /booking/order/get` 的 miss 不能再按 `BOOKING_ORDER_NOT_EXISTS(1030004000)` 分支；当前真实口径是 `success(null)`。
+- A 侧不得继续把 booking 写成 query-only 已闭环而省略字段 drift。
+- 至少要补出以下 contract 结论：
+  - technician 页字段仍 drift
+  - order-list 响应 shape 仍 drift
+  - order-confirm / addon 请求体仍 drift
+- `GET /booking/order/get` miss 只能写 `success(null)`。
+- `GET /booking/order/list` 当前 controller 不消费 `pageNo/pageSize/status`，不要写成按状态分页已闭环。
 
 ### 3.2 给窗口 B
-- B 侧需要把产品文档里的“FE 仍发旧 path / old method”改成“legacy blocker 保留，但当前 wrapper 已对齐”。
-- create/cancel/add-on 的用户恢复动作只能按 code 写：
-  - create：`1030003001`
-  - cancel：`1030004000` / `1030004005` / `1030004006`
-  - add-on：`1030003001` / `1030004000` / `1030004001` / `1030004006`
-- 不得把 `SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)`、`TECHNICIAN_NOT_EXISTS(1030001000)` 写成当前 runtime 稳定分支。
+- B 侧用户恢复动作只能按 code 写，不能按错误文案写。
+- create 只能稳定写：
+  - `1030003001`
+- cancel 只能稳定写：
+  - `1030004000`
+  - `1030004005`
+  - `1030004006`
+- addon 只能稳定写：
+  - `1030003001`
+  - `1030004000`
+  - `1030004001`
+  - `1030004006`
+- B 侧不得把 `title/specialties/status/payOrderId/spuId/skuId` 写成当前已经完成真实绑定。
 
 ### 3.3 给窗口 D
-- D 侧 runbook / alert / gate 需要区分：
-  - list 查询空态 `[]` 是合法空态，不是 degraded
-  - cancel 成功后的 `refresh-once` 是前端 helper 行为，不是服务端重试
+- D 侧 runbook / alert / gate 需要明确：
+  - `[] / null` 是结构态，不是成功样本，也不是 `degraded`
+  - cancel 成功后的 `refresh-once` 是前端 helper 行为，不是服务端自动重试
+  - add-on 当前存在 `pseudo success / no-op risk`
   - 当前没有服务端 `degraded=true / degradeReason`
-- release gate 仍应保持 `Cannot Release`，直到 D 侧 sample/gate 文档与 A/B 同步完成。
+- D 侧不得把 shared chain `booking_miniapp_runtime_gate_rc=0` 写成放量依据。
+
+### 3.4 给窗口 E
+- E 侧若做样本归档或脚本核验，必须额外检查：
+  - order-list 是否真的拿到 `data[]` 还是页面误按 `data.list/data.total` 读
+  - order-detail / order-list 是否读到 `payOrderId`
+  - order-confirm 是否真的带上合法 `spuId`
+  - addon 是否带上 `skuId/spuId`
+- E 侧若命中 add-on `code=0` 但订单金额为 `0` 或商品字段为空，必须标成 `pseudo success / no-op risk`，不得归档成成功样本。
