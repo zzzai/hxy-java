@@ -37,6 +37,10 @@
    - 负向样本只按 `errorCode` 判定
 3. 因此 Booking 当前只有读查询动作 `GET /booking/order/list`、`GET /booking/order/get`、`GET /booking/technician/get` 允许继续开发验证；一旦进入 `slot list / create / cancel / addon`，仍不得进入发布签发、Frozen Candidate 或 release-ready 分母。
 4. 单点 `create / cancel / addon` wrapper 对齐不能单独放行。只要真实 release evidence 还没补齐，write-chain 仍是 `blocker_pool`。
+5. 当前分支只核到 `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md` 这份 booking contract；它仍保留早期 legacy blocker 快照，不能覆盖当前代码、测试和 gate 已确认的 canonical method/path 真值。
+6. booking 当前批次的运行门禁审计与 step-by-step 处置，统一以下列 03-16 文档为准：
+   - `docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md`
+   - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-gate-acceptance-sop-v1.md`
 
 ### 4.2 样本、验收、发布如何判失败
 
@@ -53,12 +57,18 @@
   - `blocker_pool`：收 `technician list / slot list / create / cancel / addon` 正负样本，以及任一旧 path 命中、gate 非 `rc=0`、按 `message` 分支等 blocker。
   - `release-ready` 主分母：当前固定为 `0`，直到真实 release evidence 补齐。
 - `runtime gate PASS` 与 `local CI PASS` 只代表“边界被守住”；即使 `REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE=0` 把 CI 呈现成 WARN，也不得改变 booking 的 `Cannot Release` 结论。
+- `PASS` 只能证明 repo/shared-chain boundary 没回退，不能替代 allowlist、巡检日志、回放日志、7 类样本包和签发证据。
 
 ### 4.4 Booking 当前最终结论
 - `Doc Closed`：是。booking PRD、alignment、checklist 已闭环。
 - `Can Develop`：是。可以继续改 FE API、补样本、补日志、补联调。
+- `Can Release`：否。
 - `Cannot Release`：是。直到真实 release evidence 补齐前，Booking 继续保持 `No-Go`。
 - `Cannot Mis-Release`：是。任何把 `query-only ACTIVE` 扩写成 Booking 全域可放量的行为，都算误发布。
+- 处置 SOP 统一引用 `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-sop-v1.md`。
+- 当批 gate 审计与告警升级统一补充引用：
+  - `docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md`
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-gate-acceptance-sop-v1.md`
 
 ## 5. Member 缺页能力最终门禁
 
@@ -110,6 +120,7 @@
 ### 6.3 Reserved 判失败条件
 - 只因为 activation checklist / gray runbook / alert routing 已齐，就把 capability 写成“可进入灰度”。
 - 在 `miniapp.gift-card / miniapp.referral / miniapp.technician-feed.audit = off` 时，把任何命中写成 warning 而非 mis-release。
+- 任一 `RESERVED_DISABLED` 关闭态命中都直接按 mis-release / `No-Go` 处理，不得留在 warning。
 - 把治理文档完备度当成 runtime 成功样本。
 
 ### 6.4 Reserved 当前最终结论
@@ -197,5 +208,6 @@
 ## 9. 当前分支最终结论
 - 当前分支这批 blocker 全部已经 `Doc Closed`。
 - 当前分支这批 blocker 全部仍然 `Can Develop`。
+- 当前分支这批 blocker 全部仍然 `Can Release=No`。
 - 当前分支这批 blocker 全部仍然 `Cannot Release`。
 - 发布签发只能继续沿用既有 03-09 Frozen baseline；本批 blocker 不新增任何可放心开发后直接放量的能力。
