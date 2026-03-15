@@ -5,6 +5,7 @@ on:
     branches: [ main, master ]
     paths:
       - "ruoyi-vue-pro-master/script/dev/run_ops_stageb_p1_local_ci.sh"
+      - "ruoyi-vue-pro-master/script/dev/check_booking_miniapp_runtime_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_notify_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_audit_gate.sh"
       - "ruoyi-vue-pro-master/script/dev/check_booking_refund_replay_v2_gate.sh"
@@ -27,6 +28,10 @@ on:
       - "ruoyi-vue-pro-master/yudao-module-mall/yudao-module-product/**"
       - "ruoyi-vue-pro-master/yudao-module-mall/yudao-module-trade/**"
       - "ruoyi-vue-pro-master/yudao-module-mall/yudao-module-booking/**"
+      - "yudao-mall-uniapp/sheep/api/trade/booking.js"
+      - "yudao-mall-uniapp/pages/booking/**"
+      - "yudao-mall-uniapp/tests/booking-api-alignment.test.mjs"
+      - "yudao-mall-uniapp/tests/booking-page-smoke.test.mjs"
       - ".github/workflows/ops-stageb-p1-guard.yml"
   workflow_dispatch:
     inputs:
@@ -37,6 +42,11 @@ on:
         type: boolean
       require_memory_guard:
         description: "记忆门禁失败是否阻断"
+        required: true
+        default: true
+        type: boolean
+      require_booking_miniapp_runtime_gate:
+        description: "Booking 小程序 runtime 门禁失败是否阻断"
         required: true
         default: true
         type: boolean
@@ -164,6 +174,7 @@ jobs:
 
           require_naming_input="${{ github.event.inputs.require_naming_guard }}"
           require_memory_input="${{ github.event.inputs.require_memory_guard }}"
+          require_booking_runtime_input="${{ github.event.inputs.require_booking_miniapp_runtime_gate }}"
           require_refund_audit_input="${{ github.event.inputs.require_booking_refund_audit_gate }}"
           require_refund_replay_v2_input="${{ github.event.inputs.require_booking_refund_replay_v2_gate }}"
           require_refund_replay_runlog_input="${{ github.event.inputs.require_booking_refund_replay_runlog_gate }}"
@@ -179,6 +190,7 @@ jobs:
 
           [[ -z "${require_naming_input}" ]] && require_naming_input="true"
           [[ -z "${require_memory_input}" ]] && require_memory_input="true"
+          [[ -z "${require_booking_runtime_input}" ]] && require_booking_runtime_input="true"
           [[ -z "${require_refund_audit_input}" ]] && require_refund_audit_input="true"
           [[ -z "${require_refund_replay_v2_input}" ]] && require_refund_replay_v2_input="true"
           [[ -z "${require_refund_replay_runlog_input}" ]] && require_refund_replay_runlog_input="true"
@@ -194,6 +206,7 @@ jobs:
 
           require_naming=0
           require_memory=0
+          require_booking_runtime=0
           require_refund_audit=0
           require_refund_replay_v2=0
           require_refund_replay_runlog=0
@@ -207,6 +220,7 @@ jobs:
           clean_before_tests=0
           [[ "${require_naming_input}" == "true" ]] && require_naming=1
           [[ "${require_memory_input}" == "true" ]] && require_memory=1
+          [[ "${require_booking_runtime_input}" == "true" ]] && require_booking_runtime=1
           [[ "${require_refund_audit_input}" == "true" ]] && require_refund_audit=1
           [[ "${require_refund_replay_v2_input}" == "true" ]] && require_refund_replay_v2=1
           [[ "${require_refund_replay_runlog_input}" == "true" ]] && require_refund_replay_runlog=1
@@ -255,6 +269,7 @@ jobs:
           NAMING_GIT_DIFF_RANGE="${naming_diff_range}" \
           REQUIRE_NAMING_GUARD="${require_naming}" \
           REQUIRE_MEMORY_GUARD="${require_memory}" \
+          REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE="${require_booking_runtime}" \
           REQUIRE_BOOKING_REFUND_AUDIT_GATE="${require_refund_audit}" \
           REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${require_refund_replay_v2}" \
           REQUIRE_BOOKING_REFUND_REPLAY_RUNLOG_GATE="${require_refund_replay_runlog}" \
@@ -306,6 +321,7 @@ jobs:
             echo "| pipeline_exit_code | **$(kv "${summary_file}" pipeline_exit_code)** |"
             echo "| naming_guard_rc | $(kv "${summary_file}" naming_guard_rc) |"
             echo "| memory_guard_rc | $(kv "${summary_file}" memory_guard_rc) |"
+            echo "| booking_miniapp_runtime_gate_rc | $(kv "${summary_file}" booking_miniapp_runtime_gate_rc) |"
             echo "| booking_refund_notify_gate_rc | $(kv "${summary_file}" booking_refund_notify_gate_rc) |"
             echo "| booking_refund_audit_gate_rc | $(kv "${summary_file}" booking_refund_audit_gate_rc) |"
             echo "| booking_refund_replay_v2_gate_rc | $(kv "${summary_file}" booking_refund_replay_v2_gate_rc) |"

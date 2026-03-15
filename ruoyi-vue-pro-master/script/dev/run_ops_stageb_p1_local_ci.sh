@@ -23,6 +23,7 @@ NAMING_GIT_DIFF_RANGE="${NAMING_GIT_DIFF_RANGE:-}"
 SKIP_MYSQL_INIT="${SKIP_MYSQL_INIT:-0}"
 RUN_NAMING_GUARD="${RUN_NAMING_GUARD:-1}"
 RUN_MEMORY_GUARD="${RUN_MEMORY_GUARD:-1}"
+RUN_BOOKING_MINIAPP_RUNTIME_GATE="${RUN_BOOKING_MINIAPP_RUNTIME_GATE:-1}"
 RUN_BOOKING_REFUND_NOTIFY_GATE="${RUN_BOOKING_REFUND_NOTIFY_GATE:-1}"
 RUN_BOOKING_REFUND_AUDIT_GATE="${RUN_BOOKING_REFUND_AUDIT_GATE:-1}"
 RUN_BOOKING_REFUND_REPLAY_V2_GATE="${RUN_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
@@ -38,6 +39,7 @@ CLEAN_BEFORE_TESTS="${CLEAN_BEFORE_TESTS:-0}"
 
 REQUIRE_NAMING_GUARD="${REQUIRE_NAMING_GUARD:-1}"
 REQUIRE_MEMORY_GUARD="${REQUIRE_MEMORY_GUARD:-1}"
+REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE="${REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE:-1}"
 REQUIRE_BOOKING_REFUND_NOTIFY_GATE="${REQUIRE_BOOKING_REFUND_NOTIFY_GATE:-1}"
 REQUIRE_BOOKING_REFUND_AUDIT_GATE="${REQUIRE_BOOKING_REFUND_AUDIT_GATE:-1}"
 REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE="${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE:-1}"
@@ -78,6 +80,7 @@ Options:
   --skip-mysql-init                          跳过 MySQL schema 初始化
   --skip-naming-guard                        跳过命名门禁
   --skip-memory-guard                        跳过记忆门禁
+  --skip-booking-miniapp-runtime-gate        跳过 booking 小程序 runtime 门禁
   --skip-booking-refund-notify-gate          跳过 booking 退款回调门禁
   --skip-booking-refund-audit-gate           skip booking refund audit summary gate
   --skip-booking-refund-replay-v2-gate       skip booking refund replay v2 gate
@@ -93,6 +96,7 @@ Options:
 
   --require-naming-guard <0|1>               命名门禁失败是否阻断（默认 1）
   --require-memory-guard <0|1>               记忆门禁失败是否阻断（默认 1）
+  --require-booking-miniapp-runtime-gate <0|1> booking 小程序 runtime 门禁失败是否阻断（默认 1）
   --require-booking-refund-notify-gate <0|1> booking 退款回调门禁失败是否阻断（默认 1）
   --require-booking-refund-audit-gate <0|1>  block on booking refund audit summary gate failure (default 1)
   --require-booking-refund-replay-v2-gate <0|1> block on booking refund replay v2 gate failure (default 1)
@@ -109,6 +113,8 @@ Options:
 
 Env:
   CLEAN_BEFORE_TESTS                         置为 1 时等价于 --clean-before-tests
+  RUN_BOOKING_MINIAPP_RUNTIME_GATE          置为 0 时跳过 booking miniapp runtime gate
+  REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE      置为 0 时 booking miniapp runtime gate 失败降级为 WARN
   RUN_FINANCE_PARTIAL_CLOSURE_GATE          置为 0 时跳过 finance partial closure gate
   REQUIRE_FINANCE_PARTIAL_CLOSURE_GATE      置为 0 时 finance partial closure gate 失败降级为 WARN
   RUN_MINIAPP_P0_CONTRACT_GATE              置为 0 时跳过 miniapp p0 contract gate
@@ -172,6 +178,10 @@ while [[ $# -gt 0 ]]; do
       RUN_MEMORY_GUARD=0
       shift
       ;;
+    --skip-booking-miniapp-runtime-gate)
+      RUN_BOOKING_MINIAPP_RUNTIME_GATE=0
+      shift
+      ;;
     --skip-booking-refund-notify-gate)
       RUN_BOOKING_REFUND_NOTIFY_GATE=0
       shift
@@ -226,6 +236,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-memory-guard)
       REQUIRE_MEMORY_GUARD="$2"
+      shift 2
+      ;;
+    --require-booking-miniapp-runtime-gate)
+      REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE="$2"
       shift 2
       ;;
     --require-booking-refund-notify-gate)
@@ -297,6 +311,7 @@ for flag in \
   "${SKIP_MYSQL_INIT}" \
   "${RUN_NAMING_GUARD}" \
   "${RUN_MEMORY_GUARD}" \
+  "${RUN_BOOKING_MINIAPP_RUNTIME_GATE}" \
   "${RUN_BOOKING_REFUND_NOTIFY_GATE}" \
   "${RUN_BOOKING_REFUND_AUDIT_GATE}" \
   "${RUN_BOOKING_REFUND_REPLAY_V2_GATE}" \
@@ -311,6 +326,7 @@ for flag in \
   "${CLEAN_BEFORE_TESTS}" \
   "${REQUIRE_NAMING_GUARD}" \
   "${REQUIRE_MEMORY_GUARD}" \
+  "${REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE}" \
   "${REQUIRE_BOOKING_REFUND_NOTIFY_GATE}" \
   "${REQUIRE_BOOKING_REFUND_AUDIT_GATE}" \
   "${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}" \
@@ -341,6 +357,7 @@ FINAL_GATE_LOG="${LOG_DIR}/final_gate.log"
 MYSQL_INIT_LOG="${LOG_DIR}/mysql_init.log"
 NAMING_GUARD_LOG="${LOG_DIR}/naming_guard.log"
 MEMORY_GUARD_LOG="${LOG_DIR}/memory_guard.log"
+BOOKING_MINIAPP_RUNTIME_GATE_LOG="${LOG_DIR}/booking_miniapp_runtime_gate.log"
 BOOKING_REFUND_NOTIFY_GATE_LOG="${LOG_DIR}/booking_refund_notify_gate.log"
 BOOKING_REFUND_AUDIT_GATE_LOG="${LOG_DIR}/booking_refund_audit_gate.log"
 BOOKING_REFUND_REPLAY_V2_GATE_LOG="${LOG_DIR}/booking_refund_replay_v2_gate.log"
@@ -352,6 +369,10 @@ MINIAPP_P0_CONTRACT_GATE_LOG="${LOG_DIR}/miniapp_p0_contract_gate.log"
 STORE_SKU_STOCK_GATE_LOG="${LOG_DIR}/store_sku_stock_gate.log"
 STORE_LIFECYCLE_GATE_LOG="${LOG_DIR}/store_lifecycle_change_order_gate.log"
 TEST_LOG="${LOG_DIR}/regression_tests.log"
+
+BOOKING_MINIAPP_RUNTIME_GATE_DIR="${ARTIFACT_DIR}/booking_miniapp_runtime_gate"
+BOOKING_MINIAPP_RUNTIME_GATE_SUMMARY="${BOOKING_MINIAPP_RUNTIME_GATE_DIR}/summary.txt"
+BOOKING_MINIAPP_RUNTIME_GATE_TSV="${BOOKING_MINIAPP_RUNTIME_GATE_DIR}/result.tsv"
 
 BOOKING_REFUND_NOTIFY_GATE_DIR="${ARTIFACT_DIR}/booking_refund_notify_gate"
 BOOKING_REFUND_NOTIFY_GATE_SUMMARY="${BOOKING_REFUND_NOTIFY_GATE_DIR}/summary.txt"
@@ -393,13 +414,14 @@ STORE_LIFECYCLE_GATE_DIR="${ARTIFACT_DIR}/store_lifecycle_change_order_gate"
 STORE_LIFECYCLE_GATE_SUMMARY="${STORE_LIFECYCLE_GATE_DIR}/summary.txt"
 STORE_LIFECYCLE_GATE_TSV="${STORE_LIFECYCLE_GATE_DIR}/result.tsv"
 
-mkdir -p "${LOG_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}" "${FINANCE_PARTIAL_CLOSURE_GATE_DIR}" "${MINIAPP_P0_CONTRACT_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
+mkdir -p "${LOG_DIR}" "${BOOKING_MINIAPP_RUNTIME_GATE_DIR}" "${BOOKING_REFUND_NOTIFY_GATE_DIR}" "${BOOKING_REFUND_AUDIT_GATE_DIR}" "${BOOKING_REFUND_REPLAY_V2_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUNLOG_GATE_DIR}" "${BOOKING_REFUND_REPLAY_RUN_SUMMARY_GATE_DIR}" "${BOOKING_REFUND_REPLAY_TICKET_SYNC_GATE_DIR}" "${FINANCE_PARTIAL_CLOSURE_GATE_DIR}" "${MINIAPP_P0_CONTRACT_GATE_DIR}" "${STORE_SKU_STOCK_GATE_DIR}" "${STORE_LIFECYCLE_GATE_DIR}"
 echo -e "stage\tseverity\tcode\tdetail" > "${RESULT_TSV}"
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
 mysql_init_rc="SKIP"
 naming_guard_rc="SKIP"
 memory_guard_rc="SKIP"
+booking_miniapp_runtime_gate_rc="SKIP"
 booking_refund_notify_gate_rc="SKIP"
 booking_refund_audit_gate_rc="SKIP"
 booking_refund_replay_v2_gate_rc="SKIP"
@@ -478,6 +500,7 @@ finalize() {
     echo "skip_mysql_init=${SKIP_MYSQL_INIT}"
     echo "run_naming_guard=${RUN_NAMING_GUARD}"
     echo "run_memory_guard=${RUN_MEMORY_GUARD}"
+    echo "run_booking_miniapp_runtime_gate=${RUN_BOOKING_MINIAPP_RUNTIME_GATE}"
     echo "run_booking_refund_notify_gate=${RUN_BOOKING_REFUND_NOTIFY_GATE}"
     echo "run_booking_refund_audit_gate=${RUN_BOOKING_REFUND_AUDIT_GATE}"
     echo "run_booking_refund_replay_v2_gate=${RUN_BOOKING_REFUND_REPLAY_V2_GATE}"
@@ -493,6 +516,7 @@ finalize() {
     echo "regression_test_classes=${REGRESSION_TEST_CLASSES}"
     echo "require_naming_guard=${REQUIRE_NAMING_GUARD}"
     echo "require_memory_guard=${REQUIRE_MEMORY_GUARD}"
+    echo "require_booking_miniapp_runtime_gate=${REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE}"
     echo "require_booking_refund_notify_gate=${REQUIRE_BOOKING_REFUND_NOTIFY_GATE}"
     echo "require_booking_refund_audit_gate=${REQUIRE_BOOKING_REFUND_AUDIT_GATE}"
     echo "require_booking_refund_replay_v2_gate=${REQUIRE_BOOKING_REFUND_REPLAY_V2_GATE}"
@@ -506,6 +530,7 @@ finalize() {
     echo "mysql_init_rc=${mysql_init_rc}"
     echo "naming_guard_rc=${naming_guard_rc}"
     echo "memory_guard_rc=${memory_guard_rc}"
+    echo "booking_miniapp_runtime_gate_rc=${booking_miniapp_runtime_gate_rc}"
     echo "booking_refund_notify_gate_rc=${booking_refund_notify_gate_rc}"
     echo "booking_refund_audit_gate_rc=${booking_refund_audit_gate_rc}"
     echo "booking_refund_replay_v2_gate_rc=${booking_refund_replay_v2_gate_rc}"
@@ -527,6 +552,7 @@ finalize() {
     echo "mysql_init_log=${MYSQL_INIT_LOG}"
     echo "naming_guard_log=${NAMING_GUARD_LOG}"
     echo "memory_guard_log=${MEMORY_GUARD_LOG}"
+    echo "booking_miniapp_runtime_gate_log=${BOOKING_MINIAPP_RUNTIME_GATE_LOG}"
     echo "booking_refund_notify_gate_log=${BOOKING_REFUND_NOTIFY_GATE_LOG}"
     echo "booking_refund_audit_gate_log=${BOOKING_REFUND_AUDIT_GATE_LOG}"
     echo "booking_refund_replay_v2_gate_log=${BOOKING_REFUND_REPLAY_V2_GATE_LOG}"
@@ -537,6 +563,8 @@ finalize() {
     echo "miniapp_p0_contract_gate_log=${MINIAPP_P0_CONTRACT_GATE_LOG}"
     echo "store_sku_stock_gate_log=${STORE_SKU_STOCK_GATE_LOG}"
     echo "store_lifecycle_change_order_gate_log=${STORE_LIFECYCLE_GATE_LOG}"
+    echo "booking_miniapp_runtime_gate_summary=${BOOKING_MINIAPP_RUNTIME_GATE_SUMMARY}"
+    echo "booking_miniapp_runtime_gate_tsv=${BOOKING_MINIAPP_RUNTIME_GATE_TSV}"
     echo "booking_refund_notify_gate_summary=${BOOKING_REFUND_NOTIFY_GATE_SUMMARY}"
     echo "booking_refund_notify_gate_tsv=${BOOKING_REFUND_NOTIFY_GATE_TSV}"
     echo "booking_refund_audit_gate_summary=${BOOKING_REFUND_AUDIT_GATE_SUMMARY}"
@@ -670,6 +698,32 @@ if [[ "${RUN_MEMORY_GUARD}" == "1" ]]; then
       exit 2
     fi
     add_issue "memory-guard" "WARN" "OPS03_MEMORY_GUARD_FAIL" "memory_guard_rc=${memory_guard_rc}"
+  fi
+fi
+
+if [[ "${RUN_BOOKING_MINIAPP_RUNTIME_GATE}" == "1" ]]; then
+  echo "[ops-stageb-p1-local-ci] step=booking-miniapp-runtime-gate"
+  set +e
+  bash script/dev/check_booking_miniapp_runtime_gate.sh \
+    --summary-file "${BOOKING_MINIAPP_RUNTIME_GATE_SUMMARY}" \
+    --output-tsv "${BOOKING_MINIAPP_RUNTIME_GATE_TSV}" > "${BOOKING_MINIAPP_RUNTIME_GATE_LOG}" 2>&1
+  booking_miniapp_runtime_gate_rc=$?
+  set -e
+  append_gate_tsv "booking-miniapp-runtime-gate" "${BOOKING_MINIAPP_RUNTIME_GATE_TSV}"
+
+  if [[ "${booking_miniapp_runtime_gate_rc}" != "0" && "${booking_miniapp_runtime_gate_rc}" != "2" ]]; then
+    if [[ "${REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE}" == "1" ]]; then
+      add_issue "booking-miniapp-runtime-gate" "BLOCK" "OPS25_BOOKING_MINIAPP_RUNTIME_GATE_EXEC_FAIL" "booking_miniapp_runtime_gate_rc=${booking_miniapp_runtime_gate_rc}"
+      PIPELINE_EXIT_CODE=2
+      exit 2
+    fi
+    add_issue "booking-miniapp-runtime-gate" "WARN" "OPS25_BOOKING_MINIAPP_RUNTIME_GATE_EXEC_FAIL" "booking_miniapp_runtime_gate_rc=${booking_miniapp_runtime_gate_rc}"
+  elif [[ "${booking_miniapp_runtime_gate_rc}" == "2" && "${REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE}" == "1" ]]; then
+    add_issue "booking-miniapp-runtime-gate" "BLOCK" "OPS26_BOOKING_MINIAPP_RUNTIME_GATE_BLOCK" "booking_miniapp_runtime_gate_rc=2"
+    PIPELINE_EXIT_CODE=2
+    exit 2
+  elif [[ "${booking_miniapp_runtime_gate_rc}" == "2" ]]; then
+    add_issue "booking-miniapp-runtime-gate" "WARN" "OPS27_BOOKING_MINIAPP_RUNTIME_GATE_BLOCK_AS_WARN" "booking_miniapp_runtime_gate_rc=2"
   fi
 fi
 
