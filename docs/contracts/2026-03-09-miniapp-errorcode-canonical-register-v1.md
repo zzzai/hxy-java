@@ -38,8 +38,10 @@
 | 1030002001 | SCHEDULE_CONFLICT | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 排班冲突 | 重选时段 | 预约排期负责人复核排班 | 已生效 | - |
 | 1030003001 | TIME_SLOT_NOT_AVAILABLE | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 时段不可预约 | 选择其他时段 | 检查时段实时性 | 已生效 | - |
 | 1030003002 | TIME_SLOT_ALREADY_BOOKED | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 时段被占用 | 重新选时段 | 监控时段抢占冲突率 | 已生效 | - |
-| 1030004000 | BOOKING_ORDER_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 预约详情/取消/加项时订单不存在 | 刷新预约列表后重试 | 预约域核验订单归属与清理异常引用 | 已生效 | - |
+| 1030004000 | BOOKING_ORDER_NOT_EXISTS | booking | ACTIVE | FAIL_CLOSE | P2 | REFRESH_ONCE | 取消/加项/退款回调时订单不存在 | 刷新预约列表后重试 | 预约域核验订单归属与清理异常引用 | 已生效 | - |
 | 1030004001 | BOOKING_ORDER_STATUS_ERROR | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 预约订单状态不允许当前操作 | 刷新订单状态后按当前可用动作继续 | 预约域排查状态流转与重复操作冲突 | 已生效 | - |
+| 1030004005 | BOOKING_ORDER_CANNOT_CANCEL | booking | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 预约订单当前状态不允许取消 | 刷新订单状态后仅执行当前可用动作 | 预约域排查重复取消、状态滞后与回流顺序 | 已生效 | - |
+| 1030004006 | BOOKING_ORDER_NOT_OWNER | booking | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 查询/取消/加项操作命中非本人订单 | 返回我的预约列表或切换正确账号，不自动重试 | 预约域审计订单归属、登录态与越权访问日志 | 已生效 | - |
 | 1004001000 | USER_NOT_EXISTS | member | ACTIVE | FAIL_CLOSE | P1 | NO_AUTO_RETRY | 用户身份无效 | 重新登录 | 账号体系值班排查 | 已生效 | - |
 | 1004001001 | USER_MOBILE_NOT_EXISTS | member/auth | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 重置密码或短信场景手机号未注册 | 核对手机号或去注册 | 会员认证负责人核验注册漏数与短信场景配置 | 已生效 | - |
 | 1004001002 | USER_MOBILE_USED | member/profile | ACTIVE | FAIL_CLOSE | P2 | NO_AUTO_RETRY | 修改手机号时目标手机号已被占用 | 更换手机号后重试 | 会员资料负责人排查重复绑定与脏数据 | 已生效 | - |
@@ -101,6 +103,20 @@
   - `POST /booking/commission/settle`、`POST /booking/commission/batch-settle` 当前可能 `true` + no-op；这不足以形成稳定错误码锚点。
   - 当前也没有该路径的服务端 `degraded=true / degradeReason` 证据。
 - 因此 canonical register 本批保持“不新增、不影射、不提前登记”的口径；若后续出现真实对外暴露证据，再另行评审是否登记。
+
+## 3.2 2026-03-15 Booking Runtime Evidence Update
+- 本批新增登记：
+  - `BOOKING_ORDER_CANNOT_CANCEL(1030004005)`
+  - `BOOKING_ORDER_NOT_OWNER(1030004006)`
+- 新增依据固定为：
+  - `AppBookingOrderController -> BookingOrderServiceImpl#cancelOrder` 对外稳定抛出 `1030004005/1030004006`
+  - `AppBookingOrderController -> BookingOrderServiceImpl#getOrderByUser` 对外稳定抛出 `1030004006`
+  - `AppBookingAddonController -> BookingAddonServiceImpl#validateParentOrder` 对外稳定抛出 `1030004006`
+- 本批明确不新增：
+  - `TECHNICIAN_NOT_EXISTS(1030001000)` 作为 `GET /booking/technician/get` 的 runtime code
+  - `SCHEDULE_CONFLICT(1030002001)` 作为当前 app create path 的 runtime code
+  - `TIME_SLOT_ALREADY_BOOKED(1030003002)` 作为当前 app create/add-on path 的 runtime code
+- 原因：以上 code 在当前 app controller/service 链路没有稳定对外抛出证据，禁止提前登记。
 
 ## 4. 预留码段
 - Product：`1_008_099_001` ~ `1_008_099_099`
