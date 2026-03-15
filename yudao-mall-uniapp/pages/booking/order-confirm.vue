@@ -67,10 +67,9 @@
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
   import {
-    goToOrderDetail,
     loadTechnicianDetail,
     loadTimeSlots,
-    submitBookingOrder,
+    submitBookingOrderAndGo,
   } from './logic';
 
   function fen2yuan(fen) {
@@ -107,17 +106,13 @@
   async function onSubmit() {
     if (state.submitting) return;
     state.submitting = true;
-    const { code, data } = await submitBookingOrder(BookingApi, {
+    await submitBookingOrderAndGo(BookingApi, sheep.$router, {
       timeSlotId: state.timeSlotId,
       spuId: state.slot.spuId || undefined,
       skuId: state.slot.skuId || undefined,
       userRemark: state.userRemark,
     });
     state.submitting = false;
-    if (code === 0) {
-      // 跳转到订单详情或支付页
-      goToOrderDetail(sheep.$router, data);
-    }
   }
 
   onLoad((options) => {

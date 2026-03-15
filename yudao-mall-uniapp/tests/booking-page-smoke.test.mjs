@@ -20,8 +20,11 @@ module.exports = {
   loadTechnicianDetail,
   loadTimeSlots,
   submitBookingOrder,
+  submitBookingOrderAndGo,
   cancelBookingOrder,
+  cancelBookingOrderAndRefresh,
   submitAddonOrder,
+  submitAddonOrderAndGo,
   goToTechnicianDetail,
   goToOrderConfirm,
   goToOrderDetail,
@@ -47,8 +50,11 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.loadTechnicianDetail, 'function');
   assert.equal(typeof logic.loadTimeSlots, 'function');
   assert.equal(typeof logic.submitBookingOrder, 'function');
+  assert.equal(typeof logic.submitBookingOrderAndGo, 'function');
   assert.equal(typeof logic.cancelBookingOrder, 'function');
+  assert.equal(typeof logic.cancelBookingOrderAndRefresh, 'function');
   assert.equal(typeof logic.submitAddonOrder, 'function');
+  assert.equal(typeof logic.submitAddonOrderAndGo, 'function');
   assert.equal(typeof logic.goToTechnicianDetail, 'function');
   assert.equal(typeof logic.goToOrderConfirm, 'function');
   assert.equal(typeof logic.goToOrderDetail, 'function');
@@ -121,4 +127,96 @@ test('booking technician navigation helpers keep canonical routes and query keys
     route: '/pages/booking/order-confirm',
     query: { timeSlotId: 101, technicianId: 22, storeId: 7 },
   });
+});
+
+test('booking submit helper adds dispatchMode and jumps to order detail on success', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const routeCalls = [];
+  const api = {
+    createOrder(payload) {
+      apiCalls.push(payload);
+      return Promise.resolve({ code: 0, data: 5566 });
+    },
+  };
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+    },
+  };
+
+  const result = await logic.submitBookingOrderAndGo(api, router, {
+    timeSlotId: 10,
+    spuId: 20,
+    skuId: 30,
+    userRemark: 'test',
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    timeSlotId: 10,
+    spuId: 20,
+    skuId: 30,
+    userRemark: 'test',
+    dispatchMode: 1,
+  }]);
+  assert.deepEqual(normalize(routeCalls), [{
+    route: '/pages/booking/order-detail',
+    query: { id: 5566 },
+  }]);
+  assert.deepEqual(normalize(result), { code: 0, data: 5566 });
+});
+
+test('booking cancel helper uses canonical reason and refreshes on success', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const refreshCalls = [];
+  const api = {
+    cancelOrder(id, reason) {
+      apiCalls.push({ id, reason });
+      return Promise.resolve({ code: 0 });
+    },
+  };
+
+  const result = await logic.cancelBookingOrderAndRefresh(api, 88, async () => {
+    refreshCalls.push('refreshed');
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    id: 88,
+    reason: '用户主动取消',
+  }]);
+  assert.deepEqual(normalize(refreshCalls), ['refreshed']);
+  assert.deepEqual(normalize(result), { code: 0 });
+});
+
+test('booking addon helper posts canonical payload and jumps to order detail on success', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const routeCalls = [];
+  const api = {
+    createAddonOrder(payload) {
+      apiCalls.push(payload);
+      return Promise.resolve({ code: 0, data: 7788 });
+    },
+  };
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+    },
+  };
+
+  const result = await logic.submitAddonOrderAndGo(api, router, {
+    parentOrderId: 99,
+    addonType: 2,
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    parentOrderId: 99,
+    addonType: 2,
+  }]);
+  assert.deepEqual(normalize(routeCalls), [{
+    route: '/pages/booking/order-detail',
+    query: { id: 7788 },
+  }]);
+  assert.deepEqual(normalize(result), { code: 0, data: 7788 });
 });

@@ -17,12 +17,36 @@ export async function submitBookingOrder(api, payload) {
   });
 }
 
+export async function submitBookingOrderAndGo(api, router, payload) {
+  const result = await submitBookingOrder(api, payload);
+  if (result.code === 0) {
+    goToOrderDetail(router, result.data);
+  }
+  return result;
+}
+
 export async function cancelBookingOrder(api, id, reason = '用户主动取消') {
   return api.cancelOrder(id, reason);
 }
 
+export async function cancelBookingOrderAndRefresh(api, id, onSuccess, reason = '用户主动取消') {
+  const result = await cancelBookingOrder(api, id, reason);
+  if (result.code === 0 && onSuccess) {
+    await onSuccess();
+  }
+  return result;
+}
+
 export async function submitAddonOrder(api, payload) {
   return api.createAddonOrder(payload);
+}
+
+export async function submitAddonOrderAndGo(api, router, payload) {
+  const result = await submitAddonOrder(api, payload);
+  if (result.code === 0) {
+    goToOrderDetail(router, result.data);
+  }
+  return result;
 }
 
 export function goToTechnicianDetail(router, id, storeId) {
