@@ -13,11 +13,13 @@
   - `yudao-mall-uniapp/pages/booking/logic.js`
   - `yudao-mall-uniapp/sheep/api/trade/booking.js`
   - `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs`
+  - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
 - 本文约束：
   - 只写真实页面，不写 `/pages/booking/schedule`、假入口、原型页。
   - 只写当前页面真实读写字段，不补 contract 侧尚未落到页面的字段。
   - 不把 `POST /booking/order/create` 单点存在误写成 booking 全域已可发布。
   - 当前 booking 的产品边界固定为：`query-only active`，`write-chain blocked`。
+  - 当前页面/helper 已核出但 formal contract 还未同步到位的方法/路径/错误口径，统一标记为 `Pending formal contract truth`，等待 C 窗口吸收。
 
 ## 1. Booking 真实页面清单与当前状态
 
@@ -97,8 +99,10 @@
 1. `order-confirm`
    - 真实提交字段只有 `timeSlotId`,`spuId?`,`skuId?`,`userRemark`，并由 helper 自动补 `dispatchMode=1`。
    - 当前 `storeId` 只作为 route 入参存在，不是提交字段。
+   - 当前页面为匹配 `timeSlotId`，真实执行的是 `loadTimeSlots(technicianId, null)`；这是页面/helper 真值，不是 formal contract 已闭环证明。
 2. `order-list`
    - 页面当前透传 `pageNo`,`pageSize`,`status`，并按 `data.list`、`data.total` 渲染。
+   - controller 是否完整消费这组参数，当前保留为 `Pending formal contract truth`。
    - 取消确认弹窗真实文案固定为：`确定要取消预约吗？`
 3. `order-detail`
    - 状态文案真实值固定为：`待支付 / 已支付 / 已取消 / 服务中 / 已完成 / 已退款`
@@ -107,7 +111,13 @@
    - 页面虽然有 `remark` 输入框，但当前 helper 与 wrapper 只提交 `parentOrderId`,`addonType`。
    - 产品文档不得把 `remark` 写成当前 add-on 请求字段。
 
-## 6. 本批产品验收清单
+## 6. 同步补充文档
+- 页面字段真值，见：
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`
+- 用户结构态与恢复动作，见：
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`
+
+## 7. 本批产品验收清单
 - [ ] 只写六个真实 booking 页面，不写 alias route。
 - [ ] 每页状态、字段、用户恢复动作都来自当前页面与 helper。
 - [ ] `query-only active` 与 `write-chain blocked` 边界已明确分开。

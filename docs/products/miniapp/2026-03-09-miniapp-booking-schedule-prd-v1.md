@@ -14,6 +14,7 @@
   - 不再使用 `/pages/booking/schedule` 之类抽象 alias page。
   - 不把 `POST /booking/order/create` 单点存在误写成 booking 已可发布。
   - 当前 booking 只承认 `query-only active`；`create / cancel / addon` 只承认 `Can Develop`，不承认 `Can Release`。
+  - 当前页面/helper 已核出但 formal contract 还未同步到位的 method/path/errorCode，统一保留 `Pending formal contract truth`。
 
 ## 1. 真实页面与当前状态
 
@@ -67,9 +68,14 @@
    - cancel：`id`,`reason`
    - addon：`parentOrderId`,`addonType`
 4. 当前 booking 页面不消费 `degraded` / `degradeReason` 字段；恢复动作只按当前 helper 行为与页面结构态定义。
+5. `order-confirm` 当前通过 `loadTimeSlots(technicianId, null)` 回捞时段并按 `timeSlotId` 匹配 slot，`order-list` 当前透传 `pageNo/pageSize/status`；这两项只算当前页面/helper 真值，不自动等于 formal contract 已闭环。
 
 ## 5. 同步文档
 - 详细的页面成功态 / 空态 / 失败态 / 恢复动作，见：
   - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+- 页面字段字典，见：
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`
+- 用户结构态与恢复动作补充 PRD，见：
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`
 - Booking 运行时错误文案与恢复口径，见：
   - `docs/products/miniapp/2026-03-09-miniapp-user-facing-errorcopy-and-recovery-v1.md`
