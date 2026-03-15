@@ -66,18 +66,27 @@
   - create 只认 `timeSlotId`、`spuId`、`skuId?`、`userRemark?`、`dispatchMode?`、`storeId?`
   - cancel 只认 query `id`、`reason`
   - addon 只认 `parentOrderId`、`addonType`、`spuId?`、`skuId?`
+  - addon 页当前 `remark` 只在页面本地，不入请求体
 - 错误码：
-  - 技师查询：`TECHNICIAN_NOT_EXISTS(1030001000)`、`TECHNICIAN_DISABLED(1030001001)`
-  - create：`SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_NOT_AVAILABLE(1030003001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)`
-  - cancel / addon：`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`
+  - query 侧：
+    - `GET /booking/order/get`、`GET /booking/technician/get` 当前要接受 `success(null)`，不要强行按稳定错误码分支
+  - create：
+    - 当前稳定口径优先只认 `TIME_SLOT_NOT_AVAILABLE(1030003001)`
+    - 不要把 `SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 写成当前 runtime 稳定分支
+  - cancel：
+    - 只认 `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`
+    - 不要把 `BOOKING_ORDER_STATUS_ERROR(1030004001)` 写成 cancel 稳定分支
+  - addon：
+    - 只认 `TIME_SLOT_NOT_AVAILABLE(1030003001)`、`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`
   - 只按 `code` 分支，不按 `message` 分支
 - 降级行为：
   - query-only 接口当前无服务端 `degraded` 字段；空列表 `[]` 属合法空态
+  - `GET /booking/order/get`、`GET /booking/technician/get` 的 `success(null)` 属真实空结果，不是 `degraded`
   - create / cancel / addon 均按 `FAIL_CLOSE` 管理；失败时不得伪成功跳转/刷新
   - shared booking runtime gate `PASS` 不是“降级成功”，它只证明当前边界仍是 `can_release=NO`
 
 ## Risks
 - Booking 不得被整域写成 `Ready`、`Frozen Candidate`、可放量。
 - `technician-list / technician-detail / order-list / order-detail` 的 query-only `ACTIVE` 不能冲抵 `create / cancel / addon` 的 release blocker。
-- 当前未见独立 B/C/D 2026-03-15 正式 handoff，若后续补交，A 窗口只能在正式提交后再吸收。
+- 当前已经正式吸收 B/C/D 2026-03-15 产出；后续若再有增量，A 窗口仍只能在正式提交后继续吸收。
 - 无关修改 `hxy/04_data/HXY-全域数据价值化与门店数据治理蓝图-v1-2026-03-08.md` 未触碰。
