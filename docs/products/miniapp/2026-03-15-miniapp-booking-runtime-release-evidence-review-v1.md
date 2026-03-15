@@ -36,7 +36,7 @@
 | 当前是否可开发 | `Yes` | 允许继续做 query-only 维护、写链真值修复、样本补齐、发布证据补齐 |
 | 当前是否可放量 | `No` | create / cancel / addon 仍不能写成 release-ready |
 | 当前 No-Go 结论 | `No-Go for Release` | shared gate 已接入，但其 booking 输出固定为 `can_release=NO` |
-| booking 最终单一真值引用 | `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` | 所有 release 状态、scope、No-Go 判断统一以本文为准 |
+| booking 最终单一真值引用 | `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` | 03-16 起跨窗口最终集成、release 状态、scope、No-Go 判断统一以下一轮 A 集成文档为准 |
 
 ## 3. Query-only `ACTIVE` 范围
 
@@ -105,12 +105,18 @@
 5. 吸收未正式提交的后续窗口增量作为发布依据，而不是维持“只认当前分支已正式提交产出”的边界。
 
 ## 10. booking 最终单一真值引用
-- booking 当前 release 状态、query/write scope、No-Go 条件统一只认：
-  - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
+- 03-15 这份 review 继续保留为上一轮正式批次证据。
+- 03-16 起 booking 当前 release 状态、query/write scope、No-Go 条件统一只认：
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
 - 若需要字段、canonical method/path、errorCode 细节，本文继续下钻引用：
   - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
   - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
   - `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
+  - `docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md`
+  - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-gate-acceptance-sop-v1.md`
   - `docs/products/miniapp/2026-03-10-miniapp-booking-route-api-truth-review-v1.md`
   - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
   - `docs/plans/2026-03-11-miniapp-booking-runtime-closure-checklist-v1.md`

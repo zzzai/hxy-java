@@ -13,23 +13,23 @@
   - `yudao-mall-uniapp/pages/booking/logic.js`
   - `yudao-mall-uniapp/sheep/api/trade/booking.js`
   - `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs`
-  - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
 - 本文约束：
   - 只写真实页面，不写 `/pages/booking/schedule`、假入口、原型页。
   - 只写当前页面真实读写字段，不补 contract 侧尚未落到页面的字段。
   - 不把 `POST /booking/order/create` 单点存在误写成 booking 全域已可发布。
   - 当前 booking 的产品边界固定为：`query-only active`，`write-chain blocked`。
-  - 当前页面/helper 已核出但 formal contract 还未同步到位的方法/路径/错误口径，统一标记为 `Pending formal contract truth`，等待 C 窗口吸收。
+  - 当前页面/helper 与 canonical contract 仍有漂移的字段与错误边界，统一直接写成“工程未闭环”，不得把旧 code/字段继续写成稳定分支。
 
 ## 1. Booking 真实页面清单与当前状态
 
 | 页面 | 当前真实能力 | 当前真实字段 | 当前状态 |
 |---|---|---|---|
-| `/pages/booking/technician-list` | `loadTechnicianList -> BookingApi.getTechnicianList(storeId)`；点击卡片进入技师详情页 | query:`storeId`；item:`id`,`avatar`,`name`,`title`,`rating`,`serviceCount`,`specialties`,`status` | `Query-Only Active` |
-| `/pages/booking/technician-detail` | `loadTechnicianDetail -> BookingApi.getTechnician(id)`；`loadTimeSlots -> BookingApi.getTimeSlots(technicianId,date)`；选择时段后进入确认页 | route:`id`,`storeId`；detail:`avatar`,`name`,`title`,`rating`,`serviceCount`,`introduction`；slot:`id`,`startTime`,`endTime`,`isOffpeak`,`status`；本地日期:`date`,`label`,`weekDay` | `Query-Only Active`；下游提交入口 `Write-Chain Blocked` |
-| `/pages/booking/order-confirm` | 读取技师详情、读取时段列表并按 `timeSlotId` 匹配时段；`submitBookingOrderAndGo` 提交预约 | route:`timeSlotId`,`technicianId`,`storeId`；display:`slotDate`,`startTime`,`endTime`,`duration`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`,`title`；submit:`timeSlotId`,`spuId?`,`skuId?`,`userRemark`,`dispatchMode=1` | `Can Develop / Cannot Release` |
-| `/pages/booking/order-list` | `BookingApi.getOrderList` 查询预约；可进入详情；状态为 `0/1` 时可取消；状态为 `0` 且存在 `payOrderId` 时可去支付 | request:`pageNo`,`pageSize`,`status`；item:`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`,`payOrderId` | 查询 `Query-Only Active`；取消 `Write-Chain Blocked` |
-| `/pages/booking/order-detail` | `BookingApi.getOrderDetail(id)` 查询详情；状态为 `0` 时可去支付；状态为 `0/1` 时可取消；状态为 `3` 时可进加钟页 | query:`id`；detail:`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`userRemark`,`payOrderId` | 查询 `Query-Only Active`；取消/加钟入口 `Write-Chain Blocked` |
+| `/pages/booking/technician-list` | `loadTechnicianList -> BookingApi.getTechnicianList(storeId)`；点击卡片进入技师详情页 | query:`storeId`；backend 稳定字段:`id`,`avatar`,`name`,`introduction`,`tags`,`rating`,`serviceCount`；页面 fallback:`title`,`specialties`,`status` | `Query-Only Active` |
+| `/pages/booking/technician-detail` | `loadTechnicianDetail -> BookingApi.getTechnician(id)`；`loadTimeSlots -> BookingApi.getTimeSlots(technicianId,date)`；选择时段后进入确认页 | route:`id`,`storeId`；detail backend 稳定字段:`avatar`,`name`,`introduction`,`tags`,`rating`,`serviceCount`；页面 fallback:`title`；slot backend 稳定字段:`id`,`technicianId`,`technicianName`,`technicianAvatar`,`slotDate`,`startTime`,`endTime`,`isOffpeak`,`offpeakPrice`,`status`；本地日期:`date`,`label`,`weekDay` | `Query-Only Active`；下游提交入口 `Write-Chain Blocked` |
+| `/pages/booking/order-confirm` | 读取技师详情、读取时段列表并按 `timeSlotId` 匹配时段；`submitBookingOrderAndGo` 提交预约 | route:`timeSlotId`,`technicianId`,`storeId`；页面稳定可见:`slotDate`,`startTime`,`endTime`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`；页面尝试读取但未闭环:`duration`,`title`,`spuId`,`skuId`；submit:`timeSlotId`,`spuId?`,`skuId?`,`userRemark`,`dispatchMode=1` | `Can Develop / Cannot Release` |
+| `/pages/booking/order-list` | `BookingApi.getOrderList` 查询预约；可进入详情；状态为 `0/1` 时可取消；状态为 `0` 且页面读到 `payOrderId` 时可去支付 | request:`pageNo`,`pageSize`,`status`；backend 稳定字段:`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`；页面当前还读取 `data.list`,`data.total`,`payOrderId` | 查询 `Query-Only Active`；取消 `Write-Chain Blocked` |
+| `/pages/booking/order-detail` | `BookingApi.getOrderDetail(id)` 查询详情；状态为 `0` 时可去支付；状态为 `0/1` 时可取消；状态为 `3` 时可进加钟页 | query:`id`；detail backend 稳定字段:`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`userRemark`；页面当前还读取 `payOrderId` | 查询 `Query-Only Active`；取消/加钟入口 `Write-Chain Blocked` |
 | `/pages/booking/addon` | `BookingApi.getOrderDetail(parentOrderId)` 读取母单；`submitAddonOrderAndGo` 提交 add-on 订单 | route:`parentOrderId`；display:`serviceName`,`bookingStartTime`,`bookingEndTime`,`technicianName`；submit:`parentOrderId`,`addonType`；本地字段:`remark` 仅用于输入框，不入请求 | `Can Develop / Cannot Release` |
 
 ## 2. 产品边界
@@ -99,17 +99,26 @@
 1. `order-confirm`
    - 真实提交字段只有 `timeSlotId`,`spuId?`,`skuId?`,`userRemark`，并由 helper 自动补 `dispatchMode=1`。
    - 当前 `storeId` 只作为 route 入参存在，不是提交字段。
-   - 当前页面为匹配 `timeSlotId`，真实执行的是 `loadTimeSlots(technicianId, null)`；这是页面/helper 真值，不是 formal contract 已闭环证明。
+   - 当前页面为匹配 `timeSlotId`，真实执行的是 `loadTimeSlots(technicianId, null)`；这是页面/helper 真值。
+   - slot VO 当前不稳定提供 `duration`,`spuId`,`skuId`；这些字段只能记为页面读取尝试，不得写成字段闭环。
 2. `order-list`
    - 页面当前透传 `pageNo`,`pageSize`,`status`，并按 `data.list`、`data.total` 渲染。
-   - controller 是否完整消费这组参数，当前保留为 `Pending formal contract truth`。
+   - controller 实际返回 `data[]`，不是分页对象；即使 `code=0` 也可能只得到空渲染。
+   - `payOrderId` 当前没有已提交响应绑定证据，“去支付”只能算页面分支，不得当成字段已闭环。
    - 取消确认弹窗真实文案固定为：`确定要取消预约吗？`
 3. `order-detail`
    - 状态文案真实值固定为：`待支付 / 已支付 / 已取消 / 服务中 / 已完成 / 已退款`
    - 状态说明真实值固定为：`请在15分钟内完成支付 / 等待技师开始服务 / 订单已取消 / 技师正在为您服务 / 服务已完成，感谢您的信任 / 退款已处理`
+   - `GET /booking/order/get` 当前 miss 是 `success(null)`；`payOrderId` 当前没有已提交响应绑定证据。
 4. `addon`
    - 页面虽然有 `remark` 输入框，但当前 helper 与 wrapper 只提交 `parentOrderId`,`addonType`。
    - 产品文档不得把 `remark` 写成当前 add-on 请求字段。
+   - controller 支持 `spuId`,`skuId`，但当前页面并未提交；`upgrade / add-item` 路径仍有 pseudo success / no-op risk。
+5. 当前可稳定引用的 runtime page errorCode 只认：
+   - create：`TIME_SLOT_NOT_AVAILABLE(1030003001)`
+   - cancel：`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`
+   - addon：`TIME_SLOT_NOT_AVAILABLE(1030003001)`、`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`BOOKING_ORDER_NOT_OWNER(1030004006)`
+   - `TECHNICIAN_NOT_EXISTS(1030001000)`、`TECHNICIAN_DISABLED(1030001001)`、`SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 当前都不得写成 booking runtime page 稳定分支。
 
 ## 6. 同步补充文档
 - 页面字段真值，见：

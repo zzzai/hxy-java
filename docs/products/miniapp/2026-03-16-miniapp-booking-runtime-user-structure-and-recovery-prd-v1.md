@@ -7,11 +7,11 @@
   - `yudao-mall-uniapp/pages/booking/*.vue`
   - `yudao-mall-uniapp/pages/booking/logic.js`
   - `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs`
-  - `docs/contracts/2026-03-10-miniapp-booking-user-api-alignment-v1.md`
+  - `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
 - 强约束：
   - 只按当前真实页面结构态、真实 helper 行为、当前已提交 contract 文档里的 code 名称写恢复动作。
   - 不按 message 分支。
-  - 若 formal contract 尚未在本分支同步完，统一写 `Pending formal contract truth`。
+  - 若页面字段、结构态或错误边界与 canonical contract 仍有漂移，必须直接写成“工程未闭环”，不得回退成旧稳定口径。
   - 空态 `[] / null / 0` 不是成功样本，只能写成空态或空结果。
 
 ## 1. 当前总判断
@@ -39,13 +39,14 @@
 
 | 动作 | helper / 页面依据 | 当前用户可见结果 | 恢复动作 | 当前错误码依据 | 状态 |
 |---|---|---|---|---|---|
-| create | `submitBookingOrderAndGo` / `/pages/booking/order-confirm` | 失败时停留确认页，不跳详情 | 返回技师详情页改选时段后重提 | `TIME_SLOT_NOT_AVAILABLE(1030003001)`、`SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` | `Still Blocked` |
-| cancel | `cancelBookingOrderAndRefresh` / `/pages/booking/order-list`、`/pages/booking/order-detail` | 失败时停留当前列表或详情，不自动刷新 | 手动刷新或稍后重试 | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)` | `Still Blocked` |
-| addon | `submitAddonOrderAndGo` / `/pages/booking/addon` | 失败时停留 add-on 页，不跳详情 | 重新选择 `addonType`；或返回详情页 | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)` | `Still Blocked` |
+| create | `submitBookingOrderAndGo` / `/pages/booking/order-confirm` | 失败时停留确认页，不跳详情 | 返回技师详情页改选时段后重提 | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | `Still Blocked` |
+| cancel | `cancelBookingOrderAndRefresh` / `/pages/booking/order-list`、`/pages/booking/order-detail` | 失败时停留当前列表或详情，不自动刷新 | 手动刷新或稍后重试 | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `Still Blocked` |
+| addon | `submitAddonOrderAndGo` / `/pages/booking/addon` | 失败时停留 add-on 页，不跳详情 | 重新选择 `addonType`；或返回详情页 | `TIME_SLOT_NOT_AVAILABLE(1030003001)`、`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `Still Blocked` |
 
 补充：
-- `TECHNICIAN_NOT_EXISTS(1030001000)` 当前只可被用作“返回技师列表重选”的恢复依据。
-- `TECHNICIAN_DISABLED(1030001001)` 仅在 03-10 contract 文档中可见，当前页面没有独立失败提示，继续记作 `Pending formal contract truth`。
+- `GET /booking/technician/get` 与 `GET /booking/order/get` 当前查无记录都是真实 `success(null)`，不是稳定错误码分支。
+- `TECHNICIAN_NOT_EXISTS(1030001000)`、`TECHNICIAN_DISABLED(1030001001)`、`SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 当前都不得写成 booking runtime page 稳定分支。
+- `addon` 页当前只提交 `parentOrderId`,`addonType`；`spuId/skuId` 未由页面提交，因此 `code=0` 但读后未变仍必须按 pseudo success / no-op risk 管理。
 
 ## 4. 当前真实用户文案 / 控件清单
 
@@ -80,16 +81,20 @@
    - 当前真实页面结构态
    - 当前 helper 防伪成功行为
    - 当前页面上的恢复动作
-2. 本文必须保留 `Pending formal contract truth` 的内容：
-   - 任何本分支 formal contract 还没同步到当前页面/helper 真值的方法/路径差异
-   - `TECHNICIAN_DISABLED(1030001001)` 这类当前页面未显式消费但 contract 文档出现的 code
+2. 本文必须继续明确“工程未闭环”的内容：
+   - `technician-list` 页模板使用的 `title`,`specialties`,`status` 当前没有 backend 字段绑定
+   - `order-confirm` 当前通过 `loadTimeSlots(technicianId, null)` 回捞时段，且 `duration`,`spuId`,`skuId` 没有 slot VO 闭环
+   - `order-list` 当前按 `data.list/data.total` 渲染，但 backend 返回 `data[]`；`payOrderId` 也无响应绑定
+   - `order-detail` 当前 `payOrderId` 无响应绑定
+   - `addon` 页当前只提交 `parentOrderId`,`addonType`，没有提交 `spuId`,`skuId`
 3. C 窗口吸收时：
    - 只按 code 收口
    - 不得把本文中的用户恢复动作改写成 message 分支
+   - 不得把本文已明确排除的旧 code 再写回稳定 runtime page 分支
 
 ## 7. 本批验收清单
 - [ ] 六个真实页面的成功态 / 空态 / 失败态 / 恢复动作均已冻结。
 - [ ] `create / cancel / addon` 都明确保持 `Still Blocked`。
 - [ ] 空态 `[] / null / 0` 没有被写成成功样本。
 - [ ] 当前没有把 `degraded` 假想字段写进 booking 页面口径。
-- [ ] 所有错误口径都能被 C 窗口按 `code` 吸收，无法确认的部分已保留 `Pending formal contract truth`。
+- [ ] 所有错误口径都能被 C 窗口按 `code` 吸收，无法稳定引用的部分都已明确排除出 runtime page 稳定分支。

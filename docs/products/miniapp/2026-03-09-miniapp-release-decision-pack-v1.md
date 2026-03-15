@@ -121,26 +121,27 @@
 
 | scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
 |---|---|---|---|---|---|
-| Booking | 文档已闭环 | canonical 代码已收口，shared chain 已接入 booking runtime gate，但 gate summary 仍固定 `can_release=NO`；create / cancel / addon 仍缺发布级运行证据 | Go for Engineering Closure | No-Go | 把 smoke/runtime gate `PASS` 误写成 release-ready；混淆 query-only 与 write-chain；回退到旧 path/method；或移除 shared chain 的 booking runtime gate |
+| Booking | 文档已闭环 | canonical 代码已收口，shared chain 已接入 booking runtime gate，但 gate summary 仍固定 `can_release=NO`；query-only `ACTIVE` 与 write-chain blocker 已拆开，但字段/绑定/发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 smoke/runtime gate `PASS`、空态或 query-only `ACTIVE` 误写成 release-ready；把未绑定字段或 pseudo success 当成成功；回退到旧 path/method；或移除 shared chain 的 booking runtime gate |
 | Member 缺页能力 | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未实现 | Go for Engineering Closure | No-Go | 把上述缺页能力写成 `ACTIVE`、可发布页面或新增签发范围 |
 | Reserved runtime | 文档已闭环 | gift / referral / technician-feed 仍无 runtime 落地 | Go for Engineering Closure | No-Go | 因治理文档完整就把 gift/referral/feed 当成已上线能力，或 `RESERVED_DISABLED` 关闭态仍命中 |
-| `BO-004` Finance Ops Admin | 文档已闭环 | 仅接口闭环 + 页面真值待核 | Go for Engineering Closure | No-Go | 未核到独立后台页面文件 / 独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 BO-004 页面 |
+| `BO-004` Finance Ops Admin | 文档已闭环 | 03-15 page/API binding truth review 与 evidence ledger 已吸收，结论仍是“仅接口闭环 + 页面真值待核” | Go for Engineering Closure | No-Go | 未核到独立后台页面文件 / 独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 BO-004 页面 |
 
 ### 8.3 当前最终门禁结论
 1. 当前项目不再存在“缺文档导致的 No-Go”。
 2. 当前项目仍存在“工程真值阻断导致的 No-Go”。
 3. 若进入下一阶段开发，只允许围绕 blocker scope 做真值修复与实现闭环，不得把 blocker scope 当成现成放量能力。
 
-## 9. 03-15 Booking Runtime Final Integration Review
+## 9. 03-16 Booking Runtime Final Integration Review
 
 ### 9.1 吸收边界
 1. 只吸收当前分支真实存在、已正式提交的 booking runtime 代码、测试、gate、shared-chain 接入证据。
-2. 2026-03-15 当前分支已正式具备 B/C/D booking runtime 窗口产出：
-   - B：`docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`
-   - C：`docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
-   - D：`docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
+2. 2026-03-15/03-16 当前分支已正式具备 B/C/D/E booking/admin truth 窗口产出：
+   - B：`docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`、`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`、`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`
+   - C：`docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`、`docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`
+   - D：`docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`、`docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md`、`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-gate-acceptance-sop-v1.md`
+   - E：`docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`、`docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
 3. 当前 booking release 状态的单一真值从本节开始，只认：
-   - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
+   - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
 
 ### 9.2 当前 booking 结论
 1. booking 当前最终状态固定为：`Doc Closed / Can Develop / Cannot Release`。
@@ -154,6 +155,11 @@
    - `POST /booking/order/cancel`
    - `POST /app-api/booking/addon/create`
 4. 这三条写链路当前可以继续开发，但不得写成 `Ready`、`Frozen Candidate`、`Go` 或可放量能力。
+5. 当前补充冻结的工程真值：
+   - `title / specialties / status` 当前不能写成 backend 稳定字段
+   - `order-list` 当前按 `data.list/data.total` 读取，但 backend 返回 `data[]`
+   - `payOrderId` 当前没有已提交响应绑定证据
+   - `addon` 页当前只提交 `parentOrderId,addonType`
 
 ### 9.3 Shared gate 证据
 1. `check_booking_miniapp_runtime_gate.sh` 当前成功输出仍固定：
@@ -167,5 +173,6 @@
 ### 9.4 当前 Booking No-Go 条件
 1. 用 smoke test 或 runtime gate `PASS` 去冲抵 create / cancel / addon 的真实发布证据缺口。
 2. 把 query-only `ACTIVE` 范围外推成 booking 整域可放量。
-3. 在 capability ledger、business ledger、release pack、联调口径或巡检口径中重新引入旧 path/method。
-4. 吸收未正式提交的后续窗口增量作为 booking 发布依据，而不是继续只认当前分支已正式提交产出。
+3. 把未绑定字段、空态 `[] / null / 0` 或 `code=0` 但读后未变的 pseudo success 写成成功样本。
+4. 在 capability ledger、business ledger、release pack、联调口径或巡检口径中重新引入旧 path/method。
+5. 吸收未正式提交的后续窗口增量作为 booking 发布依据，而不是继续只认当前分支已正式提交产出。

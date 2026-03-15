@@ -413,3 +413,37 @@
   - 03-14 Runtime Blocker Final Integration 已新增并纳入主索引，当前“缺文档”问题已经清零。
   - 当前剩余问题已完全收敛为工程真值阻断：Booking 域级阻断、BO-004 能力级阻断、Member 缺页能力误升风险、Reserved runtime 未实现误升风险。
   - 未发生任何既有 Frozen 文档回退。
+
+## 31. 2026-03-15/03-16 Booking Runtime Final Truth Batch（B/C/D/E/A）
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P0 | B | `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md` | Ready | 已正式提交；把 booking 六页 route/helper/API/字段漂移写实，不再把旧字段口径留作稳定分支 |
+| 2 | P0 | B | `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md` | Ready | 已正式提交；把用户结构态、恢复动作、稳定 errorCode 边界固定到 03-16 口径 |
+| 3 | P0 | C | `docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md` | Ready | 已正式提交；冻结 booking 当前 canonical method/path、stable errorCode、failureMode 与 drift 清单 |
+| 4 | P0 | D | `docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md` | Ready | 已正式提交；重申 gate `PASS` 只表示边界守住，不表示可放量 |
+| 5 | P0 | D | `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-gate-acceptance-sop-v1.md` | Ready | 已正式提交；把 booking gate 验收样本、空态样本与 No-Go 口径固定为正式 SOP |
+| 6 | P0 | E | `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md` | Ready | 已正式提交；把 `BO-004` 固定为“仅接口闭环 + 页面真值待核”，不得误写成后台页面闭环 |
+| 7 | P0 | E | `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md` | Ready | 已正式提交；把 `BO-004` 证据分成静态对齐 / 运行样本 / 发布证据三池 |
+| 8 | P0 | A | `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` | Ready | A 侧最终集成 review；将 03-16 booking 批次升级为当前单一真值，不改变 `Doc Closed / Can Develop / Cannot Release` |
+
+### 31.1 状态汇总（03-15/03-16 Booking Runtime Final Truth Batch）
+- Frozen: 0
+- Ready: 8
+- Draft: 0
+
+## 32. Current Snapshot (2026-03-16)
+- 03-09 冻结基线保持不变：`39/39 Frozen`
+- 当前已交付准备态文档：`63 Ready`
+- 当前已登记待补文档：`0 Draft`
+- 当前已登记待正式窗口输出：`0 Pending formal window output`
+- 当前累计状态：
+  - Frozen: 39
+  - Ready: 63
+  - Draft: 0
+  - Pending formal window output: 0
+- 说明：
+  - 03-15/03-16 booking runtime 的 B/C/D/E/A 正式文档已全部纳入主索引。
+  - booking 当前 blocker 已从“旧 path/method 漂移”收口为“query-only `ACTIVE` 与 write-chain blocker 必须分池、字段/绑定/发布证据仍未闭环”。
+  - `BO-004` 的 03-15 专项 truth review 与 evidence ledger 已正式纳入主索引，但结论仍是“仅接口闭环 + 页面真值待核”。
+  - 未发生任何既有 Frozen 文档回退。
