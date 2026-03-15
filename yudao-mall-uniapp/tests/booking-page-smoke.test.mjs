@@ -36,6 +36,10 @@ module.exports = {
   return context.module.exports;
 }
 
+function normalize(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 test('booking page smoke logic exports the expected helper surface', () => {
   const logic = loadBookingLogic();
 
@@ -48,4 +52,73 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.goToTechnicianDetail, 'function');
   assert.equal(typeof logic.goToOrderConfirm, 'function');
   assert.equal(typeof logic.goToOrderDetail, 'function');
+});
+
+test('booking technician list and detail helpers call canonical apis', async () => {
+  const logic = loadBookingLogic();
+  const calls = [];
+  const api = {
+    getTechnicianList(storeId) {
+      calls.push(['getTechnicianList', storeId]);
+      return Promise.resolve({ code: 0, data: [{ id: 1 }] });
+    },
+    getTechnician(technicianId) {
+      calls.push(['getTechnician', technicianId]);
+      return Promise.resolve({ code: 0, data: { id: technicianId } });
+    },
+    getTimeSlots(technicianId, date) {
+      calls.push(['getTimeSlots', technicianId, date]);
+      return Promise.resolve({ code: 0, data: [{ id: 9, date }] });
+    },
+  };
+
+  const listResult = await logic.loadTechnicianList(api, 12);
+  const technicianResult = await logic.loadTechnicianDetail(api, 8);
+  const slotResult = await logic.loadTimeSlots(api, 8, '2026-03-15');
+
+  assert.deepEqual(normalize(calls), [
+    ['getTechnicianList', 12],
+    ['getTechnician', 8],
+    ['getTimeSlots', 8, '2026-03-15'],
+  ]);
+  assert.deepEqual(normalize(listResult), { code: 0, data: [{ id: 1 }] });
+  assert.deepEqual(normalize(technicianResult), { code: 0, data: { id: 8 } });
+  assert.deepEqual(normalize(slotResult), { code: 0, data: [{ id: 9, date: '2026-03-15' }] });
+});
+
+test('booking technician navigation helpers keep canonical routes and query keys', () => {
+  const logic = loadBookingLogic();
+  const routeCalls = [];
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+      return { route, query };
+    },
+  };
+
+  const detailNav = logic.goToTechnicianDetail(router, 22, 7);
+  const confirmNav = logic.goToOrderConfirm(router, {
+    timeSlotId: 101,
+    technicianId: 22,
+    storeId: 7,
+  });
+
+  assert.deepEqual(normalize(routeCalls), [
+    {
+      route: '/pages/booking/technician-detail',
+      query: { id: 22, storeId: 7 },
+    },
+    {
+      route: '/pages/booking/order-confirm',
+      query: { timeSlotId: 101, technicianId: 22, storeId: 7 },
+    },
+  ]);
+  assert.deepEqual(normalize(detailNav), {
+    route: '/pages/booking/technician-detail',
+    query: { id: 22, storeId: 7 },
+  });
+  assert.deepEqual(normalize(confirmNav), {
+    route: '/pages/booking/order-confirm',
+    query: { timeSlotId: 101, technicianId: 22, storeId: 7 },
+  });
 });
