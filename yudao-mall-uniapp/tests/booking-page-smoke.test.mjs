@@ -166,6 +166,36 @@ test('booking submit helper adds dispatchMode and jumps to order detail on succe
   assert.deepEqual(normalize(result), { code: 0, data: 5566 });
 });
 
+test('booking submit helper does not jump to order detail on failure', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const routeCalls = [];
+  const api = {
+    createOrder(payload) {
+      apiCalls.push(payload);
+      return Promise.resolve({ code: 9001, msg: 'CREATE_BLOCKED' });
+    },
+  };
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+    },
+  };
+
+  const result = await logic.submitBookingOrderAndGo(api, router, {
+    timeSlotId: 10,
+    userRemark: 'failure-case',
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    timeSlotId: 10,
+    userRemark: 'failure-case',
+    dispatchMode: 1,
+  }]);
+  assert.deepEqual(normalize(routeCalls), []);
+  assert.deepEqual(normalize(result), { code: 9001, msg: 'CREATE_BLOCKED' });
+});
+
 test('booking cancel helper uses canonical reason and refreshes on success', async () => {
   const logic = loadBookingLogic();
   const apiCalls = [];
@@ -187,6 +217,29 @@ test('booking cancel helper uses canonical reason and refreshes on success', asy
   }]);
   assert.deepEqual(normalize(refreshCalls), ['refreshed']);
   assert.deepEqual(normalize(result), { code: 0 });
+});
+
+test('booking cancel helper does not refresh on failure', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const refreshCalls = [];
+  const api = {
+    cancelOrder(id, reason) {
+      apiCalls.push({ id, reason });
+      return Promise.resolve({ code: 9102, msg: 'CANCEL_BLOCKED' });
+    },
+  };
+
+  const result = await logic.cancelBookingOrderAndRefresh(api, 88, async () => {
+    refreshCalls.push('refreshed');
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    id: 88,
+    reason: '用户主动取消',
+  }]);
+  assert.deepEqual(normalize(refreshCalls), []);
+  assert.deepEqual(normalize(result), { code: 9102, msg: 'CANCEL_BLOCKED' });
 });
 
 test('booking addon helper posts canonical payload and jumps to order detail on success', async () => {
@@ -219,4 +272,33 @@ test('booking addon helper posts canonical payload and jumps to order detail on 
     query: { id: 7788 },
   }]);
   assert.deepEqual(normalize(result), { code: 0, data: 7788 });
+});
+
+test('booking addon helper does not jump to order detail on failure', async () => {
+  const logic = loadBookingLogic();
+  const apiCalls = [];
+  const routeCalls = [];
+  const api = {
+    createAddonOrder(payload) {
+      apiCalls.push(payload);
+      return Promise.resolve({ code: 9203, msg: 'ADDON_BLOCKED' });
+    },
+  };
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+    },
+  };
+
+  const result = await logic.submitAddonOrderAndGo(api, router, {
+    parentOrderId: 99,
+    addonType: 2,
+  });
+
+  assert.deepEqual(normalize(apiCalls), [{
+    parentOrderId: 99,
+    addonType: 2,
+  }]);
+  assert.deepEqual(normalize(routeCalls), []);
+  assert.deepEqual(normalize(result), { code: 9203, msg: 'ADDON_BLOCKED' });
 });
