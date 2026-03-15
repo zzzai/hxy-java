@@ -21,39 +21,43 @@
 
 | 对象 | 当前真值 | `Doc Closed` | `Can Develop` | `Cannot Release` | `Cannot Mis-Release` | 固定原因 |
 |---|---|---|---|---|---|---|
-| `Booking create / cancel / addon` | 前端仍发旧 `method + path`；后端 canonical 已固定 | 是 | 是 | 是 | 是 | 旧 path 不能命中真实 controller，样本不可执行，放量会把假样本写进主口径 |
+| `Booking create / cancel / addon` | 仓内 FE API / helper / smoke / runtime gate 已守住 canonical 边界，但真实 release evidence 仍未闭环 | 是 | 是 | 是 | 是 | 静态 gate / local CI 只能证明“边界被守住”，不能替代 allowlist / 日志 / 样本包 / 签发证据 |
 | `Member missing-page` | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 仍缺页；`/member/asset-ledger/page` 仍受 gate 保护 | 是 | 是 | 是 | 是 | 缺页能力没有真实入口和真实用户样本，不能进入 `ACTIVE` 分母 |
 | `Reserved runtime` | gift-card / referral / technician-feed 仍无真实页面、真实 app controller、真实样本，开关默认 `off` | 是 | 是 | 是 | 是 | 规划、治理、gray runbook 只是前置治理，不是 runtime 验收 |
 | `BO-004` | 真实 `/booking/commission/*` controller 已存在，但仍是 controller-only + no-op 风险 + 无独立页面/API 绑定 | 是 | 是 | 是 | 是 | `code=0` 不能代表真实生效，且当前无服务端 degraded 字段证据 |
 
 ## 4. Booking 域最终 No-Go 条件
 
-### 4.1 为什么 FE/BE `method + path` 未收口时禁止放量
-1. 当前前端仍调用：
-   - `GET /booking/technician/list-by-store`
-   - `GET /booking/time-slot/list`
-   - `PUT /booking/order/cancel`
-   - `POST /booking/addon/create`
-2. 当前后端真实 controller 只承认：
-   - `GET /booking/technician/list`
-   - `GET /booking/slot/list`、`GET /booking/slot/list-by-technician`
-   - `POST /booking/order/cancel`
-   - `POST /app-api/booking/addon/create`
-3. 因此 Booking 当前只有查询侧 `order-list / order-detail / technician-detail` 仍可按 runtime `ACTIVE` 管理；`create / cancel / addon` 只要旧 path 还在，就不能进入 allowlist、放量样本、Frozen Candidate 或发布签发。
-4. 单点 `POST /booking/order/create` 虽已对齐，也不能单独放行。因为它依赖的技师列表和时段列表仍未收口，整条 create chain 仍不可执行。
+### 4.1 为什么当前仍禁止放量
+1. 当前仓内 FE API 与页面 helper 已对齐到 canonical path / method，且 runtime gate / local CI 已能守住这条静态边界。
+2. 但 `check_booking_miniapp_runtime_gate.sh` 与共享 local CI 只证明“代码边界未回退”，不证明：
+   - 网关 allowlist 中旧 path 命中数为 `0`
+   - 巡检 / 回放日志中旧 path 命中数为 `0`
+   - `technician list -> slot list -> create / cancel / addon` 的真实样本包已闭环
+   - 负向样本只按 `errorCode` 判定
+3. 因此 Booking 当前只有读查询动作 `GET /booking/order/list`、`GET /booking/order/get`、`GET /booking/technician/get` 允许继续开发验证；一旦进入 `slot list / create / cancel / addon`，仍不得进入发布签发、Frozen Candidate 或 release-ready 分母。
+4. 单点 `create / cancel / addon` wrapper 对齐不能单独放行。只要真实 release evidence 还没补齐，write-chain 仍是 `blocker_pool`。
 
 ### 4.2 样本、验收、发布如何判失败
 
 | 阶段 | 主证据 | 判失败条件 |
 |---|---|---|
-| 样本 | 请求日志只命中 canonical `method + path` | 任一旧 path 被调用，或 create 样本绕过技师/时段真实链路 |
-| 验收 | 至少覆盖 `technician list`、`slot list-by-technician`、`create success/conflict`、`cancel success`、`addon success/fail` | 样本仍混有旧 path；只验 `create` 单点成功；按 `message` 而非 `errorCode` 判定 |
-| 发布 | FE 代码、联调包、网关 allowlist、巡检日志中旧 path 计数都为 `0` | 旧 path 仍在 FE 文件或发布口径中；把查询侧 `ACTIVE` 外推成 Booking 整域可放量 |
+| 样本 | 请求日志与样本包只命中 canonical `method + path` | 任一旧 path 被调用；缺少 `technician list / slot list / create / cancel / addon` 任一必备样本 |
+| 验收 | 至少覆盖 `technician list`、`slot list-by-technician`、`create success/conflict`、`cancel success`、`addon success/fail`，且负向样本只按 `errorCode` 判定 | 样本仍混有旧 path；只验单点成功；按 `message` 而非 `errorCode` 判定 |
+| 发布 | FE 代码、联调包、网关 allowlist、巡检日志、回放日志中旧 path 计数都为 `0`；A/B/C/D 材料一致写明 query-only 仍非 release-ready | 把 runtime gate / local CI PASS 写成准发布；把查询侧 `ACTIVE` 外推成 Booking 整域可放量 |
 
-### 4.3 Booking 当前最终结论
+### 4.3 Booking 分母分池与 threshold
+- 详细口径见 `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`。
+- Booking 当前固定分三池：
+  - `degraded_pool`：只收读查询动作样本与空态样本；可继续开发验证，但不进 release-ready 分母。
+  - `blocker_pool`：收 `technician list / slot list / create / cancel / addon` 正负样本，以及任一旧 path 命中、gate 非 `rc=0`、按 `message` 分支等 blocker。
+  - `release-ready` 主分母：当前固定为 `0`，直到真实 release evidence 补齐。
+- `runtime gate PASS` 与 `local CI PASS` 只代表“边界被守住”；即使 `REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE=0` 把 CI 呈现成 WARN，也不得改变 booking 的 `Cannot Release` 结论。
+
+### 4.4 Booking 当前最终结论
 - `Doc Closed`：是。booking PRD、alignment、checklist 已闭环。
 - `Can Develop`：是。可以继续改 FE API、补样本、补日志、补联调。
-- `Cannot Release`：是。直到 FE/BE 真值彻底收口前，Booking 继续保持 `No-Go`。
+- `Cannot Release`：是。直到真实 release evidence 补齐前，Booking 继续保持 `No-Go`。
 - `Cannot Mis-Release`：是。任何把 `query-only ACTIVE` 扩写成 Booking 全域可放量的行为，都算误发布。
 
 ## 5. Member 缺页能力最终门禁
@@ -175,7 +179,7 @@
 - 允许继续补样本、补审计键、补告警、补 gate、补 contract。
 
 ### 8.2 哪些问题属于 `Cannot Release`
-- Booking 旧 `method + path` 仍存在。
+- Booking 真实 release evidence 未补齐，即使仓内 gate / local CI 为 PASS。
 - Member 缺页能力仍被算进 `ACTIVE` 验收分母。
 - Reserved 仍无真实页面、controller、样本。
 - `BO-004` 任何写接口只验 `true` 不验回读。
@@ -183,6 +187,7 @@
 
 ### 8.3 哪些问题属于 `Cannot Mis-Release`
 - 把 `Doc Closed` 写成已可放量。
+- 把 runtime gate / local CI PASS 写成“准发布”。
 - 把合法空态 `[] / 0` 写成页面成功。
 - 把 `BO-003` 页面样本拿来冲抵 `BO-004`。
 - 把 activation checklist / gray runbook 完整写成 reserved runtime 已验收。

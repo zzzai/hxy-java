@@ -3,7 +3,7 @@
 ## 1. 目标
 - 把剩余 runtime blocker 的验收、门禁、回滚收口到一张可执行矩阵，避免把 `Doc Closed` 误写成“可放量”。
 - 本文当前重点只补四类剩余阻断项：
-  - `Booking` FE/BE `method + path` 漂移
+  - `Booking` release evidence 缺口与分母分池
   - `Member` 缺页能力与 `ACTIVE` 分母污染
   - `Reserved runtime` 未实现
   - `BO-004` controller-only + pseudo success 风险
@@ -28,7 +28,7 @@
 
 | 对象 | 当前真值 | `Doc Closed` | `Can Develop` | `Cannot Release` | 当前禁止点 |
 |---|---|---|---|---|---|
-| `Booking create / cancel / addon` | FE 仍发旧 path；BE canonical 已固定 | 是 | 是 | 是 | 旧 path 仍在 FE/样本/发布口径中时禁止放量 |
+| `Booking create / cancel / addon` | 仓内 FE canonical 边界已守住，但真实 release evidence 未闭环 | 是 | 是 | 是 | gate / local CI PASS 不能替代 allowlist / 日志 / 样本 / 签发证据 |
 | `Member missing-page` | 缺页能力仍无真实入口；`asset-ledger` 仍受 gate 保护 | 是 | 是 | 是 | 不得计入 `ACTIVE` 验收分母 |
 | `Reserved runtime` | gift/referral/feed 仍无真实页面、controller、样本 | 是 | 是 | 是 | 治理闭环不能代替 runtime 验收 |
 | `BO-004` | 真实 controller 已存在，但 `code=0` 仍可能 no-op；无独立页面/API 绑定 | 是 | 是 | 是 | 不能只验 `true`，必须写后回读 |
@@ -37,8 +37,8 @@
 
 | 域 | 用例ID | 验收对象 | 主证据 | 通过条件 | 判失败条件 | 回滚动作 | 负责角色 |
 |---|---|---|---|---|---|---|---|
-| `booking` | `BK-01` | `create-chain` | canonical 请求日志 + 样本回放 | `technician/list`、`slot/list-by-technician`、`order/create` 全部只命中 canonical path | 任一旧 path `list-by-store`、`time-slot/list` 命中；只验 `create` 单点成功 | 冻结 Booking 放量，维持 query-only 范围 | Booking Domain Owner + 发布负责人 |
-| `booking` | `BK-02` | `cancel / addon` | controller 命中日志 + 样本回放 | `POST /booking/order/cancel`、`POST /app-api/booking/addon/create` 样本齐全 | 仍使用 `PUT /booking/order/cancel` 或 `/booking/addon/create`；只按 `message` 判定 | 从 allowlist 移除旧 path，锁定发布 | Booking Domain Owner + C 窗口 |
+| `booking` | `BK-01` | `create-chain` | canonical 请求日志 + 样本回放 + shared gate rc | `technician/list`、`slot/list-by-technician`、`order/create` 全部只命中 canonical path，且 booking runtime gate / local CI 最新 `rc=0` | 任一旧 path 命中；任一 gate 非 `rc=0`；只验 `create` 单点成功 | 冻结 Booking 放量，维持 query-only 范围 | Booking Domain Owner + 发布负责人 |
+| `booking` | `BK-02` | `cancel / addon` | controller 命中日志 + 样本回放 + errorCode 判定 | `POST /booking/order/cancel`、`POST /app-api/booking/addon/create` 样本齐全，且负向样本只按 `errorCode` 判定 | 缺样本；只按 `message` 判定；把 query-only 样本外推成 write-chain ready | 从 allowlist 移除旧 path，锁定发布 | Booking Domain Owner + C 窗口 |
 | `member` | `MB-01` | `ACTIVE` 分母 | 真实页面与入口清单 | 只统计真实入口：登录、个人中心、签到、地址、钱包、积分、券 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 被算进主分母 | 回退报表口径，重新计算主成功率 | Member Domain Owner + 数据治理 |
 | `member` | `MB-02` | `asset-ledger` | gate 快照 + 页面真值 + 样本包 | 页面、controller、gate、样本同时存在后才可进入下一轮评审 | 仅因文档完备就把 `/member/asset-ledger/page` 记入 `ACTIVE` | 关闭 `miniapp.asset.ledger`，移出发布范围 | Member Domain Owner + 发布负责人 |
 | `reserved-expansion` | `RV-01` | gift / referral / technician-feed runtime | 页面、controller、样本、switch 四件套 | 四件套同时存在，且关闭态误返回计数为 `0` | 只有 checklist / runbook / alert 路由，没有 runtime | 维持 `off`，禁止灰度推进 | 对应域 Owner + SRE |
@@ -47,12 +47,23 @@
 | `finance-ops-admin` | `FO-02` | `BO-004` 写类 | `controller 返回 + 写后回读 + 审计键` | `settle/batch-settle/config save/delete` 全部读后真实变化 | 只验 `true`；读后未变；缺审计键 | 冻结写操作，切 `query-only` 或 `single-review-only` | 财务负责人 + 发布负责人 |
 | `finance-ops-admin` | `FO-03` | `BO-004` 降级方式 | runbook 运维动作 | 只使用 `query-only / single-review-only / default-rate-only` | 自造服务端 `degraded=true / degradeReason` 证据 | 撤销伪降级口径，按运维动作回滚 | 财务负责人 + C/D 窗口 |
 
+### 4.1 Booking 分母分池补充
+- 详细 runbook 固定在 `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`。
+- `query-only active` 只允许进入 `degraded_pool`：
+  - `GET /booking/order/list`
+  - `GET /booking/order/get`
+  - `GET /booking/technician/get`
+- `technician list / slot list / create / cancel / addon` 在真实 release evidence 补齐前全部留在 `blocker_pool`，即使单点样本成功也不能进入 release-ready 分母。
+- `runtime gate / local CI` 结果只能证明“边界被守住”，不能直接等同于“准发布”。
+- 任何把 booking blocker 降级成 warning、或把 query-only active 计成 release-ready 的行为，直接 `No-Go`。
+
 ## 5. 最终 Go / No-Go 规则
 1. `Booking` 只要旧 `method + path` 仍存在，就继续 `No-Go`。
-2. `Member` 缺页能力不得计入 `ACTIVE` 通过样本；一旦污染主分母，直接 `No-Go`。
-3. `Reserved runtime` 未实现不得因为 alert / runbook / checklist 完整而放量。
-4. `BO-004` 主证据只认 `controller 返回 + 写后回读 + 审计键`；任何 `code=0` 但 no-op 都直接按失败处理。
-5. 任意 `warning / degraded / FAIL_OPEN / legal-empty` 样本污染主成功率、主转化率、主放量判断，直接 `No-Go`。
+2. `Booking` 即使仓内 gate / local CI 为 PASS，只要 release evidence 未闭环，也继续 `No-Go`。
+3. `Member` 缺页能力不得计入 `ACTIVE` 通过样本；一旦污染主分母，直接 `No-Go`。
+4. `Reserved runtime` 未实现不得因为 alert / runbook / checklist 完整而放量。
+5. `BO-004` 主证据只认 `controller 返回 + 写后回读 + 审计键`；任何 `code=0` 但 no-op 都直接按失败处理。
+6. 任意 `warning / degraded / FAIL_OPEN / legal-empty` 样本污染主成功率、主转化率、主放量判断，直接 `No-Go`。
 
 ## 6. 验收输出要求
 1. 每个 blocker 都必须同时写明：`Doc Closed`、`Can Develop`、`Cannot Release`。
