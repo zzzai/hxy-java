@@ -66,6 +66,12 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import {
+    goToOrderDetail,
+    loadTechnicianDetail,
+    loadTimeSlots,
+    submitBookingOrder,
+  } from './logic';
 
   function fen2yuan(fen) {
     return (fen / 100).toFixed(2);
@@ -83,8 +89,8 @@
 
   async function loadData() {
     const [techRes, slotRes] = await Promise.all([
-      BookingApi.getTechnician(state.technicianId),
-      BookingApi.getTimeSlots(state.technicianId, null),
+      loadTechnicianDetail(BookingApi, state.technicianId),
+      loadTimeSlots(BookingApi, state.technicianId, null),
     ]);
     if (techRes.code === 0) {
       state.technician = techRes.data || {};
@@ -101,17 +107,16 @@
   async function onSubmit() {
     if (state.submitting) return;
     state.submitting = true;
-    const { code, data } = await BookingApi.createOrder({
+    const { code, data } = await submitBookingOrder(BookingApi, {
       timeSlotId: state.timeSlotId,
       spuId: state.slot.spuId || undefined,
       skuId: state.slot.skuId || undefined,
       userRemark: state.userRemark,
-      dispatchMode: 1,
     });
     state.submitting = false;
     if (code === 0) {
       // 跳转到订单详情或支付页
-      sheep.$router.go('/pages/booking/order-detail', { id: data });
+      goToOrderDetail(sheep.$router, data);
     }
   }
 

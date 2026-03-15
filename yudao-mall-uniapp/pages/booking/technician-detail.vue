@@ -80,6 +80,7 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import { goToOrderConfirm, loadTechnicianDetail, loadTimeSlots } from './logic';
 
   const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -113,7 +114,7 @@
   }
 
   async function getTechnician() {
-    const { code, data } = await BookingApi.getTechnician(state.technicianId);
+    const { code, data } = await loadTechnicianDetail(BookingApi, state.technicianId);
     if (code === 0) {
       state.technician = data || {};
     }
@@ -124,7 +125,7 @@
     state.selectedSlotId = null;
     state.selectedSlotLabel = '';
     const date = state.dates[state.selectedDateIdx]?.date;
-    const { code, data } = await BookingApi.getTimeSlots(state.technicianId, date);
+    const { code, data } = await loadTimeSlots(BookingApi, state.technicianId, date);
     if (code === 0) {
       state.slots = data || [];
     }
@@ -144,7 +145,7 @@
 
   function onConfirm() {
     if (!state.selectedSlotId) return;
-    sheep.$router.go('/pages/booking/order-confirm', {
+    goToOrderConfirm(sheep.$router, {
       timeSlotId: state.selectedSlotId,
       technicianId: state.technicianId,
       storeId: state.storeId,

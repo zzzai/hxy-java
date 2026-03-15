@@ -52,6 +52,7 @@
   import BookingApi from '@/sheep/api/trade/booking';
   import { concat } from 'lodash-es';
   import { resetPagination } from '@/sheep/helper/utils';
+  import { cancelBookingOrder, goToOrderDetail } from './logic';
 
   function fen2yuan(fen) {
     return ((fen || 0) / 100).toFixed(2);
@@ -103,7 +104,7 @@
   }
 
   function onDetail(id) {
-    sheep.$router.go('/pages/booking/order-detail', { id });
+    goToOrderDetail(sheep.$router, id);
   }
 
   function onPay(order) {
@@ -118,7 +119,7 @@
       content: '确定要取消预约吗？',
       success: async (res) => {
         if (!res.confirm) return;
-        const { code } = await BookingApi.cancelOrder(order.id, '用户主动取消');
+        const { code } = await cancelBookingOrder(BookingApi, order.id);
         if (code === 0) {
           resetPagination(state.pagination);
           await getList();

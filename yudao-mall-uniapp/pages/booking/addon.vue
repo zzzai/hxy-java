@@ -71,6 +71,7 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import { goToOrderDetail, submitAddonOrder } from './logic';
 
   const addonTypes = [
     { value: 1, label: '加钟', desc: '延长当前服务', icon: '⏱' },
@@ -99,13 +100,13 @@
   async function onSubmit() {
     if (!state.addonType || state.submitting) return;
     state.submitting = true;
-    const { code, data } = await BookingApi.createAddonOrder({
+    const { code, data } = await submitAddonOrder(BookingApi, {
       parentOrderId: state.parentOrderId,
       addonType: state.addonType,
     });
     state.submitting = false;
     if (code === 0) {
-      sheep.$router.go('/pages/booking/order-detail', { id: data });
+      goToOrderDetail(sheep.$router, data);
     }
   }
 

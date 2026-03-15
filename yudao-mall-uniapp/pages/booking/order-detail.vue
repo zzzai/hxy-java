@@ -96,6 +96,7 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import { cancelBookingOrder } from './logic';
 
   function fen2yuan(fen) {
     return ((fen || 0) / 100).toFixed(2);
@@ -152,7 +153,7 @@
       content: '确定要取消预约吗？',
       success: async (res) => {
         if (!res.confirm) return;
-        const { code } = await BookingApi.cancelOrder(state.orderId, '用户主动取消');
+        const { code } = await cancelBookingOrder(BookingApi, state.orderId);
         if (code === 0) {
           await loadOrder();
         }

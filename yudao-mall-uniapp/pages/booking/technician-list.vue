@@ -42,6 +42,7 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import { goToTechnicianDetail, loadTechnicianList } from './logic';
 
   const state = reactive({
     storeId: 0,
@@ -51,7 +52,7 @@
 
   async function getList() {
     state.loading = true;
-    const { code, data } = await BookingApi.getTechnicianList(state.storeId);
+    const { code, data } = await loadTechnicianList(BookingApi, state.storeId);
     if (code === 0) {
       state.list = data || [];
     }
@@ -59,7 +60,7 @@
   }
 
   function onDetail(id) {
-    sheep.$router.go('/pages/booking/technician-detail', { id, storeId: state.storeId });
+    goToTechnicianDetail(sheep.$router, id, state.storeId);
   }
 
   onLoad((options) => {
