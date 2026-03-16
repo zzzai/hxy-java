@@ -731,6 +731,34 @@
 					"meta": {
 						"auth": true
 					}
+				},
+				{
+					"path": "review-add",
+					"style": {
+						"navigationBarTitleText": "服务评价"
+					},
+					"meta": {
+						"auth": true
+					}
+				},
+				{
+					"path": "review-result",
+					"style": {
+						"navigationBarTitleText": "评价结果"
+					},
+					"meta": {
+						"auth": true
+					}
+				},
+				{
+					"path": "review-list",
+					"style": {
+						"navigationBarTitleText": "我的评价",
+						"enablePullDownRefresh": true
+					},
+					"meta": {
+						"auth": true
+					}
 				}
 			]
 		}

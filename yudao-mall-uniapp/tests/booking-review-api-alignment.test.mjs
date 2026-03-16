@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function loadReviewApi() {
+  const reviewPath = path.resolve(__dirname, '../sheep/api/trade/review.js');
+  let source = fs.readFileSync(reviewPath, 'utf8');
+  source = source.replace(
+    "import request from '@/sheep/request';",
+    'const request = (config) => config;'
+  );
+  source = source.replace(/export default BookingReviewApi;\s*$/, 'module.exports = BookingReviewApi;');
+
+  const context = {
+    module: { exports: {} },
+    exports: {},
+  };
+  vm.runInNewContext(source, context, { filename: reviewPath });
+  return context.module.exports;
+}
+
+function normalize(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+test('booking review api aligns eligibility create and summary routes', () => {
+  const reviewApi = loadReviewApi();
+
+  assert.deepEqual(normalize(reviewApi.getEligibility(101)), {
+    url: '/booking/review/eligibility',
+    method: 'GET',
+    params: { bookingOrderId: 101 },
+    custom: { auth: true, showLoading: false },
+  });
+
+  const createPayload = {
+    bookingOrderId: 101,
+    overallScore: 5,
+    content: '技师服务很细致',
+  };
+  assert.deepEqual(normalize(reviewApi.createReview(createPayload)), {
+    url: '/booking/review/create',
+    method: 'POST',
+    data: createPayload,
+    custom: { auth: true, showLoading: true },
+  });
+
+  assert.deepEqual(normalize(reviewApi.getSummary()), {
+    url: '/booking/review/summary',
+    method: 'GET',
+    custom: { auth: true, showLoading: false },
+  });
+});
+
+test('booking review api aligns list and detail routes', () => {
+  const reviewApi = loadReviewApi();
+
+  assert.deepEqual(normalize(reviewApi.getReviewPage({ pageNo: 1, pageSize: 10, reviewLevel: 3 })), {
+    url: '/booking/review/page',
+    method: 'GET',
+    params: { pageNo: 1, pageSize: 10, reviewLevel: 3 },
+    custom: { auth: true, showLoading: false },
+  });
+
+  assert.deepEqual(normalize(reviewApi.getReview(9001)), {
+    url: '/booking/review/get',
+    method: 'GET',
+    params: { id: 9001 },
+    custom: { auth: true, showLoading: false },
+  });
+});
