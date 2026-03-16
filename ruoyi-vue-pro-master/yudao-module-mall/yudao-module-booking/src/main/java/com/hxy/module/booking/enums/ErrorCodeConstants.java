@@ -69,4 +69,9 @@ public interface ErrorCodeConstants {
     ErrorCode COMMISSION_REVERSAL_IDEMPOTENT_CONFLICT = new ErrorCode(1_030_007_011, "佣金冲正幂等键冲突：同键请求金额不一致");
     ErrorCode COMMISSION_ACCRUAL_IDEMPOTENT_CONFLICT = new ErrorCode(1_030_007_012, "佣金计提幂等键冲突：同键请求金额不一致");
 
+    // ========== 服务评价相关 1-030-008-000 ==========
+    ErrorCode BOOKING_REVIEW_NOT_EXISTS = new ErrorCode(1_030_008_000, "预约服务评价不存在");
+    ErrorCode BOOKING_REVIEW_ALREADY_EXISTS = new ErrorCode(1_030_008_001, "预约服务评价已存在");
+    ErrorCode BOOKING_REVIEW_NOT_ELIGIBLE = new ErrorCode(1_030_008_002, "当前预约订单暂不可评价");
+
 }

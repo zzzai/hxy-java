@@ -1,5 +1,6 @@
 DELETE FROM "booking_time_slot";
 DELETE FROM "booking_order";
+DELETE FROM "booking_review";
 DELETE FROM "booking_technician";
 DELETE FROM "booking_technician_schedule";
 DELETE FROM "booking_offpeak_rule";

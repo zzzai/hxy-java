@@ -1,0 +1,51 @@
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+CREATE TABLE IF NOT EXISTS `booking_review`
+(
+    `id`               bigint       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `booking_order_id` bigint       NOT NULL COMMENT '预约订单ID',
+    `service_order_id` bigint                DEFAULT NULL COMMENT '服务履约单ID',
+    `store_id`         bigint       NOT NULL COMMENT '门店ID',
+    `technician_id`    bigint                DEFAULT NULL COMMENT '技师ID',
+    `member_id`        bigint       NOT NULL COMMENT '会员ID',
+    `service_spu_id`   bigint                DEFAULT NULL COMMENT '服务商品SPU ID',
+    `service_sku_id`   bigint                DEFAULT NULL COMMENT '服务商品SKU ID',
+    `overall_score`    tinyint      NOT NULL COMMENT '总体评分',
+    `service_score`    tinyint               DEFAULT NULL COMMENT '服务体验评分',
+    `technician_score` tinyint               DEFAULT NULL COMMENT '技师表现评分',
+    `environment_score` tinyint              DEFAULT NULL COMMENT '门店环境评分',
+    `tags`             json                  DEFAULT NULL COMMENT '标签 JSON',
+    `content`          varchar(1024)         DEFAULT NULL COMMENT '评价内容',
+    `pic_urls`         json                  DEFAULT NULL COMMENT '评价图片 JSON',
+    `anonymous`        bit(1)       NOT NULL DEFAULT b'0' COMMENT '是否匿名',
+    `review_level`     tinyint      NOT NULL DEFAULT 2 COMMENT '评价等级：1好评 2中评 3差评',
+    `risk_level`       tinyint      NOT NULL DEFAULT 0 COMMENT '风险等级：0正常 1关注 2紧急',
+    `display_status`   tinyint      NOT NULL DEFAULT 0 COMMENT '展示状态：0可展示 1隐藏 2待审核',
+    `follow_status`    tinyint      NOT NULL DEFAULT 0 COMMENT '跟进状态：0无需跟进 1待跟进 2跟进中 3已解决 4已关闭',
+    `reply_status`     bit(1)       NOT NULL DEFAULT b'0' COMMENT '是否已回复',
+    `audit_status`     tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态：0通过 1驳回 2待人工审核',
+    `source`           varchar(32)           DEFAULT '' COMMENT '来源',
+    `completed_time`   datetime              DEFAULT NULL COMMENT '服务完成时间',
+    `submit_time`      datetime              DEFAULT NULL COMMENT '提交时间',
+    `first_response_at` datetime             DEFAULT NULL COMMENT '首次响应时间',
+    `follow_owner_id`  bigint                DEFAULT NULL COMMENT '跟进负责人',
+    `follow_result`    varchar(1024)         DEFAULT NULL COMMENT '跟进结果',
+    `reply_user_id`    bigint                DEFAULT NULL COMMENT '回复人',
+    `reply_content`    varchar(1024)         DEFAULT NULL COMMENT '回复内容',
+    `reply_time`       datetime              DEFAULT NULL COMMENT '回复时间',
+    `creator`          varchar(64)           DEFAULT '' COMMENT '创建者',
+    `create_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updater`          varchar(64)           DEFAULT '' COMMENT '更新者',
+    `update_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`          bit(1)       NOT NULL DEFAULT b'0' COMMENT '是否删除',
+    `tenant_id`        bigint       NOT NULL DEFAULT 0 COMMENT '租户编号',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_booking_review_order` (`booking_order_id`, `deleted`),
+    KEY `idx_booking_review_member_submit` (`member_id`, `submit_time`, `id`),
+    KEY `idx_booking_review_store_submit` (`store_id`, `submit_time`, `id`),
+    KEY `idx_booking_review_technician_submit` (`technician_id`, `submit_time`, `id`),
+    KEY `idx_booking_review_follow_risk` (`follow_status`, `risk_level`, `id`)
+) COMMENT ='预约服务评价表';
+
+SET FOREIGN_KEY_CHECKS = 1;
