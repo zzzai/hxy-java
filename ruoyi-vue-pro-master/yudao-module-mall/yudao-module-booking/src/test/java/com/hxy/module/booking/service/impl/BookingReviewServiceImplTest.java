@@ -1,6 +1,9 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import cn.iocoder.yudao.framework.test.core.ut.BaseDbUnitTest;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewCreateReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewEligibilityRespVO;
@@ -160,6 +163,103 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertEquals(0L, summary.getNegativeCount());
         assertEquals(2L, pageResult.getTotal());
         assertEquals(2, pageResult.getList().size());
+    }
+
+    @Test
+    void shouldReplyReviewAndRecordFirstResponse() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(3001L)
+                .storeId(4001L)
+                .technicianId(5001L)
+                .memberId(60L)
+                .overallScore(2)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .followStatus(BookingReviewFollowStatusEnum.PENDING.getStatus())
+                .replyStatus(Boolean.FALSE)
+                .submitTime(LocalDateTime.now().minusHours(1).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+
+        bookingReviewService.replyReview(review.getId(), 9001L, "店长已电话回访并致歉");
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(review.getId());
+        assertNotNull(actual);
+        assertTrue(Boolean.TRUE.equals(actual.getReplyStatus()));
+        assertEquals(9001L, actual.getReplyUserId());
+        assertEquals("店长已电话回访并致歉", actual.getReplyContent());
+        assertNotNull(actual.getReplyTime());
+        assertNotNull(actual.getFirstResponseAt());
+    }
+
+    @Test
+    void shouldUpdateFollowStatusAndOwnerForNegativeReview() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(3002L)
+                .storeId(4002L)
+                .technicianId(5002L)
+                .memberId(61L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .followStatus(BookingReviewFollowStatusEnum.PENDING.getStatus())
+                .submitTime(LocalDateTime.now().minusMinutes(30).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+        BookingReviewFollowUpdateReqVO reqVO = new BookingReviewFollowUpdateReqVO();
+        reqVO.setReviewId(review.getId());
+        reqVO.setFollowStatus(BookingReviewFollowStatusEnum.PROCESSING.getStatus());
+        reqVO.setFollowResult("已分派门店店长跟进");
+
+        bookingReviewService.updateFollowStatus(review.getId(), 9002L, reqVO);
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(review.getId());
+        assertNotNull(actual);
+        assertEquals(BookingReviewFollowStatusEnum.PROCESSING.getStatus(), actual.getFollowStatus());
+        assertEquals(9002L, actual.getFollowOwnerId());
+        assertEquals("已分派门店店长跟进", actual.getFollowResult());
+    }
+
+    @Test
+    void shouldReturnAdminPageAndDashboardSummary() {
+        bookingReviewMapper.insert(BookingReviewDO.builder()
+                .bookingOrderId(3003L)
+                .storeId(4003L)
+                .technicianId(5003L)
+                .memberId(62L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .riskLevel(2)
+                .followStatus(BookingReviewFollowStatusEnum.PENDING.getStatus())
+                .replyStatus(Boolean.FALSE)
+                .submitTime(LocalDateTime.now().minusHours(2).withNano(0))
+                .build());
+        bookingReviewMapper.insert(BookingReviewDO.builder()
+                .bookingOrderId(3004L)
+                .storeId(4004L)
+                .technicianId(5004L)
+                .memberId(63L)
+                .overallScore(4)
+                .reviewLevel(BookingReviewLevelEnum.POSITIVE.getLevel())
+                .riskLevel(0)
+                .followStatus(BookingReviewFollowStatusEnum.NONE.getStatus())
+                .replyStatus(Boolean.TRUE)
+                .submitTime(LocalDateTime.now().minusHours(1).withNano(0))
+                .replyTime(LocalDateTime.now().minusMinutes(20).withNano(0))
+                .build());
+
+        BookingReviewPageReqVO pageReqVO = new BookingReviewPageReqVO();
+        pageReqVO.setPageNo(1);
+        pageReqVO.setPageSize(10);
+        pageReqVO.setRiskLevel(2);
+        PageResult<BookingReviewDO> pageResult = bookingReviewService.getAdminReviewPage(pageReqVO);
+        BookingReviewDashboardRespVO summary = bookingReviewService.getDashboardSummary();
+
+        assertEquals(1L, pageResult.getTotal());
+        assertEquals(1, pageResult.getList().size());
+        assertEquals(2L, summary.getTotalCount());
+        assertEquals(1L, summary.getNegativeCount());
+        assertEquals(1L, summary.getPendingFollowCount());
+        assertEquals(1L, summary.getUrgentCount());
+        assertEquals(1L, summary.getRepliedCount());
     }
 
     private BookingOrderDO buildOrder(Long id, Long userId, Integer status) {

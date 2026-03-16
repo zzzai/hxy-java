@@ -1,6 +1,9 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewCreateReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewEligibilityRespVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewPageReqVO;
@@ -143,26 +146,82 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         if (list == null) {
             list = Collections.emptyList();
         }
-        long positive = 0L;
-        long neutral = 0L;
-        long negative = 0L;
         int totalScore = 0;
+        BookingReviewCounter counter = new BookingReviewCounter();
         for (BookingReviewDO review : list) {
-            if (BookingReviewLevelEnum.POSITIVE.getLevel().equals(review.getReviewLevel())) {
-                positive++;
-            } else if (BookingReviewLevelEnum.NEUTRAL.getLevel().equals(review.getReviewLevel())) {
-                neutral++;
-            } else if (BookingReviewLevelEnum.NEGATIVE.getLevel().equals(review.getReviewLevel())) {
-                negative++;
-            }
+            counter.accept(review);
             totalScore += review.getOverallScore() == null ? 0 : review.getOverallScore();
         }
         AppBookingReviewSummaryRespVO respVO = new AppBookingReviewSummaryRespVO();
         respVO.setTotalCount((long) list.size());
-        respVO.setPositiveCount(positive);
-        respVO.setNeutralCount(neutral);
-        respVO.setNegativeCount(negative);
+        respVO.setPositiveCount(counter.positiveCount);
+        respVO.setNeutralCount(counter.neutralCount);
+        respVO.setNegativeCount(counter.negativeCount);
         respVO.setAverageScore(list.isEmpty() ? 0 : Math.round((float) totalScore / list.size()));
+        return respVO;
+    }
+
+    @Override
+    public PageResult<BookingReviewDO> getAdminReviewPage(BookingReviewPageReqVO reqVO) {
+        return bookingReviewMapper.selectAdminPage(reqVO);
+    }
+
+    @Override
+    public BookingReviewDO getAdminReview(Long reviewId) {
+        BookingReviewDO review = bookingReviewMapper.selectById(reviewId);
+        if (review == null) {
+            throw exception(BOOKING_REVIEW_NOT_EXISTS);
+        }
+        return review;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void replyReview(Long reviewId, Long operatorId, String replyContent) {
+        BookingReviewDO review = getAdminReview(reviewId);
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        review.setReplyStatus(Boolean.TRUE);
+        review.setReplyUserId(operatorId);
+        review.setReplyContent(replyContent == null ? null : replyContent.trim());
+        review.setReplyTime(now);
+        if (review.getFirstResponseAt() == null) {
+            review.setFirstResponseAt(now);
+        }
+        bookingReviewMapper.updateById(review);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateFollowStatus(Long reviewId, Long operatorId, BookingReviewFollowUpdateReqVO reqVO) {
+        BookingReviewDO review = getAdminReview(reviewId);
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        review.setFollowStatus(reqVO.getFollowStatus());
+        review.setFollowOwnerId(operatorId);
+        review.setFollowResult(reqVO.getFollowResult() == null ? null : reqVO.getFollowResult().trim());
+        if (review.getFirstResponseAt() == null) {
+            review.setFirstResponseAt(now);
+        }
+        bookingReviewMapper.updateById(review);
+    }
+
+    @Override
+    public BookingReviewDashboardRespVO getDashboardSummary() {
+        List<BookingReviewDO> list = bookingReviewMapper.selectList();
+        if (list == null) {
+            list = Collections.emptyList();
+        }
+        BookingReviewCounter counter = new BookingReviewCounter();
+        for (BookingReviewDO review : list) {
+            counter.accept(review);
+        }
+        BookingReviewDashboardRespVO respVO = new BookingReviewDashboardRespVO();
+        respVO.setTotalCount((long) list.size());
+        respVO.setPositiveCount(counter.positiveCount);
+        respVO.setNeutralCount(counter.neutralCount);
+        respVO.setNegativeCount(counter.negativeCount);
+        respVO.setPendingFollowCount(counter.pendingFollowCount);
+        respVO.setUrgentCount(counter.urgentCount);
+        respVO.setRepliedCount(counter.repliedCount);
         return respVO;
     }
 
@@ -219,5 +278,38 @@ public class BookingReviewServiceImpl implements BookingReviewService {
             return AUDIT_STATUS_MANUAL_REVIEW;
         }
         return AUDIT_STATUS_PASS;
+    }
+
+    private static class BookingReviewCounter {
+
+        private long positiveCount;
+        private long neutralCount;
+        private long negativeCount;
+        private long pendingFollowCount;
+        private long urgentCount;
+        private long repliedCount;
+
+        private void accept(BookingReviewDO review) {
+            if (review == null) {
+                return;
+            }
+            if (BookingReviewLevelEnum.POSITIVE.getLevel().equals(review.getReviewLevel())) {
+                positiveCount++;
+            } else if (BookingReviewLevelEnum.NEUTRAL.getLevel().equals(review.getReviewLevel())) {
+                neutralCount++;
+            } else if (BookingReviewLevelEnum.NEGATIVE.getLevel().equals(review.getReviewLevel())) {
+                negativeCount++;
+            }
+            if (BookingReviewFollowStatusEnum.PENDING.getStatus().equals(review.getFollowStatus())
+                    || BookingReviewFollowStatusEnum.PROCESSING.getStatus().equals(review.getFollowStatus())) {
+                pendingFollowCount++;
+            }
+            if (RISK_LEVEL_URGENT == (review.getRiskLevel() == null ? RISK_LEVEL_NORMAL : review.getRiskLevel())) {
+                urgentCount++;
+            }
+            if (Boolean.TRUE.equals(review.getReplyStatus())) {
+                repliedCount++;
+            }
+        }
     }
 }

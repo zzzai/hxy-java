@@ -1,6 +1,9 @@
 package com.hxy.module.booking.service;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewCreateReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewEligibilityRespVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewPageReqVO;
@@ -22,4 +25,14 @@ public interface BookingReviewService {
     BookingReviewDO getReview(Long memberId, Long reviewId);
 
     AppBookingReviewSummaryRespVO getSummary(Long memberId);
+
+    PageResult<BookingReviewDO> getAdminReviewPage(BookingReviewPageReqVO reqVO);
+
+    BookingReviewDO getAdminReview(Long reviewId);
+
+    void replyReview(Long reviewId, Long operatorId, String replyContent);
+
+    void updateFollowStatus(Long reviewId, Long operatorId, @Valid BookingReviewFollowUpdateReqVO reqVO);
+
+    BookingReviewDashboardRespVO getDashboardSummary();
 }
