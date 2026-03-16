@@ -102,7 +102,9 @@
 1. 要看“逐功能全量清单”，直接看：
    - `docs/products/2026-03-15-hxy-full-project-business-function-ledger-v1.md`
 2. 要看“全项目 PRD 完整度有没有收口、后台/SPU/SKU 有没有被纳入”，直接看本文。
-3. 要看“小程序工程 blocker 与 release 结论”，继续以 miniapp 三份单一真值为准：
+3. 要看“适合直接汇报 / 外发的前后台功能 + PRD/contract/runbook 完整度清单”，直接看：
+   - `docs/products/2026-03-16-hxy-full-project-function-doc-completion-publishable-list-v1.md`
+4. 要看“小程序工程 blocker 与 release 结论”，继续以 miniapp 三份单一真值为准：
    - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
    - `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md`
    - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`

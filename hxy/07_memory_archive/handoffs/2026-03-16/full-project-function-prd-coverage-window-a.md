@@ -10,6 +10,8 @@
   - `docs/products/2026-03-15-hxy-full-project-business-function-ledger-v1.md`
 - 新增终审综述：
   - `docs/products/2026-03-16-hxy-full-project-function-prd-completion-review-v1.md`
+- 新增可发布清单：
+  - `docs/products/2026-03-16-hxy-full-project-function-doc-completion-publishable-list-v1.md`
 
 ## Final Conclusions
 - 全项目业务能力共 `51` 项：
