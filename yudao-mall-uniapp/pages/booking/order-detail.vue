@@ -86,6 +86,13 @@
         >
           加钟
         </button>
+        <button
+          v-if="state.order.status === 4 && state.reviewEligibility.eligible"
+          class="action-btn review-btn ss-reset-button ss-m-l-16"
+          @tap="onReview"
+        >
+          去评价
+        </button>
       </view>
     </view>
   </s-layout>
@@ -93,10 +100,11 @@
 
 <script setup>
   import { reactive } from 'vue';
-  import { onLoad } from '@dcloudio/uni-app';
+  import { onLoad, onShow } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
-  import { cancelBookingOrderAndRefresh } from './logic';
+  import BookingReviewApi from '@/sheep/api/trade/review';
+  import { cancelBookingOrderAndRefresh, goToReviewAdd, loadReviewEligibility } from './logic';
 
   function fen2yuan(fen) {
     return ((fen || 0) / 100).toFixed(2);
@@ -130,13 +138,35 @@
     orderId: 0,
     order: {},
     loading: false,
+    reviewEligibility: {
+      eligible: false,
+      alreadyReviewed: false,
+      reviewId: null,
+    },
   });
+  let skipFirstShow = true;
+
+  async function loadReviewState() {
+    if (state.order.status !== 4) {
+      state.reviewEligibility = { eligible: false, alreadyReviewed: false, reviewId: null };
+      return;
+    }
+    const { code, data } = await loadReviewEligibility(BookingReviewApi, state.orderId);
+    if (code === 0) {
+      state.reviewEligibility = {
+        eligible: !!data?.eligible,
+        alreadyReviewed: !!data?.alreadyReviewed,
+        reviewId: data?.reviewId || null,
+      };
+    }
+  }
 
   async function loadOrder() {
     state.loading = true;
     const { code, data } = await BookingApi.getOrderDetail(state.orderId);
     if (code === 0) {
       state.order = data || {};
+      await loadReviewState();
     }
     state.loading = false;
   }
@@ -164,9 +194,23 @@
     sheep.$router.go('/pages/booking/addon', { parentOrderId: state.orderId });
   }
 
+  function onReview() {
+    goToReviewAdd(sheep.$router, state.orderId);
+  }
+
   onLoad((options) => {
     state.orderId = options.id;
     loadOrder();
+  });
+
+  onShow(() => {
+    if (skipFirstShow) {
+      skipFirstShow = false;
+      return;
+    }
+    if (state.orderId) {
+      loadOrder();
+    }
   });
 </script>
 
@@ -206,5 +250,9 @@
   .addon-btn {
     background: #1890ff;
     color: #fff;
+  }
+  .review-btn {
+    background: #fff3e8;
+    color: #ff6600;
   }
 </style>

@@ -19,6 +19,7 @@ module.exports = {
   loadTechnicianList,
   loadTechnicianDetail,
   loadTimeSlots,
+  loadReviewEligibility,
   submitBookingOrder,
   submitBookingOrderAndGo,
   cancelBookingOrder,
@@ -28,6 +29,7 @@ module.exports = {
   goToTechnicianDetail,
   goToOrderConfirm,
   goToOrderDetail,
+  goToReviewAdd,
 };
 `;
 
@@ -49,6 +51,7 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.loadTechnicianList, 'function');
   assert.equal(typeof logic.loadTechnicianDetail, 'function');
   assert.equal(typeof logic.loadTimeSlots, 'function');
+  assert.equal(typeof logic.loadReviewEligibility, 'function');
   assert.equal(typeof logic.submitBookingOrder, 'function');
   assert.equal(typeof logic.submitBookingOrderAndGo, 'function');
   assert.equal(typeof logic.cancelBookingOrder, 'function');
@@ -58,6 +61,7 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.goToTechnicianDetail, 'function');
   assert.equal(typeof logic.goToOrderConfirm, 'function');
   assert.equal(typeof logic.goToOrderDetail, 'function');
+  assert.equal(typeof logic.goToReviewAdd, 'function');
 });
 
 test('booking technician list and detail helpers call canonical apis', async () => {
@@ -90,6 +94,38 @@ test('booking technician list and detail helpers call canonical apis', async () 
   assert.deepEqual(normalize(listResult), { code: 0, data: [{ id: 1 }] });
   assert.deepEqual(normalize(technicianResult), { code: 0, data: { id: 8 } });
   assert.deepEqual(normalize(slotResult), { code: 0, data: [{ id: 9, date: '2026-03-15' }] });
+});
+
+test('booking review eligibility helper calls review api and review navigation keeps canonical route', async () => {
+  const logic = loadBookingLogic();
+  const calls = [];
+  const api = {
+    getEligibility(bookingOrderId) {
+      calls.push(['getEligibility', bookingOrderId]);
+      return Promise.resolve({ code: 0, data: { eligible: true } });
+    },
+  };
+  const routeCalls = [];
+  const router = {
+    go(route, query) {
+      routeCalls.push({ route, query });
+      return { route, query };
+    },
+  };
+
+  const eligibility = await logic.loadReviewEligibility(api, 1001);
+  const nav = logic.goToReviewAdd(router, 1001);
+
+  assert.deepEqual(normalize(calls), [['getEligibility', 1001]]);
+  assert.deepEqual(normalize(eligibility), { code: 0, data: { eligible: true } });
+  assert.deepEqual(normalize(routeCalls), [{
+    route: '/pages/booking/review-add',
+    query: { bookingOrderId: 1001 },
+  }]);
+  assert.deepEqual(normalize(nav), {
+    route: '/pages/booking/review-add',
+    query: { bookingOrderId: 1001 },
+  });
 });
 
 test('booking technician navigation helpers keep canonical routes and query keys', () => {

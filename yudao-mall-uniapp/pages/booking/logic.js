@@ -10,6 +10,10 @@ export async function loadTimeSlots(api, technicianId, date) {
   return api.getTimeSlots(technicianId, date);
 }
 
+export async function loadReviewEligibility(api, bookingOrderId) {
+  return api.getEligibility(bookingOrderId);
+}
+
 export async function submitBookingOrder(api, payload) {
   return api.createOrder({
     ...payload,
@@ -59,4 +63,8 @@ export function goToOrderConfirm(router, payload) {
 
 export function goToOrderDetail(router, id) {
   return router.go('/pages/booking/order-detail', { id });
+}
+
+export function goToReviewAdd(router, bookingOrderId) {
+  return router.go('/pages/booking/review-add', { bookingOrderId });
 }

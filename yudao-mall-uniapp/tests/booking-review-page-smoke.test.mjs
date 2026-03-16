@@ -38,3 +38,11 @@ test('booking review result and list pages provide explicit empty states', () =>
   assert.match(listSource, /暂无评价/);
   assert.match(listSource, /state\.summary/);
 });
+
+test('completed booking pages expose review cta and canonical review route', () => {
+  const detailSource = read('pages/booking/order-detail.vue');
+  const listSource = read('pages/booking/order-list.vue');
+
+  assert.match(detailSource, /去评价|服务评价|review-add/);
+  assert.match(listSource, /去评价|服务评价|review-add/);
+});

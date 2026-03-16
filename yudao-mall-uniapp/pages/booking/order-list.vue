@@ -34,6 +34,11 @@
             @tap.stop="onPay(order)"
           >去支付</button>
           <button
+            v-if="order.status === 4 && state.reviewEligibilityMap[order.id]?.eligible"
+            class="small-btn review-btn ss-reset-button"
+            @tap.stop="onReview(order)"
+          >去评价</button>
+          <button
             v-if="order.status === 0 || order.status === 1"
             class="small-btn cancel-btn ss-reset-button ss-m-l-12"
             @tap.stop="onCancel(order)"
@@ -47,12 +52,13 @@
 
 <script setup>
   import { reactive } from 'vue';
-  import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app';
+  import { onLoad, onReachBottom, onPullDownRefresh, onShow } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import BookingReviewApi from '@/sheep/api/trade/review';
   import { concat } from 'lodash-es';
   import { resetPagination } from '@/sheep/helper/utils';
-  import { cancelBookingOrderAndRefresh, goToOrderDetail } from './logic';
+  import { cancelBookingOrderAndRefresh, goToOrderDetail, goToReviewAdd, loadReviewEligibility } from './logic';
 
   function fen2yuan(fen) {
     return ((fen || 0) / 100).toFixed(2);
@@ -78,7 +84,9 @@
     loading: false,
     pagination: { list: [], total: 0, pageNo: 1, pageSize: 10 },
     loadStatus: '',
+    reviewEligibilityMap: {},
   });
+  let skipFirstShow = true;
 
   function onTabsChange(e) {
     if (state.currentTab === e.index) return;
@@ -99,8 +107,25 @@
       state.pagination.list = concat(state.pagination.list, data.list || []);
       state.pagination.total = data.total || 0;
       state.loadStatus = state.pagination.list.length < state.pagination.total ? 'more' : 'noMore';
+      await hydrateReviewEligibility(data.list || []);
     }
     state.loading = false;
+  }
+
+  async function hydrateReviewEligibility(list) {
+    const completedOrders = (list || []).filter((item) => item.status === 4);
+    await Promise.all(
+      completedOrders.map(async (order) => {
+        const { code, data } = await loadReviewEligibility(BookingReviewApi, order.id);
+        if (code === 0) {
+          state.reviewEligibilityMap[order.id] = {
+            eligible: !!data?.eligible,
+            alreadyReviewed: !!data?.alreadyReviewed,
+            reviewId: data?.reviewId || null,
+          };
+        }
+      }),
+    );
   }
 
   function onDetail(id) {
@@ -111,6 +136,10 @@
     if (order.payOrderId) {
       sheep.$router.go('/pages/pay/index', { id: order.payOrderId });
     }
+  }
+
+  function onReview(order) {
+    goToReviewAdd(sheep.$router, order.id);
   }
 
   function onCancel(order) {
@@ -142,8 +171,21 @@
 
   onPullDownRefresh(() => {
     resetPagination(state.pagination);
+    state.reviewEligibilityMap = {};
     getList();
     setTimeout(() => uni.stopPullDownRefresh(), 800);
+  });
+
+  onShow(() => {
+    if (skipFirstShow) {
+      skipFirstShow = false;
+      return;
+    }
+    if (state.pagination.pageNo >= 1) {
+      resetPagination(state.pagination);
+      state.reviewEligibilityMap = {};
+      getList();
+    }
   });
 </script>
 
@@ -177,5 +219,9 @@
   .cancel-btn {
     background: #f5f5f5;
     color: #666;
+  }
+  .review-btn {
+    background: #fff3e8;
+    color: #ff6600;
   }
 </style>
