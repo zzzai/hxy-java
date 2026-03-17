@@ -176,3 +176,50 @@
 3. 把未绑定字段、空态 `[] / null / 0` 或 `code=0` 但读后未变的 pseudo success 写成成功样本。
 4. 在 capability ledger、business ledger、release pack、联调口径或巡检口径中重新引入旧 path/method。
 5. 吸收未正式提交的后续窗口增量作为 booking 发布依据，而不是继续只认当前分支已正式提交产出。
+
+## 10. 03-17 Booking Review Domain Final Integration
+
+### 10.1 吸收边界
+1. 只吸收当前分支已正式提交的 booking review 代码、测试与 03-17 文档。
+2. booking review 当前单一真值只认：
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`
+   - `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`
+   - `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`
+   - `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
+   - `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
+3. 不吸收：
+   - 未落盘的 runtime 样本
+   - 设计侧想要但当前代码未实现的自动奖励 / 自动补偿 / 自动店长通知
+   - 把 booking review 反推成商品评论 alias 的任何旧口径
+
+### 10.2 当前决策表
+
+| scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
+|---|---|---|---|---|---|
+| Booking Review | Doc Closed | 用户侧 route、review API、app/admin controller、后台 overlay 页面与自动化已落地，但 runtime 发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 booking review 写成已放量评价体系、商品评论 alias、自动奖励 / 自动补偿 / 自动店长通知已上线，或忽略 `serviceOrderId=null`、`picUrls` 未前端承接、feature flag / rollout / runtime sample pack 缺失 |
+
+### 10.3 当前 booking review 允许范围
+1. query/history 侧只允许按 query-side `ACTIVE` 理解：
+   - `/pages/booking/review-list`
+   - `GET /booking/review/page`
+   - `GET /booking/review/get`
+   - `GET /booking/review/summary`
+2. submit / recovery 侧当前只允许按 `Can Develop / Cannot Release` 理解：
+   - `/pages/booking/order-list`
+   - `/pages/booking/order-detail`
+   - `/pages/booking/review-add`
+   - `/pages/booking/review-result`
+   - `GET /booking/review/eligibility`
+   - `POST /booking/review/create`
+   - `/booking/review/reply`
+   - `/booking/review/follow-status`
+3. `GET /booking/review/eligibility` 当前是 `code=0 + eligible/reason` 结构态，不得补造成稳定业务错误码分支。
+
+### 10.4 当前 Booking Review No-Go 条件
+1. 把 booking review 写成商品评论能力复用或 UI 换皮。
+2. 把 query/history `ACTIVE` 外推成 submit / recovery 已 release-ready。
+3. 把后台恢复台账存在外推成自动店长通知、自动补偿或自动奖励已上线。
+4. 把 `[] / 0 / null` 结构态写成成功发布样本，或补造 `degraded=true / degradeReason`。
+5. 在没有独立 feature flag、rollout control、runtime sample pack 的情况下，把 booking review 纳入发布签发范围。

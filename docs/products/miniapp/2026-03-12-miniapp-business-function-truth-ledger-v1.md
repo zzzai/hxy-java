@@ -65,6 +65,8 @@
 | BF-029 | Reserved | 礼品卡 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md` | 完整 | 是 | 只有规划 PRD，无 runtime 实现 |
 | BF-030 | Reserved | 邀请有礼 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | 完整 | 是 | 只有规划 PRD，无 runtime 实现 |
 | BF-031 | Reserved | 技师动态 | `N/A（当前无真实用户页）` | `N/A（当前无真实 app controller 闭环）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 是 | PRD 已补齐，但当前仍无真实页面、无真实 app controller、无运行样本，继续阻断开发 |
+| BF-032 | Booking | 预约评价历史 / 汇总 | `/pages/booking/review-list` | `GET /booking/review/page`; `GET /booking/review/get`; `GET /booking/review/summary`; `AppBookingReviewController` | ACTIVE | `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`; `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`; `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`; `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` | 完整 | 否 | booking review 历史 / 汇总页已具备真实 route、API 与 controller；当前只允许按 query-side `ACTIVE` 管理，`averageScore` 未展示、`[]/0` 只算合法空态 |
+| BF-033 | Booking | 预约评价提交 | `/pages/booking/order-list`; `/pages/booking/order-detail`; `/pages/booking/review-add`; `/pages/booking/review-result` | `GET /booking/review/eligibility`; `POST /booking/review/create`; `AppBookingReviewController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`; `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`; `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`; `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`; `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`; `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` | 完整 | 部分 | booking review 已作为 booking 新子域落地，但最终结论固定为 `Doc Closed / Can Develop / Cannot Release`；缺 runtime sample / rollout 控制面，且 `picUrls` 前端未实现、`serviceOrderId` 仍为 `null` |
 
 ## 4. 后台运营独立业务功能清单
 
@@ -74,6 +76,7 @@
 | BO-002 | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/refundNotifyLog/index.vue` | `/booking/refund-notify-log/page`; `/booking/refund-notify-log/replay`; `/booking/refund-notify-log/replay-due`; `/booking/refund-notify-log/replay-run-log/page`; `/booking/refund-notify-log/replay-run-log/detail/page`; `/booking/refund-notify-log/replay-run-log/detail/get`; `/booking/refund-notify-log/replay-run-log/get`; `/booking/refund-notify-log/replay-run-log/summary`; `/booking/refund-notify-log/replay-run-log/sync-tickets`; `BookingRefundNotifyLogController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | 否 | PRD 已补齐；当前重点转为 warning / partial-fail / ticketSyncStatus 的执行一致性 |
 | BO-003 | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission-settlement/outbox/index.vue` | `/booking/commission-settlement/page`; `/booking/commission-settlement/get`; `/booking/commission-settlement/create`; `/booking/commission-settlement/submit`; `/booking/commission-settlement/approve`; `/booking/commission-settlement/reject`; `/booking/commission-settlement/pay`; `/booking/commission-settlement/log-list`; `/booking/commission-settlement/notify-outbox-page`; `/booking/commission-settlement/notify-outbox-retry`; `/booking/commission-settlement/notify-outbox-batch-retry`; `TechnicianCommissionSettlementController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | 否 | BO-003 / BO-004 已拆成两份独立 PRD；当前重点转为审核 SLA、打款凭证和通知重试规则执行 |
 | BO-004 | Finance Ops | 技师提成明细 / 计提管理 | `未核出（审查范围内无独立后台页面文件，详见 2026-03-12 commission admin truth review / 2026-03-14 closure review / 2026-03-15 page-api-binding truth review）` | `GET /booking/commission/list-by-technician`; `GET /booking/commission/list-by-order`; `GET /booking/commission/pending-amount`; `POST /booking/commission/settle`; `POST /booking/commission/batch-settle`; `GET /booking/commission/config/list`; `POST /booking/commission/config/save`; `DELETE /booking/commission/config/delete`; `TechnicianCommissionController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`; `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md` | 完整 | 部分 | A/B/C/D/E 已分别补齐 truth review、独立 PRD、controller-only contract、SOP、runbook、page/API binding truth 与 evidence ledger；当前单一结论继续固定为“仅接口闭环 + 页面真值待核”，不得写成后台页面闭环完成 |
+| BO-005 | Booking | 预约评价恢复台账 / 详情 / 看板 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/detail/index.vue`; `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/dashboard/index.vue` | `/booking/review/page`; `/booking/review/get`; `/booking/review/reply`; `/booking/review/follow-status`; `/booking/review/dashboard-summary`; `BookingReviewController` | ACTIVE_ADMIN | `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`; `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`; `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`; `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`; `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` | 完整 | 部分 | 后台恢复台账、详情、看板与回复 / 跟进接口已落地，但当前只支持人工恢复，不存在自动店长通知、自动补偿或自动奖励；最终结论仍是 `Can Develop / Cannot Release` |
 
 ## 5. 当前阻断项汇总
 
@@ -87,6 +90,7 @@
 9. Content 文章列表 / 分类 / 回写：`BF-027`
 10. Reserved 三类规划能力：`BF-029` ~ `BF-031`
 11. 技师提成管理独立页面真值仍未核出：`BO-004`
+12. Booking Review 提交 / 恢复：`BF-033`、`BO-005`
 
 ### 5.2 不阻断存量主链，但阻断升为 ACTIVE / Frozen 的缺口
 1. Product 互动链路：`BF-016`
@@ -96,11 +100,12 @@
 
 ## 6. 结论
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
-2. 当前最强阻断不再是 booking 旧 path 漂移，而是 booking 写链路 release proof、字段/绑定漂移、member 缺页能力、reserved 规划能力和后台运营财务闭环。
+2. 当前最强阻断不再是 booking 旧 path 漂移，而是 booking 写链路 release proof、booking review 发布证据、member 缺页能力、reserved 规划能力和后台运营财务闭环。
 3. booking 当前已经形成清晰分拆：`technician-list / technician-detail / order-list / order-detail` 按 query-only `ACTIVE` 管理；`create / cancel / addon` 继续 `Can Develop / Cannot Release`。
 4. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口；该能力当前可进入真值修复开发，但不可直接作为放量依据。
 5. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
 6. `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`、`docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` 与 `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` 已把 `Booking / BO-004 / Member 缺页 / Reserved runtime` 的最终阻断口径统一固定为“可进入真值修复开发，不可直接放量”。
+7. `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` 已把 booking review 新子域的最终口径固定为：`Doc Closed / Can Develop / Cannot Release`，不得误写成商品评论 alias 或已上线评价体系。
 
 ## 7. 主要依据
 - `docs/products/miniapp/2026-03-10-miniapp-capability-status-ledger-v1.md`
@@ -114,6 +119,13 @@
 - `docs/contracts/2026-03-15-miniapp-booking-runtime-release-evidence-contract-v1.md`
 - `docs/plans/2026-03-15-miniapp-booking-runtime-release-runbook-v1.md`
 - `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md`
+- `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
+- `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`
+- `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`
+- `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`
+- `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
+- `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
+- `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
 - `yudao-mall-uniapp/pages.json`
 - `yudao-mall-uniapp/sheep/api/`
 - `ruoyi-vue-pro-master/**/controller/app/`

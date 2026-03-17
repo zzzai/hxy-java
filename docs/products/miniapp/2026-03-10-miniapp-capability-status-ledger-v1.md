@@ -90,6 +90,13 @@
 - `ED-66` `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
 - `ED-67` `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`
 - `ED-68` `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
+- `ED-69` `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
+- `ED-70` `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`
+- `ED-71` `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`
+- `ED-72` `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`
+- `ED-73` `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
+- `ED-74` `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
+- `ED-75` `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -153,6 +160,24 @@
    - `/pages/user/tag`
    - `gift-card / referral / technician-feed`
 
+### 4.5 03-17 booking review 子域真值补充
+1. booking review 当前是 booking 域内的独立服务质量反馈子域，不得写成商品评论 alias。
+2. 当前真实用户 route 只认：
+   - `/pages/booking/review-add`
+   - `/pages/booking/review-result`
+   - `/pages/booking/review-list`
+3. 当前稳定 review errorCode 只认：
+   - `1030008000` `BOOKING_REVIEW_NOT_EXISTS`
+   - `1030008001` `BOOKING_REVIEW_ALREADY_EXISTS`
+   - `1030008002` `BOOKING_REVIEW_NOT_ELIGIBLE`
+   - 创建评价链路还可能命中 `1030004000 / 1030004006`
+4. `GET /booking/review/eligibility` 当前是 `code=0 + eligible/reason` 结构态，不是稳定业务错误码分支。
+5. `serviceOrderId` 当前固定写 `null`，`picUrls` 仅后端 VO 支持，miniapp 提交页未实现上传。
+6. 当前没有 booking review 独立 feature flag、rollout proof、runtime sample pack，也没有服务端 `degraded=true / degradeReason` 证据。
+7. 因此当前只允许：
+   - 把 review history / summary 按 query-side `ACTIVE` 管理
+   - 把 review submit / recovery 按 `Can Develop / Cannot Release` 管理
+
 ## 5. 能力清单
 
 ### 5.1 Trade / Pay
@@ -203,6 +228,8 @@
 | CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | 03-16 正式产出已共同确认 create 链当前只能写成 `Doc Closed + Can Develop + Cannot Release`；`loadTimeSlots(technicianId, null)` 与 `duration/spuId/skuId` 仍未闭环，shared gate 仍固定 `can_release=NO` |
 | CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | canonical `POST + query(id,reason)` 已对齐；当前稳定 errorCode 只认 `1030004000/1030004005/1030004006`，但仍缺发布级状态变更样本与回放证据，因此继续阻断放量 |
 | CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon`; `/pages/booking/order-detail` | `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | add-on path 已对齐且失败不再伪成功；但页面当前只提交 `parentOrderId,addonType`，`upgrade / add-item` 仍存在 pseudo success / no-op risk，不能升为放量能力 |
+| CAP-BOOKING-006 | booking.review-history | `/pages/booking/review-list` | `GET /booking/review/page`; `GET /booking/review/get`; `GET /booking/review/summary` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75` | booking review 历史 / 汇总已具备真实 route、API、controller 与最终集成文档；当前只允许按 query-side `ACTIVE` 管理，`averageScore` 未展示、`getReview` 未被页面消费、`[]/0` 只算合法空态 |
+| CAP-BOOKING-007 | booking.review-submit | `/pages/booking/order-list`; `/pages/booking/order-detail`; `/pages/booking/review-add`; `/pages/booking/review-result` | `GET /booking/review/eligibility`; `POST /booking/review/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75` | booking review 已作为 booking 新子域落地，但当前最终结论固定为 `Doc Closed / Can Develop / Cannot Release`；缺 feature flag / rollout / runtime sample pack，且 `serviceOrderId=null`、`picUrls` 前端未实现、无自动奖励 / 补偿 / 店长通知证据 |
 
 ### 5.6 Content / Service / Brokerage
 
@@ -240,3 +267,4 @@
 7. 03-10 终审结论保持：`Frozen Candidate = 0`。
 8. 03-14 最终阻断集成结论保持：`可进入真值修复开发，不可把 blocker scope 直接纳入放量范围`。
 9. 03-16 booking 最终集成结论保持：`Doc Closed / Can Develop / Cannot Release`；`BO-004` 继续保持“仅接口闭环 + 页面真值待核”。
+10. 03-17 booking review 子域已补齐 PRD / contract / failureMode / runbook / gate / final review，但当前只允许把 history / summary 记为 query-side `ACTIVE`，submit / recovery 继续 `Cannot Release`。

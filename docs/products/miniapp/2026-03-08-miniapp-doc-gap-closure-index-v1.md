@@ -447,3 +447,36 @@
   - booking 当前 blocker 已从“旧 path/method 漂移”收口为“query-only `ACTIVE` 与 write-chain blocker 必须分池、字段/绑定/发布证据仍未闭环”。
   - `BO-004` 的 03-15 专项 truth review 与 evidence ledger 已正式纳入主索引，但结论仍是“仅接口闭环 + 页面真值待核”。
   - 未发生任何既有 Frozen 文档回退。
+
+## 33. 2026-03-17 Booking Review Domain Batch（A）
+
+| 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md` | Ready | 已正式提交；把“预约服务评价”固定为 booking 域独立子域，不复用商品评论真值 |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md` | Ready | 已正式提交；固定 review-add / review-result / review-list 真实 route、字段与 admin binding |
+| 3 | P0 | A | `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md` | Ready | 已正式提交；固定 `/booking/review/*` canonical route/API/controller，不得写成商品评论 alias |
+| 4 | P0 | A | `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md` | Ready | 已正式提交；固定稳定错误码、失败模式、合法空态与不可补造项 |
+| 5 | P0 | A | `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md` | Ready | 已正式提交；把差评恢复收口为人工恢复 runbook，不外推自动通知/补偿/奖励 |
+| 6 | P0 | A | `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md` | Ready | 已正式提交；固定 booking review 当前只能 `Doc Closed / Can Develop / Cannot Release` |
+| 7 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` | Ready | 已正式提交；A 侧最终集成 review，锁定 booking review 单一真值与 No-Go 条件 |
+
+### 33.1 状态汇总（03-17 Booking Review Domain Batch）
+- Frozen: 0
+- Ready: 7
+- Draft: 0
+
+## 34. Current Snapshot (2026-03-17)
+- 03-09 冻结基线保持不变：`39/39 Frozen`
+- 当前已交付准备态文档：`70 Ready`
+- 当前已登记待补文档：`0 Draft`
+- 当前已登记待正式窗口输出：`0 Pending formal window output`
+- 当前累计状态：
+  - Frozen: 39
+  - Ready: 70
+  - Draft: 0
+  - Pending formal window output: 0
+- 说明：
+  - 03-17 booking review 独立文档包已全部正式纳入主索引，当前“缺文档”问题仍保持为 0。
+  - booking review 当前只允许按 booking 新子域管理，不得写成商品评论 alias、已放量能力，或自动奖励 / 自动补偿 / 自动店长通知已上线。
+  - 当前 booking review 最终结论已固定为：`Doc Closed / Can Develop / Cannot Release`。
+  - 未发生任何既有 Frozen 文档回退。

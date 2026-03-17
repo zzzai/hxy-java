@@ -31,6 +31,7 @@
 | Coupon / Point / Home-Growth Core | Frozen | 领券、券列表/详情、积分商城、首页增长基线 | Full | Full | Full | Full | Full | Full | 93 | `miniapp.home.context-check` 仍是门禁能力，不能与已上线入口混写 | P1 |
 | Member Account & Assets | Ready | 登录/注册、个人资料、地址、钱包、积分、签到；等级/资产总览/标签为保留边界 | Full | Full | Full | Full | Full | Full | 94 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 缺页；`/member/asset-ledger/page` 仍是 `PLANNED_RESERVED` | P0 |
 | Booking & Technician Service | Still Blocked | 预约列表/详情、技师详情查询为当前真值；创建/取消/加钟仍阻断；03-16 已补字段字典、恢复动作、canonical matrix、gate audit 与 A 集成 review | Full | Full | Full | Full | Full | Full | 95 | query-only `ACTIVE` 与 write-chain blocker 必须分池；`title/specialties/status`、`data.list/data.total`、`payOrderId`、`duration/spuId/skuId` 仍未闭环；发布级样本与巡检证据仍缺失 | P0 |
+| Booking Review & Service Recovery | Ready | review-list 历史 / 汇总为 query-side `ACTIVE`；review-add 提交、结果页与后台恢复台账 / 详情 / 看板已实现，但 release proof 仍未闭环 | Full | Full | Full | Full | Full | Full | 93 | 不得复用商品评论真值；缺 feature flag / rollout / runtime sample pack；`picUrls` 前端未实现；`serviceOrderId` 仍为 `null`；自动奖励 / 补偿 / 店长通知未落地 | P0 |
 | Content / DIY / Customer Service | Ready | DIY 模板/自定义页已可执行；聊天、文章正文、FAQ 壳页、WebView 已有正式文档边界 | Full | Full | Full | Full | Full | Full | 94 | FAQ 只是壳页；聊天发送失败必须 fail-close；BF-027 独立文档已落盘，但文章列表/分类/已读回写仍是 `ACTIVE_BE_ONLY` 或 `PLANNED_RESERVED` | P1 |
 | Brokerage / Distribution | Ready | 分销中心、钱包、提现、团队、排行、推广订单、推广商品均已形成正式文档边界 | Full | Full | Full | Full | Full | Full | 95 | 申诉/撤回/取消提现仍缺页；`brokerageOrderCount` 与前端 `item.orderCount` 存在字段对齐风险 | P1 |
 | Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
@@ -53,6 +54,7 @@
 5. `Marketing Expansion`
 6. `Reserved Expansion`
 7. `Finance Ops Admin`
+8. `Booking Review & Service Recovery`
 
 ### 4.3 当前唯一 Still Blocked 域
 1. `Booking & Technician Service`
@@ -134,6 +136,26 @@
 2. 这一批新增的作用不是把 booking 升级为 release-ready，而是把字段漂移、稳定 errorCode、gate 语义与 A 窗口单一真值彻底锁定。
 3. 当前 booking 的唯一允许结论固定为：`Doc Closed / Can Develop / Cannot Release`。
 
+### 4.9 03-17 Booking Review Truth Batch 新增情况
+1. 已新增：
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md`
+   - `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md`
+   - `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`
+   - `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
+   - `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
+   - `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
+2. 这批新增把 booking review 固定为 booking 域独立子域，不复用商品评论真值，也不把后台恢复页面存在外推成已放量能力。
+3. 当前只允许：
+   - 把 review history / summary 记为 query-side `ACTIVE`
+   - 把 review submit / recovery 记为 `Can Develop / Cannot Release`
+4. 当前未核出的关键发布证据包括：
+   - feature flag / rollout control
+   - runtime sample pack
+   - 自动通知店长 / 技师负责人 / 客服负责人链路
+   - 自动奖励 / 自动补偿
+5. 因此 booking review 当前属于文档闭环完成，但仍不能进入 `Frozen Candidate` 或 release-ready。
+
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`
    - 守住 canonical method/path，不允许旧路径回流。
@@ -153,6 +175,9 @@
 6. `Finance Ops Admin 页面真值继续收口`
    - 当前 `BO-004` 仍只有 controller 接口真值，没有独立后台页面文件、没有独立 API 文件、没有独立发布证据。
    - 解除条件：独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据、独立发布证据全部核出。
+7. `Booking Review 发布证据继续收口`
+   - 当前 review 子域代码、页面、controller、admin overlay 与文档都已存在，但 release proof 仍未闭环。
+   - 解除条件：runtime sample pack、rollout/rollback 控制面、人工恢复升级链路证据与关键字段闭环结论全部核出。
 
 ## 6. P1 收口顺序
 1. `Alias route 持续清理`
@@ -176,11 +201,13 @@
 | Marketing Expansion | Ready | 文档包完整，但整域继续按 `PLANNED_RESERVED` 管理 |
 | Reserved Activation | Ready | 治理闭环完整，但 runtime 仍未闭环 |
 | Finance Ops Admin | Ready | A/B/C/D 文档包均已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
+| Booking Review & Service Recovery | Ready | 文档包完整，但当前最终结论仍固定为 `Doc Closed / Can Develop / Cannot Release`，不得误升为已放量评价体系 |
 
 ## 8. 结论
-1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 63`，`Draft = 0`，`Pending formal window output = 0`。
+1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 70`，`Draft = 0`，`Pending formal window output = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
 4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review、03-14 的 controller-only contract、03-15 的 page/API binding truth review 与 evidence ledger、03-16 的 booking final truth batch，也都只固定“文档闭环不等于工程闭环，不等于 release-ready”。
-5. 接下来的治理重点不再是补文档数量，而是把 booking、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
-6. 当前项目级最终判断已经补齐：`文档已闭环`，但 blocker scope 仍只允许“进入真值修复开发”，不允许直接“进入放量”。
+5. 03-17 booking review 子域已完成文档闭环，但当前只能按“query/history 可维护、submit/recovery 不可放量”执行，不得外推成已上线评价体系。
+6. 接下来的治理重点不再是补文档数量，而是把 booking、booking review、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
+7. 当前项目级最终判断已经补齐：`文档已闭环`，但 blocker scope 仍只允许“进入真值修复开发”，不允许直接“进入放量”。
