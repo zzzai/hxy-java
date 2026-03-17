@@ -25,6 +25,8 @@ test('booking review add page contains submit flow and recovery states', () => {
   assert.match(source, /onSubmit/);
   assert.match(source, /state\.eligibility/);
   assert.match(source, /state\.submitting/);
+  assert.match(source, /s-uploader/);
+  assert.match(source, /picUrls:\s*state\.form\.picUrls/);
   assert.match(source, /暂无可评价订单|暂不可评价/);
 });
 

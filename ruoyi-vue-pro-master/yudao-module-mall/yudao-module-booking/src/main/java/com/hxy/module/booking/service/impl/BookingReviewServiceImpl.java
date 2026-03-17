@@ -17,6 +17,8 @@ import com.hxy.module.booking.enums.BookingReviewDisplayStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.service.BookingReviewService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_ORDER_NOT_EXISTS;
@@ -46,11 +49,14 @@ public class BookingReviewServiceImpl implements BookingReviewService {
 
     private final BookingReviewMapper bookingReviewMapper;
     private final BookingOrderMapper bookingOrderMapper;
+    private final TradeServiceOrderApi tradeServiceOrderApi;
 
     public BookingReviewServiceImpl(BookingReviewMapper bookingReviewMapper,
-                                    BookingOrderMapper bookingOrderMapper) {
+                                    BookingOrderMapper bookingOrderMapper,
+                                    TradeServiceOrderApi tradeServiceOrderApi) {
         this.bookingReviewMapper = bookingReviewMapper;
         this.bookingOrderMapper = bookingOrderMapper;
+        this.tradeServiceOrderApi = tradeServiceOrderApi;
     }
 
     @Override
@@ -99,7 +105,7 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         Integer reviewLevel = resolveReviewLevel(reqVO.getOverallScore());
         BookingReviewDO review = BookingReviewDO.builder()
                 .bookingOrderId(order.getId())
-                .serviceOrderId(null)
+                .serviceOrderId(resolveServiceOrderId(order))
                 .storeId(order.getStoreId())
                 .technicianId(order.getTechnicianId())
                 .memberId(memberId)
@@ -242,6 +248,36 @@ public class BookingReviewServiceImpl implements BookingReviewService {
             throw exception(BOOKING_REVIEW_NOT_ELIGIBLE);
         }
         return order;
+    }
+
+    private Long resolveServiceOrderId(BookingOrderDO order) {
+        if (order == null || order.getPayOrderId() == null || order.getPayOrderId() <= 0) {
+            return null;
+        }
+        try {
+            List<TradeServiceOrderTraceRespDTO> traces = tradeServiceOrderApi.listTraceByPayOrderId(order.getPayOrderId());
+            if (traces == null || traces.isEmpty()) {
+                return null;
+            }
+            for (TradeServiceOrderTraceRespDTO trace : traces) {
+                if (trace == null || trace.getServiceOrderId() == null) {
+                    continue;
+                }
+                if (Objects.equals(trace.getSpuId(), order.getSpuId())
+                        && Objects.equals(trace.getSkuId(), order.getSkuId())) {
+                    return trace.getServiceOrderId();
+                }
+            }
+            return traces.stream()
+                    .filter(Objects::nonNull)
+                    .map(TradeServiceOrderTraceRespDTO::getServiceOrderId)
+                    .filter(Objects::nonNull)
+                    .min(Long::compareTo)
+                    .orElse(null);
+        } catch (Exception ignored) {
+            // Review submission should not be blocked by a best-effort trace lookup.
+            return null;
+        }
     }
 
     private Integer resolveReviewLevel(Integer overallScore) {

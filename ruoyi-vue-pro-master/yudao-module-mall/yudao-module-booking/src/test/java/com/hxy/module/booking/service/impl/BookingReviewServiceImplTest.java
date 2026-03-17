@@ -17,14 +17,18 @@ import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.service.BookingReviewService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static cn.iocoder.yudao.framework.test.core.util.AssertUtils.assertServiceException;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_ALREADY_EXISTS;
@@ -32,7 +36,10 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOT
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 @Import(BookingReviewServiceImpl.class)
 class BookingReviewServiceImplTest extends BaseDbUnitTest {
@@ -45,6 +52,9 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
 
     @Resource
     private BookingReviewMapper bookingReviewMapper;
+
+    @MockBean
+    private TradeServiceOrderApi tradeServiceOrderApi;
 
     @Test
     void shouldRejectCreateReviewWhenOrderNotCompleted() {
@@ -61,7 +71,11 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
     @Test
     void shouldCreateNegativeReviewAndDeriveRecoveryFlags() {
         BookingOrderDO order = buildOrder(1002L, 20L, BookingOrderStatusEnum.COMPLETED.getStatus());
+        order.setPayOrderId(88001L);
         bookingOrderMapper.insert(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(88001L))).thenReturn(Collections.singletonList(
+                new TradeServiceOrderTraceRespDTO().setServiceOrderId(99001L).setOrderItemId(77001L)
+                        .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
 
         AppBookingReviewCreateReqVO reqVO = new AppBookingReviewCreateReqVO();
         reqVO.setBookingOrderId(order.getId());
@@ -82,6 +96,7 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertEquals(BookingReviewLevelEnum.NEGATIVE.getLevel(), actual.getReviewLevel());
         assertEquals(BookingReviewFollowStatusEnum.PENDING.getStatus(), actual.getFollowStatus());
         assertEquals(order.getId(), actual.getBookingOrderId());
+        assertEquals(99001L, actual.getServiceOrderId());
         assertEquals(order.getStoreId(), actual.getStoreId());
         assertEquals(order.getTechnicianId(), actual.getTechnicianId());
         assertEquals(order.getSpuId(), actual.getServiceSpuId());
@@ -115,6 +130,25 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         reqVO.setOverallScore(4);
 
         assertServiceException(() -> bookingReviewService.createReview(30L, reqVO), BOOKING_REVIEW_ALREADY_EXISTS);
+    }
+
+    @Test
+    void shouldCreateReviewWhenTraceLookupFails() {
+        BookingOrderDO order = buildOrder(10031L, 301L, BookingOrderStatusEnum.COMPLETED.getStatus());
+        order.setPayOrderId(88031L);
+        bookingOrderMapper.insert(order);
+        when(tradeServiceOrderApi.listTraceByPayOrderId(eq(88031L))).thenThrow(new RuntimeException("trade trace down"));
+
+        AppBookingReviewCreateReqVO reqVO = new AppBookingReviewCreateReqVO();
+        reqVO.setBookingOrderId(order.getId());
+        reqVO.setOverallScore(5);
+
+        Long reviewId = bookingReviewService.createReview(301L, reqVO);
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(reviewId);
+        assertNotNull(actual);
+        assertEquals(order.getId(), actual.getBookingOrderId());
+        assertNull(actual.getServiceOrderId());
     }
 
     @Test

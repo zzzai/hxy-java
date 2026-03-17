@@ -52,6 +52,18 @@
           />
         </view>
 
+        <view class="upload-box ss-m-b-20">
+          <view class="ss-font-24 ss-m-b-16">上传图片</view>
+          <s-uploader
+            v-model:url="state.form.images"
+            fileMediatype="image"
+            limit="9"
+            mode="grid"
+            :imageStyles="{ width: '168rpx', height: '168rpx' }"
+            @success="uploadSuccess"
+          />
+        </view>
+
         <label class="ss-flex ss-col-center ss-font-24 text-gray">
           <checkbox :checked="state.form.anonymous" @click="toggleAnonymous" />
           <text class="ss-m-l-8">匿名评价</text>
@@ -87,6 +99,8 @@ const state = reactive({
     environmentScore: 5,
     tags: [],
     content: '',
+    picUrls: [],
+    images: [],
     anonymous: false,
   },
   tagOptions: ['服务专业', '沟通清晰', '环境整洁', '响应及时', '体验一般', '需要改进'],
@@ -114,6 +128,10 @@ function toggleTag(tag) {
 
 function toggleAnonymous() {
   state.form.anonymous = !state.form.anonymous;
+}
+
+function uploadSuccess(payload) {
+  state.form.picUrls = payload?.tempFilePaths || [];
 }
 
 async function loadEligibility() {
@@ -147,6 +165,7 @@ async function onSubmit() {
     environmentScore: state.form.environmentScore,
     tags: state.form.tags,
     content: state.form.content,
+    picUrls: state.form.picUrls,
     anonymous: state.form.anonymous,
     source: 'order_detail',
   });
@@ -197,6 +216,11 @@ onLoad((options) => {
 }
 .textarea-box {
   min-height: 220rpx;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: #f8fafc;
+}
+.upload-box {
   padding: 24rpx;
   border-radius: 20rpx;
   background: #f8fafc;

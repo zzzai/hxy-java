@@ -1074,3 +1074,16 @@
 - 备选方案：修改全局 request 返回语义，或仅在页面层分别 try/catch；继续保留数据库唯一键异常直出；手工在线配菜单不落 SQL。
 - 否决原因：全局 request 改动会扩大回归面；页面逐点兜底容易漏；唯一键异常直出不符合业务错误口径；手工配菜单不可审计、不可复现。
 - 回滚条件：若后续全局 request 已统一提供结构化失败语义，可移除域内归一化包装，但必须保留“页面不直接解构不可信结果”与“唯一键冲突业务化”两条稳定性约束。
+
+## ADR-106：预约服务评价字段补齐采用“前端直传图片 + 后端履约追溯 fail-open”策略
+
+- 背景：03-17 booking review 文档已把 `picUrls` 前端未承接、`serviceOrderId` 固定为 `null` 列为真实缺口。如果直接把它们外推成“已补齐”会破坏单一真值；但这两个字段本身已经在 VO/DO 中存在，属于可以低风险补实的真实能力。
+- 决策：
+  1. 小程序提交页 `yudao-mall-uniapp/pages/booking/review-add.vue` 直接复用现有 `s-uploader` 组件，允许最多 9 张图片，并把上传后的 `tempFilePaths` 作为 `picUrls[]` 原样提交到 `/booking/review/create`；
+  2. `BookingReviewServiceImpl.createReview` 新增 best-effort 履约追溯：当订单存在 `payOrderId` 时，通过 `TradeServiceOrderApi.listTraceByPayOrderId` 查询履约追溯，优先匹配同 `spuId/skuId` 的 trace 回填 `serviceOrderId`，无精确命中时回退到最小 `serviceOrderId`；
+  3. 履约追溯调用采用 fail-open：trade trace 查询异常、空结果、或无 `serviceOrderId` 时，评价仍正常创建，仅保留 `serviceOrderId=null`，不新增错误码、不阻断评价主链路；
+  4. 当前不顺带引入自动奖励、自动补偿、自动通知店长等设计能力，避免越过 03-17 文档边界。
+- 影响范围：booking review 提交页字段真值、评价记录的履约追溯完整度、trade-api 只读依赖路径，以及后续 review list/detail 展示可扩展性。
+- 备选方案：继续保持 `picUrls` 前端不提交、`serviceOrderId` 固定为 `null`；或把 trace 查询失败升级为提交失败。
+- 否决原因：前者会让已存在字段长期停留在“名义支持、实际空转”；后者会把非关键追溯依赖升级成主链路阻断，放大评价提交失败面。
+- 回滚条件：若图片上传或 trace 查询在生产中出现异常，可分别回退为“不传 `picUrls`”或“保留 `serviceOrderId=null`”，但不得回退到自动奖励/自动通知这类未冻结能力。
