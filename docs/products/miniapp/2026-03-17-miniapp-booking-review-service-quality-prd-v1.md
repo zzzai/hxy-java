@@ -34,8 +34,8 @@
 2. 自动差评补偿。
 3. 自动通知店长 / 技师组长 / 客服负责人的消息通道。
 4. 公域评价展示、点赞、评论互动。
-5. 评价图片上传前端承接。
-6. `serviceOrderId` 真实绑定。
+5. 独立 feature flag / rollout control / runtime sample pack。
+6. 评价图片历史 / 详情回显的 release 级证据。
 
 ## 3. 页面与入口真值
 
@@ -66,9 +66,8 @@
   - `environmentScore`
   - `tags[]`
   - `content`
-  - `anonymous`
-- 后端已支持但页面未承接：
   - `picUrls[]`
+  - `anonymous`
 - 当前固定来源：
   - `source = order_detail`
 
@@ -86,7 +85,7 @@
 5. 页面接受 `bookingOrderId`，并兼容从 `orderId` / `id` 回退读取订单 ID。
 
 #### 不可误写的点
-- 页面当前没有图片上传。
+- 页面当前图片只保证提交链路，不能外推成历史 / 详情图片回显已经闭环。
 - 页面当前没有补偿申请。
 - 页面当前没有“立即联系店长”按钮。
 - 页面当前没有奖励承诺文案。
@@ -204,8 +203,8 @@
 | 后台列表空 | `list=[]` / dashboard `0` | 只算合法空态，不算运营成功样本 |
 
 ## 8. 当前工程差距与 No-Go
-1. `picUrls[]` 后端字段存在，但前端未实现上传。
-2. `serviceOrderId` 当前写入为 `null`，不得拿 `payOrderId` 或其他交易字段强行回填。
+1. `picUrls[]` 已接通提交链路，但历史页 / 详情页 / 后台运营回显样本仍未作为 release 证据闭环。
+2. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许为 `null`，不能写成稳定强绑定。
 3. 当前没有自动通知店长、客服、区域负责人的服务端链路证据。
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。
 5. 当前没有专门的 booking review runtime release gate 与发布样本包。

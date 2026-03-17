@@ -30,7 +30,7 @@
 | `content` | string | 是 | 是 | UI 当前 `maxlength=300` |
 | `anonymous` | boolean | 是 | 是 | 默认 `false` |
 | `source` | string | 否（固定值） | 是 | 当前固定发送 `order_detail` |
-| `picUrls[]` | string[] | 否 | 否 | 后端 VO 支持，当前页面未实现 |
+| `picUrls[]` | string[] | 是 | 是 | 当前通过 `s-uploader` 上传成功回调写入并随提交发送，最多 9 张 |
 
 ### 2.3 用户侧结果页字段
 
@@ -83,7 +83,7 @@
 | `environmentScore` | request | number | 可选，1-5 |
 | `tags` | request | string[] | 最多 8 个 |
 | `content` | request | string | 后端最多 1024；当前 UI 300 |
-| `picUrls` | request | string[] | 后端最多 9 张；当前前端未发 |
+| `picUrls` | request | string[] | 后端最多 9 张；当前提交页已发送 |
 | `anonymous` | request | boolean | 可选 |
 | `source` | request | string | 当前固定 `order_detail` |
 | `data` | response | number | 成功时返回 `reviewId` |
@@ -103,10 +103,10 @@
 | 字段 | 方向 | 类型 | 当前说明 |
 |---|---|---|---|
 | `id` | request | number | 当前只认 `id`，不是 `reviewId` |
-| `serviceOrderId` | response | number | 当前创建写入为 `null` |
+| `serviceOrderId` | response | number | 当前由后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时允许为 `null` |
 | `storeId / technicianId / memberId` | response | number | 已返回 |
 | `overallScore / serviceScore / technicianScore / environmentScore` | response | number | 已返回 |
-| `tags / picUrls` | response | array | 已返回；`picUrls` 当前前端不生产 |
+| `tags / picUrls` | response | array | 已返回；`picUrls` 当前提交页可生产，但 miniapp 页面仍未核出真实 `getReview` 消费点 |
 | `reviewLevel / riskLevel / displayStatus / followStatus / auditStatus` | response | number | 已返回 |
 | `replyStatus / replyContent / replyTime` | response | mixed | 已返回 |
 
@@ -179,8 +179,8 @@
 | `auditStatus` | `0/2` | `pass / manual_review` |
 
 ## 5. 当前字段级 No-Go
-1. 不得把 `picUrls` 写成“前端已支持上传”。
-2. 不得把 `serviceOrderId` 写成“已从真实履约单绑定”。
+1. 不得把 `picUrls` 提交链路已接通外推成“历史页 / 详情页图片回显已经全部闭环”。
+2. 不得把 `serviceOrderId` 写成“稳定强绑定且必然非空”。
 3. 不得把 `averageScore` 写成“当前页面已展示”。
 4. 不得把 `GET /booking/review/get` 的请求参数写成 `reviewId`。
 5. 不得把后台 `code=0` 直接写成发布成功样本。

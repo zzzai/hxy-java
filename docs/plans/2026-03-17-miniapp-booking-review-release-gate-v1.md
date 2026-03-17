@@ -57,8 +57,8 @@
 2. 未核到自动通知店长 / 技师负责人 / 客服负责人的链路。
 3. 未核到 feature flag 或独立灰度范围控制。
 4. 未核到独立 booking review runtime gate。
-5. `serviceOrderId` 当前仍未绑定真实履约单。
-6. `picUrls` 后端支持但前端提交页未实现。
+5. `serviceOrderId` 当前已改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填，但 trace 未命中或异常时仍允许为空。
+6. `picUrls` 已完成前端提交链路，但历史 / 详情 / 运营回显证据仍未闭环。
 
 ## 6. degraded_pool
 1. 当前没有服务端 `degraded=true / degradeReason` 证据。
@@ -80,7 +80,7 @@
 1. 具备真实 runtime 样本包。
 2. 具备明确 rollout / rollback 控制面。
 3. 差评恢复链路有明确的通知或告警证据。
-4. `serviceOrderId` 绑定和 `picUrls` 前端承接等关键缺口达成明确结论。
+4. `serviceOrderId` best-effort 回填与 `picUrls` 提交后回显等关键缺口达成明确 release 结论。
 5. 新一轮 A 集成文档重新评估后，才能从 `No-Go` 升级。
 
 ## 8. Gate No-Go 条件

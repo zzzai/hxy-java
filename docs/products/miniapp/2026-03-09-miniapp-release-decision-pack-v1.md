@@ -198,7 +198,7 @@
 
 | scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
 |---|---|---|---|---|---|
-| Booking Review | Doc Closed | 用户侧 route、review API、app/admin controller、后台 overlay 页面与自动化已落地，但 runtime 发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 booking review 写成已放量评价体系、商品评论 alias、自动奖励 / 自动补偿 / 自动店长通知已上线，或忽略 `serviceOrderId=null`、`picUrls` 未前端承接、feature flag / rollout / runtime sample pack 缺失 |
+| Booking Review | Doc Closed | 用户侧 route、review API、app/admin controller、后台 overlay 页面与自动化已落地，但 runtime 发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 booking review 写成已放量评价体系、商品评论 alias、自动奖励 / 自动补偿 / 自动店长通知已上线，或忽略 `serviceOrderId` 仅 best-effort 回填且仍可为空、`picUrls` 仅完成提交链路、feature flag / rollout / runtime sample pack 缺失 |
 
 ### 10.3 当前 booking review 允许范围
 1. query/history 侧只允许按 query-side `ACTIVE` 理解：

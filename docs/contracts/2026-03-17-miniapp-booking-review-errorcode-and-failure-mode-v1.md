@@ -64,7 +64,7 @@
 1. 没有已提交服务端 `degraded=true / degradeReason`。
 2. 没有 booking review 专属自动告警 / 自动工单 / 自动通知错误码。
 3. 没有“好评奖励成功 / 差评补偿成功”的稳定错误码，因为这些能力未实现。
-4. 没有针对 `picUrls` 上传失败的前端分支，因为页面未实现图片上传。
+4. `picUrls` 已接入提交页上传并随 `POST /booking/review/create` 发送；当前未核出 booking review 专属的上传失败错误码、独立恢复分支或发布样本。
 
 ## 8. ErrorCode 级 No-Go
 1. 不得按 message 文本分支。

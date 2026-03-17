@@ -54,8 +54,8 @@
 2. booking review 专属 release gate `未核出`。
 3. feature flag / rollout 控制面 `未核出`。
 4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`。
-5. `serviceOrderId` 当前仍写 `null`。
-6. `picUrls` 后端字段已支持，但用户端未实现图片上传。
+5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
+6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
 7. `GET /booking/review/get` 虽已导出，但 miniapp 当前页面未消费。
 
 ## 5. 评价域能力拆分
@@ -88,18 +88,18 @@
 | 设计期待 | 当前代码真值 | 当前口径 |
 |---|---|---|
 | 独立 review route 目录 | 实际使用扁平 route：`review-add / review-result / review-list` | 只认当前代码 route |
-| 支持图片评价 | 后端支持，前端未实现上传 | 不能写成已支持 |
+| 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
 | 店长即时通知 | 设计建议应有人第一时间接手 | 当前只能人工通知 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |
 | 自动差评补偿 | 设计明确不做 | 当前仍不做 |
-| 履约单绑定 | 设计建议保留 `serviceOrderId` | 当前仍未绑定 |
+| 履约单绑定 | 设计建议保留 `serviceOrderId` | 当前已改成 best-effort 回填，但仍允许为空 |
 
 ## 7. 当前 No-Go 条件
 1. 把 booking review 写成已放量新能力。
 2. 把 booking review 写成商品评论能力的 UI 换皮。
 3. 把后台恢复台账写成“已自动通知店长并自动升级”。
 4. 把 node test PASS 写成真实线上可放量证据。
-5. 把 `serviceOrderId`、`picUrls`、feature flag、runtime sample 缺口忽略掉。
+5. 把 `serviceOrderId` 的 best-effort 语义、`picUrls` 仅完成提交链路、feature flag、runtime sample 缺口忽略掉。
 
 ## 8. 单一真值引用
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`

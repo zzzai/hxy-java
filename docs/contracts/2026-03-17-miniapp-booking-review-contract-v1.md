@@ -86,8 +86,8 @@
 ## 7. 当前 mismatch / gap
 1. 设计草案中的 route 结构是 `/pages/booking/review/add`，当前实际代码使用 `/pages/booking/review-add`。
 2. `getReview` 已在前端 API 导出，但当前 miniapp 页面没有真实消费点。
-3. `AppBookingReviewCreateReqVO` 支持 `picUrls`，当前 miniapp 提交页不发该字段。
-4. `serviceOrderId` 在后端 DO/VO 中存在，但当前创建逻辑固定写 `null`。
+3. `AppBookingReviewCreateReqVO` 支持 `picUrls`，当前 miniapp 提交页已通过 `s-uploader` 发送该字段；图片历史/详情回显能力仍需按页面真值单独核定。
+4. `serviceOrderId` 在后端 DO/VO 中存在，当前创建逻辑会按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` 做 best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 5. 当前没有独立 booking review runtime gate，也没有 release sample pack。
 6. 当前没有服务端 `degraded=true / degradeReason` 字段证据。
 
@@ -96,4 +96,4 @@
 2. 不得把 `GET /booking/review/get` 的请求参数改写成 `reviewId`。
 3. 不得把后台 overlay 文件存在外推成“已具备生产放量证据”。
 4. 不得把 `code=0` 的写接口样本直接外推成 release-ready。
-5. 不得补造 `degraded=true / degradeReason`。
+5. 不得把 `serviceOrderId` 的 best-effort 回填写成稳定强绑定，也不得补造 `degraded=true / degradeReason`。
