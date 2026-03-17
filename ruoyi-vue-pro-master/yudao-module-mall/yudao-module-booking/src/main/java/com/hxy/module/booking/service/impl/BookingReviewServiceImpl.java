@@ -17,6 +17,7 @@ import com.hxy.module.booking.enums.BookingReviewDisplayStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.service.BookingReviewService;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -122,7 +123,11 @@ public class BookingReviewServiceImpl implements BookingReviewService {
                 .completedTime(order.getServiceEndTime())
                 .submitTime(LocalDateTime.now().withNano(0))
                 .build();
-        bookingReviewMapper.insert(review);
+        try {
+            bookingReviewMapper.insert(review);
+        } catch (DuplicateKeyException ex) {
+            throw exception(BOOKING_REVIEW_ALREADY_EXISTS);
+        }
         return review.getId();
     }
 
