@@ -97,6 +97,8 @@
 5. 当前没有独立 booking review runtime gate，也没有 release sample pack。
 6. 当前没有服务端 `degraded=true / degradeReason` 字段证据。
 7. 当前已新增 admin-only 差评店长待办 contract，但目标来源仍只认门店主数据 `contactName/contactMobile`，不能外推成账号级通知 contract。
+8. 03-19 复核后，服务端已守住店长待办状态机；当前 canonical 真值是服务端状态校验，不是前端按钮禁用。
+9. 03-19 复核后，当前未核出稳定 `store -> managerUserId / ownerUserId`；`managerClaimedByUserId / managerLatestActionByUserId` 只能解释为后台操作人。
 
 ## 8. Contract 级 No-Go
 1. 不得把 booking review 写成商品评论能力的子别名。
@@ -105,3 +107,5 @@
 4. 不得把 `code=0` 的写接口样本直接外推成 release-ready。
 5. 不得把 `serviceOrderId` 的 best-effort 回填写成稳定强绑定，也不得补造 `degraded=true / degradeReason`。
 6. 不得把门店联系人 `contactName/contactMobile` 误写成“系统已具备店长账号通知 contract”。
+7. 不得把 `managerClaimedByUserId / managerLatestActionByUserId` 写成门店店长账号真值。
+8. 不得把非法状态流转仍能被前端挡住，写成 contract 级兜底；当前真值是服务端 fail-close。

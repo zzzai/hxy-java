@@ -10,6 +10,9 @@
   - `dd2b70bd6c feat(miniapp): wire booking review entry points`
   - `b78c88edd3 feat(booking-admin-ui): add review recovery pages`
   - `2ea755b034 feat(booking-review): add member review detail page`
+  - `3c34cdc52f feat(booking-review): add negative manager todo workflow`
+  - `f1569f30b4 feat(admin): add booking review manager todo ops`
+  - `b7a51b9a0f docs(booking-review): freeze manager todo truth`
 - 本文不吸收：
   - 未提交的人工口头结论
   - 未落盘的运行样本
@@ -53,6 +56,7 @@
    - booking review detail page smoke
    - 订单页评价入口 smoke
    - booking review controller / service tests
+   - 03-19 post-launch residual tests（店长待办状态机、历史差评 lazy-init 边界）
 
 ## 4. 当前仍未闭环的工程项
 1. 发布级 runtime 样本包 `未核出`。
@@ -62,6 +66,8 @@
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
 7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
+8. 历史差评若 `managerTodoStatus` 仍为空，当前不会在 list / dashboard / page read-path 自动回填；只会在首次执行店长待办写动作时 lazy-init。
+9. 当前没有稳定 `store -> managerUserId` 或账号级 owner 映射；“店长”仍只等于门店联系人快照，不等于后台账号通知目标。
 
 ## 5. 评价域能力拆分
 
@@ -96,9 +102,11 @@
 | 独立 review route 目录 | 实际使用扁平 route：`review-add / review-detail / review-result / review-list` | 只认当前代码 route |
 | 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
 | 店长即时通知 | 已落地后台店长待办 + 联系人快照 + SLA 截止时间 | 当前仍只能后台治理，不能写成自动通知 |
+| 店长账号归属 | 当前只核到 `contactName/contactMobile` 快照 | 不能写成 `managerUserId` 已闭环 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |
 | 自动差评补偿 | 设计明确不做 | 当前仍不做 |
 | 履约单绑定 | 设计建议保留 `serviceOrderId` | 当前已改成 best-effort 回填，但仍允许为空 |
+| 店长待办状态流转 | 当前后端已守住 `待认领 -> 已认领/处理中 -> 已闭环` | 不能再把前端按钮禁用当成唯一约束 |
 
 ## 7. 当前 No-Go 条件
 1. 把 booking review 写成已放量新能力。
@@ -106,6 +114,8 @@
 3. 把后台恢复台账写成“已自动通知店长并自动升级”。
 4. 把 node test PASS 写成真实线上可放量证据。
 5. 把 `serviceOrderId` 的 best-effort 语义、`picUrls` 仅完成提交链路、feature flag、runtime sample 缺口忽略掉。
+6. 把 `managerClaimedByUserId` 或后台登录人误写成门店店长账号真值。
+7. 把历史差评在 read-path 未初始化的现状忽略掉，并直接把 dashboard / SLA 统计写成覆盖全量历史记录。
 
 ## 8. 单一真值引用
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
@@ -115,3 +125,5 @@
 - `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
 - `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
 - `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md`
+- `docs/products/miniapp/2026-03-19-miniapp-booking-review-history-and-boundary-audit-v1.md`
+- `docs/products/miniapp/2026-03-19-miniapp-booking-review-manager-ownership-truth-review-v1.md`

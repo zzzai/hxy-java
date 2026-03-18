@@ -16,6 +16,7 @@ import com.hxy.module.booking.dal.mysql.BookingReviewMapper;
 import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
+import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
 import com.hxy.module.booking.service.BookingReviewService;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
@@ -298,6 +299,93 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertNotNull(actual.getManagerClosedAt());
         assertEquals("店长确认完成回访", actual.getManagerLatestActionRemark());
         assertEquals(9101L, actual.getManagerLatestActionByUserId());
+    }
+
+    @Test
+    void shouldRejectInvalidManagerTodoTransitions() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(3013L)
+                .storeId(4013L)
+                .technicianId(5013L)
+                .memberId(612L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus())
+                .submitTime(LocalDateTime.now().minusMinutes(8).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+
+        assertServiceException(() ->
+                bookingReviewService.recordManagerFirstAction(review.getId(), 9201L, "越权首响"), BOOKING_REVIEW_NOT_ELIGIBLE);
+
+        bookingReviewService.claimManagerTodo(review.getId(), 9201L);
+        bookingReviewService.closeManagerTodo(review.getId(), 9201L, "已闭环");
+
+        assertServiceException(() ->
+                bookingReviewService.claimManagerTodo(review.getId(), 9202L), BOOKING_REVIEW_NOT_ELIGIBLE);
+    }
+
+    @Test
+    void shouldLazyInitHistoricalNegativeManagerTodoWithoutOrder() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(999991L)
+                .storeId(4991L)
+                .technicianId(5991L)
+                .memberId(6991L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .submitTime(LocalDateTime.now().minusHours(2).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+
+        bookingReviewService.claimManagerTodo(review.getId(), 9301L);
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(review.getId());
+        assertNotNull(actual);
+        assertEquals(BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus(), actual.getManagerTodoStatus());
+        assertEquals("REVIEW_LEVEL_NEGATIVE", actual.getNegativeTriggerType());
+        assertNull(actual.getManagerContactName());
+        assertNull(actual.getManagerContactMobile());
+        assertNotNull(actual.getManagerClaimDeadlineAt());
+        assertNotNull(actual.getManagerFirstActionDeadlineAt());
+        assertNotNull(actual.getManagerCloseDeadlineAt());
+        assertNotNull(actual.getManagerClaimedAt());
+        assertEquals(9301L, actual.getManagerClaimedByUserId());
+    }
+
+    @Test
+    void shouldNotBackfillHistoricalNegativeManagerTodoOnReadPath() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(999992L)
+                .storeId(4992L)
+                .technicianId(5992L)
+                .memberId(6992L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .riskLevel(2)
+                .followStatus(BookingReviewFollowStatusEnum.PENDING.getStatus())
+                .replyStatus(Boolean.FALSE)
+                .submitTime(LocalDateTime.now().minusHours(3).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+
+        BookingReviewPageReqVO pageReqVO = new BookingReviewPageReqVO();
+        pageReqVO.setPageNo(1);
+        pageReqVO.setPageSize(10);
+
+        PageResult<BookingReviewDO> pageResult = bookingReviewService.getAdminReviewPage(pageReqVO);
+        BookingReviewDashboardRespVO dashboard = bookingReviewService.getDashboardSummary();
+        BookingReviewDO actual = bookingReviewMapper.selectById(review.getId());
+
+        assertTrue(pageResult.getList().stream().anyMatch(item -> item.getId().equals(review.getId())));
+        assertNotNull(actual);
+        assertNull(actual.getManagerTodoStatus());
+        assertNull(actual.getNegativeTriggerType());
+        assertEquals(0L, dashboard.getManagerTodoPendingCount());
+        assertEquals(0L, dashboard.getManagerTodoClaimTimeoutCount());
+        assertEquals(0L, dashboard.getManagerTodoFirstActionTimeoutCount());
+        assertEquals(0L, dashboard.getManagerTodoCloseTimeoutCount());
+        assertEquals(0L, dashboard.getManagerTodoClosedCount());
     }
 
     @Test

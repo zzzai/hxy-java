@@ -15,7 +15,7 @@
 |---|---|---|
 | `1030008000` | `BOOKING_REVIEW_NOT_EXISTS` | `GET /booking/review/get` 未命中；后台 `get / reply / follow-status / manager-todo/*` 未命中 |
 | `1030008001` | `BOOKING_REVIEW_ALREADY_EXISTS` | 重复提交同一 booking 订单评价 |
-| `1030008002` | `BOOKING_REVIEW_NOT_ELIGIBLE` | 订单未完成，不能创建评价；非差评记录不能执行店长待办动作 |
+| `1030008002` | `BOOKING_REVIEW_NOT_ELIGIBLE` | 订单未完成，不能创建评价；非差评记录不能执行店长待办动作；店长待办非法状态流转被服务端拒绝 |
 | `1030004000` | `BOOKING_ORDER_NOT_EXISTS` | 创建评价时 booking 订单不存在 |
 | `1030004006` | `BOOKING_ORDER_NOT_OWNER` | 创建评价时当前用户不是订单 owner |
 
@@ -50,6 +50,10 @@
 | `POST /booking/review/manager-todo/close` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
 | `GET /booking/review/dashboard-summary` | `QUERY_ONLY` | 所有计数为 `0` 合法 | `MANUAL_RETRY` | 0 只算空态，不算恢复成功 |
 
+补充真值：
+1. 店长待办三条写接口当前统一按服务端状态机 fail-close，不再只靠前端按钮禁用。
+2. 历史差评若 `managerTodoStatus=null`，当前只会在店长待办写接口里 lazy-init，不会在 list / dashboard read-path 自动补齐。
+
 ## 6. 当前页面层恢复动作
 
 ### 6.1 用户侧
@@ -64,14 +68,24 @@
 2. 回复 / 跟进 / 店长待办写失败：当前页面只有人工重试，没有自动重试。
 3. 看板 0 值：只算当前无样本，不代表治理完成。
 
+### 6.3 历史差评边界
+1. 缺失 booking order 行的历史差评，首次执行店长待办写动作时仍可能补齐：
+   - `negativeTriggerType`
+   - `managerTodoStatus`
+   - 三个 SLA 截止时间
+2. 这类记录若门店主数据未命中，`managerContactName / managerContactMobile` 可以继续为空。
+3. 因此当前“可写入人工治理”不等于“历史数据已自动修复”。
+
 ## 7. 当前没有证据的项
 1. 没有已提交服务端 `degraded=true / degradeReason`。
 2. 没有 booking review 专属自动告警 / 自动工单 / 自动通知错误码。
 3. 没有“好评奖励成功 / 差评补偿成功”的稳定错误码，因为这些能力未实现。
 4. `picUrls` 已接入提交页上传并随 `POST /booking/review/create` 发送；当前未核出 booking review 专属的上传失败错误码、独立恢复分支或发布样本。
+5. 当前没有稳定 `managerUserId / ownerUserId` 错误码，因为账号级店长归属真值本身未落地。
 
 ## 8. ErrorCode 级 No-Go
 1. 不得按 message 文本分支。
 2. 不得把 `ORDER_NOT_EXISTS / NOT_OWNER / ALREADY_REVIEWED / ORDER_NOT_COMPLETED` 写成稳定 errorCode。
 3. 不得把 `code=0` 但缺少 runtime 样本的写接口记为 release-ready。
 4. 不得因为常量存在就补造自动奖励 / 自动补偿 / 自动通知的错误码分支。
+5. 不得把历史差评写路径 lazy-init 成功，误写成 read-path 已自动修复。

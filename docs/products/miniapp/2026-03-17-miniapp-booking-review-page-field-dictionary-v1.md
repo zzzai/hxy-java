@@ -239,3 +239,14 @@
 4. 不得把 `GET /booking/review/get` 的请求参数写成 `reviewId`。
 5. 不得把后台 `code=0` 直接写成发布成功样本。
 6. 不得把 `managerContactName / managerContactMobile` 写成“已具备账号级店长通知”。
+
+## 6. 当前未落地、不得误写的后台字段
+
+| 字段 | 当前状态 | 正确口径 |
+|---|---|---|
+| `managerUserId` | `未核出` | 当前没有稳定 `store -> managerUserId` 真值 |
+| `ownerUserId` | `未核出` | 当前没有账号级 owner 路由 |
+| `managerTodoInitSource` | `未落地` | 当前只有写路径 lazy-init 事实，没有独立初始化来源字段 |
+| `managerActionTimeline[]` | `未落地` | 当前只有最近处理备注和若干时间点，没有完整动作数组 |
+| `dashboardDrillDownQuery` | `未落地` | 看板当前只支持返回台账，不带固定 drill-down 参数 |
+| `notifyChannel / notifyTaskId` | `未落地` | 当前没有自动通知链路字段 |

@@ -24,6 +24,7 @@
   - 发布级样本包
   - feature flag / switch
   - 自动通知 / 自动告警链路
+  - 稳定 `store -> managerUserId` / 账号级店长路由
 
 ## 3. Gate 判定表
 
@@ -52,6 +53,10 @@
 | Can Release | `No` |
 | Release Decision | `No-Go` |
 
+补充说明：
+1. 03-19 的服务端状态机修复只说明写链更严谨，不代表 release 结论升级。
+2. 03-19 复核确认：历史差评仍不会在 read-path 自动补齐店长待办字段，因此 dashboard / SLA 统计不覆盖所有历史数据。
+
 ## 5. blocker_pool
 1. 未核到 booking review 发布级成功 / 失败样本包。
 2. 当前只有 admin-only 店长待办，未核到自动通知店长 / 技师负责人 / 客服负责人的链路。
@@ -59,6 +64,8 @@
 4. 未核到独立 booking review runtime gate。
 5. `serviceOrderId` 当前已改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填，但 trace 未命中或异常时仍允许为空。
 6. `picUrls` 已完成前端提交链路，但历史 / 详情 / 运营回显证据仍未闭环。
+7. 当前未核出稳定 `store -> managerUserId`，店长待办只停留在联系人快照治理，无法形成账号级通知或发布验收口径。
+8. 历史差评待办字段当前只在写动作时 lazy-init，read-path 不自动回填。
 
 ## 6. degraded_pool
 1. 当前没有服务端 `degraded=true / degradeReason` 证据。
@@ -82,6 +89,7 @@
 3. 差评恢复链路有明确的通知或告警证据。
 4. `serviceOrderId` best-effort 回填与 `picUrls` 提交后回显等关键缺口达成明确 release 结论。
 5. 新一轮 A 集成文档重新评估后，才能从 `No-Go` 升级。
+6. 若后续要做自动通知、自动派单或店长账号路由，必须先补 manager ownership 真值与运行样本。
 
 ## 8. Gate No-Go 条件
 1. 把页面和 controller 已存在写成“可以放心放量”。
@@ -89,3 +97,4 @@
 3. 把后台台账、看板存在写成“恢复体系已正式上线”。
 4. 把人工通知店长写成“系统已支持即时通知店长”。
 5. 把 `picUrls`、`serviceOrderId`、feature flag 未闭环的能力写成“已补齐”。
+6. 把 03-19 状态机修复外推成“历史数据已自动修复”或“Can Release=Yes”。

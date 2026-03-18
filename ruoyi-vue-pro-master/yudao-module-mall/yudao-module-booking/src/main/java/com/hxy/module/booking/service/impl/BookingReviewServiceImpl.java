@@ -238,6 +238,7 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     @Transactional(rollbackFor = Exception.class)
     public void claimManagerTodo(Long reviewId, Long operatorId) {
         BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        assertManagerTodoStatus(review, BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus());
         LocalDateTime now = LocalDateTime.now().withNano(0);
         review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus());
         review.setManagerClaimedByUserId(operatorId);
@@ -249,6 +250,9 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     @Transactional(rollbackFor = Exception.class)
     public void recordManagerFirstAction(Long reviewId, Long operatorId, String remark) {
         BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        assertManagerTodoStatus(review,
+                BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus(),
+                BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus());
         LocalDateTime now = LocalDateTime.now().withNano(0);
         review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus());
         review.setManagerFirstActionAt(now);
@@ -261,6 +265,9 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     @Transactional(rollbackFor = Exception.class)
     public void closeManagerTodo(Long reviewId, Long operatorId, String remark) {
         BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        assertManagerTodoStatus(review,
+                BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus(),
+                BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus());
         LocalDateTime now = LocalDateTime.now().withNano(0);
         review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.CLOSED.getStatus());
         review.setManagerClosedAt(now);
@@ -341,16 +348,17 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     }
 
     private void populateManagerTodoFields(BookingReviewDO review, BookingOrderDO order) {
-        if (review == null || order == null
+        if (review == null
                 || !BookingReviewLevelEnum.NEGATIVE.getLevel().equals(review.getReviewLevel())
                 || review.getSubmitTime() == null) {
             return;
         }
         review.setNegativeTriggerType(BookingReviewNegativeTriggerTypeEnum.REVIEW_LEVEL_NEGATIVE.getType());
         ProductStoreDO store = null;
-        if (order.getStoreId() != null) {
+        Long storeId = order != null ? order.getStoreId() : review.getStoreId();
+        if (storeId != null) {
             try {
-                store = productStoreService.getStore(order.getStoreId());
+                store = productStoreService.getStore(storeId);
             } catch (Exception ignored) {
                 store = null;
             }
@@ -377,6 +385,18 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         populateManagerTodoFields(review, order);
         bookingReviewMapper.updateById(review);
         return review;
+    }
+
+    private void assertManagerTodoStatus(BookingReviewDO review, Integer... allowedStatuses) {
+        if (review == null || review.getManagerTodoStatus() == null) {
+            throw exception(BOOKING_REVIEW_NOT_ELIGIBLE);
+        }
+        for (Integer allowedStatus : allowedStatuses) {
+            if (Objects.equals(review.getManagerTodoStatus(), allowedStatus)) {
+                return;
+            }
+        }
+        throw exception(BOOKING_REVIEW_NOT_ELIGIBLE);
     }
 
     private PageResult<BookingReviewDO> buildPageResult(List<BookingReviewDO> list, BookingReviewPageReqVO reqVO) {

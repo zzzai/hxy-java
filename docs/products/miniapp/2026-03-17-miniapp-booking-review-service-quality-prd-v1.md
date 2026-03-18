@@ -39,6 +39,7 @@
 5. 独立 feature flag / rollout control / runtime sample pack。
 6. 评价图片历史 / 详情回显的 release 级证据。
 7. 当前已落地的“店长待办”只认门店主数据 `contactName/contactMobile`，不承诺账号级店长通知，不承诺站内信、微信或短信。
+8. 03-19 真值复核后，当前仍未核出稳定 `store -> managerUserId` 映射字段、关系表或后台账号绑定链路。
 
 ## 3. 页面与入口真值
 
@@ -93,6 +94,7 @@
 - 页面当前没有补偿申请。
 - 页面当前没有“立即联系店长”按钮。
 - 页面当前没有奖励承诺文案。
+- 页面当前也没有“查看店长处理进度”或“店长账号已受理”的对外状态。
 
 ### 4.2 `/pages/booking/review-result`
 - 成功态：显示 `提交成功`，可跳转“查看我的评价”或“返回订单详情”。
@@ -238,6 +240,7 @@
 2. 当前好评不触发自动奖励。
 3. 当前差评已可进入后台“店长待办”池，但这只代表后台治理动作已落地，不代表店长已被自动触达。
 4. 当前“店长待办”目标来源固定为门店 `contactName/contactMobile` 快照，不能误写成系统已具备账号级店长消息路由。
+5. 当前后台登录操作人 `managerClaimedByUserId / managerLatestActionByUserId` 仅代表执行动作的人，不代表门店店长账号真值。
 
 ## 7. 用户可见结构态与恢复动作
 
@@ -256,7 +259,8 @@
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。
 5. 当前没有专门的 booking review runtime release gate 与发布样本包。
 6. 当前门店主数据只稳定提供 `contactName/contactMobile`，未核到稳定 `managerUserId` 真值，因此后台“店长待办”只能写成联系人快照治理，不能外推成账号级通知系统。
-7. 因此当前结论只能是：`Can Develop / Cannot Release`。
+7. 历史差评待办字段如果尚未初始化，当前只会在首次认领 / 首次处理 / 闭环写动作时补齐，不能误写成系统会在读链路自动修复全量历史记录。
+8. 因此当前结论只能是：`Can Develop / Cannot Release`。
 
 ## 9. 单一真值引用
 - 产品：`docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
@@ -266,3 +270,5 @@
 - Runbook：`docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
 - Release Gate：`docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
 - Final Integration：`docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
+- 历史边界审计：`docs/products/miniapp/2026-03-19-miniapp-booking-review-history-and-boundary-audit-v1.md`
+- 店长归属真值：`docs/products/miniapp/2026-03-19-miniapp-booking-review-manager-ownership-truth-review-v1.md`
