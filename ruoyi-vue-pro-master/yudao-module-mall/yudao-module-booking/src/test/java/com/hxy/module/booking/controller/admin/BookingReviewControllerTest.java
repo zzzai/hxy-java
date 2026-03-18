@@ -6,6 +6,9 @@ import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoClaimReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoCloseReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoFirstActionReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewReplyReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewRespVO;
@@ -134,5 +137,58 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertEquals(2L, result.getData().getNegativeCount());
         assertEquals(1L, result.getData().getPendingFollowCount());
         verify(bookingReviewService).getDashboardSummary();
+    }
+
+    @Test
+    void shouldClaimManagerTodo() {
+        BookingReviewManagerTodoClaimReqVO reqVO = new BookingReviewManagerTodoClaimReqVO();
+        reqVO.setReviewId(1010L);
+
+        try (MockedStatic<SecurityFrameworkUtils> mockedStatic = mockStatic(SecurityFrameworkUtils.class)) {
+            mockedStatic.when(SecurityFrameworkUtils::getLoginUserId).thenReturn(66L);
+
+            CommonResult<Boolean> result = controller.claimManagerTodo(reqVO);
+
+            assertTrue(result.isSuccess());
+            assertTrue(Boolean.TRUE.equals(result.getData()));
+        }
+
+        verify(bookingReviewService).claimManagerTodo(1010L, 66L);
+    }
+
+    @Test
+    void shouldRecordManagerFirstAction() {
+        BookingReviewManagerTodoFirstActionReqVO reqVO = new BookingReviewManagerTodoFirstActionReqVO();
+        reqVO.setReviewId(1011L);
+        reqVO.setRemark("已电话联系店长确认处理");
+
+        try (MockedStatic<SecurityFrameworkUtils> mockedStatic = mockStatic(SecurityFrameworkUtils.class)) {
+            mockedStatic.when(SecurityFrameworkUtils::getLoginUserId).thenReturn(67L);
+
+            CommonResult<Boolean> result = controller.recordManagerFirstAction(reqVO);
+
+            assertTrue(result.isSuccess());
+            assertTrue(Boolean.TRUE.equals(result.getData()));
+        }
+
+        verify(bookingReviewService).recordManagerFirstAction(1011L, 67L, "已电话联系店长确认处理");
+    }
+
+    @Test
+    void shouldCloseManagerTodo() {
+        BookingReviewManagerTodoCloseReqVO reqVO = new BookingReviewManagerTodoCloseReqVO();
+        reqVO.setReviewId(1012L);
+        reqVO.setRemark("店长已完成闭环");
+
+        try (MockedStatic<SecurityFrameworkUtils> mockedStatic = mockStatic(SecurityFrameworkUtils.class)) {
+            mockedStatic.when(SecurityFrameworkUtils::getLoginUserId).thenReturn(68L);
+
+            CommonResult<Boolean> result = controller.closeManagerTodo(reqVO);
+
+            assertTrue(result.isSuccess());
+            assertTrue(Boolean.TRUE.equals(result.getData()));
+        }
+
+        verify(bookingReviewService).closeManagerTodo(1012L, 68L, "店长已完成闭环");
     }
 }

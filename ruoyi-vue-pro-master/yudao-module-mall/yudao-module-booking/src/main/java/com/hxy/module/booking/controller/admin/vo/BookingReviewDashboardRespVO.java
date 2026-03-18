@@ -27,4 +27,19 @@ public class BookingReviewDashboardRespVO {
 
     @Schema(description = "已回复数", example = "60")
     private Long repliedCount;
+
+    @Schema(description = "店长待认领数", example = "2")
+    private Long managerTodoPendingCount;
+
+    @Schema(description = "店长认领超时数", example = "1")
+    private Long managerTodoClaimTimeoutCount;
+
+    @Schema(description = "店长首次处理超时数", example = "1")
+    private Long managerTodoFirstActionTimeoutCount;
+
+    @Schema(description = "店长闭环超时数", example = "1")
+    private Long managerTodoCloseTimeoutCount;
+
+    @Schema(description = "店长已闭环数", example = "3")
+    private Long managerTodoClosedCount;
 }

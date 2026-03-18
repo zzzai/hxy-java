@@ -1,6 +1,11 @@
 package com.hxy.module.booking.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
+import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
+import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
+import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
@@ -16,9 +21,9 @@ import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewDisplayStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
+import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
+import com.hxy.module.booking.enums.BookingReviewNegativeTriggerTypeEnum;
 import com.hxy.module.booking.service.BookingReviewService;
-import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
-import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,17 +51,24 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     private static final int AUDIT_STATUS_PASS = 0;
     private static final int AUDIT_STATUS_MANUAL_REVIEW = 2;
     private static final String DEFAULT_SOURCE = "order_detail";
+    private static final String MANAGER_SLA_NORMAL = "NORMAL";
+    private static final String MANAGER_SLA_CLAIM_TIMEOUT = "CLAIM_TIMEOUT";
+    private static final String MANAGER_SLA_FIRST_ACTION_TIMEOUT = "FIRST_ACTION_TIMEOUT";
+    private static final String MANAGER_SLA_CLOSE_TIMEOUT = "CLOSE_TIMEOUT";
 
     private final BookingReviewMapper bookingReviewMapper;
     private final BookingOrderMapper bookingOrderMapper;
     private final TradeServiceOrderApi tradeServiceOrderApi;
+    private final ProductStoreService productStoreService;
 
     public BookingReviewServiceImpl(BookingReviewMapper bookingReviewMapper,
                                     BookingOrderMapper bookingOrderMapper,
-                                    TradeServiceOrderApi tradeServiceOrderApi) {
+                                    TradeServiceOrderApi tradeServiceOrderApi,
+                                    ProductStoreService productStoreService) {
         this.bookingReviewMapper = bookingReviewMapper;
         this.bookingOrderMapper = bookingOrderMapper;
         this.tradeServiceOrderApi = tradeServiceOrderApi;
+        this.productStoreService = productStoreService;
     }
 
     @Override
@@ -129,6 +141,7 @@ public class BookingReviewServiceImpl implements BookingReviewService {
                 .completedTime(order.getServiceEndTime())
                 .submitTime(LocalDateTime.now().withNano(0))
                 .build();
+        populateManagerTodoFields(review, order);
         try {
             bookingReviewMapper.insert(review);
         } catch (DuplicateKeyException ex) {
@@ -160,7 +173,7 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         int totalScore = 0;
         BookingReviewCounter counter = new BookingReviewCounter();
         for (BookingReviewDO review : list) {
-            counter.accept(review);
+            counter.acceptReviewSummary(review);
             totalScore += review.getOverallScore() == null ? 0 : review.getOverallScore();
         }
         AppBookingReviewSummaryRespVO respVO = new AppBookingReviewSummaryRespVO();
@@ -174,7 +187,13 @@ public class BookingReviewServiceImpl implements BookingReviewService {
 
     @Override
     public PageResult<BookingReviewDO> getAdminReviewPage(BookingReviewPageReqVO reqVO) {
-        return bookingReviewMapper.selectAdminPage(reqVO);
+        if (StrUtil.isBlank(reqVO.getManagerSlaStatus())) {
+            return bookingReviewMapper.selectAdminPage(reqVO);
+        }
+        List<BookingReviewDO> filtered = bookingReviewMapper.selectAdminList(reqVO);
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        filtered.removeIf(review -> !StrUtil.equals(reqVO.getManagerSlaStatus(), resolveManagerSlaStatus(review, now)));
+        return buildPageResult(filtered, reqVO);
     }
 
     @Override
@@ -216,14 +235,51 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void claimManagerTodo(Long reviewId, Long operatorId) {
+        BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus());
+        review.setManagerClaimedByUserId(operatorId);
+        review.setManagerClaimedAt(now);
+        bookingReviewMapper.updateById(review);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void recordManagerFirstAction(Long reviewId, Long operatorId, String remark) {
+        BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus());
+        review.setManagerFirstActionAt(now);
+        review.setManagerLatestActionRemark(StrUtil.trim(remark));
+        review.setManagerLatestActionByUserId(operatorId);
+        bookingReviewMapper.updateById(review);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void closeManagerTodo(Long reviewId, Long operatorId, String remark) {
+        BookingReviewDO review = ensureManagerTodoReady(getAdminReview(reviewId));
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.CLOSED.getStatus());
+        review.setManagerClosedAt(now);
+        review.setManagerLatestActionRemark(StrUtil.trim(remark));
+        review.setManagerLatestActionByUserId(operatorId);
+        bookingReviewMapper.updateById(review);
+    }
+
+    @Override
     public BookingReviewDashboardRespVO getDashboardSummary() {
         List<BookingReviewDO> list = bookingReviewMapper.selectList();
         if (list == null) {
             list = Collections.emptyList();
         }
         BookingReviewCounter counter = new BookingReviewCounter();
+        LocalDateTime now = LocalDateTime.now().withNano(0);
         for (BookingReviewDO review : list) {
-            counter.accept(review);
+            counter.acceptReviewSummary(review);
+            counter.acceptManagerTodoSummary(review, now);
         }
         BookingReviewDashboardRespVO respVO = new BookingReviewDashboardRespVO();
         respVO.setTotalCount((long) list.size());
@@ -233,6 +289,11 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         respVO.setPendingFollowCount(counter.pendingFollowCount);
         respVO.setUrgentCount(counter.urgentCount);
         respVO.setRepliedCount(counter.repliedCount);
+        respVO.setManagerTodoPendingCount(counter.managerTodoPendingCount);
+        respVO.setManagerTodoClaimTimeoutCount(counter.managerTodoClaimTimeoutCount);
+        respVO.setManagerTodoFirstActionTimeoutCount(counter.managerTodoFirstActionTimeoutCount);
+        respVO.setManagerTodoCloseTimeoutCount(counter.managerTodoCloseTimeoutCount);
+        respVO.setManagerTodoClosedCount(counter.managerTodoClosedCount);
         return respVO;
     }
 
@@ -275,9 +336,58 @@ public class BookingReviewServiceImpl implements BookingReviewService {
                     .min(Long::compareTo)
                     .orElse(null);
         } catch (Exception ignored) {
-            // Review submission should not be blocked by a best-effort trace lookup.
             return null;
         }
+    }
+
+    private void populateManagerTodoFields(BookingReviewDO review, BookingOrderDO order) {
+        if (review == null || order == null
+                || !BookingReviewLevelEnum.NEGATIVE.getLevel().equals(review.getReviewLevel())
+                || review.getSubmitTime() == null) {
+            return;
+        }
+        review.setNegativeTriggerType(BookingReviewNegativeTriggerTypeEnum.REVIEW_LEVEL_NEGATIVE.getType());
+        ProductStoreDO store = null;
+        if (order.getStoreId() != null) {
+            try {
+                store = productStoreService.getStore(order.getStoreId());
+            } catch (Exception ignored) {
+                store = null;
+            }
+        }
+        review.setManagerContactName(store == null ? null : store.getContactName());
+        review.setManagerContactMobile(store == null ? null : store.getContactMobile());
+        review.setManagerTodoStatus(BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus());
+        review.setManagerClaimDeadlineAt(review.getSubmitTime().plusMinutes(10));
+        review.setManagerFirstActionDeadlineAt(review.getSubmitTime().plusMinutes(30));
+        review.setManagerCloseDeadlineAt(review.getSubmitTime().plusHours(24));
+    }
+
+    private BookingReviewDO ensureManagerTodoReady(BookingReviewDO review) {
+        if (review == null) {
+            throw exception(BOOKING_REVIEW_NOT_EXISTS);
+        }
+        if (review.getManagerTodoStatus() != null) {
+            return review;
+        }
+        if (!BookingReviewLevelEnum.NEGATIVE.getLevel().equals(review.getReviewLevel())) {
+            throw exception(BOOKING_REVIEW_NOT_ELIGIBLE);
+        }
+        BookingOrderDO order = review.getBookingOrderId() == null ? null : bookingOrderMapper.selectById(review.getBookingOrderId());
+        populateManagerTodoFields(review, order);
+        bookingReviewMapper.updateById(review);
+        return review;
+    }
+
+    private PageResult<BookingReviewDO> buildPageResult(List<BookingReviewDO> list, BookingReviewPageReqVO reqVO) {
+        int pageNo = reqVO.getPageNo() == null || reqVO.getPageNo() <= 0 ? 1 : reqVO.getPageNo();
+        int pageSize = reqVO.getPageSize() == null || reqVO.getPageSize() <= 0 ? 10 : reqVO.getPageSize();
+        int fromIndex = Math.max((pageNo - 1) * pageSize, 0);
+        if (fromIndex >= list.size()) {
+            return new PageResult<>(Collections.emptyList(), (long) list.size());
+        }
+        int toIndex = Math.min(fromIndex + pageSize, list.size());
+        return new PageResult<>(list.subList(fromIndex, toIndex), (long) list.size());
     }
 
     private Integer resolveReviewLevel(Integer overallScore) {
@@ -321,6 +431,29 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         return AUDIT_STATUS_PASS;
     }
 
+    private static String resolveManagerSlaStatus(BookingReviewDO review, LocalDateTime now) {
+        if (review == null || review.getManagerTodoStatus() == null) {
+            return null;
+        }
+        if (BookingReviewManagerTodoStatusEnum.CLOSED.getStatus().equals(review.getManagerTodoStatus())) {
+            return MANAGER_SLA_NORMAL;
+        }
+        if (review.getManagerCloseDeadlineAt() != null && now.isAfter(review.getManagerCloseDeadlineAt())) {
+            return MANAGER_SLA_CLOSE_TIMEOUT;
+        }
+        if (review.getManagerFirstActionAt() == null
+                && review.getManagerFirstActionDeadlineAt() != null
+                && now.isAfter(review.getManagerFirstActionDeadlineAt())) {
+            return MANAGER_SLA_FIRST_ACTION_TIMEOUT;
+        }
+        if (review.getManagerClaimedAt() == null
+                && review.getManagerClaimDeadlineAt() != null
+                && now.isAfter(review.getManagerClaimDeadlineAt())) {
+            return MANAGER_SLA_CLAIM_TIMEOUT;
+        }
+        return MANAGER_SLA_NORMAL;
+    }
+
     private static class BookingReviewCounter {
 
         private long positiveCount;
@@ -329,8 +462,13 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         private long pendingFollowCount;
         private long urgentCount;
         private long repliedCount;
+        private long managerTodoPendingCount;
+        private long managerTodoClaimTimeoutCount;
+        private long managerTodoFirstActionTimeoutCount;
+        private long managerTodoCloseTimeoutCount;
+        private long managerTodoClosedCount;
 
-        private void accept(BookingReviewDO review) {
+        private void acceptReviewSummary(BookingReviewDO review) {
             if (review == null) {
                 return;
             }
@@ -350,6 +488,26 @@ public class BookingReviewServiceImpl implements BookingReviewService {
             }
             if (Boolean.TRUE.equals(review.getReplyStatus())) {
                 repliedCount++;
+            }
+        }
+
+        private void acceptManagerTodoSummary(BookingReviewDO review, LocalDateTime now) {
+            if (review == null || review.getManagerTodoStatus() == null) {
+                return;
+            }
+            if (BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus().equals(review.getManagerTodoStatus())) {
+                managerTodoPendingCount++;
+            }
+            String managerSlaStatus = resolveManagerSlaStatus(review, now);
+            if (MANAGER_SLA_CLAIM_TIMEOUT.equals(managerSlaStatus)) {
+                managerTodoClaimTimeoutCount++;
+            } else if (MANAGER_SLA_FIRST_ACTION_TIMEOUT.equals(managerSlaStatus)) {
+                managerTodoFirstActionTimeoutCount++;
+            } else if (MANAGER_SLA_CLOSE_TIMEOUT.equals(managerSlaStatus)) {
+                managerTodoCloseTimeoutCount++;
+            }
+            if (BookingReviewManagerTodoStatusEnum.CLOSED.getStatus().equals(review.getManagerTodoStatus())) {
+                managerTodoClosedCount++;
             }
         }
     }

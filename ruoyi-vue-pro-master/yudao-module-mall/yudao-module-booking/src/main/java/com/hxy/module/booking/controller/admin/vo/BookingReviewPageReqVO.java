@@ -41,6 +41,15 @@ public class BookingReviewPageReqVO extends PageParam {
     @Schema(description = "跟进状态", example = "1")
     private Integer followStatus;
 
+    @Schema(description = "只看店长待办", example = "true")
+    private Boolean onlyManagerTodo;
+
+    @Schema(description = "店长待办状态", example = "1")
+    private Integer managerTodoStatus;
+
+    @Schema(description = "店长待办 SLA 状态", example = "CLAIM_TIMEOUT")
+    private String managerSlaStatus;
+
     @Schema(description = "是否已回复")
     private Boolean replyStatus;
 

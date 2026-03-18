@@ -85,6 +85,45 @@ public class BookingReviewRespVO {
     @Schema(description = "提交时间")
     private LocalDateTime submitTime;
 
+    @Schema(description = "差评触发类型")
+    private String negativeTriggerType;
+
+    @Schema(description = "店长联系人姓名")
+    private String managerContactName;
+
+    @Schema(description = "店长联系人手机号")
+    private String managerContactMobile;
+
+    @Schema(description = "店长待办状态")
+    private Integer managerTodoStatus;
+
+    @Schema(description = "店长待办认领截止时间")
+    private LocalDateTime managerClaimDeadlineAt;
+
+    @Schema(description = "店长待办首次处理截止时间")
+    private LocalDateTime managerFirstActionDeadlineAt;
+
+    @Schema(description = "店长待办闭环截止时间")
+    private LocalDateTime managerCloseDeadlineAt;
+
+    @Schema(description = "店长待办认领人")
+    private Long managerClaimedByUserId;
+
+    @Schema(description = "店长待办认领时间")
+    private LocalDateTime managerClaimedAt;
+
+    @Schema(description = "店长待办首次处理时间")
+    private LocalDateTime managerFirstActionAt;
+
+    @Schema(description = "店长待办闭环时间")
+    private LocalDateTime managerClosedAt;
+
+    @Schema(description = "店长待办最近处理备注")
+    private String managerLatestActionRemark;
+
+    @Schema(description = "店长待办最近处理人")
+    private Long managerLatestActionByUserId;
+
     @Schema(description = "首次响应时间")
     private LocalDateTime firstResponseAt;
 

@@ -17,6 +17,8 @@ import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.service.BookingReviewService;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
+import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import cn.iocoder.yudao.module.trade.api.order.TradeServiceOrderApi;
 import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO;
 import org.junit.jupiter.api.Test;
@@ -56,6 +58,9 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
     @MockBean
     private TradeServiceOrderApi tradeServiceOrderApi;
 
+    @MockBean
+    private ProductStoreService productStoreService;
+
     @Test
     void shouldRejectCreateReviewWhenOrderNotCompleted() {
         BookingOrderDO order = buildOrder(1001L, 10L, BookingOrderStatusEnum.PAID.getStatus());
@@ -73,6 +78,11 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         BookingOrderDO order = buildOrder(1002L, 20L, BookingOrderStatusEnum.COMPLETED.getStatus());
         order.setPayOrderId(88001L);
         bookingOrderMapper.insert(order);
+        when(productStoreService.getStore(eq(order.getStoreId()))).thenReturn(ProductStoreDO.builder()
+                .id(order.getStoreId())
+                .contactName("王店长")
+                .contactMobile("13900000000")
+                .build());
         when(tradeServiceOrderApi.listTraceByPayOrderId(eq(88001L))).thenReturn(Collections.singletonList(
                 new TradeServiceOrderTraceRespDTO().setServiceOrderId(99001L).setOrderItemId(77001L)
                         .setSpuId(order.getSpuId()).setSkuId(order.getSkuId())));
@@ -103,6 +113,13 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertEquals(order.getSkuId(), actual.getServiceSkuId());
         assertEquals(reqVO.getTags(), actual.getTags());
         assertEquals(reqVO.getPicUrls(), actual.getPicUrls());
+        assertEquals("REVIEW_LEVEL_NEGATIVE", actual.getNegativeTriggerType());
+        assertEquals("王店长", actual.getManagerContactName());
+        assertEquals("13900000000", actual.getManagerContactMobile());
+        assertEquals(1, actual.getManagerTodoStatus());
+        assertNotNull(actual.getManagerClaimDeadlineAt());
+        assertNotNull(actual.getManagerFirstActionDeadlineAt());
+        assertNotNull(actual.getManagerCloseDeadlineAt());
     }
 
     @Test
@@ -250,6 +267,37 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertEquals(BookingReviewFollowStatusEnum.PROCESSING.getStatus(), actual.getFollowStatus());
         assertEquals(9002L, actual.getFollowOwnerId());
         assertEquals("已分派门店店长跟进", actual.getFollowResult());
+    }
+
+    @Test
+    void shouldClaimAndCloseManagerTodoForNegativeReview() {
+        BookingReviewDO review = BookingReviewDO.builder()
+                .bookingOrderId(3012L)
+                .storeId(4012L)
+                .technicianId(5012L)
+                .memberId(611L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(1)
+                .managerContactName("王店长")
+                .managerContactMobile("13900000000")
+                .submitTime(LocalDateTime.now().minusMinutes(5).withNano(0))
+                .build();
+        bookingReviewMapper.insert(review);
+
+        bookingReviewService.claimManagerTodo(review.getId(), 9101L);
+        bookingReviewService.recordManagerFirstAction(review.getId(), 9101L, "已电话同步门店店长");
+        bookingReviewService.closeManagerTodo(review.getId(), 9101L, "店长确认完成回访");
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(review.getId());
+        assertNotNull(actual);
+        assertEquals(4, actual.getManagerTodoStatus());
+        assertEquals(9101L, actual.getManagerClaimedByUserId());
+        assertNotNull(actual.getManagerClaimedAt());
+        assertNotNull(actual.getManagerFirstActionAt());
+        assertNotNull(actual.getManagerClosedAt());
+        assertEquals("店长确认完成回访", actual.getManagerLatestActionRemark());
+        assertEquals(9101L, actual.getManagerLatestActionByUserId());
     }
 
     @Test

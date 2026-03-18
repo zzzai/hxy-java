@@ -106,6 +106,45 @@ public class BookingReviewDO extends BaseDO {
     /** 提交时间 */
     private LocalDateTime submitTime;
 
+    /** 差评触发类型 */
+    private String negativeTriggerType;
+
+    /** 店长联系人姓名快照 */
+    private String managerContactName;
+
+    /** 店长联系人手机号快照 */
+    private String managerContactMobile;
+
+    /** 店长待办状态 */
+    private Integer managerTodoStatus;
+
+    /** 店长待办认领截止时间 */
+    private LocalDateTime managerClaimDeadlineAt;
+
+    /** 店长待办首次处理截止时间 */
+    private LocalDateTime managerFirstActionDeadlineAt;
+
+    /** 店长待办闭环截止时间 */
+    private LocalDateTime managerCloseDeadlineAt;
+
+    /** 店长待办认领操作人 */
+    private Long managerClaimedByUserId;
+
+    /** 店长待办认领时间 */
+    private LocalDateTime managerClaimedAt;
+
+    /** 店长待办首次处理时间 */
+    private LocalDateTime managerFirstActionAt;
+
+    /** 店长待办闭环时间 */
+    private LocalDateTime managerClosedAt;
+
+    /** 店长待办最近处理备注 */
+    private String managerLatestActionRemark;
+
+    /** 店长待办最近处理人 */
+    private Long managerLatestActionByUserId;
+
     /** 首次响应时间 */
     private LocalDateTime firstResponseAt;
 

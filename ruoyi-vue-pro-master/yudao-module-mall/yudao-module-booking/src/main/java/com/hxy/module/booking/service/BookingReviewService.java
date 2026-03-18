@@ -34,5 +34,11 @@ public interface BookingReviewService {
 
     void updateFollowStatus(Long reviewId, Long operatorId, @Valid BookingReviewFollowUpdateReqVO reqVO);
 
+    void claimManagerTodo(Long reviewId, Long operatorId);
+
+    void recordManagerFirstAction(Long reviewId, Long operatorId, String remark);
+
+    void closeManagerTodo(Long reviewId, Long operatorId, String remark);
+
     BookingReviewDashboardRespVO getDashboardSummary();
 }

@@ -13,6 +13,26 @@ import java.util.List;
 @Mapper
 public interface BookingReviewMapper extends BaseMapperX<BookingReviewDO> {
 
+    default LambdaQueryWrapperX<BookingReviewDO> buildAdminQuery(BookingReviewPageReqVO reqVO) {
+        LambdaQueryWrapperX<BookingReviewDO> query = new LambdaQueryWrapperX<>();
+        query.eqIfPresent(BookingReviewDO::getId, reqVO.getId());
+        query.eqIfPresent(BookingReviewDO::getBookingOrderId, reqVO.getBookingOrderId());
+        query.eqIfPresent(BookingReviewDO::getStoreId, reqVO.getStoreId());
+        query.eqIfPresent(BookingReviewDO::getTechnicianId, reqVO.getTechnicianId());
+        query.eqIfPresent(BookingReviewDO::getMemberId, reqVO.getMemberId());
+        query.eqIfPresent(BookingReviewDO::getReviewLevel, reqVO.getReviewLevel());
+        query.eqIfPresent(BookingReviewDO::getRiskLevel, reqVO.getRiskLevel());
+        query.eqIfPresent(BookingReviewDO::getFollowStatus, reqVO.getFollowStatus());
+        query.eqIfPresent(BookingReviewDO::getManagerTodoStatus, reqVO.getManagerTodoStatus());
+        query.eqIfPresent(BookingReviewDO::getReplyStatus, reqVO.getReplyStatus());
+        query.betweenIfPresent(BookingReviewDO::getSubmitTime, reqVO.getSubmitTime());
+        query.orderByDesc(BookingReviewDO::getRiskLevel, BookingReviewDO::getSubmitTime, BookingReviewDO::getId);
+        if (Boolean.TRUE.equals(reqVO.getOnlyManagerTodo())) {
+            query.isNotNull(BookingReviewDO::getManagerTodoStatus);
+        }
+        return query;
+    }
+
     default BookingReviewDO selectByBookingOrderId(Long bookingOrderId) {
         return selectOne(new LambdaQueryWrapperX<BookingReviewDO>()
                 .eq(BookingReviewDO::getBookingOrderId, bookingOrderId)
@@ -40,18 +60,11 @@ public interface BookingReviewMapper extends BaseMapperX<BookingReviewDO> {
     }
 
     default PageResult<BookingReviewDO> selectAdminPage(BookingReviewPageReqVO reqVO) {
-        return selectPage(reqVO, new LambdaQueryWrapperX<BookingReviewDO>()
-                .eqIfPresent(BookingReviewDO::getId, reqVO.getId())
-                .eqIfPresent(BookingReviewDO::getBookingOrderId, reqVO.getBookingOrderId())
-                .eqIfPresent(BookingReviewDO::getStoreId, reqVO.getStoreId())
-                .eqIfPresent(BookingReviewDO::getTechnicianId, reqVO.getTechnicianId())
-                .eqIfPresent(BookingReviewDO::getMemberId, reqVO.getMemberId())
-                .eqIfPresent(BookingReviewDO::getReviewLevel, reqVO.getReviewLevel())
-                .eqIfPresent(BookingReviewDO::getRiskLevel, reqVO.getRiskLevel())
-                .eqIfPresent(BookingReviewDO::getFollowStatus, reqVO.getFollowStatus())
-                .eqIfPresent(BookingReviewDO::getReplyStatus, reqVO.getReplyStatus())
-                .betweenIfPresent(BookingReviewDO::getSubmitTime, reqVO.getSubmitTime())
-                .orderByDesc(BookingReviewDO::getRiskLevel, BookingReviewDO::getSubmitTime, BookingReviewDO::getId));
+        return selectPage(reqVO, buildAdminQuery(reqVO));
+    }
+
+    default List<BookingReviewDO> selectAdminList(BookingReviewPageReqVO reqVO) {
+        return selectList(buildAdminQuery(reqVO));
     }
 
     default BookingReviewDO selectByIdAndMemberId(Long id, Long memberId) {

@@ -5,6 +5,9 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoClaimReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoCloseReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoFirstActionReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewReplyReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewRespVO;
@@ -66,6 +69,31 @@ public class BookingReviewController {
     @PreAuthorize("@ss.hasPermission('booking:review:update')")
     public CommonResult<Boolean> updateFollowStatus(@Valid @RequestBody BookingReviewFollowUpdateReqVO reqVO) {
         bookingReviewService.updateFollowStatus(reqVO.getReviewId(), getLoginUserId(), reqVO);
+        return success(true);
+    }
+
+    @PostMapping("/manager-todo/claim")
+    @Operation(summary = "认领预约服务评价店长待办")
+    @PreAuthorize("@ss.hasPermission('booking:review:update')")
+    public CommonResult<Boolean> claimManagerTodo(@Valid @RequestBody BookingReviewManagerTodoClaimReqVO reqVO) {
+        bookingReviewService.claimManagerTodo(reqVO.getReviewId(), getLoginUserId());
+        return success(true);
+    }
+
+    @PostMapping("/manager-todo/first-action")
+    @Operation(summary = "记录预约服务评价店长待办首次处理")
+    @PreAuthorize("@ss.hasPermission('booking:review:update')")
+    public CommonResult<Boolean> recordManagerFirstAction(
+            @Valid @RequestBody BookingReviewManagerTodoFirstActionReqVO reqVO) {
+        bookingReviewService.recordManagerFirstAction(reqVO.getReviewId(), getLoginUserId(), reqVO.getRemark());
+        return success(true);
+    }
+
+    @PostMapping("/manager-todo/close")
+    @Operation(summary = "关闭预约服务评价店长待办")
+    @PreAuthorize("@ss.hasPermission('booking:review:update')")
+    public CommonResult<Boolean> closeManagerTodo(@Valid @RequestBody BookingReviewManagerTodoCloseReqVO reqVO) {
+        bookingReviewService.closeManagerTodo(reqVO.getReviewId(), getLoginUserId(), reqVO.getRemark());
         return success(true);
     }
 
