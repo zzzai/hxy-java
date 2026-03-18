@@ -149,8 +149,17 @@
 | `reviewLevel` | request | number | 可选 |
 | `riskLevel` | request | number | 可选 |
 | `followStatus` | request | number | 可选 |
+| `onlyManagerTodo` | request | boolean | 可选；`true` 时只看已进入店长待办池的评价 |
+| `managerTodoStatus` | request | number | 可选；`1/2/3/4` |
+| `managerSlaStatus` | request | string | 可选；`NORMAL / CLAIM_TIMEOUT / FIRST_ACTION_TIMEOUT / CLOSE_TIMEOUT` |
 | `replyStatus` | request | boolean | 可选 |
 | `submitTime[]` | request | string[] | 时间范围 |
+| `managerContactName / managerContactMobile` | response | string | 后台台账 / 详情页展示的门店联系人快照 |
+| `managerTodoStatus` | response | number | `1 待认领 / 2 已认领 / 3 处理中 / 4 已闭环` |
+| `managerClaimDeadlineAt / managerFirstActionDeadlineAt / managerCloseDeadlineAt` | response | datetime | 店长待办 10 分钟认领 / 30 分钟首次处理 / 24 小时闭环截止时间 |
+| `managerClaimedByUserId / managerClaimedAt` | response | mixed | 最近认领操作人 / 时间 |
+| `managerFirstActionAt / managerClosedAt` | response | datetime | 首次处理 / 闭环时间 |
+| `managerLatestActionRemark / managerLatestActionByUserId` | response | mixed | 最近一次后台处理说明与操作人 |
 | `list[] / total` | response | mixed | 合法空态 `[] / 0` |
 
 #### `POST /booking/review/reply`
@@ -170,6 +179,29 @@
 | `followResult` | request | string | 可选 |
 | `data` | response | boolean | 当前成功返回 `true` |
 
+#### `POST /booking/review/manager-todo/claim`
+
+| 字段 | 方向 | 类型 | 当前说明 |
+|---|---|---|---|
+| `reviewId` | request | number | 必填 |
+| `data` | response | boolean | 当前成功返回 `true` |
+
+#### `POST /booking/review/manager-todo/first-action`
+
+| 字段 | 方向 | 类型 | 当前说明 |
+|---|---|---|---|
+| `reviewId` | request | number | 必填 |
+| `remark` | request | string | 必填；首次处理说明 |
+| `data` | response | boolean | 当前成功返回 `true` |
+
+#### `POST /booking/review/manager-todo/close`
+
+| 字段 | 方向 | 类型 | 当前说明 |
+|---|---|---|---|
+| `reviewId` | request | number | 必填 |
+| `remark` | request | string | 必填；闭环说明 |
+| `data` | response | boolean | 当前成功返回 `true` |
+
 #### `GET /booking/review/dashboard-summary`
 
 | 字段 | 方向 | 类型 | 当前说明 |
@@ -181,6 +213,11 @@
 | `pendingFollowCount` | response | number | 已返回 |
 | `urgentCount` | response | number | 已返回 |
 | `repliedCount` | response | number | 已返回 |
+| `managerTodoPendingCount` | response | number | 已返回；店长待认领数 |
+| `managerTodoClaimTimeoutCount` | response | number | 已返回；认领超时数 |
+| `managerTodoFirstActionTimeoutCount` | response | number | 已返回；首次处理超时数 |
+| `managerTodoCloseTimeoutCount` | response | number | 已返回；闭环超时数 |
+| `managerTodoClosedCount` | response | number | 已返回；后台已闭环数 |
 
 ## 4. 派生状态字段字典
 
@@ -190,6 +227,8 @@
 | `riskLevel` | `0/1/2` | `正常 / 关注 / 紧急` |
 | `displayStatus` | `0/1/2` | `可展示 / 已隐藏 / 待审核` |
 | `followStatus` | `0/1/2/3/4` | `无需跟进 / 待跟进 / 跟进中 / 已解决 / 已关闭` |
+| `negativeTriggerType` | `REVIEW_LEVEL_NEGATIVE` | 当前差评店长待办固定用该触发类型落库 |
+| `managerTodoStatus` | `1/2/3/4` | `待认领 / 已认领 / 处理中 / 已闭环` |
 | `replyStatus` | `true/false` | `已回复 / 未回复` |
 | `auditStatus` | `0/2` | `pass / manual_review` |
 
@@ -199,3 +238,4 @@
 3. 不得把 `averageScore` 写成“当前页面已展示”。
 4. 不得把 `GET /booking/review/get` 的请求参数写成 `reviewId`。
 5. 不得把后台 `code=0` 直接写成发布成功样本。
+6. 不得把 `managerContactName / managerContactMobile` 写成“已具备账号级店长通知”。

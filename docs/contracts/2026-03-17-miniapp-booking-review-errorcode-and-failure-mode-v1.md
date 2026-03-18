@@ -13,9 +13,9 @@
 
 | code | 常量 | 当前触发范围 |
 |---|---|---|
-| `1030008000` | `BOOKING_REVIEW_NOT_EXISTS` | `GET /booking/review/get` 未命中；后台 `get / reply / follow-status` 未命中 |
+| `1030008000` | `BOOKING_REVIEW_NOT_EXISTS` | `GET /booking/review/get` 未命中；后台 `get / reply / follow-status / manager-todo/*` 未命中 |
 | `1030008001` | `BOOKING_REVIEW_ALREADY_EXISTS` | 重复提交同一 booking 订单评价 |
-| `1030008002` | `BOOKING_REVIEW_NOT_ELIGIBLE` | 订单未完成，不能创建评价 |
+| `1030008002` | `BOOKING_REVIEW_NOT_ELIGIBLE` | 订单未完成，不能创建评价；非差评记录不能执行店长待办动作 |
 | `1030004000` | `BOOKING_ORDER_NOT_EXISTS` | 创建评价时 booking 订单不存在 |
 | `1030004006` | `BOOKING_ORDER_NOT_OWNER` | 创建评价时当前用户不是订单 owner |
 
@@ -45,6 +45,9 @@
 | `GET /booking/review/page`（admin） | `QUERY_ONLY` | `list=[]`、`total=0` 合法 | `MANUAL_RETRY` | 台账页保持空表 |
 | `POST /booking/review/reply` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
 | `POST /booking/review/follow-status` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
+| `POST /booking/review/manager-todo/claim` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
+| `POST /booking/review/manager-todo/first-action` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
+| `POST /booking/review/manager-todo/close` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
 | `GET /booking/review/dashboard-summary` | `QUERY_ONLY` | 所有计数为 `0` 合法 | `MANUAL_RETRY` | 0 只算空态，不算恢复成功 |
 
 ## 6. 当前页面层恢复动作
@@ -58,7 +61,7 @@
 
 ### 6.2 后台
 1. 台账空列表：只算合法空态。
-2. 回复 / 跟进写失败：当前页面只有人工重试，没有自动重试。
+2. 回复 / 跟进 / 店长待办写失败：当前页面只有人工重试，没有自动重试。
 3. 看板 0 值：只算当前无样本，不代表治理完成。
 
 ## 7. 当前没有证据的项

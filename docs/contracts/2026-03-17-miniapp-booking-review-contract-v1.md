@@ -65,6 +65,9 @@
 | 评价详情 | `GET /booking/review/get` | `overlay review/detail/index.vue -> loadDetail` | `BookingReviewController#get` | `booking:review:query` |
 | 回复评价 | `POST /booking/review/reply` | `overlay review/detail/index.vue -> submitReply` | `BookingReviewController#reply` | `booking:review:update` |
 | 更新跟进状态 | `POST /booking/review/follow-status` | `overlay review/detail/index.vue -> submitFollowStatus` | `BookingReviewController#updateFollowStatus` | `booking:review:update` |
+| 认领店长待办 | `POST /booking/review/manager-todo/claim` | `overlay review/detail/index.vue -> submitClaimManagerTodo` | `BookingReviewController#claimManagerTodo` | `booking:review:update` |
+| 记录首次处理 | `POST /booking/review/manager-todo/first-action` | `overlay review/detail/index.vue -> submitManagerTodoFirstAction` | `BookingReviewController#recordManagerFirstAction` | `booking:review:update` |
+| 关闭店长待办 | `POST /booking/review/manager-todo/close` | `overlay review/detail/index.vue -> submitManagerTodoClose` | `BookingReviewController#closeManagerTodo` | `booking:review:update` |
 | 看板汇总 | `GET /booking/review/dashboard-summary` | `overlay review/dashboard/index.vue -> getSummary` | `BookingReviewController#dashboardSummary` | `booking:review:query` |
 
 ## 6. 页面到接口绑定真值
@@ -82,9 +85,9 @@
 ### 6.2 后台绑定
 | 页面 | 当前绑定 | 说明 |
 |---|---|---|
-| `/mall/booking/review` | `page` | 当前只做列表、筛选、跳详情、跳看板 |
-| `/mall/booking/review/detail` | `get + reply + follow-status` | 当前没有删除、审核、隐藏接口 |
-| `/mall/booking/review/dashboard` | `dashboard-summary` | 当前只有统计卡片，没有明细 drill-down |
+| `/mall/booking/review` | `page` | 当前已新增店长待办 / SLA 筛选与字段展示 |
+| `/mall/booking/review/detail` | `get + reply + follow-status + manager-todo actions` | 当前没有删除、审核、隐藏接口，也没有外部通知动作 |
+| `/mall/booking/review/dashboard` | `dashboard-summary` | 当前新增店长待办 SLA 统计卡片，但仍没有明细 drill-down |
 
 ## 7. 当前 mismatch / gap
 1. 设计草案中的 route 结构是 `/pages/booking/review/add`，当前实际代码使用 `/pages/booking/review-add`。
@@ -93,7 +96,7 @@
 4. `serviceOrderId` 在后端 DO/VO 中存在，当前创建逻辑会按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` 做 best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 5. 当前没有独立 booking review runtime gate，也没有 release sample pack。
 6. 当前没有服务端 `degraded=true / degradeReason` 字段证据。
-7. 当前没有“店长账号映射” contract 真值；如果后续补差评店长待办，第一版只能以门店主数据 `contactName/contactMobile` 作为目标来源，不能外推成账号级通知 contract。
+7. 当前已新增 admin-only 差评店长待办 contract，但目标来源仍只认门店主数据 `contactName/contactMobile`，不能外推成账号级通知 contract。
 
 ## 8. Contract 级 No-Go
 1. 不得把 booking review 写成商品评论能力的子别名。

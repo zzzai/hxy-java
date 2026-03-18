@@ -44,8 +44,10 @@
    - 详情
    - 回复
    - 跟进状态更新
+   - 店长待办认领 / 首次处理 / 闭环
    - 看板
-5. 相关测试已落地：
+5. 差评当前已具备 admin-only 店长待办层，联系人真值固定为门店 `contactName/contactMobile` 快照。
+6. 相关测试已落地：
    - booking review API alignment
    - booking review page smoke
    - booking review detail page smoke
@@ -56,7 +58,7 @@
 1. 发布级 runtime 样本包 `未核出`。
 2. booking review 专属 release gate `未核出`。
 3. feature flag / rollout 控制面 `未核出`。
-4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`。
+4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`；当前只落地后台待办，不落地外部触达。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
 7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
@@ -93,7 +95,7 @@
 |---|---|---|
 | 独立 review route 目录 | 实际使用扁平 route：`review-add / review-detail / review-result / review-list` | 只认当前代码 route |
 | 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
-| 店长即时通知 | 设计建议应有人第一时间接手 | 当前只能人工通知 |
+| 店长即时通知 | 已落地后台店长待办 + 联系人快照 + SLA 截止时间 | 当前仍只能后台治理，不能写成自动通知 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |
 | 自动差评补偿 | 设计明确不做 | 当前仍不做 |
 | 履约单绑定 | 设计建议保留 `serviceOrderId` | 当前已改成 best-effort 回填，但仍允许为空 |

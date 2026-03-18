@@ -28,7 +28,8 @@
 1. 用户端从 booking 订单列表、订单详情进入评价。
 2. 用户端支持评价资格校验、评价提交、结果页、我的评价列表、评价详情回看。
 3. 后台支持评价台账、详情、回复、跟进状态更新、汇总看板。
-4. 评价记录绑定 booking 订单、门店、技师、会员、服务商品维度。
+4. 后台差评记录已新增“店长待办”层，支持认领、首次处理、闭环三类后台动作。
+5. 评价记录绑定 booking 订单、门店、技师、会员、服务商品维度。
 
 ### 2.2 当前未落地范围
 1. 自动好评奖励。
@@ -37,7 +38,7 @@
 4. 公域评价展示、点赞、评论互动。
 5. 独立 feature flag / rollout control / runtime sample pack。
 6. 评价图片历史 / 详情回显的 release 级证据。
-7. 第一版“店长”目标对象仍只冻结为门店主数据 `contactName/contactMobile`，当前不承诺账号级店长通知，不承诺站内信、微信或短信。
+7. 当前已落地的“店长待办”只认门店主数据 `contactName/contactMobile`，不承诺账号级店长通知，不承诺站内信、微信或短信。
 
 ## 3. 页面与入口真值
 
@@ -50,8 +51,8 @@
 | 评价结果页 | `/pages/booking/review-result` | 成功后允许返回订单详情或查看我的评价 | 已落地 |
 | 我的评价页 | `/pages/booking/review-list` | 展示 summary + list，点击卡片进入 `review-detail` | 已落地 |
 | 后台评价台账 | `/mall/booking/review` | 真实页面文件已存在于 overlay | 已落地 |
-| 后台评价详情 | `/mall/booking/review/detail` | 支持回复与跟进状态更新 | 已落地 |
-| 后台评价看板 | `/mall/booking/review/dashboard` | 展示总量、好中差评、待处理、紧急、已回复 | 已落地 |
+| 后台评价详情 | `/mall/booking/review/detail` | 支持回复、跟进状态更新、店长待办认领 / 首次处理 / 闭环 | 已落地 |
+| 后台评价看板 | `/mall/booking/review/dashboard` | 展示总量、好中差评、待处理、紧急、已回复、店长待办 SLA 统计 | 已落地 |
 
 ## 4. 用户端页面 PRD
 
@@ -157,6 +158,9 @@
   - `reviewLevel`
   - `riskLevel`
   - `followStatus`
+  - `onlyManagerTodo`
+  - `managerTodoStatus`
+  - `managerSlaStatus`
   - `replyStatus`
   - `submitTime[]`
 - 当前列表字段：
@@ -169,6 +173,12 @@
   - `reviewLevel`
   - `riskLevel`
   - `followStatus`
+  - `managerContactName`
+  - `managerContactMobile`
+  - `managerTodoStatus`
+  - `managerClaimDeadlineAt`
+  - `managerFirstActionDeadlineAt`
+  - `managerCloseDeadlineAt`
   - `replyStatus`
   - `content`
   - `submitTime`
@@ -183,6 +193,9 @@
 - 当前操作：
   - 回复评价
   - 更新跟进状态
+  - 认领店长待办
+  - 记录店长待办首次处理
+  - 标记店长待办闭环
   - 刷新
   - 返回列表
 - 当前权限：
@@ -198,6 +211,11 @@
   - `pendingFollowCount`
   - `urgentCount`
   - `repliedCount`
+  - `managerTodoPendingCount`
+  - `managerTodoClaimTimeoutCount`
+  - `managerTodoFirstActionTimeoutCount`
+  - `managerTodoCloseTimeoutCount`
+  - `managerTodoClosedCount`
 - 当前仅是统计与运营解读，不代表消息推送或 SLA 自动化已经上线。
 
 ## 6. 业务规则真值
@@ -218,8 +236,8 @@
 ### 6.3 运营恢复原则
 1. 当前差评只进入人工恢复队列，不自动补偿。
 2. 当前好评不触发自动奖励。
-3. 当前如果需要第一时间同步店长，只能按人工运营动作执行；代码库内没有已提交的自动通知链路证据。
-4. 即便后续补“店长待办”，第一版也只允许基于门店 `contactName/contactMobile` 冻结目标来源，不能误写成系统已具备账号级店长消息路由。
+3. 当前差评已可进入后台“店长待办”池，但这只代表后台治理动作已落地，不代表店长已被自动触达。
+4. 当前“店长待办”目标来源固定为门店 `contactName/contactMobile` 快照，不能误写成系统已具备账号级店长消息路由。
 
 ## 7. 用户可见结构态与恢复动作
 
@@ -237,7 +255,7 @@
 3. 当前没有自动通知店长、客服、区域负责人的服务端链路证据。
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。
 5. 当前没有专门的 booking review runtime release gate 与发布样本包。
-6. 当前门店主数据只稳定提供 `contactName/contactMobile`，未核到稳定 `managerUserId` 真值，因此不能把“店长待办”外推成账号级通知系统。
+6. 当前门店主数据只稳定提供 `contactName/contactMobile`，未核到稳定 `managerUserId` 真值，因此后台“店长待办”只能写成联系人快照治理，不能外推成账号级通知系统。
 7. 因此当前结论只能是：`Can Develop / Cannot Release`。
 
 ## 9. 单一真值引用

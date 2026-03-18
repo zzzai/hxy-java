@@ -38,7 +38,7 @@
 | 后端 controller / service tests | Yes | review service / controller 测试已提交 |
 | Doc set | Yes | 本批 PRD / Contract / FailureMode / Runbook / Gate / Final Review 已齐 |
 | 发布级 runtime 样本 | No | 未核到真实线上或准线上样本包 |
-| 自动告警 / 店长通知 | No | 未核到已提交自动链路 |
+| 自动告警 / 店长通知 | No | 当前只有 admin-only 店长待办，没有外部通知链路 |
 | feature flag / rollout control | No | 未核到独立开关 |
 | 独立 release gate | No | 当前没有 booking review 专属 runtime gate |
 
@@ -54,7 +54,7 @@
 
 ## 5. blocker_pool
 1. 未核到 booking review 发布级成功 / 失败样本包。
-2. 未核到自动通知店长 / 技师负责人 / 客服负责人的链路。
+2. 当前只有 admin-only 店长待办，未核到自动通知店长 / 技师负责人 / 客服负责人的链路。
 3. 未核到 feature flag 或独立灰度范围控制。
 4. 未核到独立 booking review runtime gate。
 5. `serviceOrderId` 当前已改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填，但 trace 未命中或异常时仍允许为空。

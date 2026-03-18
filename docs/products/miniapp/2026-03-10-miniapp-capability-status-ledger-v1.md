@@ -176,10 +176,15 @@
 4. `GET /booking/review/eligibility` 当前是 `code=0 + eligible/reason` 结构态，不是稳定业务错误码分支。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填，trace 未命中或异常时仍可为空；`picUrls` 已在 miniapp 提交页接通上传并发送，但历史 / 详情回显证据仍未单独闭环。
 6. 当前没有 booking review 独立 feature flag、rollout proof、runtime sample pack，也没有服务端 `degraded=true / degradeReason` 证据。
-7. 因此当前只允许：
+7. 后台 `BO-005` 当前已新增：
+   - `POST /booking/review/manager-todo/claim`
+   - `POST /booking/review/manager-todo/first-action`
+   - `POST /booking/review/manager-todo/close`
+   但这只代表 admin-only 店长待办成立，不代表自动通知链路成立。
+8. 因此当前只允许：
    - 把 review history / summary 按 query-side `ACTIVE` 管理
    - 把 review submit / recovery 按 `Can Develop / Cannot Release` 管理
-8. 03-18 已新增 `review-detail` 页面级 acceptance checklist，但它只会补强 query-side 页面验收，不会把 review submit / admin recovery 升为 release-ready。
+9. 03-18 已新增 `review-detail` 页面级 acceptance checklist，但它只会补强 query-side 页面验收，不会把 review submit / admin recovery 升为 release-ready。
 
 ## 5. 能力清单
 
