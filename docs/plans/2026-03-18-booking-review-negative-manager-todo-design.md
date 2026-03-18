@@ -1,7 +1,7 @@
 # Booking Review Negative Manager Todo Design
 
-**Date:** 2026-03-18  
-**Status:** Approved design, not implemented  
+**Date:** 2026-03-18
+**Status:** Approved design, not implemented
 **Scope:** 在现有 `BO-005` 预约评价恢复台账上补“差评店长待办”能力，仅限后台待办/台账提醒
 
 ---
@@ -32,18 +32,18 @@
 
 本轮已确认的产品前提如下：
 
-1. 只通知差评  
+1. 只通知差评
    触发条件固定为：
    - `reviewLevel = 3`
    - 或 `overallScore <= 2`
 
-2. 只做后台待办 / 台账提醒  
+2. 只做后台待办 / 台账提醒
    第一版不做：
    - 站内消息
    - 微信消息
    - 短信
 
-3. 只通知门店店长  
+3. 只通知门店店长
    第一版不扩到：
    - 技师负责人
    - 客服恢复 owner
