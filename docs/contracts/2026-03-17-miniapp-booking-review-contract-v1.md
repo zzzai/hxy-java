@@ -93,6 +93,7 @@
 4. `serviceOrderId` 在后端 DO/VO 中存在，当前创建逻辑会按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` 做 best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 5. 当前没有独立 booking review runtime gate，也没有 release sample pack。
 6. 当前没有服务端 `degraded=true / degradeReason` 字段证据。
+7. 当前没有“店长账号映射” contract 真值；如果后续补差评店长待办，第一版只能以门店主数据 `contactName/contactMobile` 作为目标来源，不能外推成账号级通知 contract。
 
 ## 8. Contract 级 No-Go
 1. 不得把 booking review 写成商品评论能力的子别名。
@@ -100,3 +101,4 @@
 3. 不得把后台 overlay 文件存在外推成“已具备生产放量证据”。
 4. 不得把 `code=0` 的写接口样本直接外推成 release-ready。
 5. 不得把 `serviceOrderId` 的 best-effort 回填写成稳定强绑定，也不得补造 `degraded=true / degradeReason`。
+6. 不得把门店联系人 `contactName/contactMobile` 误写成“系统已具备店长账号通知 contract”。

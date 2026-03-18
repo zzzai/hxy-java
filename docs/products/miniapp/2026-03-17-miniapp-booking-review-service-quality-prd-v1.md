@@ -37,6 +37,7 @@
 4. 公域评价展示、点赞、评论互动。
 5. 独立 feature flag / rollout control / runtime sample pack。
 6. 评价图片历史 / 详情回显的 release 级证据。
+7. 第一版“店长”目标对象仍只冻结为门店主数据 `contactName/contactMobile`，当前不承诺账号级店长通知，不承诺站内信、微信或短信。
 
 ## 3. 页面与入口真值
 
@@ -218,6 +219,7 @@
 1. 当前差评只进入人工恢复队列，不自动补偿。
 2. 当前好评不触发自动奖励。
 3. 当前如果需要第一时间同步店长，只能按人工运营动作执行；代码库内没有已提交的自动通知链路证据。
+4. 即便后续补“店长待办”，第一版也只允许基于门店 `contactName/contactMobile` 冻结目标来源，不能误写成系统已具备账号级店长消息路由。
 
 ## 7. 用户可见结构态与恢复动作
 
@@ -235,7 +237,8 @@
 3. 当前没有自动通知店长、客服、区域负责人的服务端链路证据。
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。
 5. 当前没有专门的 booking review runtime release gate 与发布样本包。
-6. 因此当前结论只能是：`Can Develop / Cannot Release`。
+6. 当前门店主数据只稳定提供 `contactName/contactMobile`，未核到稳定 `managerUserId` 真值，因此不能把“店长待办”外推成账号级通知系统。
+7. 因此当前结论只能是：`Can Develop / Cannot Release`。
 
 ## 9. 单一真值引用
 - 产品：`docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
