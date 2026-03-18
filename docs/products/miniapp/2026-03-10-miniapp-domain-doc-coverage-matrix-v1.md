@@ -145,6 +145,7 @@
    - `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
    - `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
    - `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
+   - `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md`
 2. 这批新增把 booking review 固定为 booking 域独立子域，不复用商品评论真值，也不把后台恢复页面存在外推成已放量能力。
 3. 当前只允许：
    - 把 review history / summary 记为 query-side `ACTIVE`
@@ -155,6 +156,7 @@
    - 自动通知店长 / 技师负责人 / 客服负责人链路
    - 自动奖励 / 自动补偿
 5. 因此 booking review 当前属于文档闭环完成，但仍不能进入 `Frozen Candidate` 或 release-ready。
+6. 03-18 新增 acceptance checklist 只负责固定 `review-detail` 成功 / 空态 / 失败态 / 动作口径，不改变 release gate。
 
 ## 5. P0 收口顺序
 1. `Booking method + path 真值收口`

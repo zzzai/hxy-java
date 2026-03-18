@@ -9,6 +9,7 @@
   - `390e74c246 feat(miniapp): add booking review pages and api client`
   - `dd2b70bd6c feat(miniapp): wire booking review entry points`
   - `b78c88edd3 feat(booking-admin-ui): add review recovery pages`
+  - `2ea755b034 feat(booking-review): add member review detail page`
 - 本文不吸收：
   - 未提交的人工口头结论
   - 未落盘的运行样本
@@ -18,7 +19,7 @@
 
 | 判断项 | 当前结论 | 说明 |
 |---|---|---|
-| 文档状态 | `Doc Closed` | PRD、字段、contract、failureMode、runbook、gate、final review 已落盘 |
+| 文档状态 | `Doc Closed` | PRD、字段、contract、failureMode、runbook、gate、final review、detail acceptance 已落盘 |
 | 工程状态 | `Feature Implemented, Release Evidence Pending` | route、API、controller、页面、测试都已存在，但发布证据仍缺 |
 | 当前是否可开发 | `Yes` | 可以继续完善细节、补齐样本、补齐通知与灰度控制 |
 | 当前是否可放量 | `No` | 仍不能写成 release-ready |
@@ -47,6 +48,7 @@
 5. 相关测试已落地：
    - booking review API alignment
    - booking review page smoke
+   - booking review detail page smoke
    - 订单页评价入口 smoke
    - booking review controller / service tests
 
@@ -57,6 +59,7 @@
 4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
+7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
 
 ## 5. 评价域能力拆分
 
@@ -109,3 +112,4 @@
 - `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md`
 - `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
 - `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
+- `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md`

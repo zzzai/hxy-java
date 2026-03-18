@@ -459,6 +459,7 @@
 | 5 | P0 | A | `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md` | Ready | 已正式提交；把差评恢复收口为人工恢复 runbook，不外推自动通知/补偿/奖励 |
 | 6 | P0 | A | `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md` | Ready | 已正式提交；固定 booking review 当前只能 `Doc Closed / Can Develop / Cannot Release` |
 | 7 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` | Ready | 已正式提交；A 侧最终集成 review，锁定 booking review 单一真值与 No-Go 条件 |
+| 8 | P0 | A | `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md` | Ready | 已正式提交；固定 `review-detail` 页面的成功/空态/失败态/动作验收，不把 query-side acceptance 外推成 release-ready |
 
 ### 33.1 状态汇总（03-17 Booking Review Domain Batch）
 - Frozen: 0
@@ -477,6 +478,7 @@
   - Pending formal window output: 0
 - 说明：
   - 03-17 booking review 独立文档包已全部正式纳入主索引，当前“缺文档”问题仍保持为 0。
+  - 03-18 已补 `review-detail` 页面级 acceptance checklist，后续审计可直接复用，不需要再按口头说明拼验收口径。
   - booking review 当前只允许按 booking 新子域管理，不得写成商品评论 alias、已放量能力，或自动奖励 / 自动补偿 / 自动店长通知已上线。
   - 当前 booking review 最终结论已固定为：`Doc Closed / Can Develop / Cannot Release`。
   - 未发生任何既有 Frozen 文档回退。

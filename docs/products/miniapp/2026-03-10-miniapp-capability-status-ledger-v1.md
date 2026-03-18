@@ -97,6 +97,7 @@
 - `ED-73` `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md`
 - `ED-74` `docs/plans/2026-03-17-miniapp-booking-review-release-gate-v1.md`
 - `ED-75` `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md`
+- `ED-76` `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md`
 
 ## 4. 关键代码证据与硬缺口
 
@@ -164,6 +165,7 @@
 1. booking review 当前是 booking 域内的独立服务质量反馈子域，不得写成商品评论 alias。
 2. 当前真实用户 route 只认：
    - `/pages/booking/review-add`
+   - `/pages/booking/review-detail`
    - `/pages/booking/review-result`
    - `/pages/booking/review-list`
 3. 当前稳定 review errorCode 只认：
@@ -177,6 +179,7 @@
 7. 因此当前只允许：
    - 把 review history / summary 按 query-side `ACTIVE` 管理
    - 把 review submit / recovery 按 `Can Develop / Cannot Release` 管理
+8. 03-18 已新增 `review-detail` 页面级 acceptance checklist，但它只会补强 query-side 页面验收，不会把 review submit / admin recovery 升为 release-ready。
 
 ## 5. 能力清单
 
@@ -228,8 +231,8 @@
 | CAP-BOOKING-003 | booking.create-chain | `/pages/booking/technician-list`; `/pages/booking/technician-detail`; `/pages/booking/order-confirm` | `GET /booking/technician/list`; `GET /booking/technician/get`; `GET /booking/slot/list-by-technician`; `POST /booking/order/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | 03-16 正式产出已共同确认 create 链当前只能写成 `Doc Closed + Can Develop + Cannot Release`；`loadTimeSlots(technicianId, null)` 与 `duration/spuId/skuId` 仍未闭环，shared gate 仍固定 `can_release=NO` |
 | CAP-BOOKING-004 | booking.cancel | `/pages/booking/order-list`; `/pages/booking/order-detail` | `POST /booking/order/cancel` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-17/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | canonical `POST + query(id,reason)` 已对齐；当前稳定 errorCode 只认 `1030004000/1030004005/1030004006`，但仍缺发布级状态变更样本与回放证据，因此继续阻断放量 |
 | CAP-BOOKING-005 | booking.addon-upgrade | `/pages/booking/addon`; `/pages/booking/order-detail` | `POST /app-api/booking/addon/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-05/ED-11/ED-18/ED-31/ED-43/ED-52/ED-57/ED-58/ED-59/ED-60/ED-61/ED-62/ED-63/ED-64/ED-65/ED-66` | add-on path 已对齐且失败不再伪成功；但页面当前只提交 `parentOrderId,addonType`，`upgrade / add-item` 仍存在 pseudo success / no-op risk，不能升为放量能力 |
-| CAP-BOOKING-006 | booking.review-history | `/pages/booking/review-list`; `/pages/booking/review-detail` | `GET /booking/review/page`; `GET /booking/review/get`; `GET /booking/review/summary` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75` | booking review 历史 / 汇总已具备真实 route、API、controller 与最终集成文档；当前只允许按 query-side `ACTIVE` 管理，`averageScore` 未展示、`[]/0` 只算合法空态，`getReview` 已由 `review-detail` 消费但不改变放量结论 |
-| CAP-BOOKING-007 | booking.review-submit | `/pages/booking/order-list`; `/pages/booking/order-detail`; `/pages/booking/review-add`; `/pages/booking/review-result` | `GET /booking/review/eligibility`; `POST /booking/review/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75` | booking review 已作为 booking 新子域落地，但当前最终结论固定为 `Doc Closed / Can Develop / Cannot Release`；缺 feature flag / rollout / runtime sample pack，且 `serviceOrderId` 仅 best-effort 回填且仍可为空、`picUrls` 仅完成提交链路、无自动奖励 / 补偿 / 店长通知证据 |
+| CAP-BOOKING-006 | booking.review-history | `/pages/booking/review-list`; `/pages/booking/review-detail` | `GET /booking/review/page`; `GET /booking/review/get`; `GET /booking/review/summary` | ACTIVE | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75/ED-76` | booking review 历史 / 汇总已具备真实 route、API、controller、final review 与页面级 acceptance 文档；当前只允许按 query-side `ACTIVE` 管理，`averageScore` 未展示、`[]/0` 只算合法空态，`getReview` 已由 `review-detail` 消费但不改变放量结论 |
+| CAP-BOOKING-007 | booking.review-submit | `/pages/booking/order-list`; `/pages/booking/order-detail`; `/pages/booking/review-add`; `/pages/booking/review-result` | `GET /booking/review/eligibility`; `POST /booking/review/create` | PLANNED_RESERVED | P1 | RB2-P1 | Booking Domain Owner | `ED-69/ED-70/ED-71/ED-72/ED-73/ED-74/ED-75/ED-76` | booking review 已作为 booking 新子域落地，但当前最终结论固定为 `Doc Closed / Can Develop / Cannot Release`；`ED-76` 仅补 query-side detail acceptance，不等于 submit / recovery 已 release-ready；缺 feature flag / rollout / runtime sample pack，且 `serviceOrderId` 仅 best-effort 回填且仍可为空、`picUrls` 仅完成提交链路、无自动奖励 / 补偿 / 店长通知证据 |
 
 ### 5.6 Content / Service / Brokerage
 
