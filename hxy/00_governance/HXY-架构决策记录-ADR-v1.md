@@ -1087,3 +1087,16 @@
 - 备选方案：继续保持 `picUrls` 前端不提交、`serviceOrderId` 固定为 `null`；或把 trace 查询失败升级为提交失败。
 - 否决原因：前者会让已存在字段长期停留在“名义支持、实际空转”；后者会把非关键追溯依赖升级成主链路阻断，放大评价提交失败面。
 - 回滚条件：若图片上传或 trace 查询在生产中出现异常，可分别回退为“不传 `picUrls`”或“保留 `serviceOrderId=null`”，但不得回退到自动奖励/自动通知这类未冻结能力。
+
+## ADR-107：预约服务评价历史采用“独立详情页 + 会员端最小字段集”收口策略
+
+- 背景：03-17 评价域文档已确认评价列表存在，但用户端缺少独立详情承接，导致 `GET /booking/review/get` 只有 controller 与 API 文件真值，前台无法稳定复用详情查询结果；同时，`serviceOrderId/riskLevel/followStatus/auditStatus` 等字段仅服务后台运营与恢复，不适合直接暴露给会员端。
+- 决策：
+  1. 小程序新增独立页面 `/pages/booking/review-detail`，唯一入口固定为 `/pages/booking/review-list`，不在订单页、首页或其他链路增加隐式跳转；
+  2. 会员端详情页只展示标准字段 `reviewLevel/submitTime/bookingOrderId/overallScore/serviceScore/technicianScore/environmentScore/tags/content/picUrls/replyContent`，并允许查看图片预览与回跳订单详情；
+  3. `serviceOrderId/riskLevel/followStatus/auditStatus` 及任何运营恢复字段继续保持后台专用，不下放到小程序详情页；
+  4. 本次只补查询侧历史体验，不顺带引入自动奖励、差评补偿、店长即时通知等未冻结动作，整体发布结论保持 `Can Release=No`。
+- 影响范围：小程序评价历史查询体验、`GET /booking/review/get` 前台真实消费证据、评价域页面/API 真值台账，以及后续奖励补偿类能力的边界控制。
+- 备选方案：继续只保留列表页摘要展示；或在列表页内联展开详情；或直接把后台恢复字段一并展示给用户。
+- 否决原因：仅列表摘要无法形成完整查询闭环；内联展开会让列表页承担过多状态与预览逻辑；暴露后台恢复字段会混淆用户信息与运营字段边界，并诱发未冻结能力被误写成已上线。
+- 回滚条件：若详情页体验需要回退，可退回到“仅列表摘要 + 不消费 `GET /booking/review/get`”状态；但仍需保留当前字段边界约束，不得在回滚中引入后台字段下放或自动化补偿动作。

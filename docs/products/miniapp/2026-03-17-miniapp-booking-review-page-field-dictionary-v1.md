@@ -16,6 +16,7 @@
 | 评价结果页 | `/pages/booking/review-result` | `reviewId` | route query | 成功后透传 |
 | 评价结果页 | `/pages/booking/review-result` | `bookingOrderId` | route query | 返回订单详情使用 |
 | 我的评价页 | `/pages/booking/review-list` | 无必填 route 参数 | N/A | 通过 summary + page API 自加载 |
+| 评价详情页 | `/pages/booking/review-detail` | `id` | route query | 只认 `reviewId` 主键，不认 `bookingOrderId` |
 
 ### 2.2 用户侧提交页字段
 
@@ -56,6 +57,20 @@
 | list item | `replyContent` | `GET /booking/review/page` | 已展示 |
 | list item | `submitTime` | `GET /booking/review/page` | 已展示 |
 | list item | `serviceScore / technicianScore / environmentScore` | `GET /booking/review/page` | 当前页面未展示 |
+
+### 2.5 用户侧详情页字段
+
+| 区域 | 字段 | 来源 | 当前说明 |
+|---|---|---|---|
+| header | `reviewLevel` | `GET /booking/review/get` | 已展示 |
+| header | `submitTime` | `GET /booking/review/get` | 已展示，文案固定为 `提交时间` |
+| header | `bookingOrderId` | `GET /booking/review/get` | 已展示 |
+| score | `overallScore` | `GET /booking/review/get` | 已展示 |
+| score | `serviceScore / technicianScore / environmentScore` | `GET /booking/review/get` | 已展示 |
+| content | `tags[]` | `GET /booking/review/get` | 有值展示，无值隐藏 |
+| content | `content` | `GET /booking/review/get` | 空文案显示 `用户未填写文字评价` |
+| content | `picUrls[]` | `GET /booking/review/get` | 有值展示，支持图片预览 |
+| reply | `replyContent` | `GET /booking/review/get` | 无回复显示 `商家暂未回复` |
 
 ## 3. API 字段字典
 
@@ -103,10 +118,10 @@
 | 字段 | 方向 | 类型 | 当前说明 |
 |---|---|---|---|
 | `id` | request | number | 当前只认 `id`，不是 `reviewId` |
-| `serviceOrderId` | response | number | 当前由后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时允许为 `null` |
+| `serviceOrderId` | response | number | 当前由后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时允许为 `null`；miniapp 详情页当前不展示该字段 |
 | `storeId / technicianId / memberId` | response | number | 已返回 |
 | `overallScore / serviceScore / technicianScore / environmentScore` | response | number | 已返回 |
-| `tags / picUrls` | response | array | 已返回；`picUrls` 当前提交页可生产，但 miniapp 页面仍未核出真实 `getReview` 消费点 |
+| `tags / picUrls` | response | array | 已返回；当前由 `/pages/booking/review-detail` 展示 |
 | `reviewLevel / riskLevel / displayStatus / followStatus / auditStatus` | response | number | 已返回 |
 | `replyStatus / replyContent / replyTime` | response | mixed | 已返回 |
 

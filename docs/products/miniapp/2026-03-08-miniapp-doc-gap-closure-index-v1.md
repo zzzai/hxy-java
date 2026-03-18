@@ -453,7 +453,7 @@
 | 序号 | 优先级 | 窗口 | 文档路径 | 状态 | 备注 |
 |---|---|---|---|---|---|
 | 1 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md` | Ready | 已正式提交；把“预约服务评价”固定为 booking 域独立子域，不复用商品评论真值 |
-| 2 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md` | Ready | 已正式提交；固定 review-add / review-result / review-list 真实 route、字段与 admin binding |
+| 2 | P0 | A | `docs/products/miniapp/2026-03-17-miniapp-booking-review-page-field-dictionary-v1.md` | Ready | 已正式提交；固定 review-add / review-detail / review-result / review-list 真实 route、字段与 admin binding |
 | 3 | P0 | A | `docs/contracts/2026-03-17-miniapp-booking-review-contract-v1.md` | Ready | 已正式提交；固定 `/booking/review/*` canonical route/API/controller，不得写成商品评论 alias |
 | 4 | P0 | A | `docs/contracts/2026-03-17-miniapp-booking-review-errorcode-and-failure-mode-v1.md` | Ready | 已正式提交；固定稳定错误码、失败模式、合法空态与不可补造项 |
 | 5 | P0 | A | `docs/plans/2026-03-17-miniapp-booking-review-service-recovery-runbook-v1.md` | Ready | 已正式提交；把差评恢复收口为人工恢复 runbook，不外推自动通知/补偿/奖励 |

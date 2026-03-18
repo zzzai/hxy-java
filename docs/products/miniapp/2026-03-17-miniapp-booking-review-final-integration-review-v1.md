@@ -29,6 +29,7 @@
 1. booking review 已经形成独立 booking 子域，不再依赖商品评论真值。
 2. 用户侧真实 route 已存在：
    - `/pages/booking/review-add`
+   - `/pages/booking/review-detail`
    - `/pages/booking/review-result`
    - `/pages/booking/review-list`
 3. 用户侧真实 API 已存在：
@@ -56,12 +57,12 @@
 4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
-7. `GET /booking/review/get` 虽已导出，但 miniapp 当前页面未消费。
 
 ## 5. 评价域能力拆分
 
 ### 5.1 Query-side
 - `/pages/booking/review-list`
+- `/pages/booking/review-detail`
 - `GET /booking/review/page`
 - `GET /booking/review/get`
 - `GET /booking/review/summary`
@@ -87,7 +88,7 @@
 
 | 设计期待 | 当前代码真值 | 当前口径 |
 |---|---|---|
-| 独立 review route 目录 | 实际使用扁平 route：`review-add / review-result / review-list` | 只认当前代码 route |
+| 独立 review route 目录 | 实际使用扁平 route：`review-add / review-detail / review-result / review-list` | 只认当前代码 route |
 | 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
 | 店长即时通知 | 设计建议应有人第一时间接手 | 当前只能人工通知 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |

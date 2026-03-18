@@ -6,6 +6,7 @@
   - `yudao-mall-uniapp/pages/booking/order-list.vue`
   - `yudao-mall-uniapp/pages/booking/order-detail.vue`
   - `yudao-mall-uniapp/pages/booking/review-add.vue`
+  - `yudao-mall-uniapp/pages/booking/review-detail.vue`
   - `yudao-mall-uniapp/pages/booking/review-result.vue`
   - `yudao-mall-uniapp/pages/booking/review-list.vue`
   - `yudao-mall-uniapp/sheep/api/trade/review.js`
@@ -25,7 +26,7 @@
 
 ### 2.1 已落地范围
 1. 用户端从 booking 订单列表、订单详情进入评价。
-2. 用户端支持评价资格校验、评价提交、结果页、我的评价列表。
+2. 用户端支持评价资格校验、评价提交、结果页、我的评价列表、评价详情回看。
 3. 后台支持评价台账、详情、回复、跟进状态更新、汇总看板。
 4. 评价记录绑定 booking 订单、门店、技师、会员、服务商品维度。
 
@@ -44,8 +45,9 @@
 | 订单列表评价入口 | `/pages/booking/order-list` 中 `order.status === 4` 且 `reviewEligibility.eligible === true` 时显示 `去评价` | 通过 `loadReviewEligibility` 判断，不靠本地猜测 | 已落地 |
 | 订单详情评价入口 | `/pages/booking/order-detail` 中 `state.order.status === 4` 且 `state.reviewEligibility.eligible === true` 时显示 `去评价` | 页面 `onShow` 会刷新资格 | 已落地 |
 | 评价提交页 | `/pages/booking/review-add` | 实际 route 不是设计草案里的 `/pages/booking/review/add` | 已落地 |
+| 评价详情页 | `/pages/booking/review-detail` | 从我的评价列表进入，展示评分、标签、图片、商家回复 | 已落地 |
 | 评价结果页 | `/pages/booking/review-result` | 成功后允许返回订单详情或查看我的评价 | 已落地 |
-| 我的评价页 | `/pages/booking/review-list` | 展示 summary + list，不单独消费 `getReview` | 已落地 |
+| 我的评价页 | `/pages/booking/review-list` | 展示 summary + list，点击卡片进入 `review-detail` | 已落地 |
 | 后台评价台账 | `/mall/booking/review` | 真实页面文件已存在于 overlay | 已落地 |
 | 后台评价详情 | `/mall/booking/review/detail` | 支持回复与跟进状态更新 | 已落地 |
 | 后台评价看板 | `/mall/booking/review/dashboard` | 展示总量、好中差评、待处理、紧急、已回复 | 已落地 |
@@ -113,9 +115,34 @@
   - `content`
   - `replyContent`
   - `submitTime`
+- 当前列表动作：
+  - 点击卡片进入 `/pages/booking/review-detail?id=<reviewId>`
 - 后端已返回但页面未展示：
   - `averageScore`
   - 更细的 service / technician / environment 评分
+
+### 4.4 `/pages/booking/review-detail`
+- 当前入口：
+  - 只从 `/pages/booking/review-list` 进入
+- 当前展示字段：
+  - `reviewLevel`
+  - `submitTime`
+  - `bookingOrderId`
+  - `overallScore`
+  - `serviceScore`
+  - `technicianScore`
+  - `environmentScore`
+  - `tags`
+  - `content`
+  - `picUrls`
+  - `replyContent`
+- 当前页面动作：
+  - 返回我的评价
+  - 查看订单详情
+- 当前不展示：
+  - `serviceOrderId`
+  - `riskLevel / followStatus / auditStatus`
+  - 其他后台恢复字段
 
 ## 5. 后台恢复台 PRD
 
@@ -203,7 +230,7 @@
 | 后台列表空 | `list=[]` / dashboard `0` | 只算合法空态，不算运营成功样本 |
 
 ## 8. 当前工程差距与 No-Go
-1. `picUrls[]` 已接通提交链路，但历史页 / 详情页 / 后台运营回显样本仍未作为 release 证据闭环。
+1. `picUrls[]` 已接通提交链路，且 member 端 `review-detail` 已可回看；但历史 / 详情 / 后台运营回显样本仍未作为 release 证据闭环。
 2. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许为 `null`，不能写成稳定强绑定。
 3. 当前没有自动通知店长、客服、区域负责人的服务端链路证据。
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。

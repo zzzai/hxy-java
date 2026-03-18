@@ -203,6 +203,7 @@
 ### 10.3 当前 booking review 允许范围
 1. query/history 侧只允许按 query-side `ACTIVE` 理解：
    - `/pages/booking/review-list`
+   - `/pages/booking/review-detail`
    - `GET /booking/review/page`
    - `GET /booking/review/get`
    - `GET /booking/review/summary`

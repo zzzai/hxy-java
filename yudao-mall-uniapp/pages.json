@@ -751,6 +751,15 @@
 					}
 				},
 				{
+					"path": "review-detail",
+					"style": {
+						"navigationBarTitleText": "评价详情"
+					},
+					"meta": {
+						"auth": true
+					}
+				},
+				{
 					"path": "review-list",
 					"style": {
 						"navigationBarTitleText": "我的评价",

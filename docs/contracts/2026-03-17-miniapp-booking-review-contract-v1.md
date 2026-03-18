@@ -14,6 +14,7 @@
   - `yudao-mall-uniapp/pages/booking/order-list.vue`
   - `yudao-mall-uniapp/pages/booking/order-detail.vue`
   - `yudao-mall-uniapp/pages/booking/review-add.vue`
+  - `yudao-mall-uniapp/pages/booking/review-detail.vue`
   - `yudao-mall-uniapp/pages/booking/review-result.vue`
   - `yudao-mall-uniapp/pages/booking/review-list.vue`
   - `yudao-mall-uniapp/pages/booking/logic.js`
@@ -33,6 +34,7 @@
 | 能力 | 当前 route 真值 | 说明 |
 |---|---|---|
 | 评价提交页 | `/pages/booking/review-add` | 不是 `/pages/booking/review/add` |
+| 评价详情页 | `/pages/booking/review-detail` | 当前只认 query `id` |
 | 评价结果页 | `/pages/booking/review-result` | 成功 / 失败结果页 |
 | 我的评价页 | `/pages/booking/review-list` | 列表 + summary |
 | 订单列表入口 | `/pages/booking/order-list` | `去评价` CTA 来源页 |
@@ -52,7 +54,7 @@
 | 评价资格校验 | `GET /booking/review/eligibility` | `pages/booking/logic.js -> loadReviewEligibility`; `pages/booking/review-add.vue -> loadEligibility` | `AppBookingReviewController#getEligibility` | `bookingOrderId` 必填 |
 | 创建评价 | `POST /booking/review/create` | `pages/booking/review-add.vue -> onSubmit` | `AppBookingReviewController#createReview` | 当前页面固定 `source=order_detail` |
 | 我的评价分页 | `GET /booking/review/page` | `pages/booking/review-list.vue -> getList` | `AppBookingReviewController#getReviewPage` | 合法空态 `list=[]` |
-| 我的评价详情 | `GET /booking/review/get` | `sheep/api/trade/review.js` 已导出，当前 miniapp 页面 `未核出已消费` | `AppBookingReviewController#getReview` | 当前请求参数只认 `id` |
+| 我的评价详情 | `GET /booking/review/get` | `pages/booking/review-detail.vue -> loadReview` | `AppBookingReviewController#getReview` | 当前请求参数只认 `id` |
 | 我的评价汇总 | `GET /booking/review/summary` | `pages/booking/review-list.vue -> loadSummary` | `AppBookingReviewController#getSummary` | 合法空态为全 0 |
 
 ## 5. 后台 canonical API
@@ -74,7 +76,8 @@
 | `/pages/booking/order-detail` | 只在已完成订单上调用 `GET /booking/review/eligibility` 决定是否显示 CTA | 当前并不直接提交评价 |
 | `/pages/booking/review-add` | 进入时先读 `eligibility`，提交时调用 `create` | 提交成功才跳结果页 |
 | `/pages/booking/review-result` | 不发 API | 纯结果承接页 |
-| `/pages/booking/review-list` | 调 `summary + page` | 当前不消费 `getReview` |
+| `/pages/booking/review-list` | 调 `summary + page`，点击卡片跳 `review-detail` | 当前不直接调用 `getReview` |
+| `/pages/booking/review-detail` | 调 `getReview` | 当前只展示 member 端相关字段，不展示 `serviceOrderId` 等内部字段 |
 
 ### 6.2 后台绑定
 | 页面 | 当前绑定 | 说明 |
@@ -85,7 +88,7 @@
 
 ## 7. 当前 mismatch / gap
 1. 设计草案中的 route 结构是 `/pages/booking/review/add`，当前实际代码使用 `/pages/booking/review-add`。
-2. `getReview` 已在前端 API 导出，但当前 miniapp 页面没有真实消费点。
+2. `getReview` 当前已被 `/pages/booking/review-detail` 消费，但仍只属于 query-side history 范围，不得外推成 submit / recovery release-ready。
 3. `AppBookingReviewCreateReqVO` 支持 `picUrls`，当前 miniapp 提交页已通过 `s-uploader` 发送该字段；图片历史/详情回显能力仍需按页面真值单独核定。
 4. `serviceOrderId` 在后端 DO/VO 中存在，当前创建逻辑会按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` 做 best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 5. 当前没有独立 booking review runtime gate，也没有 release sample pack。

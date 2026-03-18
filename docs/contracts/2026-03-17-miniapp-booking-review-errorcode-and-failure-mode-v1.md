@@ -40,7 +40,7 @@
 | `GET /booking/review/eligibility` | `FAIL_CLOSE` for transport / non-zero code；业务资格不走 errorCode，而走 `eligible=false` | `eligible=false` 是合法业务态，不是异常 | `NO_AUTO_RETRY` | 页面显示 `reasonText` 或统一 `暂不可评价` |
 | `POST /booking/review/create` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 失败统一 toast `提交失败，请稍后重试`，表单保留 |
 | `GET /booking/review/page` | `QUERY_ONLY` | `list=[]`、`total=0` 合法 | `MANUAL_RETRY` | 空态显示 `暂无评价` |
-| `GET /booking/review/get` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 当前 miniapp 页面未消费；后台详情页失败无法加载详情 |
+| `GET /booking/review/get` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 当前 miniapp `review-detail` 与后台详情页都失败关闭；用户侧显示显式空态/失败态 |
 | `GET /booking/review/summary` | `QUERY_ONLY` | 各统计项 `0` 合法 | `MANUAL_RETRY` | 0 只算空态，不算成功运营样本 |
 | `GET /booking/review/page`（admin） | `QUERY_ONLY` | `list=[]`、`total=0` 合法 | `MANUAL_RETRY` | 台账页保持空表 |
 | `POST /booking/review/reply` | `FAIL_CLOSE` | 无成功空态 | `MANUAL_RETRY` | 后台详情页人工确认后重试 |
@@ -53,7 +53,8 @@
 1. 资格校验失败：停留当前页，不自动跳转。
 2. 提交失败：保持表单内容，不自动清空，不跳结果页。
 3. 列表为空：展示 `暂无评价`。
-4. 结果页未拿到 `reviewId`：显示 `提交未完成`。
+4. 详情加载失败：显示显式空态/失败态，可返回我的评价。
+5. 结果页未拿到 `reviewId`：显示 `提交未完成`。
 
 ### 6.2 后台
 1. 台账空列表：只算合法空态。
