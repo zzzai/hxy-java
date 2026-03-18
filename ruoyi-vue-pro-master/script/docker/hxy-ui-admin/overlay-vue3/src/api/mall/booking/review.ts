@@ -9,6 +9,9 @@ export interface BookingReviewPageReq extends PageParam {
   reviewLevel?: number
   riskLevel?: number
   followStatus?: number
+  onlyManagerTodo?: boolean
+  managerTodoStatus?: number
+  managerSlaStatus?: string
   replyStatus?: boolean
   submitTime?: string[]
 }
@@ -39,6 +42,19 @@ export interface BookingReview {
   source?: string
   completedTime?: string
   submitTime?: string
+  negativeTriggerType?: string
+  managerContactName?: string
+  managerContactMobile?: string
+  managerTodoStatus?: number
+  managerClaimDeadlineAt?: string
+  managerFirstActionDeadlineAt?: string
+  managerCloseDeadlineAt?: string
+  managerClaimedByUserId?: number
+  managerClaimedAt?: string
+  managerFirstActionAt?: string
+  managerClosedAt?: string
+  managerLatestActionRemark?: string
+  managerLatestActionByUserId?: number
   firstResponseAt?: string
   followOwnerId?: number
   followResult?: string
@@ -59,6 +75,20 @@ export interface BookingReviewFollowUpdateReq {
   followResult?: string
 }
 
+export interface BookingReviewManagerTodoClaimReq {
+  reviewId: number
+}
+
+export interface BookingReviewManagerTodoFirstActionReq {
+  reviewId: number
+  remark: string
+}
+
+export interface BookingReviewManagerTodoCloseReq {
+  reviewId: number
+  remark: string
+}
+
 export interface BookingReviewDashboardSummary {
   totalCount?: number
   positiveCount?: number
@@ -67,6 +97,11 @@ export interface BookingReviewDashboardSummary {
   pendingFollowCount?: number
   urgentCount?: number
   repliedCount?: number
+  managerTodoPendingCount?: number
+  managerTodoClaimTimeoutCount?: number
+  managerTodoFirstActionTimeoutCount?: number
+  managerTodoCloseTimeoutCount?: number
+  managerTodoClosedCount?: number
 }
 
 export const getReviewPage = async (params: BookingReviewPageReq) => {
@@ -83,6 +118,18 @@ export const replyReview = async (data: BookingReviewReplyReq) => {
 
 export const updateReviewFollowStatus = async (data: BookingReviewFollowUpdateReq) => {
   return await request.post({ url: '/booking/review/follow-status', data })
+}
+
+export const claimManagerTodo = async (data: BookingReviewManagerTodoClaimReq) => {
+  return await request.post({ url: '/booking/review/manager-todo/claim', data })
+}
+
+export const recordManagerTodoFirstAction = async (data: BookingReviewManagerTodoFirstActionReq) => {
+  return await request.post({ url: '/booking/review/manager-todo/first-action', data })
+}
+
+export const closeManagerTodo = async (data: BookingReviewManagerTodoCloseReq) => {
+  return await request.post({ url: '/booking/review/manager-todo/close', data })
 }
 
 export const getReviewDashboardSummary = async () => {

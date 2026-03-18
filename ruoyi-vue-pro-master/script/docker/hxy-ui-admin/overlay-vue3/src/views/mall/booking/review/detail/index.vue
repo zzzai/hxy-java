@@ -165,6 +165,138 @@
       </el-col>
     </el-row>
   </ContentWrap>
+
+  <ContentWrap v-if="review.id">
+    <el-card shadow="never">
+      <template #header>
+        <div class="flex items-center justify-between gap-12px">
+          <div class="flex items-center gap-8px">
+            <span>店长待办</span>
+            <el-tag :type="managerTodoStatusTagType(review.managerTodoStatus, review.reviewLevel)">
+              {{ managerTodoStatusText(review.managerTodoStatus, review.reviewLevel) }}
+            </el-tag>
+            <el-tag v-if="managerSlaStatusText(review) !== '-'" :type="managerSlaStatusTagType(review)">
+              {{ managerSlaStatusText(review) }}
+            </el-tag>
+          </div>
+          <span class="text-12px text-[var(--el-text-color-secondary)]">仅后台治理，不代表已自动通知店长</span>
+        </div>
+      </template>
+
+      <el-alert
+        :closable="false"
+        class="mb-16px"
+        description="第一版店长目标对象只认门店主数据 contactName/contactMobile；当前不承诺站内信、微信、短信或账号级路由。"
+        title="店长待办真值"
+        type="info"
+      />
+
+      <el-alert
+        v-if="review.reviewLevel === 3 && !hasManagerTodo(review)"
+        :closable="false"
+        class="mb-16px"
+        description="这是历史差评或未初始化记录；首次点击认领时，后端会补齐店长联系人快照与 SLA 截止时间。"
+        title="待办初始化提示"
+        type="warning"
+      />
+
+      <el-empty v-if="!showManagerTodoCard" description="当前评价未进入店长待办池" />
+
+      <template v-else>
+        <el-descriptions :column="2" border title="待办信息">
+          <el-descriptions-item label="差评触发类型">{{ review.negativeTriggerType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="SLA状态">
+            <el-tag :type="managerSlaStatusTagType(review)">{{ managerSlaStatusText(review) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="店长联系人">{{ review.managerContactName || '未核出联系人' }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ review.managerContactMobile || '未核出手机号' }}</el-descriptions-item>
+          <el-descriptions-item label="认领截止">{{ review.managerClaimDeadlineAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="首次处理截止">{{ review.managerFirstActionDeadlineAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="闭环截止">{{ review.managerCloseDeadlineAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="认领操作人">{{ review.managerClaimedByUserId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="认领时间">{{ review.managerClaimedAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="首次处理时间">{{ review.managerFirstActionAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="闭环时间">{{ review.managerClosedAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最近处理人">{{ review.managerLatestActionByUserId || '-' }}</el-descriptions-item>
+          <el-descriptions-item :span="2" label="最近处理备注">
+            {{ review.managerLatestActionRemark || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="mt-16px grid gap-16px lg:grid-cols-3">
+          <el-card shadow="never">
+            <template #header>
+              <span>认领待办</span>
+            </template>
+            <div class="text-13px leading-22px text-[var(--el-text-color-secondary)]">
+              差评触发后，后台运营或店长恢复负责人先认领，再进入首次处理与闭环动作。
+            </div>
+            <div class="mt-16px">
+              <el-button
+                v-hasPermi="['booking:review:update']"
+                :disabled="!canClaimManagerTodo"
+                :loading="managerTodoLoading"
+                type="danger"
+                @click="submitClaimManagerTodo"
+              >
+                认领店长待办
+              </el-button>
+            </div>
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header>
+              <span>首次处理</span>
+            </template>
+            <el-input
+              v-model="managerTodoForm.firstActionRemark"
+              :rows="5"
+              maxlength="500"
+              placeholder="例如：已电话联系店长确认处理方案"
+              show-word-limit
+              type="textarea"
+            />
+            <div class="mt-16px">
+              <el-button
+                v-hasPermi="['booking:review:update']"
+                :disabled="!canRecordFirstAction"
+                :loading="managerTodoLoading"
+                type="warning"
+                @click="submitManagerTodoFirstAction"
+              >
+                记录首次处理
+              </el-button>
+            </div>
+          </el-card>
+
+          <el-card shadow="never">
+            <template #header>
+              <span>闭环收口</span>
+            </template>
+            <el-input
+              v-model="managerTodoForm.closeRemark"
+              :rows="5"
+              maxlength="500"
+              placeholder="例如：店长确认完成回访并闭环"
+              show-word-limit
+              type="textarea"
+            />
+            <div class="mt-16px">
+              <el-button
+                v-hasPermi="['booking:review:update']"
+                :disabled="!canCloseManagerTodo"
+                :loading="managerTodoLoading"
+                type="success"
+                @click="submitManagerTodoClose"
+              >
+                标记已闭环
+              </el-button>
+            </div>
+          </el-card>
+        </div>
+      </template>
+    </el-card>
+  </ContentWrap>
 </template>
 
 <script lang="ts" setup>
@@ -178,6 +310,7 @@ const message = useMessage()
 const loading = ref(false)
 const replyLoading = ref(false)
 const followLoading = ref(false)
+const managerTodoLoading = ref(false)
 const review = ref<BookingReviewApi.BookingReview>({} as BookingReviewApi.BookingReview)
 
 const replyForm = reactive<BookingReviewApi.BookingReviewReplyReq>({
@@ -191,10 +324,68 @@ const followForm = reactive<BookingReviewApi.BookingReviewFollowUpdateReq>({
   followResult: ''
 })
 
+const managerTodoForm = reactive({
+  firstActionRemark: '',
+  closeRemark: ''
+})
+
 const reviewId = computed(() => {
   const value = Array.isArray(route.query.id) ? route.query.id[0] : route.query.id
   const id = Number(value)
   return Number.isFinite(id) && id > 0 ? id : 0
+})
+
+const hasManagerTodo = (data?: BookingReviewApi.BookingReview) => {
+  return data?.managerTodoStatus !== undefined && data?.managerTodoStatus !== null
+}
+
+const parseTime = (value?: string) => {
+  if (!value) {
+    return NaN
+  }
+  return new Date(value.replace(/-/g, '/')).getTime()
+}
+
+const managerSlaStatusValue = (data: BookingReviewApi.BookingReview) => {
+  if (!hasManagerTodo(data)) {
+    return data.reviewLevel === 3 ? 'PENDING_INIT' : ''
+  }
+  if (data.managerTodoStatus === 4) {
+    return 'NORMAL'
+  }
+  const now = Date.now()
+  const closeDeadline = parseTime(data.managerCloseDeadlineAt)
+  const firstActionDeadline = parseTime(data.managerFirstActionDeadlineAt)
+  const claimDeadline = parseTime(data.managerClaimDeadlineAt)
+  if (!Number.isNaN(closeDeadline) && now > closeDeadline) {
+    return 'CLOSE_TIMEOUT'
+  }
+  if (!data.managerFirstActionAt && !Number.isNaN(firstActionDeadline) && now > firstActionDeadline) {
+    return 'FIRST_ACTION_TIMEOUT'
+  }
+  if (!data.managerClaimedAt && !Number.isNaN(claimDeadline) && now > claimDeadline) {
+    return 'CLAIM_TIMEOUT'
+  }
+  return 'NORMAL'
+}
+
+const showManagerTodoCard = computed(() => {
+  return Boolean(review.value.id) && (review.value.reviewLevel === 3 || hasManagerTodo(review.value))
+})
+
+const canClaimManagerTodo = computed(() => {
+  if (review.value.reviewLevel !== 3) {
+    return false
+  }
+  return review.value.managerTodoStatus === undefined || review.value.managerTodoStatus === null || review.value.managerTodoStatus === 1
+})
+
+const canRecordFirstAction = computed(() => {
+  return review.value.managerTodoStatus === 2 || review.value.managerTodoStatus === 3
+})
+
+const canCloseManagerTodo = computed(() => {
+  return review.value.managerTodoStatus === 2 || review.value.managerTodoStatus === 3
 })
 
 const loadDetail = async () => {
@@ -213,6 +404,8 @@ const loadDetail = async () => {
     followForm.reviewId = reviewId.value
     followForm.followStatus = data?.followStatus ?? 1
     followForm.followResult = data?.followResult || ''
+    managerTodoForm.firstActionRemark = ''
+    managerTodoForm.closeRemark = ''
   } finally {
     loading.value = false
   }
@@ -273,6 +466,67 @@ const submitFollowStatus = async () => {
   }
 }
 
+const submitClaimManagerTodo = async () => {
+  if (!reviewId.value || !canClaimManagerTodo.value) {
+    return
+  }
+  await message.confirm('确认认领当前店长待办吗？')
+  managerTodoLoading.value = true
+  try {
+    await BookingReviewApi.claimManagerTodo({ reviewId: reviewId.value })
+    message.success('店长待办已认领')
+    await loadDetail()
+  } finally {
+    managerTodoLoading.value = false
+  }
+}
+
+const submitManagerTodoFirstAction = async () => {
+  const remark = managerTodoForm.firstActionRemark.trim()
+  if (!reviewId.value || !canRecordFirstAction.value) {
+    return
+  }
+  if (!remark) {
+    message.warning('请输入首次处理说明')
+    return
+  }
+  await message.confirm('确认记录当前首次处理动作吗？')
+  managerTodoLoading.value = true
+  try {
+    await BookingReviewApi.recordManagerTodoFirstAction({
+      reviewId: reviewId.value,
+      remark
+    })
+    message.success('首次处理已记录')
+    await loadDetail()
+  } finally {
+    managerTodoLoading.value = false
+  }
+}
+
+const submitManagerTodoClose = async () => {
+  const remark = managerTodoForm.closeRemark.trim()
+  if (!reviewId.value || !canCloseManagerTodo.value) {
+    return
+  }
+  if (!remark) {
+    message.warning('请输入闭环说明')
+    return
+  }
+  await message.confirm('确认将当前店长待办标记为已闭环吗？')
+  managerTodoLoading.value = true
+  try {
+    await BookingReviewApi.closeManagerTodo({
+      reviewId: reviewId.value,
+      remark
+    })
+    message.success('店长待办已闭环')
+    await loadDetail()
+  } finally {
+    managerTodoLoading.value = false
+  }
+}
+
 const reviewLevelText = (value?: number) => {
   if (value === 1) return '好评'
   if (value === 2) return '中评'
@@ -330,6 +584,44 @@ const followStatusTagType = (value?: number) => {
   if (value === 3) return 'success'
   if (value === 4) return 'info'
   return ''
+}
+
+const managerTodoStatusText = (status?: number, reviewLevel?: number) => {
+  if (status === 1) return '待认领'
+  if (status === 2) return '已认领'
+  if (status === 3) return '处理中'
+  if (status === 4) return '已闭环'
+  if (reviewLevel === 3) return '待初始化'
+  return '-'
+}
+
+const managerTodoStatusTagType = (status?: number, reviewLevel?: number) => {
+  if (status === 1) return 'danger'
+  if (status === 2) return 'warning'
+  if (status === 3) return 'primary'
+  if (status === 4) return 'success'
+  if (reviewLevel === 3) return 'warning'
+  return 'info'
+}
+
+const managerSlaStatusText = (data: BookingReviewApi.BookingReview) => {
+  const value = managerSlaStatusValue(data)
+  if (value === 'NORMAL') return '正常'
+  if (value === 'CLAIM_TIMEOUT') return '认领超时'
+  if (value === 'FIRST_ACTION_TIMEOUT') return '首次处理超时'
+  if (value === 'CLOSE_TIMEOUT') return '闭环超时'
+  if (value === 'PENDING_INIT') return '待初始化'
+  return '-'
+}
+
+const managerSlaStatusTagType = (data: BookingReviewApi.BookingReview) => {
+  const value = managerSlaStatusValue(data)
+  if (value === 'NORMAL') return 'success'
+  if (value === 'CLAIM_TIMEOUT') return 'warning'
+  if (value === 'FIRST_ACTION_TIMEOUT') return 'warning'
+  if (value === 'CLOSE_TIMEOUT') return 'danger'
+  if (value === 'PENDING_INIT') return 'warning'
+  return 'info'
 }
 
 watch(

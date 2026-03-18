@@ -4,7 +4,7 @@
       <div>
         <div class="text-18px font-600">预约服务评价看板</div>
         <div class="mt-4px text-13px text-[var(--el-text-color-secondary)]">
-          聚合关注差评、待处理回访和整体评价温度。
+          聚合关注差评、待处理回访和店长待办 SLA。
         </div>
       </div>
       <div class="flex gap-8px">
@@ -18,6 +18,15 @@
         </el-button>
       </div>
     </div>
+  </ContentWrap>
+
+  <ContentWrap>
+    <el-alert
+      :closable="false"
+      description="当前看板里的店长待办指标仅用于后台值班与 SLA 观察，不代表系统已经打通外部通知链路。"
+      title="看板口径说明"
+      type="info"
+    />
   </ContentWrap>
 
   <ContentWrap>
@@ -40,9 +49,9 @@
             <span>运营解读</span>
           </template>
           <ul class="dashboard-list">
-            <li>差评和紧急数用于首屏判断是否需要店长或区域运营立即介入。</li>
-            <li>待处理数代表仍在 follow-up 池中的评价，适合做日清日结。</li>
-            <li>已回复数用于观察门店回应率，不等价于问题已解决。</li>
+            <li>差评和紧急数用于首屏判断是否需要服务恢复 owner 立即介入。</li>
+            <li>待认领、认领超时、首次处理超时、闭环超时共同描述店长待办的执行质量。</li>
+            <li>已回复数用于观察门店响应率，不等价于问题已解决或已闭环。</li>
           </ul>
         </el-card>
       </el-col>
@@ -52,9 +61,9 @@
             <span>动作建议</span>
           </template>
           <ul class="dashboard-list">
-            <li>紧急差评优先安排人工回访，并同步店长确认补救动作。</li>
-            <li>中评可优先看标签与内容，判断是服务体验还是门店环境问题。</li>
-            <li>好评可以沉淀服务亮点，但当前页面不直接承接奖励策略。</li>
+            <li>待认领高企时，先排查值班 owner 是否及时领取差评待办。</li>
+            <li>首次处理超时说明联系人虽已锁定，但实际回访动作没有及时落账。</li>
+            <li>闭环超时优先复核门店联系人真值与恢复链路，不要把后台待办误判成外部通知已完成。</li>
           </ul>
         </el-card>
       </el-col>
@@ -93,10 +102,66 @@ const cards = computed(() => [
     hintClass: 'text-[var(--el-text-color-secondary)]'
   },
   {
+    key: 'negative',
+    label: '差评数',
+    value: displayCount(summary.value.negativeCount),
+    hint: '需要优先判断是否触发人工补救',
+    hintClass: 'text-[var(--el-color-danger)]'
+  },
+  {
+    key: 'pendingFollow',
+    label: '待处理数',
+    value: displayCount(summary.value.pendingFollowCount),
+    hint: '仍处于 follow-up 队列',
+    hintClass: 'text-[var(--el-color-warning)]'
+  },
+  {
+    key: 'urgent',
+    label: '紧急数',
+    value: displayCount(summary.value.urgentCount),
+    hint: '建议第一时间人工同步门店确认处理',
+    hintClass: 'text-[var(--el-color-danger)]'
+  },
+  {
+    key: 'managerTodoPending',
+    label: '店长待认领',
+    value: displayCount(summary.value.managerTodoPendingCount),
+    hint: '差评进入待办池后仍未被领取',
+    hintClass: 'text-[var(--el-color-warning)]'
+  },
+  {
+    key: 'managerTodoClaimTimeout',
+    label: '认领超时',
+    value: displayCount(summary.value.managerTodoClaimTimeoutCount),
+    hint: '超过 10 分钟仍未认领',
+    hintClass: 'text-[var(--el-color-warning)]'
+  },
+  {
+    key: 'managerTodoFirstActionTimeout',
+    label: '首次处理超时',
+    value: displayCount(summary.value.managerTodoFirstActionTimeoutCount),
+    hint: '超过 30 分钟未记录首次处理',
+    hintClass: 'text-[var(--el-color-danger)]'
+  },
+  {
+    key: 'managerTodoCloseTimeout',
+    label: '闭环超时',
+    value: displayCount(summary.value.managerTodoCloseTimeoutCount),
+    hint: '超过 24 小时仍未闭环',
+    hintClass: 'text-[var(--el-color-danger)]'
+  },
+  {
+    key: 'managerTodoClosed',
+    label: '店长已闭环',
+    value: displayCount(summary.value.managerTodoClosedCount),
+    hint: '仅表示后台待办收口，不代表 release-ready',
+    hintClass: 'text-[var(--el-color-success)]'
+  },
+  {
     key: 'positive',
     label: '好评数',
     value: displayCount(summary.value.positiveCount),
-    hint: '适合沉淀服务亮点和门店口碑样本',
+    hint: '可沉淀服务亮点，当前不直接接奖励策略',
     hintClass: 'text-[var(--el-color-success)]'
   },
   {
@@ -107,31 +172,10 @@ const cards = computed(() => [
     hintClass: 'text-[var(--el-color-warning)]'
   },
   {
-    key: 'negative',
-    label: '差评数',
-    value: displayCount(summary.value.negativeCount),
-    hint: '需要优先判断是否触发人工补救',
-    hintClass: 'text-[var(--el-color-danger)]'
-  },
-  {
-    key: 'pending',
-    label: '待处理数',
-    value: displayCount(summary.value.pendingFollowCount),
-    hint: '仍处于待跟进或跟进中队列',
-    hintClass: 'text-[var(--el-color-warning)]'
-  },
-  {
-    key: 'urgent',
-    label: '紧急数',
-    value: displayCount(summary.value.urgentCount),
-    hint: '建议第一时间同步店长并确认回访动作',
-    hintClass: 'text-[var(--el-color-danger)]'
-  },
-  {
     key: 'replied',
     label: '已回复数',
     value: displayCount(summary.value.repliedCount),
-    hint: '用于观察门店响应率，不代表已闭环',
+    hint: '用于观察响应率，不代表已闭环',
     hintClass: 'text-[var(--el-color-primary)]'
   }
 ])
