@@ -4,6 +4,10 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
+import cn.iocoder.yudao.module.member.api.user.MemberUserApi;
+import cn.iocoder.yudao.module.member.api.user.dto.MemberUserRespDTO;
+import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
+import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoClaimReqVO;
@@ -13,7 +17,9 @@ import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewReplyReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
+import com.hxy.module.booking.dal.dataobject.TechnicianDO;
 import com.hxy.module.booking.service.BookingReviewService;
+import com.hxy.module.booking.service.TechnicianService;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -21,6 +27,8 @@ import org.mockito.MockedStatic;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,6 +45,15 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
     @Mock
     private BookingReviewService bookingReviewService;
 
+    @Mock
+    private ProductStoreService productStoreService;
+
+    @Mock
+    private TechnicianService technicianService;
+
+    @Mock
+    private MemberUserApi memberUserApi;
+
     @Test
     void shouldGetReviewPageForLowScoreQueue() {
         BookingReviewPageReqVO reqVO = new BookingReviewPageReqVO();
@@ -46,6 +63,9 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         BookingReviewDO row = BookingReviewDO.builder()
                 .id(1001L)
                 .bookingOrderId(2001L)
+                .storeId(3001L)
+                .technicianId(4001L)
+                .memberId(5001L)
                 .riskLevel(2)
                 .followStatus(1)
                 .overallScore(2)
@@ -53,6 +73,16 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
                 .build();
         when(bookingReviewService.getAdminReviewPage(reqVO))
                 .thenReturn(new PageResult<>(Collections.singletonList(row), 1L));
+        Map<Long, ProductStoreDO> storeMap = new HashMap<>();
+        storeMap.put(3001L, ProductStoreDO.builder().id(3001L).name("朝阳门店").build());
+        when(productStoreService.getStoreMap(Collections.singleton(3001L))).thenReturn(storeMap);
+        when(technicianService.getTechnician(4001L)).thenReturn(TechnicianDO.builder().id(4001L).name("李技师").build());
+        Map<Long, MemberUserRespDTO> userMap = new HashMap<>();
+        MemberUserRespDTO member = new MemberUserRespDTO();
+        member.setId(5001L);
+        member.setNickname("安心会员");
+        userMap.put(5001L, member);
+        when(memberUserApi.getUserMap(Collections.singleton(5001L))).thenReturn(userMap);
 
         CommonResult<PageResult<BookingReviewRespVO>> result = controller.page(reqVO);
 
@@ -61,6 +91,9 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertEquals(1L, result.getData().getTotal());
         assertEquals(1, result.getData().getList().size());
         assertEquals(1001L, result.getData().getList().get(0).getId());
+        assertEquals("朝阳门店", result.getData().getList().get(0).getStoreName());
+        assertEquals("李技师", result.getData().getList().get(0).getTechnicianName());
+        assertEquals("安心会员", result.getData().getList().get(0).getMemberNickname());
         verify(bookingReviewService).getAdminReviewPage(reqVO);
     }
 
@@ -69,10 +102,21 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         BookingReviewDO review = BookingReviewDO.builder()
                 .id(1002L)
                 .bookingOrderId(2002L)
+                .storeId(3002L)
+                .technicianId(4002L)
+                .memberId(5002L)
                 .replyContent("已联系用户")
                 .followStatus(2)
                 .build();
         when(bookingReviewService.getAdminReview(1002L)).thenReturn(review);
+        when(productStoreService.getStoreMap(Collections.singleton(3002L)))
+                .thenReturn(Collections.singletonMap(3002L, ProductStoreDO.builder().id(3002L).name("望京门店").build()));
+        when(technicianService.getTechnician(4002L)).thenReturn(TechnicianDO.builder().id(4002L).name("张技师").build());
+        MemberUserRespDTO member = new MemberUserRespDTO();
+        member.setId(5002L);
+        member.setNickname("高频会员");
+        when(memberUserApi.getUserMap(Collections.singleton(5002L)))
+                .thenReturn(Collections.singletonMap(5002L, member));
 
         CommonResult<BookingReviewRespVO> result = controller.get(1002L);
 
@@ -80,6 +124,9 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertNotNull(result.getData());
         assertEquals(1002L, result.getData().getId());
         assertEquals("已联系用户", result.getData().getReplyContent());
+        assertEquals("望京门店", result.getData().getStoreName());
+        assertEquals("张技师", result.getData().getTechnicianName());
+        assertEquals("高频会员", result.getData().getMemberNickname());
         verify(bookingReviewService).getAdminReview(1002L);
     }
 

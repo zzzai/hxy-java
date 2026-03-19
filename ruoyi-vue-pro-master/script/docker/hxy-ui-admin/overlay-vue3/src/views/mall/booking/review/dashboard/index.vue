@@ -36,6 +36,9 @@
           <div class="text-12px text-[var(--el-text-color-secondary)]">{{ card.label }}</div>
           <div class="mt-8px text-28px font-600">{{ card.value }}</div>
           <div class="mt-8px text-12px" :class="card.hintClass">{{ card.hint }}</div>
+          <div class="mt-12px">
+            <el-button link type="primary" @click="goLedgerWithCard(card.key)">查看台账</el-button>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -73,6 +76,7 @@
 
 <script lang="ts" setup>
 import * as BookingReviewApi from '@/api/mall/booking/review'
+import { buildLedgerQueryFromDashboardCardKey } from '../queryHelpers.mjs'
 
 defineOptions({ name: 'BookingReviewDashboard' })
 
@@ -182,6 +186,13 @@ const cards = computed(() => [
 
 const goLedger = () => {
   router.push('/mall/booking/review')
+}
+
+const goLedgerWithCard = (cardKey: string) => {
+  router.push({
+    path: '/mall/booking/review',
+    query: buildLedgerQueryFromDashboardCardKey(cardKey),
+  })
 }
 
 onMounted(() => {

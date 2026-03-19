@@ -22,11 +22,20 @@ public class BookingReviewRespVO {
     @Schema(description = "门店ID", example = "4001")
     private Long storeId;
 
+    @Schema(description = "门店名称", example = "朝阳门店")
+    private String storeName;
+
     @Schema(description = "技师ID", example = "5001")
     private Long technicianId;
 
+    @Schema(description = "技师名称", example = "李技师")
+    private String technicianName;
+
     @Schema(description = "会员ID", example = "6001")
     private Long memberId;
+
+    @Schema(description = "会员昵称", example = "安心会员")
+    private String memberNickname;
 
     @Schema(description = "服务商品SPU ID", example = "7001")
     private Long serviceSpuId;

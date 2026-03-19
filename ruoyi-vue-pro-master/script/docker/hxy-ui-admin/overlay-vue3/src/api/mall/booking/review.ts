@@ -21,8 +21,11 @@ export interface BookingReview {
   bookingOrderId?: number
   serviceOrderId?: number
   storeId?: number
+  storeName?: string
   technicianId?: number
+  technicianName?: string
   memberId?: number
+  memberNickname?: string
   serviceSpuId?: number
   serviceSkuId?: number
   overallScore?: number

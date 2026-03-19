@@ -128,9 +128,21 @@
     <el-table v-loading="loading" :data="list">
       <el-table-column label="评价ID" prop="id" width="90" />
       <el-table-column label="预约订单ID" prop="bookingOrderId" width="120" />
-      <el-table-column label="门店ID" prop="storeId" width="100" />
-      <el-table-column label="技师ID" prop="technicianId" width="100" />
-      <el-table-column label="会员ID" prop="memberId" width="100" />
+      <el-table-column label="门店 / ID" min-width="160">
+        <template #default="{ row }">
+          <div>{{ readableEntityText(row.storeName, row.storeId) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="技师 / ID" min-width="160">
+        <template #default="{ row }">
+          <div>{{ readableEntityText(row.technicianName, row.technicianId) }}</div>
+        </template>
+      </el-table-column>
+      <el-table-column label="会员 / ID" min-width="160">
+        <template #default="{ row }">
+          <div>{{ readableEntityText(row.memberNickname, row.memberId) }}</div>
+        </template>
+      </el-table-column>
       <el-table-column label="总体评分" prop="overallScore" width="90" />
       <el-table-column label="评价等级" width="100">
         <template #default="{ row }">
@@ -199,31 +211,19 @@
 <script lang="ts" setup>
 import { dateFormatter } from '@/utils/formatTime'
 import * as BookingReviewApi from '@/api/mall/booking/review'
+import { createDefaultLedgerQuery, parseLedgerQuery } from './queryHelpers.mjs'
 
 defineOptions({ name: 'BookingReviewIndex' })
 
+const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const total = ref(0)
 const list = ref<BookingReviewApi.BookingReview[]>([])
 
-const queryParams = reactive<BookingReviewApi.BookingReviewPageReq>({
-  pageNo: 1,
-  pageSize: 10,
-  id: undefined,
-  bookingOrderId: undefined,
-  storeId: undefined,
-  technicianId: undefined,
-  memberId: undefined,
-  reviewLevel: undefined,
-  riskLevel: undefined,
-  followStatus: undefined,
-  onlyManagerTodo: undefined,
-  managerTodoStatus: undefined,
-  managerSlaStatus: undefined,
-  replyStatus: undefined,
-  submitTime: undefined
-})
+const queryParams = reactive<BookingReviewApi.BookingReviewPageReq>(
+  createDefaultLedgerQuery() as BookingReviewApi.BookingReviewPageReq,
+)
 
 const getList = async () => {
   loading.value = true
@@ -242,21 +242,7 @@ const handleQuery = () => {
 }
 
 const resetQuery = () => {
-  queryParams.pageNo = 1
-  queryParams.pageSize = 10
-  queryParams.id = undefined
-  queryParams.bookingOrderId = undefined
-  queryParams.storeId = undefined
-  queryParams.technicianId = undefined
-  queryParams.memberId = undefined
-  queryParams.reviewLevel = undefined
-  queryParams.riskLevel = undefined
-  queryParams.followStatus = undefined
-  queryParams.onlyManagerTodo = undefined
-  queryParams.managerTodoStatus = undefined
-  queryParams.managerSlaStatus = undefined
-  queryParams.replyStatus = undefined
-  queryParams.submitTime = undefined
+  Object.assign(queryParams, createDefaultLedgerQuery())
   getList()
 }
 
@@ -266,6 +252,19 @@ const openDetail = (id: number) => {
 
 const goDashboard = () => {
   router.push('/mall/booking/review/dashboard')
+}
+
+const readableEntityText = (name?: string, id?: number) => {
+  if (name && id !== undefined && id !== null) {
+    return `${name} (ID: ${id})`
+  }
+  if (name) {
+    return name
+  }
+  if (id !== undefined && id !== null) {
+    return `ID: ${id}`
+  }
+  return '-'
 }
 
 const hasManagerTodo = (row?: BookingReviewApi.BookingReview) => {
@@ -386,6 +385,7 @@ const managerSlaStatusTagType = (row: BookingReviewApi.BookingReview) => {
 }
 
 onMounted(() => {
+  Object.assign(queryParams, parseLedgerQuery(route.query))
   getList()
 })
 </script>

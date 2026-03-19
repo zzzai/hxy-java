@@ -34,9 +34,9 @@
         <el-descriptions-item label="评价ID">{{ review.id }}</el-descriptions-item>
         <el-descriptions-item label="预约订单ID">{{ review.bookingOrderId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="服务履约单ID">{{ review.serviceOrderId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="门店ID">{{ review.storeId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="技师ID">{{ review.technicianId || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="会员ID">{{ review.memberId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="门店 / ID">{{ readableEntityText(review.storeName, review.storeId) }}</el-descriptions-item>
+        <el-descriptions-item label="技师 / ID">{{ readableEntityText(review.technicianName, review.technicianId) }}</el-descriptions-item>
+        <el-descriptions-item label="会员 / ID">{{ readableEntityText(review.memberNickname, review.memberId) }}</el-descriptions-item>
         <el-descriptions-item label="服务SPU ID">{{ review.serviceSpuId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="服务SKU ID">{{ review.serviceSkuId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="总体评分">{{ review.overallScore || '-' }}</el-descriptions-item>
@@ -387,6 +387,19 @@ const canRecordFirstAction = computed(() => {
 const canCloseManagerTodo = computed(() => {
   return review.value.managerTodoStatus === 2 || review.value.managerTodoStatus === 3
 })
+
+const readableEntityText = (name?: string, id?: number) => {
+  if (name && id !== undefined && id !== null) {
+    return `${name} (ID: ${id})`
+  }
+  if (name) {
+    return name
+  }
+  if (id !== undefined && id !== null) {
+    return `ID: ${id}`
+  }
+  return '-'
+}
 
 const loadDetail = async () => {
   if (!reviewId.value) {
