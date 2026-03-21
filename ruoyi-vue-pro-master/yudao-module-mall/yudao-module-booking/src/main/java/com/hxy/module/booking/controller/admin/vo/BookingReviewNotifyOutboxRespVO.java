@@ -33,6 +33,21 @@ public class BookingReviewNotifyOutboxRespVO {
     @Schema(description = "通知状态", example = "PENDING")
     private String status;
 
+    @Schema(description = "标准化诊断码", example = "BLOCKED_NO_MANAGER_ROUTE")
+    private String diagnosticCode;
+
+    @Schema(description = "标准化诊断结论", example = "缺店长路由")
+    private String diagnosticLabel;
+
+    @Schema(description = "标准化诊断说明")
+    private String diagnosticDetail;
+
+    @Schema(description = "修复建议")
+    private String repairHint;
+
+    @Schema(description = "是否允许人工重试", example = "false")
+    private Boolean manualRetryAllowed;
+
     @Schema(description = "重试次数", example = "0")
     private Integer retryCount;
 

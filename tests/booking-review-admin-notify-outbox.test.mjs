@@ -79,4 +79,10 @@ test('notify outbox page exists and uses review notify outbox api', () => {
   assert.match(pageSource, /FAILED/);
   assert.match(pageSource, /manual-retry/);
   assert.match(pageSource, /已重新入队/);
+  assert.match(pageSource, /只看阻断/);
+  assert.match(pageSource, /只看失败/);
+  assert.match(pageSource, /只看待派发/);
+  assert.match(pageSource, /diagnosticLabel/);
+  assert.match(pageSource, /repairHint/);
+  assert.match(pageSource, /manualRetryAllowed/);
 });

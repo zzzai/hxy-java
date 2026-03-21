@@ -156,6 +156,7 @@
           <el-descriptions-item label="通知状态">
             <el-tag :type="notifyStatusTagType(latestNotifyOutbox?.status)">{{ notifyStatusText(latestNotifyOutbox?.status) }}</el-tag>
           </el-descriptions-item>
+          <el-descriptions-item label="诊断结论">{{ latestNotifyOutbox?.diagnosticLabel || '-' }}</el-descriptions-item>
           <el-descriptions-item label="接收角色">{{ latestNotifyOutbox?.receiverRole || '-' }}</el-descriptions-item>
           <el-descriptions-item label="接收账号ID">{{ latestNotifyOutbox?.receiverUserId || '-' }}</el-descriptions-item>
           <el-descriptions-item label="通知渠道">{{ latestNotifyOutbox?.channel || '-' }}</el-descriptions-item>
@@ -163,6 +164,7 @@
           <el-descriptions-item label="重试次数">{{ latestNotifyOutbox?.retryCount ?? '-' }}</el-descriptions-item>
           <el-descriptions-item label="最近动作编码">{{ latestNotifyOutbox?.lastActionCode || '-' }}</el-descriptions-item>
           <el-descriptions-item label="最近动作时间">{{ latestNotifyOutbox?.lastActionTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="修复建议" :span="2">{{ latestNotifyOutbox?.repairHint || '-' }}</el-descriptions-item>
           <el-descriptions-item label="最近错误" :span="2">
             {{ notifyBlockReasonText(latestNotifyOutbox) }}
           </el-descriptions-item>
@@ -176,11 +178,17 @@
                 <el-tag :type="notifyStatusTagType(row.status)">{{ notifyStatusText(row.status) }}</el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="诊断结论" min-width="160" prop="diagnosticLabel" />
             <el-table-column label="接收账号ID" prop="receiverUserId" width="120" />
             <el-table-column label="渠道" prop="channel" width="110" />
             <el-table-column label="重试次数" prop="retryCount" width="100" />
             <el-table-column label="最近动作" prop="lastActionCode" width="160" />
-            <el-table-column label="错误原因" min-width="220" prop="lastErrorMsg" show-overflow-tooltip />
+            <el-table-column label="修复建议" min-width="220" prop="repairHint" show-overflow-tooltip />
+            <el-table-column label="错误原因" min-width="220" show-overflow-tooltip>
+              <template #default="{ row }">
+                {{ notifyBlockReasonText(row) }}
+              </template>
+            </el-table-column>
             <el-table-column label="最近动作时间" min-width="180" prop="lastActionTime" />
           </el-table>
         </div>
@@ -764,6 +772,9 @@ const notifyStatusTagType = (status?: string) => {
 const notifyBlockReasonText = (outbox?: BookingReviewApi.BookingReviewNotifyOutbox) => {
   if (!outbox) {
     return '-'
+  }
+  if (outbox.diagnosticDetail) {
+    return outbox.diagnosticDetail
   }
   if (outbox.status === 'BLOCKED_NO_OWNER') {
     return 'BLOCKED_NO_OWNER：缺门店店长账号绑定'

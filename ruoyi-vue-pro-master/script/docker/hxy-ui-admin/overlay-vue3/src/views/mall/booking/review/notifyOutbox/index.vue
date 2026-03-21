@@ -63,6 +63,13 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div class="mb-16px flex flex-wrap gap-8px">
+      <el-button plain type="danger" @click="applyQuickStatus('BLOCKED_NO_OWNER')">只看阻断</el-button>
+      <el-button plain type="warning" @click="applyQuickStatus('FAILED')">只看失败</el-button>
+      <el-button plain type="primary" @click="applyQuickStatus('PENDING')">只看待派发</el-button>
+      <el-button plain @click="applyQuickStatus()">查看全部</el-button>
+    </div>
+
     <el-table v-loading="loading" :data="list">
       <el-table-column label="出站ID" prop="id" width="90" />
       <el-table-column label="评价ID" prop="reviewId" width="100" />
@@ -74,6 +81,16 @@
       <el-table-column label="通知状态" width="150">
         <template #default="{ row }">
           <el-tag :type="notifyStatusTagType(row.status)">{{ notifyStatusText(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="诊断结论" min-width="180">
+        <template #default="{ row }">
+          {{ row.diagnosticLabel || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="修复建议" min-width="260" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.repairHint || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="重试次数" prop="retryCount" width="100" />
@@ -163,6 +180,11 @@ const handleQuery = () => {
   getList()
 }
 
+const applyQuickStatus = (status?: string) => {
+  queryParams.status = status
+  handleQuery()
+}
+
 const resetQuery = () => {
   Object.assign(queryParams, createDefaultQuery())
   applyRouteQuery()
@@ -180,7 +202,7 @@ const goReviewDetail = (reviewId?: number) => {
   router.push(`/mall/booking/review/detail?id=${reviewId}`)
 }
 
-const canRetry = (row: BookingReviewApi.BookingReviewNotifyOutbox) => row.status === 'FAILED'
+const canRetry = (row: BookingReviewApi.BookingReviewNotifyOutbox) => row.manualRetryAllowed === true
 
 const promptRetryReason = async () => {
   const { value } = await ElMessageBox.prompt('请输入重试原因（可选）', '通知重试', {

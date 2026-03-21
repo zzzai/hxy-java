@@ -45,6 +45,9 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(1001L, result.getData().get(0).getId());
         assertEquals(2001L, result.getData().get(0).getReviewId());
         assertEquals("BLOCKED_NO_OWNER", result.getData().get(0).getStatus());
+        assertEquals("BLOCKED_NO_MANAGER_ROUTE", result.getData().get(0).getDiagnosticCode());
+        assertEquals("缺店长路由", result.getData().get(0).getDiagnosticLabel());
+        assertEquals("需要先补齐门店到店长账号的有效路由关系", result.getData().get(0).getRepairHint());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxList(2001L, "BLOCKED_NO_OWNER", 5);
     }
 
@@ -67,6 +70,8 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(1L, result.getData().getTotal());
         assertEquals(1, result.getData().getList().size());
         assertEquals(2002L, result.getData().getList().get(0).getReviewId());
+        assertEquals("READY_TO_DISPATCH", result.getData().getList().get(0).getDiagnosticCode());
+        assertEquals("待派发", result.getData().getList().get(0).getDiagnosticLabel());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxPage(reqVO);
     }
 

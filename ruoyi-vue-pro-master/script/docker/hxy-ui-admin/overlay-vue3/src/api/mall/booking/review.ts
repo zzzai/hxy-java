@@ -153,6 +153,11 @@ export interface BookingReviewNotifyOutbox {
   notifyType?: string
   channel?: string
   status?: string
+  diagnosticCode?: string
+  diagnosticLabel?: string
+  diagnosticDetail?: string
+  repairHint?: string
+  manualRetryAllowed?: boolean
   retryCount?: number
   nextRetryTime?: string
   sentTime?: string
