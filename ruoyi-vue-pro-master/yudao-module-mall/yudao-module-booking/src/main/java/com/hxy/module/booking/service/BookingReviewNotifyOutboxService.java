@@ -11,6 +11,8 @@ public interface BookingReviewNotifyOutboxService {
 
     void createNegativeReviewCreatedOutbox(BookingReviewDO review);
 
+    int dispatchPendingNotifyOutbox(Integer limit);
+
     List<BookingReviewNotifyOutboxDO> getNotifyOutboxList(Long reviewId, String status, Integer limit);
 
     PageResult<BookingReviewNotifyOutboxDO> getNotifyOutboxPage(BookingReviewNotifyOutboxPageReqVO reqVO);

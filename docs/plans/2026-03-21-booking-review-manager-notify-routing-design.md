@@ -191,3 +191,19 @@
 - `docs/products/miniapp/2026-03-21-miniapp-booking-review-manager-account-routing-truth-v1.md`
 - `docs/products/miniapp/2026-03-19-miniapp-booking-review-manager-ownership-truth-review-v1.md`
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
+
+## 11. 当前实现落点（2026-03-21）
+1. 当前分支已补齐：
+   - `booking_review_manager_account_routing`
+   - `booking_review_notify_outbox`
+   - admin 详情页通知块与 outbox 台账
+   - `BookingReviewNotifyDispatchJob`
+2. 当前实现语义固定为：
+   - 差评提交成功后立即写通知意图
+   - 有有效 `managerAdminUserId` 时进入 `PENDING`
+   - 无 owner 时进入 `BLOCKED_NO_OWNER`
+   - dispatch job 仅做 `IN_APP` 占位派发
+3. 当前仍不得写成：
+   - 自动通知已上线
+   - 已具备 release-ready 样本和发布证据
+   - 已扩展到客服负责人 / 区域负责人升级链

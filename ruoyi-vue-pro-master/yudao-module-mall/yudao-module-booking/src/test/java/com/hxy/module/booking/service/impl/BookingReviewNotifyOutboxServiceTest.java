@@ -1,6 +1,7 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.iocoder.yudao.framework.test.core.ut.BaseDbUnitTest;
+import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
@@ -9,6 +10,7 @@ import com.hxy.module.booking.dal.mysql.BookingReviewNotifyOutboxMapper;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 
 import javax.annotation.Resource;
@@ -16,11 +18,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @Import(BookingReviewNotifyOutboxServiceImpl.class)
 class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
+
+    @MockBean
+    private NotifySendService notifySendService;
 
     @Resource
     private BookingReviewNotifyOutboxService bookingReviewNotifyOutboxService;
@@ -85,6 +96,57 @@ class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
         List<BookingReviewNotifyOutboxDO> list = bookingReviewNotifyOutboxMapper.selectListByBizId(review.getId());
         assertEquals(1, list.size());
         assertEquals("booking_review:negative_created:2005:9004", list.get(0).getIdempotencyKey());
+    }
+
+    @Test
+    void shouldDispatchPendingOutboxToSent() {
+        insertRouting(3005L, 9005L, "ACTIVE");
+        BookingReviewDO review = buildReview(2006L, 3005L, BookingReviewLevelEnum.NEGATIVE.getLevel());
+        bookingReviewNotifyOutboxService.createNegativeReviewCreatedOutbox(review);
+        when(notifySendService.sendSingleNotifyToAdmin(eq(9005L), eq("hxy_booking_review_negative_created"), anyMap()))
+                .thenReturn(91001L);
+
+        bookingReviewNotifyOutboxService.dispatchPendingNotifyOutbox(20);
+
+        BookingReviewNotifyOutboxDO actual = bookingReviewNotifyOutboxMapper.selectListByBizId(review.getId()).get(0);
+        assertEquals("SENT", actual.getStatus());
+        assertEquals(0, actual.getRetryCount());
+        assertNotNull(actual.getSentTime());
+        assertEquals("DISPATCH_SUCCESS", actual.getLastActionCode());
+        verify(notifySendService).sendSingleNotifyToAdmin(eq(9005L), eq("hxy_booking_review_negative_created"), anyMap());
+    }
+
+    @Test
+    void shouldMarkOutboxFailedWhenDispatchThrows() {
+        insertRouting(3006L, 9006L, "ACTIVE");
+        BookingReviewDO review = buildReview(2007L, 3006L, BookingReviewLevelEnum.NEGATIVE.getLevel());
+        bookingReviewNotifyOutboxService.createNegativeReviewCreatedOutbox(review);
+        when(notifySendService.sendSingleNotifyToAdmin(eq(9006L), eq("hxy_booking_review_negative_created"), anyMap()))
+                .thenThrow(new RuntimeException("mock-send-failed"));
+
+        bookingReviewNotifyOutboxService.dispatchPendingNotifyOutbox(20);
+
+        BookingReviewNotifyOutboxDO actual = bookingReviewNotifyOutboxMapper.selectListByBizId(review.getId()).get(0);
+        assertEquals("FAILED", actual.getStatus());
+        assertEquals(1, actual.getRetryCount());
+        assertNotNull(actual.getNextRetryTime());
+        assertTrue(actual.getLastErrorMsg().contains("mock-send-failed"));
+        assertEquals("DISPATCH_FAILED", actual.getLastActionCode());
+    }
+
+    @Test
+    void shouldNotRedispatchAlreadySentOutbox() {
+        insertRouting(3007L, 9007L, "ACTIVE");
+        BookingReviewDO review = buildReview(2008L, 3007L, BookingReviewLevelEnum.NEGATIVE.getLevel());
+        bookingReviewNotifyOutboxService.createNegativeReviewCreatedOutbox(review);
+        when(notifySendService.sendSingleNotifyToAdmin(eq(9007L), eq("hxy_booking_review_negative_created"), anyMap()))
+                .thenReturn(91007L);
+
+        bookingReviewNotifyOutboxService.dispatchPendingNotifyOutbox(20);
+        bookingReviewNotifyOutboxService.dispatchPendingNotifyOutbox(20);
+
+        verify(notifySendService, times(1))
+                .sendSingleNotifyToAdmin(eq(9007L), eq("hxy_booking_review_negative_created"), anyMap());
     }
 
     private void insertRouting(Long storeId, Long managerAdminUserId, String bindingStatus) {

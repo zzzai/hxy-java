@@ -8,6 +8,7 @@ import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageR
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -42,5 +43,26 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getChannel, reqVO.getChannel())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getNotifyType, reqVO.getNotifyType())
                 .orderByDesc(BookingReviewNotifyOutboxDO::getId));
+    }
+
+    default List<BookingReviewNotifyOutboxDO> selectDispatchableList(LocalDateTime now, Integer limit, Integer maxRetryCount) {
+        int safeLimit = Math.max(1, Math.min(ObjectUtil.defaultIfNull(limit, 200), 1000));
+        int safeMaxRetryCount = Math.max(1, ObjectUtil.defaultIfNull(maxRetryCount, 5));
+        LambdaQueryWrapperX<BookingReviewNotifyOutboxDO> query = new LambdaQueryWrapperX<>();
+        query.in(BookingReviewNotifyOutboxDO::getStatus, "PENDING", "FAILED");
+        query.isNotNull(BookingReviewNotifyOutboxDO::getReceiverUserId);
+        query.lt(BookingReviewNotifyOutboxDO::getRetryCount, safeMaxRetryCount);
+        if (now != null) {
+            query.le(BookingReviewNotifyOutboxDO::getNextRetryTime, now);
+        }
+        query.orderByAsc(BookingReviewNotifyOutboxDO::getId);
+        query.last("LIMIT " + safeLimit);
+        return selectList(query);
+    }
+
+    default int updateByIdAndStatus(Long id, String status, BookingReviewNotifyOutboxDO updateObj) {
+        return update(updateObj, new LambdaQueryWrapperX<BookingReviewNotifyOutboxDO>()
+                .eq(BookingReviewNotifyOutboxDO::getId, id)
+                .eq(BookingReviewNotifyOutboxDO::getStatus, status));
     }
 }
