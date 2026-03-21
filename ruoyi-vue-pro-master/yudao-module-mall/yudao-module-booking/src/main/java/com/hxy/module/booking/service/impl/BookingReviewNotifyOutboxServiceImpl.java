@@ -1,7 +1,9 @@
 package com.hxy.module.booking.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
@@ -18,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -87,6 +90,16 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
             log.info("booking review notify outbox idempotent hit, reviewId={}, idempotencyKey={}",
                     review.getId(), idempotencyKey);
         }
+    }
+
+    @Override
+    public List<BookingReviewNotifyOutboxDO> getNotifyOutboxList(Long reviewId, String status, Integer limit) {
+        return bookingReviewNotifyOutboxMapper.selectListByReviewAndStatus(reviewId, status, limit);
+    }
+
+    @Override
+    public PageResult<BookingReviewNotifyOutboxDO> getNotifyOutboxPage(BookingReviewNotifyOutboxPageReqVO reqVO) {
+        return bookingReviewNotifyOutboxMapper.selectPage(reqVO);
     }
 
     private String buildIdempotencyKey(Long reviewId, Long receiverUserId) {

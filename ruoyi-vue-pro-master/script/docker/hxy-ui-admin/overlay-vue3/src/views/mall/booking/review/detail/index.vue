@@ -128,6 +128,65 @@
       </el-timeline>
     </el-card>
 
+    <el-card shadow="never" class="mb-16px" v-loading="notifyOutboxLoading">
+      <template #header>
+        <div class="flex items-center justify-between gap-12px">
+          <div class="flex flex-col gap-2">
+            <div class="text-16px font-600">通知观测</div>
+            <div class="text-12px text-[var(--el-text-color-secondary)]">只展示 notify outbox 真值，不代表门店店长账号已经收到了通知。</div>
+          </div>
+          <el-button plain type="primary" @click="goNotifyOutbox">
+            查看通知台账
+          </el-button>
+        </div>
+      </template>
+
+      <el-alert
+        :closable="false"
+        class="mb-16px"
+        description="差评提交成功后仅承诺立即生成通知意图；若没有稳定店长账号映射，会进入 BLOCKED_NO_OWNER，而不是伪发送成功。"
+        title="notify outbox 口径"
+        type="info"
+      />
+
+      <el-empty v-if="!notifyOutboxList.length" description="当前未生成通知意图记录" />
+
+      <template v-else>
+        <el-descriptions :column="2" border title="最新通知状态">
+          <el-descriptions-item label="通知状态">
+            <el-tag :type="notifyStatusTagType(latestNotifyOutbox?.status)">{{ notifyStatusText(latestNotifyOutbox?.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="接收角色">{{ latestNotifyOutbox?.receiverRole || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="接收账号ID">{{ latestNotifyOutbox?.receiverUserId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="通知渠道">{{ latestNotifyOutbox?.channel || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="通知类型">{{ latestNotifyOutbox?.notifyType || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="重试次数">{{ latestNotifyOutbox?.retryCount ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最近动作编码">{{ latestNotifyOutbox?.lastActionCode || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最近动作时间">{{ latestNotifyOutbox?.lastActionTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最近错误" :span="2">
+            {{ notifyBlockReasonText(latestNotifyOutbox) }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div class="mt-16px">
+          <el-table :data="notifyOutboxList" size="small">
+            <el-table-column label="出站ID" prop="id" width="90" />
+            <el-table-column label="状态" width="150">
+              <template #default="{ row }">
+                <el-tag :type="notifyStatusTagType(row.status)">{{ notifyStatusText(row.status) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="接收账号ID" prop="receiverUserId" width="120" />
+            <el-table-column label="渠道" prop="channel" width="110" />
+            <el-table-column label="重试次数" prop="retryCount" width="100" />
+            <el-table-column label="最近动作" prop="lastActionCode" width="160" />
+            <el-table-column label="错误原因" min-width="220" prop="lastErrorMsg" show-overflow-tooltip />
+            <el-table-column label="最近动作时间" min-width="180" prop="lastActionTime" />
+          </el-table>
+        </div>
+      </template>
+    </el-card>
+
     <el-row :gutter="16">
       <el-col :lg="12" :md="24" :sm="24" :xs="24">
         <el-card shadow="never">
@@ -346,7 +405,9 @@ const loading = ref(false)
 const replyLoading = ref(false)
 const followLoading = ref(false)
 const managerTodoLoading = ref(false)
+const notifyOutboxLoading = ref(false)
 const review = ref<BookingReviewApi.BookingReview>({} as BookingReviewApi.BookingReview)
+const notifyOutboxList = ref<BookingReviewApi.BookingReviewNotifyOutbox[]>([])
 
 const replyForm = reactive<BookingReviewApi.BookingReviewReplyReq>({
   reviewId: 0,
@@ -439,14 +500,19 @@ const readableEntityText = (name?: string, id?: number) => {
 const loadDetail = async () => {
   if (!reviewId.value) {
     review.value = {} as BookingReviewApi.BookingReview
+    notifyOutboxList.value = []
     replyForm.reviewId = 0
     followForm.reviewId = 0
     return
   }
   loading.value = true
   try {
-    const data = await BookingReviewApi.getReview(reviewId.value)
+    const [data, notifyList] = await Promise.all([
+      BookingReviewApi.getReview(reviewId.value),
+      loadNotifyOutbox()
+    ])
     review.value = data || ({} as BookingReviewApi.BookingReview)
+    notifyOutboxList.value = notifyList
     replyForm.reviewId = reviewId.value
     replyForm.replyContent = data?.replyContent || ''
     followForm.reviewId = reviewId.value
@@ -459,6 +525,21 @@ const loadDetail = async () => {
   }
 }
 
+const loadNotifyOutbox = async () => {
+  if (!reviewId.value) {
+    return []
+  }
+  notifyOutboxLoading.value = true
+  try {
+    return (await BookingReviewApi.getReviewNotifyOutboxList({
+      reviewId: reviewId.value,
+      limit: 5
+    })) || []
+  } finally {
+    notifyOutboxLoading.value = false
+  }
+}
+
 const reload = () => {
   loadDetail()
 }
@@ -466,9 +547,17 @@ const reload = () => {
 const reviewTimeline = computed(() => buildReviewDetailTimeline(review.value))
 const detailSummaryItems = computed(() => reviewTimeline.value.summaryItems)
 const detailTimelineItems = computed(() => reviewTimeline.value.timelineItems)
+const latestNotifyOutbox = computed(() => notifyOutboxList.value[0])
 
 const goBack = () => {
   router.push('/mall/booking/review')
+}
+
+const goNotifyOutbox = () => {
+  if (!reviewId.value) {
+    return
+  }
+  router.push(`/mall/booking/review/notify-outbox?reviewId=${reviewId.value}`)
 }
 
 const submitReply = async () => {
@@ -654,6 +743,32 @@ const managerTodoStatusTagType = (status?: number, reviewLevel?: number) => {
   if (status === 4) return 'success'
   if (reviewLevel === 3) return 'warning'
   return 'info'
+}
+
+const notifyStatusText = (status?: string) => {
+  if (status === 'PENDING') return '待派发'
+  if (status === 'SENT') return '已发送'
+  if (status === 'FAILED') return '发送失败'
+  if (status === 'BLOCKED_NO_OWNER') return 'BLOCKED_NO_OWNER'
+  return '-'
+}
+
+const notifyStatusTagType = (status?: string) => {
+  if (status === 'PENDING') return 'warning'
+  if (status === 'SENT') return 'success'
+  if (status === 'FAILED') return 'danger'
+  if (status === 'BLOCKED_NO_OWNER') return 'danger'
+  return 'info'
+}
+
+const notifyBlockReasonText = (outbox?: BookingReviewApi.BookingReviewNotifyOutbox) => {
+  if (!outbox) {
+    return '-'
+  }
+  if (outbox.status === 'BLOCKED_NO_OWNER') {
+    return 'BLOCKED_NO_OWNER：缺门店店长账号绑定'
+  }
+  return outbox.lastErrorMsg || '-'
 }
 
 const managerSlaStatusText = (data: BookingReviewApi.BookingReview) => {
