@@ -14,17 +14,22 @@
   - `390e74c246 feat(miniapp): add booking review pages and api client`
   - `dd2b70bd6c feat(miniapp): wire booking review entry points`
   - `b78c88edd3 feat(booking-admin-ui): add review recovery pages`
+  - `200ee976ec feat(booking-review): add notify blocked diagnostics`
+  - `7e14a98589 feat(booking-review): add manager routing readonly checks`
+  - `9d5011feeb feat(booking-review): enhance notify outbox audit`
+  - `d0674863c1 feat(booking-review): add ledger quick ops`
 - 自动化：
-  - `yudao-mall-uniapp/tests/booking-review-api-alignment.test.mjs`
-  - `yudao-mall-uniapp/tests/booking-review-page-smoke.test.mjs`
-  - `yudao-mall-uniapp/tests/booking-page-smoke.test.mjs`
-  - booking review 相关前端 smoke 当前共通过 `18` 项集成校验中的相关用例
+  - `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewNotifyOutboxControllerTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewServiceImplTest,BookingReviewNotifyOutboxServiceTest,BookingReviewNotifyDispatchJobTest,BookingReviewManagerAccountRoutingQueryServiceImplTest test`
+  - `node --test tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs`
+  - 03-21 当前已补齐 `45` 个后端测试与 `20` 个 admin/node 测试样本
+- evidence ledger：
+  - `docs/plans/2026-03-21-miniapp-booking-review-admin-evidence-ledger-v1.md`
 - 当前未核出：
   - 独立 booking review runtime gate 脚本
   - 发布级样本包
   - feature flag / switch
-  - 自动通知 / 自动告警链路
-  - 稳定 `store -> managerUserId` / 账号级店长路由
+  - App / 企微双通道自动通知链路
+  - 稳定双通道 `store -> manager account` 发布样本
 
 ## 3. Gate 判定表
 
@@ -34,12 +39,14 @@
 | 用户侧真实 API | Yes | `/booking/review/*` 5 条 app API 已存在 |
 | 后端 app controller | Yes | `AppBookingReviewController` 已存在 |
 | 后台 admin controller | Yes | `BookingReviewController` 已存在 |
-| 后台 overlay 页面 | Yes | 台账、详情、看板页面已存在 |
-| 用户端 smoke / API alignment | Yes | 相关 node tests 已通过 |
-| 后端 controller / service tests | Yes | review service / controller 测试已提交 |
+| 后台 overlay 页面 | Yes | 台账、详情、看板、notify outbox、manager routing 页面已存在 |
+| 用户端 / admin node tests | Yes | 03-21 当前 admin/node 相关 `20` 项测试已通过 |
+| 后端 controller / service tests | Yes | 03-21 当前 booking review 相关 `45` 项测试已通过 |
+| admin-only 通知阻断诊断 | Yes | 已能区分发送失败、缺路由、缺账号、通道关闭 |
+| admin-only 审计与快捷动作 | Yes | 已能查看最近动作/执行人/原因，并可在台账直接认领、记录首次处理、闭环 |
 | Doc set | Yes | 本批 PRD / Contract / FailureMode / Runbook / Gate / Final Review 已齐 |
 | 发布级 runtime 样本 | No | 未核到真实线上或准线上样本包 |
-| 自动告警 / 店长通知 | No | 当前只有 admin-only 店长待办，没有外部通知链路 |
+| 自动告警 / 店长通知 | No | 当前只有 admin-only 店长待办与 `IN_APP` 占位派发，没有真实 App / 企微外部通知链路 |
 | feature flag / rollout control | No | 未核到独立开关 |
 | 独立 release gate | No | 当前没有 booking review 专属 runtime gate |
 
@@ -56,6 +63,7 @@
 补充说明：
 1. 03-19 的服务端状态机修复只说明写链更严谨，不代表 release 结论升级。
 2. 03-19 复核确认：历史差评仍不会在 read-path 自动补齐店长待办字段，因此 dashboard / SLA 统计不覆盖所有历史数据。
+3. 03-21 的 notify blocked diagnostics、manager routing、审计增强、台账快捷动作都只属于 admin-only 观察与操作面增强，不构成 release-ready 样本。
 
 ## 5. blocker_pool
 1. 未核到 booking review 发布级成功 / 失败样本包。
@@ -66,6 +74,7 @@
 6. `picUrls` 已完成前端提交链路，但历史 / 详情 / 运营回显证据仍未闭环。
 7. 当前未核出稳定 `store -> managerUserId`，店长待办只停留在联系人快照治理，无法形成账号级通知或发布验收口径。
 8. 历史差评待办字段当前只在写动作时 lazy-init，read-path 不自动回填。
+9. 当前虽然已支持 `manager account routing + notify outbox + 审计增强 + 台账快捷动作`，但 App / 企微双通道发送、共享企微发送端、样本与门禁仍未闭环。
 
 ## 6. degraded_pool
 1. 当前没有服务端 `degraded=true / degradeReason` 证据。

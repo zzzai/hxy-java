@@ -13,6 +13,10 @@
   - `3c34cdc52f feat(booking-review): add negative manager todo workflow`
   - `f1569f30b4 feat(admin): add booking review manager todo ops`
   - `b7a51b9a0f docs(booking-review): freeze manager todo truth`
+  - `200ee976ec feat(booking-review): add notify blocked diagnostics`
+  - `7e14a98589 feat(booking-review): add manager routing readonly checks`
+  - `9d5011feeb feat(booking-review): enhance notify outbox audit`
+  - `d0674863c1 feat(booking-review): add ledger quick ops`
 - 本文不吸收：
   - 未提交的人工口头结论
   - 未落盘的运行样本
@@ -50,26 +54,39 @@
    - 店长待办认领 / 首次处理 / 闭环
    - 看板
    - 历史治理扫描页（scan-only）
+   - notify outbox 台账
+   - manager routing 只读核查页
 5. 差评当前已具备 admin-only 店长待办层，联系人真值固定为门店 `contactName/contactMobile` 快照。
-6. 相关测试已落地：
+6. notify outbox 当前已补齐：
+   - 标准化阻断诊断
+   - 最近动作说明 / 最近动作人 / 动作原因
+   - `FAILED` 人工重试
+   - `BLOCKED_NO_OWNER` 跳转 manager routing 只读核查
+7. admin 台账当前已支持：
+   - SLA 快捷筛选
+   - 店长待办快捷动作
+   - 历史待初始化快速定位
+8. 相关测试已落地：
    - booking review API alignment
    - booking review page smoke
    - booking review detail page smoke
    - 订单页评价入口 smoke
    - booking review controller / service tests
    - 03-19 post-launch residual tests（店长待办状态机、历史差评 lazy-init 边界）
+   - 03-21 admin/node tests（notify outbox、manager routing、台账快捷动作）
 
 ## 4. 当前仍未闭环的工程项
 1. 发布级 runtime 样本包 `未核出`。
 2. booking review 专属 release gate `未核出`。
 3. feature flag / rollout 控制面 `未核出`。
-4. 当前分支已落地 booking review 专属 `manager account routing + notify outbox + admin 观测 + IN_APP` 占位派发 job；但仍缺真实模板配置、运行样本与发布门禁，只能写成 `Can Develop / Cannot Release`。
+4. 当前分支已落地 booking review 专属 `manager account routing + notify outbox + admin 观测 + IN_APP` 占位派发 job；但仍缺真实模板配置、App / 企微双通道样本与发布门禁，只能写成 `Can Develop / Cannot Release`。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
 7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
 8. 历史差评若 `managerTodoStatus` 仍为空，当前不会在 list / dashboard / page read-path 自动回填；只会在首次执行店长待办写动作时 lazy-init。
 9. 当前分支已新增 `booking_review_manager_account_routing` 作为工程 owner 映射模型；但联系人快照仍独立存在，且 routing 数据覆盖、样本与发布证据未闭环，不能外推成“门店店长账号通知已上线”。
 10. 03-21 新增的历史治理扫描页只做人工触发识别，不做 repair write；不能把“能扫出候选”写成“历史数据已修复”。
+11. 03-21 新增的台账快捷动作只是在既有状态机之上前移操作入口，不能写成“店长通知链路已闭环”。
 
 ## 5. 评价域能力拆分
 
@@ -104,7 +121,7 @@
 | 独立 review route 目录 | 实际使用扁平 route：`review-add / review-detail / review-result / review-list` | 只认当前代码 route |
 | 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
 | 店长即时通知 | 已落地后台店长待办 + routing model + notify outbox + admin 观测 + `IN_APP` 占位派发 | 当前仍只能写成 `Can Develop / Cannot Release`，不能写成正式上线 |
-| 店长账号归属 | 当前只核到 `contactName/contactMobile` 快照 | 不能写成 `managerUserId` 已闭环 |
+| 店长账号归属 | 当前已新增 `storeId -> managerAdminUserId` 只读 routing 模型，但数据覆盖、样本与发布证据未闭环 | 不能写成 App / 企微双通道账号路由已正式上线 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |
 | 自动差评补偿 | 设计明确不做 | 当前仍不做 |
 | 履约单绑定 | 设计建议保留 `serviceOrderId` | 当前已改成 best-effort 回填，但仍允许为空 |
@@ -119,6 +136,7 @@
 6. 把 `managerClaimedByUserId` 或后台登录人误写成门店店长账号真值。
 7. 把历史差评在 read-path 未初始化的现状忽略掉，并直接把 dashboard / SLA 统计写成覆盖全量历史记录。
 8. 把 scan-only 的历史治理扫描页写成修复工具、批量治理工具或发布级证据。
+9. 把台账快捷筛选、快捷动作或 notify outbox 审计增强写成 release-ready 运营系统。
 
 ## 8. 单一真值引用
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
@@ -130,3 +148,4 @@
 - `docs/products/miniapp/2026-03-18-miniapp-booking-review-detail-acceptance-checklist-v1.md`
 - `docs/products/miniapp/2026-03-19-miniapp-booking-review-history-and-boundary-audit-v1.md`
 - `docs/products/miniapp/2026-03-19-miniapp-booking-review-manager-ownership-truth-review-v1.md`
+- `docs/plans/2026-03-21-miniapp-booking-review-admin-evidence-ledger-v1.md`
