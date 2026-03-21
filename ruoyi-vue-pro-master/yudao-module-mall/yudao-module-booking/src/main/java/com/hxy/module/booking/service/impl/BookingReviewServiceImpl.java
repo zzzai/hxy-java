@@ -27,7 +27,9 @@ import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewNegativeTriggerTypeEnum;
+import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import com.hxy.module.booking.service.BookingReviewService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +51,7 @@ import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOT
 
 @Service
 @Validated
+@Slf4j
 public class BookingReviewServiceImpl implements BookingReviewService {
 
     private static final int RISK_LEVEL_NORMAL = 0;
@@ -69,15 +72,18 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     private final BookingOrderMapper bookingOrderMapper;
     private final TradeServiceOrderApi tradeServiceOrderApi;
     private final ProductStoreService productStoreService;
+    private final BookingReviewNotifyOutboxService bookingReviewNotifyOutboxService;
 
     public BookingReviewServiceImpl(BookingReviewMapper bookingReviewMapper,
                                     BookingOrderMapper bookingOrderMapper,
                                     TradeServiceOrderApi tradeServiceOrderApi,
-                                    ProductStoreService productStoreService) {
+                                    ProductStoreService productStoreService,
+                                    BookingReviewNotifyOutboxService bookingReviewNotifyOutboxService) {
         this.bookingReviewMapper = bookingReviewMapper;
         this.bookingOrderMapper = bookingOrderMapper;
         this.tradeServiceOrderApi = tradeServiceOrderApi;
         this.productStoreService = productStoreService;
+        this.bookingReviewNotifyOutboxService = bookingReviewNotifyOutboxService;
     }
 
     @Override
@@ -156,6 +162,7 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         } catch (DuplicateKeyException ex) {
             throw exception(BOOKING_REVIEW_ALREADY_EXISTS);
         }
+        triggerNegativeReviewNotifyOutbox(review);
         return review.getId();
     }
 
@@ -590,6 +597,17 @@ public class BookingReviewServiceImpl implements BookingReviewService {
             return productStoreService.getStore(storeId);
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    private void triggerNegativeReviewNotifyOutbox(BookingReviewDO review) {
+        if (!Objects.equals(review.getReviewLevel(), BookingReviewLevelEnum.NEGATIVE.getLevel())) {
+            return;
+        }
+        try {
+            bookingReviewNotifyOutboxService.createNegativeReviewCreatedOutbox(review);
+        } catch (Exception ex) {
+            log.warn("failed to create booking review notify outbox, reviewId={}", review.getId(), ex);
         }
     }
 
