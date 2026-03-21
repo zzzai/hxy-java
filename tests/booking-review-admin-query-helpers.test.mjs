@@ -58,9 +58,37 @@ test('ledger route query is parsed into typed filter state', async () => {
       riskLevel: undefined,
       followStatus: undefined,
       onlyManagerTodo: true,
+      onlyPendingInit: undefined,
       managerTodoStatus: 1,
       managerSlaStatus: 'CLAIM_TIMEOUT',
       replyStatus: false,
+      submitTime: undefined,
+    },
+  );
+});
+
+test('ledger route query parses onlyPendingInit flag', async () => {
+  const { parseLedgerQuery } = await loadHelpers();
+  assert.deepEqual(
+    parseLedgerQuery({
+      onlyPendingInit: 'true',
+    }),
+    {
+      pageNo: 1,
+      pageSize: 10,
+      id: undefined,
+      bookingOrderId: undefined,
+      storeId: undefined,
+      technicianId: undefined,
+      memberId: undefined,
+      reviewLevel: undefined,
+      riskLevel: undefined,
+      followStatus: undefined,
+      onlyManagerTodo: undefined,
+      onlyPendingInit: true,
+      managerTodoStatus: undefined,
+      managerSlaStatus: undefined,
+      replyStatus: undefined,
       submitTime: undefined,
     },
   );

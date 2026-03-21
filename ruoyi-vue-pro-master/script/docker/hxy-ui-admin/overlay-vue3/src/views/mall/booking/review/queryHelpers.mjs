@@ -10,6 +10,7 @@ const DEFAULT_LEDGER_QUERY = Object.freeze({
   riskLevel: undefined,
   followStatus: undefined,
   onlyManagerTodo: undefined,
+  onlyPendingInit: undefined,
   managerTodoStatus: undefined,
   managerSlaStatus: undefined,
   replyStatus: undefined,
@@ -44,7 +45,7 @@ const INTEGER_KEYS = [
   'managerTodoStatus',
 ];
 
-const BOOLEAN_KEYS = ['onlyManagerTodo', 'replyStatus'];
+const BOOLEAN_KEYS = ['onlyManagerTodo', 'onlyPendingInit', 'replyStatus'];
 const STRING_KEYS = ['managerSlaStatus'];
 
 const takeFirst = (value) => {

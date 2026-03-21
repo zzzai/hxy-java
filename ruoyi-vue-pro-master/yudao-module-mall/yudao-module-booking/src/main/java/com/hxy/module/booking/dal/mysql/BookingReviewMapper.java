@@ -6,6 +6,7 @@ import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewPageReqVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
+import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -29,6 +30,10 @@ public interface BookingReviewMapper extends BaseMapperX<BookingReviewDO> {
         query.orderByDesc(BookingReviewDO::getRiskLevel, BookingReviewDO::getSubmitTime, BookingReviewDO::getId);
         if (Boolean.TRUE.equals(reqVO.getOnlyManagerTodo())) {
             query.isNotNull(BookingReviewDO::getManagerTodoStatus);
+        }
+        if (Boolean.TRUE.equals(reqVO.getOnlyPendingInit())) {
+            query.eq(BookingReviewDO::getReviewLevel, BookingReviewLevelEnum.NEGATIVE.getLevel())
+                    .isNull(BookingReviewDO::getManagerTodoStatus);
         }
         return query;
     }

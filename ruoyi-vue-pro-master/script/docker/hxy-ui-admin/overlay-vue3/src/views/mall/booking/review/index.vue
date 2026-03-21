@@ -11,7 +11,7 @@
   </ContentWrap>
 
   <ContentWrap>
-    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="96px">
+    <el-form :inline="true" :model="queryParams" class="-mb-15px" label-width="120px">
       <el-form-item label="评价ID" prop="id">
         <el-input v-model="queryParams.id" class="!w-160px" clearable placeholder="请输入评价ID" @keyup.enter="handleQuery" />
       </el-form-item>
@@ -68,6 +68,11 @@
           <el-option :value="4" label="已关闭" />
         </el-select>
       </el-form-item>
+      <el-form-item label="历史未初始化差评" prop="onlyPendingInit">
+        <el-select v-model="queryParams.onlyPendingInit" class="!w-180px" clearable placeholder="全部">
+          <el-option :value="true" label="是" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="只看店长待办" prop="onlyManagerTodo">
         <el-select v-model="queryParams.onlyManagerTodo" class="!w-160px" clearable placeholder="全部">
           <el-option :value="true" label="是" />
@@ -122,6 +127,15 @@
         </el-button>
       </el-form-item>
     </el-form>
+  </ContentWrap>
+
+  <ContentWrap v-if="queryParams.onlyPendingInit === true">
+    <el-alert
+      :closable="false"
+      description="这类记录属于历史差评且尚未初始化店长待办；系统不会在查询时自动补齐，只有首次认领、首次处理、闭环等写动作才会触发初始化。"
+      title="历史未初始化差评说明"
+      type="warning"
+    />
   </ContentWrap>
 
   <ContentWrap>

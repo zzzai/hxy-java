@@ -44,6 +44,9 @@ public class BookingReviewPageReqVO extends PageParam {
     @Schema(description = "只看店长待办", example = "true")
     private Boolean onlyManagerTodo;
 
+    @Schema(description = "只看历史未初始化差评", example = "true")
+    private Boolean onlyPendingInit;
+
     @Schema(description = "店长待办状态", example = "1")
     private Integer managerTodoStatus;
 

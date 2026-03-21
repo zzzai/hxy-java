@@ -10,6 +10,7 @@ export interface BookingReviewPageReq extends PageParam {
   riskLevel?: number
   followStatus?: number
   onlyManagerTodo?: boolean
+  onlyPendingInit?: boolean
   managerTodoStatus?: number
   managerSlaStatus?: string
   replyStatus?: boolean
