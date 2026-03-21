@@ -143,6 +143,15 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div class="mb-16px flex flex-wrap gap-8px">
+      <el-button plain type="danger" @click="applyQuickFilter('todoPending')">待认领优先</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('claimTimeout')">认领超时</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('firstActionTimeout')">首次处理超时</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('closeTimeout')">闭环超时</el-button>
+      <el-button plain @click="applyQuickFilter('pendingInit')">历史待初始化</el-button>
+      <el-button plain @click="applyQuickFilter()">查看全部</el-button>
+    </div>
+
     <el-table v-loading="loading" :data="list">
       <el-table-column label="评价ID" prop="id" width="90" />
       <el-table-column label="预约订单ID" prop="bookingOrderId" width="120" />
@@ -208,8 +217,38 @@
       </el-table-column>
       <el-table-column :formatter="dateFormatter" label="提交时间" prop="submitTime" width="180" />
       <el-table-column :formatter="dateFormatter" label="回复时间" prop="replyTime" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="180">
+      <el-table-column align="center" fixed="right" label="操作" width="280">
         <template #default="{ row }">
+          <el-button
+            v-if="canQuickClaim(row)"
+            v-hasPermi="['booking:review:update']"
+            :loading="actingIds.includes(row.id)"
+            link
+            type="danger"
+            @click="handleClaimManagerTodo(row)"
+          >
+            快速认领
+          </el-button>
+          <el-button
+            v-if="canQuickRecordFirstAction(row)"
+            v-hasPermi="['booking:review:update']"
+            :loading="actingIds.includes(row.id)"
+            link
+            type="warning"
+            @click="handleRecordFirstAction(row)"
+          >
+            记录首次处理
+          </el-button>
+          <el-button
+            v-if="canQuickClose(row)"
+            v-hasPermi="['booking:review:update']"
+            :loading="actingIds.includes(row.id)"
+            link
+            type="success"
+            @click="handleCloseManagerTodo(row)"
+          >
+            标记闭环
+          </el-button>
           <el-button v-hasPermi="['booking:review:query']" link type="primary" @click="openDetail(row.id)">
             详情
           </el-button>
@@ -230,14 +269,25 @@
 import { dateFormatter } from '@/utils/formatTime'
 import * as BookingReviewApi from '@/api/mall/booking/review'
 import { createDefaultLedgerQuery, parseLedgerQuery } from './queryHelpers.mjs'
+import { ElMessageBox } from 'element-plus'
 
 defineOptions({ name: 'BookingReviewIndex' })
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
 const loading = ref(false)
 const total = ref(0)
 const list = ref<BookingReviewApi.BookingReview[]>([])
+const actingIds = ref<number[]>([])
+
+const QUICK_FILTER_MAP = {
+  todoPending: { onlyManagerTodo: true, managerTodoStatus: 1 },
+  claimTimeout: { onlyManagerTodo: true, managerSlaStatus: 'CLAIM_TIMEOUT' },
+  firstActionTimeout: { onlyManagerTodo: true, managerSlaStatus: 'FIRST_ACTION_TIMEOUT' },
+  closeTimeout: { onlyManagerTodo: true, managerSlaStatus: 'CLOSE_TIMEOUT' },
+  pendingInit: { onlyPendingInit: true, reviewLevel: 3 }
+} as const
 
 const queryParams = reactive<BookingReviewApi.BookingReviewPageReq>(
   createDefaultLedgerQuery() as BookingReviewApi.BookingReviewPageReq,
@@ -262,6 +312,11 @@ const handleQuery = () => {
 const resetQuery = () => {
   Object.assign(queryParams, createDefaultLedgerQuery())
   getList()
+}
+
+const applyQuickFilter = (presetKey?: keyof typeof QUICK_FILTER_MAP) => {
+  Object.assign(queryParams, createDefaultLedgerQuery(), presetKey ? QUICK_FILTER_MAP[presetKey] : {})
+  handleQuery()
 }
 
 const openDetail = (id: number) => {
@@ -291,6 +346,106 @@ const readableEntityText = (name?: string, id?: number) => {
 
 const hasManagerTodo = (row?: BookingReviewApi.BookingReview) => {
   return row?.managerTodoStatus !== undefined && row?.managerTodoStatus !== null
+}
+
+const canQuickClaim = (row: BookingReviewApi.BookingReview) => {
+  return !!row?.id && row.reviewLevel === 3
+    && (row.managerTodoStatus === undefined || row.managerTodoStatus === null || row.managerTodoStatus === 1)
+}
+
+const canQuickRecordFirstAction = (row: BookingReviewApi.BookingReview) => {
+  return !!row?.id && (row.managerTodoStatus === 2 || row.managerTodoStatus === 3)
+}
+
+const canQuickClose = (row: BookingReviewApi.BookingReview) => {
+  return !!row?.id && (row.managerTodoStatus === 2 || row.managerTodoStatus === 3)
+}
+
+const markActing = (reviewId?: number) => {
+  if (!reviewId || actingIds.value.includes(reviewId)) {
+    return false
+  }
+  actingIds.value.push(reviewId)
+  return true
+}
+
+const unmarkActing = (reviewId?: number) => {
+  actingIds.value = actingIds.value.filter((id) => id !== reviewId)
+}
+
+const promptActionRemark = async (title: string, inputPlaceholder: string, defaultValue = '') => {
+  const { value } = await ElMessageBox.prompt(`请输入${title}说明`, title, {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    inputPlaceholder,
+    inputType: 'textarea',
+    inputValue: defaultValue
+  })
+  return value?.trim() || ''
+}
+
+const handleClaimManagerTodo = async (row: BookingReviewApi.BookingReview) => {
+  if (!canQuickClaim(row) || !markActing(row.id)) {
+    return
+  }
+  try {
+    await message.confirm('确认认领当前店长待办吗？')
+    await BookingReviewApi.claimManagerTodo({ reviewId: row.id! })
+    message.success('店长待办已认领')
+    await getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      // 请求失败由全局错误拦截处理
+    }
+  } finally {
+    unmarkActing(row.id)
+  }
+}
+
+const handleRecordFirstAction = async (row: BookingReviewApi.BookingReview) => {
+  if (!canQuickRecordFirstAction(row) || !markActing(row.id)) {
+    return
+  }
+  try {
+    const remark = await promptActionRemark('首次处理', '例如：已电话联系店长确认处理方案')
+    if (!remark) {
+      message.warning('请输入首次处理说明')
+      return
+    }
+    await message.confirm('确认记录当前首次处理动作吗？')
+    await BookingReviewApi.recordManagerTodoFirstAction({ reviewId: row.id!, remark })
+    message.success('首次处理已记录')
+    await getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      // 请求失败由全局错误拦截处理
+    }
+  } finally {
+    unmarkActing(row.id)
+  }
+}
+
+const handleCloseManagerTodo = async (row: BookingReviewApi.BookingReview) => {
+  if (!canQuickClose(row) || !markActing(row.id)) {
+    return
+  }
+  try {
+    const remark = await promptActionRemark('闭环', '例如：店长确认完成回访并闭环')
+    if (!remark) {
+      message.warning('请输入闭环说明')
+      return
+    }
+    await message.confirm('确认将当前店长待办标记为已闭环吗？')
+    await BookingReviewApi.closeManagerTodo({ reviewId: row.id!, remark })
+    message.success('店长待办已闭环')
+    await getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      // 请求失败由全局错误拦截处理
+    }
+  } finally {
+    unmarkActing(row.id)
+  }
 }
 
 const parseTime = (value?: string) => {
