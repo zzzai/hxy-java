@@ -10,6 +10,7 @@
 3. 通知链路审计增强。
 4. App / 企微双通道出站与共享企微 sender 工程接入。
 5. 店长待办 SLA 自动提醒出站。
+6. 详情页双通道通知审计摘要。
 
 ## 3. 当前已核实证据
 
@@ -21,6 +22,7 @@
 2. 评价详情页已具备：
    - 最近动作时间线
    - notify outbox 观测块
+   - `双通道摘要 / App 通道 / 企微通道 / 最近一条通知真值` 四层观测
    - 同一条评价下的 `IN_APP / WECOM` 双通道记录
    - 店长待办认领 / 首次处理 / 闭环
 3. notify outbox 台账已具备：
@@ -53,10 +55,10 @@
 | 命令 | 结果 | 说明 |
 |---|---|---|
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewNotifyOutboxControllerTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewServiceImplTest,BookingReviewNotifyOutboxServiceTest,BookingReviewNotifyDispatchJobTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewManagerTodoSlaReminderJobTest test` | PASS，`50` tests | 覆盖 controller / service / notify dispatch / manager routing / SLA reminder |
-| `node --test tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs tests/booking-review-admin-sla-reminder.test.mjs` | PASS，`22` tests | 覆盖 admin 台账、详情、notify outbox、manager routing、快捷筛选与 SLA 提醒 |
+| `node --test tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-sla-reminder.test.mjs` | PASS，`30` tests | 覆盖 admin 台账、详情、notify outbox、manager routing、快捷筛选、双通道摘要与 SLA 提醒 |
 | `git diff --check` | PASS | 无 whitespace / patch error |
-| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=9` | naming guard 正常 |
-| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=42`、`changed_core_domains=sql` | memory guard 正常，长记忆已同步 |
+| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=3` | naming guard 正常 |
+| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=7`、`core_domains=0` | memory guard 正常 |
 
 ## 5. 当前还不能当作发布证据的项
 1. 真实 App / 企微双通道消息发送样本 `未核出`。

@@ -165,24 +165,63 @@
       <el-empty v-if="!notifyOutboxList.length" description="当前未生成通知意图记录" />
 
       <template v-else>
-        <el-descriptions :column="2" border title="最新通知状态">
-          <el-descriptions-item label="通知状态">
-            <el-tag :type="notifyStatusTagType(latestNotifyOutbox?.status)">{{ notifyStatusText(latestNotifyOutbox?.status) }}</el-tag>
+        <el-descriptions :column="2" border title="双通道摘要">
+          <el-descriptions-item label="总体结论">
+            {{ notifyAuditSnapshot.summary }}
           </el-descriptions-item>
-          <el-descriptions-item label="诊断结论">{{ latestNotifyOutbox?.diagnosticLabel || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="接收角色">{{ latestNotifyOutbox?.receiverRole || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="接收账号ID">{{ latestNotifyOutbox?.receiverUserId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="接收账号">{{ latestNotifyOutbox?.receiverAccount || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="通知渠道">{{ latestNotifyOutbox?.channel || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="通知类型">{{ latestNotifyOutbox?.notifyType || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="重试次数">{{ latestNotifyOutbox?.retryCount ?? '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最近动作编码">{{ latestNotifyOutbox?.lastActionCode || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最近动作时间">{{ latestNotifyOutbox?.lastActionTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="修复建议" :span="2">{{ latestNotifyOutbox?.repairHint || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="最近错误" :span="2">
-            {{ notifyBlockReasonText(latestNotifyOutbox) }}
+          <el-descriptions-item label="通知风险">
+            {{ review.notifyRiskSummary || '未单独标记风险摘要' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="已发送">
+            {{ notifyAuditSnapshot.metrics.sentCount }}
+          </el-descriptions-item>
+          <el-descriptions-item label="待派发 / 失败 / 阻断">
+            {{ notifyAuditSnapshot.metrics.pendingCount }} / {{ notifyAuditSnapshot.metrics.failedCount }} / {{ notifyAuditSnapshot.metrics.blockedCount }}
           </el-descriptions-item>
         </el-descriptions>
+
+        <div class="mt-16px grid gap-16px lg:grid-cols-2">
+          <el-card v-for="item in notifyAuditChannelCards" :key="item.channel" shadow="never">
+            <template #header>
+              <div class="flex items-center justify-between gap-8px">
+                <span>{{ item.channelLabel }}</span>
+                <el-tag :type="notifyStatusTagType(item.status)">{{ item.statusText }}</el-tag>
+              </div>
+            </template>
+
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="接收对象">{{ item.receiverLabel }}</el-descriptions-item>
+              <el-descriptions-item label="诊断结论">{{ item.diagnosticLabel }}</el-descriptions-item>
+              <el-descriptions-item label="最近动作">{{ item.actionLabel }}</el-descriptions-item>
+              <el-descriptions-item label="动作执行人">{{ item.actionOperatorLabel }}</el-descriptions-item>
+              <el-descriptions-item label="动作原因">{{ item.actionReason }}</el-descriptions-item>
+              <el-descriptions-item label="最近动作时间">{{ item.lastActionTime }}</el-descriptions-item>
+              <el-descriptions-item label="修复建议">{{ item.repairHint }}</el-descriptions-item>
+              <el-descriptions-item label="补充说明">{{ item.detail }}</el-descriptions-item>
+            </el-descriptions>
+          </el-card>
+        </div>
+
+        <div class="mt-16px">
+          <el-descriptions :column="2" border title="最近一条通知真值">
+            <el-descriptions-item label="通知状态">
+              <el-tag :type="notifyStatusTagType(latestNotifyOutbox?.status)">{{ notifyStatusText(latestNotifyOutbox?.status) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="诊断结论">{{ latestNotifyOutbox?.diagnosticLabel || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="接收角色">{{ latestNotifyOutbox?.receiverRole || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="接收账号ID">{{ latestNotifyOutbox?.receiverUserId || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="接收账号">{{ latestNotifyOutbox?.receiverAccount || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="通知渠道">{{ latestNotifyOutbox?.channel || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="通知类型">{{ latestNotifyOutbox?.notifyType || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="重试次数">{{ latestNotifyOutbox?.retryCount ?? '-' }}</el-descriptions-item>
+            <el-descriptions-item label="最近动作编码">{{ latestNotifyOutbox?.lastActionCode || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="最近动作时间">{{ latestNotifyOutbox?.lastActionTime || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="修复建议" :span="2">{{ latestNotifyOutbox?.repairHint || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="最近错误" :span="2">
+              {{ notifyBlockReasonText(latestNotifyOutbox) }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
 
         <div class="mt-16px">
           <el-table :data="notifyOutboxList" size="small">
@@ -417,6 +456,7 @@
 
 <script lang="ts" setup>
 import * as BookingReviewApi from '@/api/mall/booking/review'
+import { buildNotifyAuditSnapshot } from './notifyAuditHelpers.mjs'
 import { buildReviewDetailTimeline } from './timelineHelpers.mjs'
 
 defineOptions({ name: 'BookingReviewDetail' })
@@ -556,7 +596,7 @@ const loadNotifyOutbox = async () => {
   try {
     return (await BookingReviewApi.getReviewNotifyOutboxList({
       reviewId: reviewId.value,
-      limit: 5
+      limit: 20
     })) || []
   } finally {
     notifyOutboxLoading.value = false
@@ -571,6 +611,22 @@ const reviewTimeline = computed(() => buildReviewDetailTimeline(review.value))
 const detailSummaryItems = computed(() => reviewTimeline.value.summaryItems)
 const detailTimelineItems = computed(() => reviewTimeline.value.timelineItems)
 const latestNotifyOutbox = computed(() => notifyOutboxList.value[0])
+const notifyAuditSnapshot = computed(() =>
+  buildNotifyAuditSnapshot({
+    notifyRiskSummary: review.value.notifyRiskSummary,
+    notifyOutboxList: notifyOutboxList.value
+  })
+)
+const notifyAuditChannelCards = computed(() => [
+  {
+    channelLabel: 'App 通道',
+    ...notifyAuditSnapshot.value.channels.IN_APP
+  },
+  {
+    channelLabel: '企微通道',
+    ...notifyAuditSnapshot.value.channels.WECOM
+  }
+])
 
 const goBack = () => {
   router.push('/mall/booking/review')
@@ -779,7 +835,8 @@ const notifyStatusText = (status?: string) => {
   if (status === 'PENDING') return '待派发'
   if (status === 'SENT') return '已发送'
   if (status === 'FAILED') return '发送失败'
-  if (status === 'BLOCKED_NO_OWNER') return 'BLOCKED_NO_OWNER'
+  if (status === 'BLOCKED_NO_OWNER') return '缺店长路由阻断'
+  if (status === 'MISSING') return '未核出当前通道记录'
   return '-'
 }
 
@@ -788,6 +845,7 @@ const notifyStatusTagType = (status?: string) => {
   if (status === 'SENT') return 'success'
   if (status === 'FAILED') return 'danger'
   if (status === 'BLOCKED_NO_OWNER') return 'danger'
+  if (status === 'MISSING') return 'info'
   return 'info'
 }
 
