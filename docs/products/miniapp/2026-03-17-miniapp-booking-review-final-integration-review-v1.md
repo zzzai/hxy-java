@@ -49,6 +49,7 @@
    - 跟进状态更新
    - 店长待办认领 / 首次处理 / 闭环
    - 看板
+   - 历史治理扫描页（scan-only）
 5. 差评当前已具备 admin-only 店长待办层，联系人真值固定为门店 `contactName/contactMobile` 快照。
 6. 相关测试已落地：
    - booking review API alignment
@@ -68,6 +69,7 @@
 7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
 8. 历史差评若 `managerTodoStatus` 仍为空，当前不会在 list / dashboard / page read-path 自动回填；只会在首次执行店长待办写动作时 lazy-init。
 9. 当前没有稳定 `store -> managerUserId` 或账号级 owner 映射；“店长”仍只等于门店联系人快照，不等于后台账号通知目标。
+10. 03-21 新增的历史治理扫描页只做人工触发识别，不做 repair write；不能把“能扫出候选”写成“历史数据已修复”。
 
 ## 5. 评价域能力拆分
 
@@ -116,6 +118,7 @@
 5. 把 `serviceOrderId` 的 best-effort 语义、`picUrls` 仅完成提交链路、feature flag、runtime sample 缺口忽略掉。
 6. 把 `managerClaimedByUserId` 或后台登录人误写成门店店长账号真值。
 7. 把历史差评在 read-path 未初始化的现状忽略掉，并直接把 dashboard / SLA 统计写成覆盖全量历史记录。
+8. 把 scan-only 的历史治理扫描页写成修复工具、批量治理工具或发布级证据。
 
 ## 8. 单一真值引用
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`

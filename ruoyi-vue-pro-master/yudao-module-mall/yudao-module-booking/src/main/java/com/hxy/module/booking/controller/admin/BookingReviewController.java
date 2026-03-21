@@ -10,6 +10,9 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanItemRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoClaimReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoCloseReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoFirstActionReqVO;
@@ -66,6 +69,17 @@ public class BookingReviewController {
         PageResult<BookingReviewRespVO> result = BeanUtils.toBean(pageResult, BookingReviewRespVO.class);
         enrichReadableFields(result.getList());
         return success(result);
+    }
+
+    @GetMapping("/history-scan")
+    @Operation(summary = "获得预约服务评价历史治理扫描结果")
+    @PreAuthorize("@ss.hasPermission('booking:review:query')")
+    public CommonResult<BookingReviewHistoryScanRespVO> historyScan(@Valid BookingReviewHistoryScanReqVO reqVO) {
+        BookingReviewHistoryScanRespVO respVO = bookingReviewService.scanAdminHistoryCandidates(reqVO);
+        if (respVO != null) {
+            enrichHistoryScanFields(respVO.getList());
+        }
+        return success(respVO);
     }
 
     @GetMapping("/get")
@@ -136,6 +150,16 @@ public class BookingReviewController {
         reviews.forEach(review -> enrichReadableField(review, storeMap, memberMap, technicianMap));
     }
 
+    private void enrichHistoryScanFields(List<BookingReviewHistoryScanItemRespVO> items) {
+        if (CollUtil.isEmpty(items)) {
+            return;
+        }
+        Map<Long, ProductStoreDO> storeMap = productStoreService.getStoreMap(convertSet(items, BookingReviewHistoryScanItemRespVO::getStoreId));
+        Map<Long, MemberUserRespDTO> memberMap = memberUserApi.getUserMap(convertSet(items, BookingReviewHistoryScanItemRespVO::getMemberId));
+        Map<Long, TechnicianDO> technicianMap = buildTechnicianMap(convertSet(items, BookingReviewHistoryScanItemRespVO::getTechnicianId));
+        items.forEach(item -> enrichHistoryScanField(item, storeMap, memberMap, technicianMap));
+    }
+
     private void enrichReadableField(BookingReviewRespVO review) {
         if (review == null) {
             return;
@@ -162,6 +186,25 @@ public class BookingReviewController {
         MemberUserRespDTO member = review.getMemberId() == null ? null : memberMap.get(review.getMemberId());
         if (member != null) {
             review.setMemberNickname(member.getNickname());
+        }
+    }
+
+    private void enrichHistoryScanField(BookingReviewHistoryScanItemRespVO item, Map<Long, ProductStoreDO> storeMap,
+                                        Map<Long, MemberUserRespDTO> memberMap, Map<Long, TechnicianDO> technicianMap) {
+        if (item == null) {
+            return;
+        }
+        ProductStoreDO store = item.getStoreId() == null ? null : storeMap.get(item.getStoreId());
+        if (store != null) {
+            item.setStoreName(store.getName());
+        }
+        TechnicianDO technician = item.getTechnicianId() == null ? null : technicianMap.get(item.getTechnicianId());
+        if (technician != null) {
+            item.setTechnicianName(technician.getName());
+        }
+        MemberUserRespDTO member = item.getMemberId() == null ? null : memberMap.get(item.getMemberId());
+        if (member != null) {
+            item.setMemberNickname(member.getNickname());
         }
     }
 

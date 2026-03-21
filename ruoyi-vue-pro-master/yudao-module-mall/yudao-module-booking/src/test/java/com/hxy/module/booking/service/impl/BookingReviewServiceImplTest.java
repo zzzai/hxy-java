@@ -3,6 +3,9 @@ package com.hxy.module.booking.service.impl;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanItemRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import cn.iocoder.yudao.framework.test.core.ut.BaseDbUnitTest;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewCreateReqVO;
@@ -32,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 
 import static cn.iocoder.yudao.framework.test.core.util.AssertUtils.assertServiceException;
 import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_ALREADY_EXISTS;
@@ -430,6 +434,88 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertEquals(1L, summary.getPendingFollowCount());
         assertEquals(1L, summary.getUrgentCount());
         assertEquals(1L, summary.getRepliedCount());
+    }
+
+    @Test
+    void shouldScanHistoricalNegativeCandidatesWithoutBackfillingTodoFields() {
+        BookingOrderDO manualReadyOrder = buildOrder(4010L, 8010L, BookingOrderStatusEnum.COMPLETED.getStatus());
+        manualReadyOrder.setStoreId(9010L);
+        bookingOrderMapper.insert(manualReadyOrder);
+        BookingReviewDO manualReadyReview = BookingReviewDO.builder()
+                .bookingOrderId(manualReadyOrder.getId())
+                .storeId(999910L)
+                .technicianId(5010L)
+                .memberId(6010L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .submitTime(LocalDateTime.now().minusDays(2).withNano(0))
+                .build();
+        bookingReviewMapper.insert(manualReadyReview);
+
+        BookingOrderDO highRiskOrder = buildOrder(4011L, 8011L, BookingOrderStatusEnum.COMPLETED.getStatus());
+        highRiskOrder.setStoreId(9011L);
+        bookingOrderMapper.insert(highRiskOrder);
+        BookingReviewDO highRiskReview = BookingReviewDO.builder()
+                .bookingOrderId(highRiskOrder.getId())
+                .storeId(9011L)
+                .technicianId(5011L)
+                .memberId(6011L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .submitTime(LocalDateTime.now().minusDays(1).withNano(0))
+                .build();
+        bookingReviewMapper.insert(highRiskReview);
+
+        BookingReviewDO outOfScopeReview = BookingReviewDO.builder()
+                .bookingOrderId(4012L)
+                .storeId(9012L)
+                .technicianId(5012L)
+                .memberId(6012L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus())
+                .submitTime(LocalDateTime.now().minusHours(12).withNano(0))
+                .build();
+        bookingReviewMapper.insert(outOfScopeReview);
+
+        when(productStoreService.getStore(eq(9010L))).thenReturn(ProductStoreDO.builder()
+                .id(9010L)
+                .contactName("李店长")
+                .contactMobile("13800000010")
+                .build());
+        when(productStoreService.getStore(eq(9011L))).thenReturn(ProductStoreDO.builder()
+                .id(9011L)
+                .contactName(null)
+                .contactMobile("13800000011")
+                .build());
+
+        BookingReviewHistoryScanReqVO reqVO = new BookingReviewHistoryScanReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+
+        BookingReviewHistoryScanRespVO result = bookingReviewService.scanAdminHistoryCandidates(reqVO);
+
+        assertNotNull(result);
+        assertNotNull(result.getSummary());
+        assertEquals(3L, result.getSummary().getScannedCount());
+        assertEquals(1L, result.getSummary().getManualReadyCount());
+        assertEquals(1L, result.getSummary().getHighRiskCount());
+        assertEquals(1L, result.getSummary().getOutOfScopeCount());
+        assertEquals(3L, result.getTotal());
+
+        Map<Long, BookingReviewHistoryScanItemRespVO> itemMap = result.getList().stream()
+                .collect(java.util.stream.Collectors.toMap(BookingReviewHistoryScanItemRespVO::getReviewId, item -> item));
+        assertEquals("MANUAL_READY", itemMap.get(manualReadyReview.getId()).getRiskCategory());
+        assertEquals("HIGH_RISK", itemMap.get(highRiskReview.getId()).getRiskCategory());
+        assertEquals("OUT_OF_SCOPE", itemMap.get(outOfScopeReview.getId()).getRiskCategory());
+        assertTrue(itemMap.get(highRiskReview.getId()).getRiskReasons().contains("门店联系人缺失"));
+
+        BookingReviewDO manualReadyAfterScan = bookingReviewMapper.selectById(manualReadyReview.getId());
+        BookingReviewDO highRiskAfterScan = bookingReviewMapper.selectById(highRiskReview.getId());
+        assertNull(manualReadyAfterScan.getManagerTodoStatus());
+        assertNull(highRiskAfterScan.getManagerTodoStatus());
+        assertNull(manualReadyAfterScan.getNegativeTriggerType());
+        assertNull(highRiskAfterScan.getNegativeTriggerType());
     }
 
     private BookingOrderDO buildOrder(Long id, Long userId, Integer status) {

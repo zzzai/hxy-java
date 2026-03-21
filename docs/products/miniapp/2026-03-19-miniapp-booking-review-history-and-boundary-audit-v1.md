@@ -13,6 +13,7 @@
   - `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/index.vue`
   - `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/detail/index.vue`
   - `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/dashboard/index.vue`
+  - `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/review/historyScan/index.vue`
 
 ## 3. 当前审计结论
 
@@ -20,6 +21,7 @@
 |---|---|---|
 | 历史差评待办初始化 | 历史差评若 `managerTodoStatus=null`，当前只会在首次执行 `claim / first-action / close` 写动作时 lazy-init | `Doc Closed / Can Develop / Cannot Release` |
 | 历史差评读路径 | admin list / detail / dashboard 当前不会在 read-path 自动补齐 `managerTodo*` 字段 | `工程未闭环` |
+| 历史治理扫描页 | 03-21 新增 admin-only、scan-only 扫描页，只做人工触发识别，不触发任何修复写入 | `已落地（识别工具，不是修复工具）` |
 | 缺失 booking order 行的历史差评 | 仍可在写路径补齐 `negativeTriggerType` 和 SLA 截止时间；联系人快照可能继续为空 | `可开发但不可放量` |
 | 店长待办状态机 | 03-19 已确认服务端守住状态流转，不再只靠前端按钮禁用 | `已修正` |
 
@@ -54,12 +56,14 @@
 1. admin 列表页当前不会自动把 `managerTodoStatus=null` 的历史差评补成待办。
 2. dashboard 统计也不会把这类尚未初始化的历史差评自动算入店长待办池。
 3. 因此“后台看板已覆盖全量历史差评”当前不成立。
+4. 03-21 新增的 `history-scan` 页面只会返回 `MANUAL_READY / HIGH_RISK / OUT_OF_SCOPE` 分类，不会回填 `managerTodo*` 字段，也不会把记录写成“已治理完成”。
 
 ## 6. 历史数据 No-Go
 1. 不得把“首次写入时 lazy-init”写成“系统已自动修复历史数据”。
 2. 不得把 read-path 未补齐的历史差评写成“已纳入全量 SLA 统计”。
 3. 不得把 `managerContactName / managerContactMobile` 为空的历史差评写成“账号路由异常”；当前真实原因可能只是门店主数据未命中。
 4. 不得把服务端状态机修复写成“booking review 已可放量”。
+5. 不得把 `history-scan` 写成“后台历史修复工具已上线”；当前只允许写成 `admin-only / scan-only / manual trigger`。
 
 ## 7. 当前开发进入条件与放量结论
 
