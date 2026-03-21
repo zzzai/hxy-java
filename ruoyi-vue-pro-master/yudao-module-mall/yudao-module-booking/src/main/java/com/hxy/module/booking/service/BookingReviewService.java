@@ -3,6 +3,8 @@ package com.hxy.module.booking.service;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewCreateReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewEligibilityRespVO;
@@ -27,6 +29,8 @@ public interface BookingReviewService {
     AppBookingReviewSummaryRespVO getSummary(Long memberId);
 
     PageResult<BookingReviewDO> getAdminReviewPage(BookingReviewPageReqVO reqVO);
+
+    BookingReviewHistoryScanRespVO scanAdminHistoryCandidates(@Valid BookingReviewHistoryScanReqVO reqVO);
 
     BookingReviewDO getAdminReview(Long reviewId);
 

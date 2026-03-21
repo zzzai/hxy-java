@@ -10,6 +10,10 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewDashboardRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewFollowUpdateReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanItemRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewHistoryScanSummaryRespVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoClaimReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoCloseReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoFirstActionReqVO;
@@ -184,6 +188,49 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertEquals(2L, result.getData().getNegativeCount());
         assertEquals(1L, result.getData().getPendingFollowCount());
         verify(bookingReviewService).getDashboardSummary();
+    }
+
+    @Test
+    void shouldGetHistoryScanSummaryAndReadableNames() {
+        BookingReviewHistoryScanReqVO reqVO = new BookingReviewHistoryScanReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+
+        BookingReviewHistoryScanItemRespVO item = new BookingReviewHistoryScanItemRespVO();
+        item.setReviewId(1101L);
+        item.setBookingOrderId(2101L);
+        item.setStoreId(3101L);
+        item.setTechnicianId(4101L);
+        item.setMemberId(5101L);
+        item.setRiskCategory("MANUAL_READY");
+        BookingReviewHistoryScanSummaryRespVO summary = new BookingReviewHistoryScanSummaryRespVO();
+        summary.setScannedCount(1L);
+        summary.setManualReadyCount(1L);
+        BookingReviewHistoryScanRespVO respVO = new BookingReviewHistoryScanRespVO();
+        respVO.setSummary(summary);
+        respVO.setList(Collections.singletonList(item));
+        respVO.setTotal(1L);
+
+        when(bookingReviewService.scanAdminHistoryCandidates(reqVO)).thenReturn(respVO);
+        when(productStoreService.getStoreMap(Collections.singleton(3101L)))
+                .thenReturn(Collections.singletonMap(3101L, ProductStoreDO.builder().id(3101L).name("国贸门店").build()));
+        when(technicianService.getTechnician(4101L)).thenReturn(TechnicianDO.builder().id(4101L).name("周技师").build());
+        MemberUserRespDTO member = new MemberUserRespDTO();
+        member.setId(5101L);
+        member.setNickname("高净值会员");
+        when(memberUserApi.getUserMap(Collections.singleton(5101L)))
+                .thenReturn(Collections.singletonMap(5101L, member));
+
+        CommonResult<BookingReviewHistoryScanRespVO> result = controller.historyScan(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(1L, result.getData().getSummary().getScannedCount());
+        assertEquals(1L, result.getData().getTotal());
+        assertEquals("国贸门店", result.getData().getList().get(0).getStoreName());
+        assertEquals("周技师", result.getData().getList().get(0).getTechnicianName());
+        assertEquals("高净值会员", result.getData().getList().get(0).getMemberNickname());
+        verify(bookingReviewService).scanAdminHistoryCandidates(reqVO);
     }
 
     @Test

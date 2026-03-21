@@ -108,8 +108,48 @@ export interface BookingReviewDashboardSummary {
   managerTodoClosedCount?: number
 }
 
+export interface BookingReviewHistoryScanReq extends PageParam {
+  storeId?: number
+  bookingOrderId?: number
+  riskCategory?: string
+  submitTime?: string[]
+}
+
+export interface BookingReviewHistoryScanSummary {
+  scannedCount?: number
+  manualReadyCount?: number
+  highRiskCount?: number
+  outOfScopeCount?: number
+}
+
+export interface BookingReviewHistoryScanItem {
+  reviewId: number
+  bookingOrderId?: number
+  storeId?: number
+  storeName?: string
+  technicianId?: number
+  technicianName?: string
+  memberId?: number
+  memberNickname?: string
+  submitTime?: string
+  managerTodoStatus?: number
+  riskCategory?: string
+  riskReasons?: string[]
+  riskSummary?: string
+}
+
+export interface BookingReviewHistoryScanResp {
+  summary?: BookingReviewHistoryScanSummary
+  list?: BookingReviewHistoryScanItem[]
+  total?: number
+}
+
 export const getReviewPage = async (params: BookingReviewPageReq) => {
   return await request.get({ url: '/booking/review/page', params })
+}
+
+export const getReviewHistoryScan = async (params: BookingReviewHistoryScanReq) => {
+  return await request.get<BookingReviewHistoryScanResp>({ url: '/booking/review/history-scan', params })
 }
 
 export const getReview = async (id: number) => {

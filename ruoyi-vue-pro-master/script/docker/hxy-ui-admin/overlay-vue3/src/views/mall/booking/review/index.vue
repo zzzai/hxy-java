@@ -125,6 +125,10 @@
           <Icon class="mr-5px" icon="ep:data-analysis" />
           看板汇总
         </el-button>
+        <el-button v-hasPermi="['booking:review:query']" plain @click="goHistoryScan">
+          <Icon class="mr-5px" icon="ep:document-search" />
+          历史治理扫描
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -266,6 +270,10 @@ const openDetail = (id: number) => {
 
 const goDashboard = () => {
   router.push('/mall/booking/review/dashboard')
+}
+
+const goHistoryScan = () => {
+  router.push('/mall/booking/review/history-scan')
 }
 
 const readableEntityText = (name?: string, id?: number) => {
