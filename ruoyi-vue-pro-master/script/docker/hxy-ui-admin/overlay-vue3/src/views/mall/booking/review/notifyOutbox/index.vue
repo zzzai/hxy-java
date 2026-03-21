@@ -98,7 +98,7 @@
       <el-table-column label="最近动作" prop="lastActionCode" width="160" />
       <el-table-column :formatter="dateFormatter" label="最近动作时间" prop="lastActionTime" width="180" />
       <el-table-column :formatter="dateFormatter" label="创建时间" prop="createTime" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="160">
+      <el-table-column align="center" fixed="right" label="操作" width="240">
         <template #default="{ row }">
           <el-button
             v-if="canRetry(row)"
@@ -110,6 +110,7 @@
           >
             重试
           </el-button>
+          <el-button v-if="row.storeId" link type="primary" @click="goManagerRouting(row)">查看店长路由</el-button>
           <el-button link type="primary" @click="goReviewDetail(row.reviewId)">查看评价</el-button>
         </template>
       </el-table-column>
@@ -200,6 +201,13 @@ const goReviewDetail = (reviewId?: number) => {
     return
   }
   router.push(`/mall/booking/review/detail?id=${reviewId}`)
+}
+
+const goManagerRouting = (row: BookingReviewApi.BookingReviewNotifyOutbox) => {
+  if (!row?.storeId) {
+    return
+  }
+  router.push(`/mall/booking/review/manager-routing?storeId=${row.storeId}&reviewId=${row.reviewId || ''}`)
 }
 
 const canRetry = (row: BookingReviewApi.BookingReviewNotifyOutbox) => row.manualRetryAllowed === true

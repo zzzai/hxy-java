@@ -135,9 +135,14 @@
             <div class="text-16px font-600">通知观测</div>
             <div class="text-12px text-[var(--el-text-color-secondary)]">只展示 notify outbox 真值，不代表门店店长账号已经收到了通知。</div>
           </div>
-          <el-button plain type="primary" @click="goNotifyOutbox">
-            查看通知台账
-          </el-button>
+          <div class="flex gap-8px">
+            <el-button plain type="warning" @click="goManagerRouting">
+              查看店长路由
+            </el-button>
+            <el-button plain type="primary" @click="goNotifyOutbox">
+              查看通知台账
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -566,6 +571,13 @@ const goNotifyOutbox = () => {
     return
   }
   router.push(`/mall/booking/review/notify-outbox?reviewId=${reviewId.value}`)
+}
+
+const goManagerRouting = () => {
+  if (!review.value.storeId) {
+    return
+  }
+  router.push(`/mall/booking/review/manager-routing?storeId=${review.value.storeId}&reviewId=${reviewId.value}`)
 }
 
 const submitReply = async () => {

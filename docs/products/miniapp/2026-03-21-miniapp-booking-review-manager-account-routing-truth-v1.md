@@ -31,6 +31,7 @@
 | 差评提交流程触发点 | `BookingReviewServiceImpl.createReview(...)` 成功写入评价记录后即可判定是否差评 | `已核实` |
 | 店长联系人快照 | 当前只核到 `ProductStoreDO.contactName / contactMobile` | `已核实` |
 | 门店 -> 店长后台账号映射 | 当前分支已新增 `booking_review_manager_account_routing`，字段包含 `storeId / managerAdminUserId / bindingStatus / effectiveTime / expireTime / source / lastVerifiedTime` | `已新增工程真值，发布未闭环` |
+| 后台只读核查入口 | 当前分支已新增 `/booking/review/manager-routing/get`、`/booking/review/manager-routing/page` 与 `/mall/booking/review/manager-routing` | `已落地（admin-only）` |
 | 后台执行动作账号 | `managerClaimedByUserId / managerLatestActionByUserId` 只表示执行认领/处理/闭环的后台操作人 | `已核实` |
 | 自动通知目标账号 | 第一版只认 `booking_review_manager_account_routing.managerAdminUserId`，无 owner 时进入 `BLOCKED_NO_OWNER` | `已新增工程口径，发布未闭环` |
 | booking review 独立 outbox | 当前分支已新增 `booking_review_notify_outbox`、admin 观测面与异步派发 job | `已核实` |
@@ -51,6 +52,8 @@
 4. `BookingReviewServiceImpl.createReview(...)` 当前是差评创建后的唯一稳定同步触发点；若以后要做“差评提交成功后立即触发通知”，只能基于这里落通知意图，不能依赖 read-path 或人工二次刷新。
 5. 当前分支已新增：
    - `BookingReviewManagerAccountRoutingDO / Mapper`
+   - `BookingReviewManagerAccountRoutingController`
+   - `BookingReviewManagerAccountRoutingQueryService`
    - `BookingReviewNotifyOutboxDO / Mapper / Service`
    - `BookingReviewNotifyOutboxController`
    - `BookingReviewNotifyDispatchJob`
@@ -58,6 +61,10 @@
    - 有有效 `managerAdminUserId` 时，差评提交后写 `PENDING` outbox
    - 无有效 owner 时，写 `BLOCKED_NO_OWNER`
    - dispatch job 只做 `IN_APP` 占位派发，不改变 `Can Develop / Cannot Release`
+7. 当前运营核查路径已固定为：
+   - 详情页/通知台账里的 `查看店长路由`
+   - 只读核查页按 `storeId / storeName / contactMobile` 查询
+   - 页面只展示联系人快照、最新路由记录和标准化修复建议，不提供在线改绑
 
 ## 5. 当前不能成立的说法
 1. “系统已经找到门店店长后台账号并自动发送差评通知。”
@@ -71,7 +78,8 @@
 2. 差评提交成功后的同步触发点已经存在，可以写“通知意图”，但不能直接诚实写成“账号已收到通知”。
 3. 当前分支已新增 `storeId -> managerAdminUserId` 的工程真值模型，但其数据覆盖、样本和发布证据仍未闭环。
 4. 当前分支已新增 booking review 专属 notify outbox、admin-only 观测页与 `IN_APP` 占位派发 job。
-5. 即使已经有 outbox 和 dispatch job，也只能写成 `Can Develop / Cannot Release`。
+5. 当前运营已经可以通过只读核查页判断某个 `BLOCKED_NO_OWNER` 到底是无路由、路由未启用、未生效还是已过期。
+6. 即使已经有 outbox、dispatch job 和路由核查页，也只能写成 `Can Develop / Cannot Release`。
 
 ## 7. 对后续设计与开发的直接约束
 

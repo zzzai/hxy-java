@@ -183,6 +183,29 @@ export interface BookingReviewNotifyOutboxRetryReq {
   reason?: string
 }
 
+export interface BookingReviewManagerAccountRouting {
+  storeId: number
+  storeName?: string
+  contactName?: string
+  contactMobile?: string
+  managerAdminUserId?: number
+  bindingStatus?: string
+  effectiveTime?: string
+  expireTime?: string
+  source?: string
+  lastVerifiedTime?: string
+  routingStatus?: string
+  routingLabel?: string
+  routingDetail?: string
+  repairHint?: string
+}
+
+export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
+  storeId?: number
+  storeName?: string
+  contactMobile?: string
+}
+
 export const getReviewPage = async (params: BookingReviewPageReq) => {
   return await request.get({ url: '/booking/review/page', params })
 }
@@ -209,6 +232,20 @@ export const getReviewNotifyOutboxPage = async (params: BookingReviewNotifyOutbo
 
 export const retryReviewNotifyOutbox = async (data: BookingReviewNotifyOutboxRetryReq) => {
   return await request.post<number>({ url: '/booking/review/notify-outbox/retry', data })
+}
+
+export async function getReviewManagerAccountRouting(storeId: number) {
+  return await request.get<BookingReviewManagerAccountRouting>({
+    url: '/booking/review/manager-routing/get',
+    params: { storeId }
+  })
+}
+
+export async function getReviewManagerAccountRoutingPage(params: BookingReviewManagerAccountRoutingPageReq) {
+  return await request.get<PageResult<BookingReviewManagerAccountRouting>>({
+    url: '/booking/review/manager-routing/page',
+    params
+  })
 }
 
 export const replyReview = async (data: BookingReviewReplyReq) => {

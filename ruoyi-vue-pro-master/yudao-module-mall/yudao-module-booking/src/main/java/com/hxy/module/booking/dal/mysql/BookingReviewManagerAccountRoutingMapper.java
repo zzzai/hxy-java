@@ -10,6 +10,14 @@ import java.time.LocalDateTime;
 @Mapper
 public interface BookingReviewManagerAccountRoutingMapper extends BaseMapperX<BookingReviewManagerAccountRoutingDO> {
 
+    default BookingReviewManagerAccountRoutingDO selectLatestByStoreId(Long storeId) {
+        return selectOne(new LambdaQueryWrapperX<BookingReviewManagerAccountRoutingDO>()
+                .eq(BookingReviewManagerAccountRoutingDO::getStoreId, storeId)
+                .orderByDesc(BookingReviewManagerAccountRoutingDO::getLastVerifiedTime,
+                        BookingReviewManagerAccountRoutingDO::getId)
+                .last("LIMIT 1"));
+    }
+
     default BookingReviewManagerAccountRoutingDO selectEffectiveByStoreId(Long storeId, String bindingStatus, LocalDateTime now) {
         return selectOne(new LambdaQueryWrapperX<BookingReviewManagerAccountRoutingDO>()
                 .eq(BookingReviewManagerAccountRoutingDO::getStoreId, storeId)
