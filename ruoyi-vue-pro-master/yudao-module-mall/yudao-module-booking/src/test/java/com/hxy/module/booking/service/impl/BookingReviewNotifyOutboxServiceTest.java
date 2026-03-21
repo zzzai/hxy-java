@@ -1,5 +1,6 @@
 package com.hxy.module.booking.service.impl;
 
+import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.test.core.ut.BaseDbUnitTest;
 import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
@@ -20,12 +21,15 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOTIFY_OUTBOX_NOT_EXISTS;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID;
 
 @Import(BookingReviewNotifyOutboxServiceImpl.class)
 class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
@@ -149,6 +153,49 @@ class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
                 .sendSingleNotifyToAdmin(eq(9007L), eq("hxy_booking_review_negative_created"), anyMap());
     }
 
+    @Test
+    void shouldRetryFailedOutboxToPending() {
+        Long outboxId = insertOutbox("FAILED", 9008L, 2, "dispatch-failed");
+
+        int count = bookingReviewNotifyOutboxService.retryNotifyOutbox(List.of(outboxId), 9901L, "ops-retry");
+
+        assertEquals(1, count);
+        BookingReviewNotifyOutboxDO actual = bookingReviewNotifyOutboxMapper.selectById(outboxId);
+        assertEquals("PENDING", actual.getStatus());
+        assertEquals(2, actual.getRetryCount());
+        assertNotNull(actual.getNextRetryTime());
+        assertNull(actual.getSentTime());
+        assertEquals("manual-retry:ops-retry", actual.getLastErrorMsg());
+        assertEquals("MANUAL_RETRY", actual.getLastActionCode());
+        assertNotNull(actual.getLastActionBizNo());
+        assertNotNull(actual.getLastActionTime());
+    }
+
+    @Test
+    void shouldThrowWhenRetryOutboxNotExists() {
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> bookingReviewNotifyOutboxService.retryNotifyOutbox(List.of(999999L), "manual-retry"));
+        assertEquals(BOOKING_REVIEW_NOTIFY_OUTBOX_NOT_EXISTS.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldThrowWhenRetrySentOutbox() {
+        Long outboxId = insertOutbox("SENT", 9009L, 1, "");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> bookingReviewNotifyOutboxService.retryNotifyOutbox(List.of(outboxId), "manual-retry"));
+        assertEquals(BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldThrowWhenRetryBlockedOutbox() {
+        Long outboxId = insertOutbox("BLOCKED_NO_OWNER", null, 0, "BLOCKED_NO_OWNER:NO_OWNER");
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> bookingReviewNotifyOutboxService.retryNotifyOutbox(List.of(outboxId), "manual-retry"));
+        assertEquals(BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID.getCode(), ex.getCode());
+    }
+
     private void insertRouting(Long storeId, Long managerAdminUserId, String bindingStatus) {
         bookingReviewManagerAccountRoutingMapper.insert(new BookingReviewManagerAccountRoutingDO()
                 .setStoreId(storeId)
@@ -158,6 +205,29 @@ class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
                 .setExpireTime(LocalDateTime.now().plusDays(1).withNano(0))
                 .setSource("MANUAL_BIND")
                 .setLastVerifiedTime(LocalDateTime.now().withNano(0)));
+    }
+
+    private Long insertOutbox(String status, Long receiverUserId, Integer retryCount, String lastErrorMsg) {
+        BookingReviewNotifyOutboxDO outbox = new BookingReviewNotifyOutboxDO()
+                .setBizType("BOOKING_REVIEW_NEGATIVE")
+                .setBizId(5000L + System.nanoTime() % 1000)
+                .setStoreId(3100L)
+                .setReceiverRole("STORE_MANAGER")
+                .setReceiverUserId(receiverUserId)
+                .setNotifyType("NEGATIVE_REVIEW_CREATED")
+                .setChannel("IN_APP")
+                .setStatus(status)
+                .setRetryCount(retryCount)
+                .setNextRetryTime(LocalDateTime.now().minusMinutes(10).withNano(0))
+                .setSentTime("SENT".equals(status) ? LocalDateTime.now().minusMinutes(1).withNano(0) : null)
+                .setLastErrorMsg(lastErrorMsg)
+                .setIdempotencyKey("retry-test:" + status + ":" + System.nanoTime())
+                .setPayloadSnapshot("{\"reviewId\":5001}")
+                .setLastActionCode("FAILED".equals(status) ? "DISPATCH_FAILED" : "CREATE_OUTBOX")
+                .setLastActionBizNo("OUTBOX-RETRY-TEST")
+                .setLastActionTime(LocalDateTime.now().minusMinutes(5).withNano(0));
+        bookingReviewNotifyOutboxMapper.insert(outbox);
+        return outbox.getId();
     }
 
     private BookingReviewDO buildReview(Long reviewId, Long storeId, Integer reviewLevel) {

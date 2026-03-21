@@ -5,6 +5,7 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRetryReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
@@ -13,7 +14,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -24,6 +27,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
+import static cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils.getLoginUserId;
 
 @Tag(name = "管理后台 - 预约服务评价通知出站")
 @RestController
@@ -57,6 +61,14 @@ public class BookingReviewNotifyOutboxController {
         result.setTotal(pageResult.getTotal());
         result.setList(toRespList(pageResult.getList()));
         return success(result);
+    }
+
+    @PostMapping("/retry")
+    @Operation(summary = "人工重试预约服务评价通知出站记录")
+    @PreAuthorize("@ss.hasPermission('booking:review:update')")
+    public CommonResult<Integer> retry(@Valid @RequestBody BookingReviewNotifyOutboxRetryReqVO reqVO) {
+        return success(bookingReviewNotifyOutboxService.retryNotifyOutbox(
+                reqVO.getIds(), getLoginUserId(), reqVO.getReason()));
     }
 
     private List<BookingReviewNotifyOutboxRespVO> toRespList(List<BookingReviewNotifyOutboxDO> list) {

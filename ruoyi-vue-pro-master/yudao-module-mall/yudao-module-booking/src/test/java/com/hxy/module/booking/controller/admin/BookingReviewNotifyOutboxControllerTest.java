@@ -4,6 +4,7 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRetryReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
@@ -67,6 +68,21 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(1, result.getData().getList().size());
         assertEquals(2002L, result.getData().getList().get(0).getReviewId());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxPage(reqVO);
+    }
+
+    @Test
+    void shouldRetryNotifyOutbox() {
+        BookingReviewNotifyOutboxRetryReqVO reqVO = new BookingReviewNotifyOutboxRetryReqVO();
+        reqVO.setIds(List.of(1001L));
+        reqVO.setReason("manual-retry");
+        when(bookingReviewNotifyOutboxService.retryNotifyOutbox(reqVO.getIds(), null, reqVO.getReason()))
+                .thenReturn(1);
+
+        CommonResult<Integer> result = controller.retry(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getData());
+        verify(bookingReviewNotifyOutboxService).retryNotifyOutbox(reqVO.getIds(), null, reqVO.getReason());
     }
 
     private BookingReviewNotifyOutboxDO buildOutbox(Long id, String status) {

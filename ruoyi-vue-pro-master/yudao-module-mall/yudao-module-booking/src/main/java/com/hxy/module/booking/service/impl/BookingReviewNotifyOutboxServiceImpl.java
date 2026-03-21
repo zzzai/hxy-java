@@ -22,10 +22,16 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOTIFY_OUTBOX_NOT_EXISTS;
+import static com.hxy.module.booking.enums.ErrorCodeConstants.BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID;
 
 @Service
 @Validated
@@ -45,6 +51,7 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
     private static final String ACTION_BLOCKED_NO_OWNER = "BLOCKED_NO_OWNER";
     private static final String ACTION_DISPATCH_SUCCESS = "DISPATCH_SUCCESS";
     private static final String ACTION_DISPATCH_FAILED = "DISPATCH_FAILED";
+    private static final String ACTION_MANUAL_RETRY = "MANUAL_RETRY";
     private static final String ID_NO_OWNER = "NO_OWNER";
     private static final String TEMPLATE_NEGATIVE_REVIEW_CREATED = "hxy_booking_review_negative_created";
     private static final int DEFAULT_DISPATCH_LIMIT = 200;
@@ -161,6 +168,42 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
         return bookingReviewNotifyOutboxMapper.selectPage(reqVO);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int retryNotifyOutbox(List<Long> ids, Long operatorId, String reason) {
+        List<Long> normalizedIds = normalizeIds(ids);
+        if (normalizedIds.isEmpty()) {
+            return 0;
+        }
+        int affected = 0;
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        String retryReason = StrUtil.maxLength(StrUtil.blankToDefault(reason, "manual-retry"), 120);
+        for (Long id : normalizedIds) {
+            BookingReviewNotifyOutboxDO outbox = bookingReviewNotifyOutboxMapper.selectById(id);
+            if (outbox == null) {
+                throw exception(BOOKING_REVIEW_NOTIFY_OUTBOX_NOT_EXISTS);
+            }
+            String currentStatus = StrUtil.blankToDefault(outbox.getStatus(), STATUS_PENDING);
+            if (!Objects.equals(currentStatus, STATUS_FAILED)) {
+                throw exception(BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID, currentStatus);
+            }
+            int updated = bookingReviewNotifyOutboxMapper.updateByIdAndStatus(id, currentStatus,
+                    new BookingReviewNotifyOutboxDO()
+                            .setStatus(STATUS_PENDING)
+                            .setNextRetryTime(now)
+                            .setSentTime(null)
+                            .setLastErrorMsg("manual-retry:" + retryReason)
+                            .setLastActionCode(ACTION_MANUAL_RETRY)
+                            .setLastActionBizNo(buildManualRetryAuditBizNo(operatorId, id))
+                            .setLastActionTime(now));
+            if (updated == 0) {
+                throw exception(BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID, currentStatus);
+            }
+            affected += updated;
+        }
+        return affected;
+    }
+
     private String buildIdempotencyKey(Long reviewId, Long receiverUserId) {
         return "booking_review:negative_created:" + reviewId + ":"
                 + (receiverUserId == null ? ID_NO_OWNER : receiverUserId);
@@ -182,6 +225,19 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
             return DEFAULT_DISPATCH_LIMIT;
         }
         return Math.min(limit, MAX_DISPATCH_LIMIT);
+    }
+
+    private List<Long> normalizeIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> normalized = new ArrayList<>();
+        for (Long id : ids) {
+            if (id != null && !normalized.contains(id)) {
+                normalized.add(id);
+            }
+        }
+        return normalized;
     }
 
     private Long dispatchInAppNotify(BookingReviewNotifyOutboxDO outbox) {
@@ -206,5 +262,10 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
 
     private String buildDispatchBizNo(Long messageId, Long outboxId) {
         return messageId == null ? "OUTBOX#" + outboxId : "MSG#" + messageId;
+    }
+
+    private String buildManualRetryAuditBizNo(Long operatorId, Long outboxId) {
+        String operator = operatorId == null ? "SYSTEM" : String.valueOf(operatorId);
+        return StrUtil.maxLength(StrUtil.format("ADMIN#{}/OUTBOX#{}", operator, outboxId), 64);
     }
 }

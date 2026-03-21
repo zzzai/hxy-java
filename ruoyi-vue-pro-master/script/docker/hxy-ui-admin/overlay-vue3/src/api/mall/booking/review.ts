@@ -173,6 +173,11 @@ export interface BookingReviewNotifyOutboxPageReq extends PageParam {
   notifyType?: string
 }
 
+export interface BookingReviewNotifyOutboxRetryReq {
+  ids: number[]
+  reason?: string
+}
+
 export const getReviewPage = async (params: BookingReviewPageReq) => {
   return await request.get({ url: '/booking/review/page', params })
 }
@@ -195,6 +200,10 @@ export const getReviewNotifyOutboxList = async (params: {
 
 export const getReviewNotifyOutboxPage = async (params: BookingReviewNotifyOutboxPageReq) => {
   return await request.get<PageResult<BookingReviewNotifyOutbox>>({ url: '/booking/review/notify-outbox/page', params })
+}
+
+export const retryReviewNotifyOutbox = async (data: BookingReviewNotifyOutboxRetryReq) => {
+  return await request.post<number>({ url: '/booking/review/notify-outbox/retry', data })
 }
 
 export const replyReview = async (data: BookingReviewReplyReq) => {

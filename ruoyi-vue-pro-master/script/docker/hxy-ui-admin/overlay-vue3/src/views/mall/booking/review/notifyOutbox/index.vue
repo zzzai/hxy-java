@@ -81,8 +81,18 @@
       <el-table-column label="最近动作" prop="lastActionCode" width="160" />
       <el-table-column :formatter="dateFormatter" label="最近动作时间" prop="lastActionTime" width="180" />
       <el-table-column :formatter="dateFormatter" label="创建时间" prop="createTime" width="180" />
-      <el-table-column align="center" fixed="right" label="操作" width="110">
+      <el-table-column align="center" fixed="right" label="操作" width="160">
         <template #default="{ row }">
+          <el-button
+            v-if="canRetry(row)"
+            v-hasPermi="['booking:review:update']"
+            :loading="retryingIds.includes(row.id)"
+            link
+            type="warning"
+            @click="handleRetry(row)"
+          >
+            重试
+          </el-button>
           <el-button link type="primary" @click="goReviewDetail(row.reviewId)">查看评价</el-button>
         </template>
       </el-table-column>
@@ -100,14 +110,17 @@
 <script lang="ts" setup>
 import { dateFormatter } from '@/utils/formatTime'
 import * as BookingReviewApi from '@/api/mall/booking/review'
+import { ElMessageBox } from 'element-plus'
 
 defineOptions({ name: 'BookingReviewNotifyOutboxIndex' })
 
+const message = useMessage()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const total = ref(0)
 const list = ref<BookingReviewApi.BookingReviewNotifyOutbox[]>([])
+const retryingIds = ref<number[]>([])
 
 const createDefaultQuery = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq => ({
   pageNo: 1,
@@ -165,6 +178,38 @@ const goReviewDetail = (reviewId?: number) => {
     return
   }
   router.push(`/mall/booking/review/detail?id=${reviewId}`)
+}
+
+const canRetry = (row: BookingReviewApi.BookingReviewNotifyOutbox) => row.status === 'FAILED'
+
+const promptRetryReason = async () => {
+  const { value } = await ElMessageBox.prompt('请输入重试原因（可选）', '通知重试', {
+    confirmButtonText: '确认重试',
+    cancelButtonText: '取消',
+    inputPlaceholder: '例如：模板已恢复，人工触发重试',
+    inputType: 'textarea',
+    inputValue: 'manual-retry'
+  })
+  return value?.trim() || 'manual-retry'
+}
+
+const handleRetry = async (row: BookingReviewApi.BookingReviewNotifyOutbox) => {
+  if (!row?.id) {
+    return
+  }
+  try {
+    const reason = await promptRetryReason()
+    retryingIds.value.push(row.id)
+    await BookingReviewApi.retryReviewNotifyOutbox({ ids: [row.id], reason })
+    message.success('已重新入队')
+    await getList()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      // 请求失败由全局错误拦截处理
+    }
+  } finally {
+    retryingIds.value = retryingIds.value.filter((id) => id !== row.id)
+  }
 }
 
 const notifyStatusText = (status?: string) => {
