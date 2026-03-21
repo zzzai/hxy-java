@@ -20,6 +20,7 @@ import com.hxy.module.booking.enums.BookingOrderStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewFollowStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
+import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import com.hxy.module.booking.service.BookingReviewService;
 import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
@@ -28,6 +29,7 @@ import cn.iocoder.yudao.module.trade.api.order.dto.TradeServiceOrderTraceRespDTO
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.ArgumentCaptor;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
@@ -45,7 +47,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @Import(BookingReviewServiceImpl.class)
@@ -65,6 +70,9 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
 
     @MockBean
     private ProductStoreService productStoreService;
+
+    @MockBean
+    private BookingReviewNotifyOutboxService bookingReviewNotifyOutboxService;
 
     @Test
     void shouldRejectCreateReviewWhenOrderNotCompleted() {
@@ -125,6 +133,11 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertNotNull(actual.getManagerClaimDeadlineAt());
         assertNotNull(actual.getManagerFirstActionDeadlineAt());
         assertNotNull(actual.getManagerCloseDeadlineAt());
+        ArgumentCaptor<BookingReviewDO> captor = ArgumentCaptor.forClass(BookingReviewDO.class);
+        verify(bookingReviewNotifyOutboxService).createNegativeReviewCreatedOutbox(captor.capture());
+        assertEquals(reviewId, captor.getValue().getId());
+        assertEquals(order.getStoreId(), captor.getValue().getStoreId());
+        assertEquals(BookingReviewLevelEnum.NEGATIVE.getLevel(), captor.getValue().getReviewLevel());
     }
 
     @Test
@@ -171,6 +184,24 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
         assertNotNull(actual);
         assertEquals(order.getId(), actual.getBookingOrderId());
         assertNull(actual.getServiceOrderId());
+        verify(bookingReviewNotifyOutboxService, never()).createNegativeReviewCreatedOutbox(any());
+    }
+
+    @Test
+    void shouldNotCreateNotifyIntentForNeutralReview() {
+        BookingOrderDO order = buildOrder(10032L, 302L, BookingOrderStatusEnum.COMPLETED.getStatus());
+        bookingOrderMapper.insert(order);
+
+        AppBookingReviewCreateReqVO reqVO = new AppBookingReviewCreateReqVO();
+        reqVO.setBookingOrderId(order.getId());
+        reqVO.setOverallScore(3);
+
+        Long reviewId = bookingReviewService.createReview(302L, reqVO);
+
+        BookingReviewDO actual = bookingReviewMapper.selectById(reviewId);
+        assertNotNull(actual);
+        assertEquals(BookingReviewLevelEnum.NEUTRAL.getLevel(), actual.getReviewLevel());
+        verify(bookingReviewNotifyOutboxService, never()).createNegativeReviewCreatedOutbox(any());
     }
 
     @Test
