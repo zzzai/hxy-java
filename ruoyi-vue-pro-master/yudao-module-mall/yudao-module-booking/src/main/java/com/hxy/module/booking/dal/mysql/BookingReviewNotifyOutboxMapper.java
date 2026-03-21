@@ -24,6 +24,15 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
                 .orderByAsc(BookingReviewNotifyOutboxDO::getId));
     }
 
+    default List<BookingReviewNotifyOutboxDO> selectListByBizIds(List<Long> bizIds) {
+        if (bizIds == null || bizIds.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        return selectList(new LambdaQueryWrapperX<BookingReviewNotifyOutboxDO>()
+                .in(BookingReviewNotifyOutboxDO::getBizId, bizIds)
+                .orderByDesc(BookingReviewNotifyOutboxDO::getBizId, BookingReviewNotifyOutboxDO::getId));
+    }
+
     default List<BookingReviewNotifyOutboxDO> selectListByReviewAndStatus(Long reviewId, String status, Integer limit) {
         int safeLimit = Math.max(1, Math.min(ObjectUtil.defaultIfNull(limit, 10), 100));
         return selectList(new LambdaQueryWrapperX<BookingReviewNotifyOutboxDO>()

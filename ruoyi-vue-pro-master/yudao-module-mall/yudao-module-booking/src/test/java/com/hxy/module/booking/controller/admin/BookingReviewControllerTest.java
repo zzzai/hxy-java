@@ -20,6 +20,8 @@ import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerTodoFirstA
 import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewReplyReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewRespVO;
+import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
+import com.hxy.module.booking.dal.mysql.BookingReviewNotifyOutboxMapper;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.TechnicianDO;
 import com.hxy.module.booking.service.BookingReviewService;
@@ -58,6 +60,9 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
     @Mock
     private MemberUserApi memberUserApi;
 
+    @Mock
+    private BookingReviewNotifyOutboxMapper bookingReviewNotifyOutboxMapper;
+
     @Test
     void shouldGetReviewPageForLowScoreQueue() {
         BookingReviewPageReqVO reqVO = new BookingReviewPageReqVO();
@@ -72,7 +77,10 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
                 .memberId(5001L)
                 .riskLevel(2)
                 .followStatus(1)
+                .reviewLevel(3)
                 .overallScore(2)
+                .managerTodoStatus(1)
+                .managerClaimDeadlineAt(LocalDateTime.now().plusMinutes(4).withNano(0))
                 .submitTime(LocalDateTime.now().withNano(0))
                 .build();
         when(bookingReviewService.getAdminReviewPage(reqVO))
@@ -87,6 +95,12 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         member.setNickname("安心会员");
         userMap.put(5001L, member);
         when(memberUserApi.getUserMap(Collections.singleton(5001L))).thenReturn(userMap);
+        when(bookingReviewNotifyOutboxMapper.selectListByBizIds(Collections.singletonList(1001L)))
+                .thenReturn(java.util.Arrays.asList(
+                        new BookingReviewNotifyOutboxDO().setBizId(1001L).setChannel("IN_APP")
+                                .setStatus("BLOCKED_NO_OWNER").setLastErrorMsg("BLOCKED_NO_OWNER:NO_OWNER"),
+                        new BookingReviewNotifyOutboxDO().setBizId(1001L).setChannel("WECOM")
+                                .setStatus("BLOCKED_NO_OWNER").setLastErrorMsg("BLOCKED_NO_OWNER:NO_WECOM_ACCOUNT")));
 
         CommonResult<PageResult<BookingReviewRespVO>> result = controller.page(reqVO);
 
@@ -98,6 +112,10 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertEquals("朝阳门店", result.getData().getList().get(0).getStoreName());
         assertEquals("李技师", result.getData().getList().get(0).getTechnicianName());
         assertEquals("安心会员", result.getData().getList().get(0).getMemberNickname());
+        assertEquals("CLAIM_DUE_SOON", result.getData().getList().get(0).getManagerSlaStage());
+        assertEquals("P0", result.getData().getList().get(0).getPriorityLevel());
+        assertEquals("存在店长路由阻断", result.getData().getList().get(0).getPriorityReason());
+        assertEquals("双通道阻断", result.getData().getList().get(0).getNotifyRiskSummary());
         verify(bookingReviewService).getAdminReviewPage(reqVO);
     }
 
@@ -109,8 +127,13 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
                 .storeId(3002L)
                 .technicianId(4002L)
                 .memberId(5002L)
+                .reviewLevel(3)
                 .replyContent("已联系用户")
                 .followStatus(2)
+                .managerTodoStatus(3)
+                .managerClaimedAt(LocalDateTime.now().minusHours(2).withNano(0))
+                .managerFirstActionAt(LocalDateTime.now().minusHours(1).withNano(0))
+                .managerCloseDeadlineAt(LocalDateTime.now().plusMinutes(30).withNano(0))
                 .build();
         when(bookingReviewService.getAdminReview(1002L)).thenReturn(review);
         when(productStoreService.getStoreMap(Collections.singleton(3002L)))
@@ -121,6 +144,11 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         member.setNickname("高频会员");
         when(memberUserApi.getUserMap(Collections.singleton(5002L)))
                 .thenReturn(Collections.singletonMap(5002L, member));
+        when(bookingReviewNotifyOutboxMapper.selectListByBizIds(Collections.singletonList(1002L)))
+                .thenReturn(java.util.Arrays.asList(
+                        new BookingReviewNotifyOutboxDO().setBizId(1002L).setChannel("IN_APP").setStatus("SENT"),
+                        new BookingReviewNotifyOutboxDO().setBizId(1002L).setChannel("WECOM")
+                                .setStatus("FAILED").setLastErrorMsg("dispatch wecom failed")));
 
         CommonResult<BookingReviewRespVO> result = controller.get(1002L);
 
@@ -131,6 +159,10 @@ class BookingReviewControllerTest extends BaseMockitoUnitTest {
         assertEquals("望京门店", result.getData().getStoreName());
         assertEquals("张技师", result.getData().getTechnicianName());
         assertEquals("高频会员", result.getData().getMemberNickname());
+        assertEquals("CLOSE_DUE_SOON", result.getData().getManagerSlaStage());
+        assertEquals("P1", result.getData().getPriorityLevel());
+        assertEquals("闭环即将超时", result.getData().getPriorityReason());
+        assertEquals("企微发送失败", result.getData().getNotifyRiskSummary());
         verify(bookingReviewService).getAdminReview(1002L);
     }
 

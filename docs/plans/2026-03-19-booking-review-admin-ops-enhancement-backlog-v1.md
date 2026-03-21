@@ -29,6 +29,7 @@
 | A8 | 通知链路审计增强 | 当前 notify outbox 台账已支持按 `lastActionCode` 过滤，并展示“最近动作说明 / 最近动作人 / 动作原因” | 回答“谁重试的、什么时候重试的、为什么失败” | 已落地（admin-only, audit-only） |
 | A9 | 台账页 SLA 快捷筛选 | 当前台账页已补“待认领优先 / 认领超时 / 首次处理超时 / 闭环超时 / 历史待初始化”快捷入口 | 减少值班筛选点击成本 | 已落地（admin-only, ops-efficiency） |
 | A10 | 台账页店长待办快捷动作 | 当前台账页已支持直接“快速认领 / 记录首次处理 / 标记闭环”，无需先进入详情页 | 缩短常见处理路径 | 已落地（admin-only, ops-efficiency） |
+| A11 | SLA 优先级视图与即将超时入口 | 当前后端已统一派生 `managerSlaStage / priorityLevel / priorityReason / notifyRiskSummary`，看板新增“即将认领超时 / 即将首次处理超时 / 即将闭环超时”卡片，台账补优先级 / 通知风险列 | 让值班人员先看最该处理的事项，而不是只看已超时结果 | 已落地（admin-only, ops-priority） |
 
 ## 5. Not Now（当前不得排进本批开发）
 

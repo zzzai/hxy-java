@@ -34,6 +34,14 @@ test('dashboard manager todo timeout card maps to manager todo ledger filter', a
   });
 });
 
+test('dashboard manager todo due soon card maps to manager todo ledger filter', async () => {
+  const { buildLedgerQueryFromDashboardCardKey } = await loadHelpers();
+  assert.deepEqual(buildLedgerQueryFromDashboardCardKey('managerTodoCloseDueSoon'), {
+    onlyManagerTodo: 'true',
+    managerSlaStatus: 'CLOSE_DUE_SOON',
+  });
+});
+
 test('ledger route query is parsed into typed filter state', async () => {
   const { parseLedgerQuery } = await loadHelpers();
   assert.deepEqual(
@@ -64,6 +72,16 @@ test('ledger route query is parsed into typed filter state', async () => {
       replyStatus: false,
       submitTime: undefined,
     },
+  );
+});
+
+test('ledger route query keeps due soon sla stage as string filter', async () => {
+  const { parseLedgerQuery } = await loadHelpers();
+  assert.equal(
+    parseLedgerQuery({
+      managerSlaStatus: 'CLAIM_DUE_SOON',
+    }).managerSlaStatus,
+    'CLAIM_DUE_SOON',
   );
 });
 

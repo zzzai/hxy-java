@@ -29,6 +29,7 @@ import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
 import com.hxy.module.booking.enums.BookingReviewNegativeTriggerTypeEnum;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import com.hxy.module.booking.service.BookingReviewService;
+import com.hxy.module.booking.service.support.BookingReviewAdminPrioritySupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -60,10 +61,6 @@ public class BookingReviewServiceImpl implements BookingReviewService {
     private static final int AUDIT_STATUS_PASS = 0;
     private static final int AUDIT_STATUS_MANUAL_REVIEW = 2;
     private static final String DEFAULT_SOURCE = "order_detail";
-    private static final String MANAGER_SLA_NORMAL = "NORMAL";
-    private static final String MANAGER_SLA_CLAIM_TIMEOUT = "CLAIM_TIMEOUT";
-    private static final String MANAGER_SLA_FIRST_ACTION_TIMEOUT = "FIRST_ACTION_TIMEOUT";
-    private static final String MANAGER_SLA_CLOSE_TIMEOUT = "CLOSE_TIMEOUT";
     private static final String HISTORY_SCAN_MANUAL_READY = "MANUAL_READY";
     private static final String HISTORY_SCAN_HIGH_RISK = "HIGH_RISK";
     private static final String HISTORY_SCAN_OUT_OF_SCOPE = "OUT_OF_SCOPE";
@@ -208,7 +205,8 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         }
         List<BookingReviewDO> filtered = bookingReviewMapper.selectAdminList(reqVO);
         LocalDateTime now = LocalDateTime.now().withNano(0);
-        filtered.removeIf(review -> !StrUtil.equals(reqVO.getManagerSlaStatus(), resolveManagerSlaStatus(review, now)));
+        filtered.removeIf(review -> !StrUtil.equals(reqVO.getManagerSlaStatus(),
+                BookingReviewAdminPrioritySupport.resolveManagerSlaStage(review, now)));
         return buildPageResult(filtered, reqVO);
     }
 
@@ -334,8 +332,11 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         respVO.setRepliedCount(counter.repliedCount);
         respVO.setManagerTodoPendingCount(counter.managerTodoPendingCount);
         respVO.setManagerTodoClaimTimeoutCount(counter.managerTodoClaimTimeoutCount);
+        respVO.setManagerTodoClaimDueSoonCount(counter.managerTodoClaimDueSoonCount);
         respVO.setManagerTodoFirstActionTimeoutCount(counter.managerTodoFirstActionTimeoutCount);
+        respVO.setManagerTodoFirstActionDueSoonCount(counter.managerTodoFirstActionDueSoonCount);
         respVO.setManagerTodoCloseTimeoutCount(counter.managerTodoCloseTimeoutCount);
+        respVO.setManagerTodoCloseDueSoonCount(counter.managerTodoCloseDueSoonCount);
         respVO.setManagerTodoClosedCount(counter.managerTodoClosedCount);
         return respVO;
     }
@@ -624,29 +625,6 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         return "不在本轮范围";
     }
 
-    private static String resolveManagerSlaStatus(BookingReviewDO review, LocalDateTime now) {
-        if (review == null || review.getManagerTodoStatus() == null) {
-            return null;
-        }
-        if (BookingReviewManagerTodoStatusEnum.CLOSED.getStatus().equals(review.getManagerTodoStatus())) {
-            return MANAGER_SLA_NORMAL;
-        }
-        if (review.getManagerCloseDeadlineAt() != null && now.isAfter(review.getManagerCloseDeadlineAt())) {
-            return MANAGER_SLA_CLOSE_TIMEOUT;
-        }
-        if (review.getManagerFirstActionAt() == null
-                && review.getManagerFirstActionDeadlineAt() != null
-                && now.isAfter(review.getManagerFirstActionDeadlineAt())) {
-            return MANAGER_SLA_FIRST_ACTION_TIMEOUT;
-        }
-        if (review.getManagerClaimedAt() == null
-                && review.getManagerClaimDeadlineAt() != null
-                && now.isAfter(review.getManagerClaimDeadlineAt())) {
-            return MANAGER_SLA_CLAIM_TIMEOUT;
-        }
-        return MANAGER_SLA_NORMAL;
-    }
-
     private static class BookingReviewCounter {
 
         private long positiveCount;
@@ -657,8 +635,11 @@ public class BookingReviewServiceImpl implements BookingReviewService {
         private long repliedCount;
         private long managerTodoPendingCount;
         private long managerTodoClaimTimeoutCount;
+        private long managerTodoClaimDueSoonCount;
         private long managerTodoFirstActionTimeoutCount;
+        private long managerTodoFirstActionDueSoonCount;
         private long managerTodoCloseTimeoutCount;
+        private long managerTodoCloseDueSoonCount;
         private long managerTodoClosedCount;
 
         private void acceptReviewSummary(BookingReviewDO review) {
@@ -691,13 +672,19 @@ public class BookingReviewServiceImpl implements BookingReviewService {
             if (BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus().equals(review.getManagerTodoStatus())) {
                 managerTodoPendingCount++;
             }
-            String managerSlaStatus = resolveManagerSlaStatus(review, now);
-            if (MANAGER_SLA_CLAIM_TIMEOUT.equals(managerSlaStatus)) {
+            String managerSlaStatus = BookingReviewAdminPrioritySupport.resolveManagerSlaStage(review, now);
+            if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_CLAIM_TIMEOUT.equals(managerSlaStatus)) {
                 managerTodoClaimTimeoutCount++;
-            } else if (MANAGER_SLA_FIRST_ACTION_TIMEOUT.equals(managerSlaStatus)) {
+            } else if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_CLAIM_DUE_SOON.equals(managerSlaStatus)) {
+                managerTodoClaimDueSoonCount++;
+            } else if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_FIRST_ACTION_TIMEOUT.equals(managerSlaStatus)) {
                 managerTodoFirstActionTimeoutCount++;
-            } else if (MANAGER_SLA_CLOSE_TIMEOUT.equals(managerSlaStatus)) {
+            } else if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_FIRST_ACTION_DUE_SOON.equals(managerSlaStatus)) {
+                managerTodoFirstActionDueSoonCount++;
+            } else if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_CLOSE_TIMEOUT.equals(managerSlaStatus)) {
                 managerTodoCloseTimeoutCount++;
+            } else if (BookingReviewAdminPrioritySupport.MANAGER_SLA_STAGE_CLOSE_DUE_SOON.equals(managerSlaStatus)) {
+                managerTodoCloseDueSoonCount++;
             }
             if (BookingReviewManagerTodoStatusEnum.CLOSED.getStatus().equals(review.getManagerTodoStatus())) {
                 managerTodoClosedCount++;

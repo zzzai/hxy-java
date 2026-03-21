@@ -25,8 +25,11 @@ const DASHBOARD_CARD_QUERY_MAP = Object.freeze({
   urgent: { riskLevel: '2' },
   replied: { replyStatus: 'true' },
   managerTodoPending: { onlyManagerTodo: 'true', managerTodoStatus: '1' },
+  managerTodoClaimDueSoon: { onlyManagerTodo: 'true', managerSlaStatus: 'CLAIM_DUE_SOON' },
   managerTodoClaimTimeout: { onlyManagerTodo: 'true', managerSlaStatus: 'CLAIM_TIMEOUT' },
+  managerTodoFirstActionDueSoon: { onlyManagerTodo: 'true', managerSlaStatus: 'FIRST_ACTION_DUE_SOON' },
   managerTodoFirstActionTimeout: { onlyManagerTodo: 'true', managerSlaStatus: 'FIRST_ACTION_TIMEOUT' },
+  managerTodoCloseDueSoon: { onlyManagerTodo: 'true', managerSlaStatus: 'CLOSE_DUE_SOON' },
   managerTodoCloseTimeout: { onlyManagerTodo: 'true', managerSlaStatus: 'CLOSE_TIMEOUT' },
   managerTodoClosed: { onlyManagerTodo: 'true', managerTodoStatus: '4' },
 });

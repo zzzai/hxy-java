@@ -53,7 +53,7 @@
           </template>
           <ul class="dashboard-list">
             <li>差评和紧急数用于首屏判断是否需要服务恢复 owner 立即介入。</li>
-            <li>待认领、认领超时、首次处理超时、闭环超时共同描述店长待办的执行质量。</li>
+            <li>待认领、即将超时、已超时共同描述店长待办的执行质量。</li>
             <li>已回复数用于观察门店响应率，不等价于问题已解决或已闭环。</li>
           </ul>
         </el-card>
@@ -65,6 +65,7 @@
           </template>
           <ul class="dashboard-list">
             <li>待认领高企时，先排查值班 owner 是否及时领取差评待办。</li>
+            <li>即将认领超时、即将首次处理超时、即将闭环超时属于预警池，适合提前介入。</li>
             <li>首次处理超时说明联系人虽已锁定，但实际回访动作没有及时落账。</li>
             <li>闭环超时优先复核门店联系人真值与恢复链路，不要把后台待办误判成外部通知已完成。</li>
           </ul>
@@ -141,6 +142,13 @@ const cards = computed(() => [
     hintClass: 'text-[var(--el-color-warning)]'
   },
   {
+    key: 'managerTodoClaimDueSoon',
+    label: '即将认领超时',
+    value: displayCount(summary.value.managerTodoClaimDueSoonCount),
+    hint: '距离认领超时不足 5 分钟',
+    hintClass: 'text-[var(--el-color-warning)]'
+  },
+  {
     key: 'managerTodoFirstActionTimeout',
     label: '首次处理超时',
     value: displayCount(summary.value.managerTodoFirstActionTimeoutCount),
@@ -148,10 +156,24 @@ const cards = computed(() => [
     hintClass: 'text-[var(--el-color-danger)]'
   },
   {
+    key: 'managerTodoFirstActionDueSoon',
+    label: '即将首次处理超时',
+    value: displayCount(summary.value.managerTodoFirstActionDueSoonCount),
+    hint: '距离首次处理超时不足 10 分钟',
+    hintClass: 'text-[var(--el-color-warning)]'
+  },
+  {
     key: 'managerTodoCloseTimeout',
     label: '闭环超时',
     value: displayCount(summary.value.managerTodoCloseTimeoutCount),
     hint: '超过 24 小时仍未闭环',
+    hintClass: 'text-[var(--el-color-danger)]'
+  },
+  {
+    key: 'managerTodoCloseDueSoon',
+    label: '即将闭环超时',
+    value: displayCount(summary.value.managerTodoCloseDueSoonCount),
+    hint: '距离闭环超时不足 120 分钟',
     hintClass: 'text-[var(--el-color-danger)]'
   },
   {

@@ -20,9 +20,12 @@ import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewReplyReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
+import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
+import com.hxy.module.booking.dal.mysql.BookingReviewNotifyOutboxMapper;
 import com.hxy.module.booking.dal.dataobject.TechnicianDO;
 import com.hxy.module.booking.service.BookingReviewService;
 import com.hxy.module.booking.service.TechnicianService;
+import com.hxy.module.booking.service.support.BookingReviewAdminPrioritySupport;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,10 +40,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.convertSet;
@@ -60,6 +67,8 @@ public class BookingReviewController {
     private TechnicianService technicianService;
     @Resource
     private MemberUserApi memberUserApi;
+    @Resource
+    private BookingReviewNotifyOutboxMapper bookingReviewNotifyOutboxMapper;
 
     @GetMapping("/page")
     @Operation(summary = "分页获得预约服务评价")
@@ -147,7 +156,8 @@ public class BookingReviewController {
         Map<Long, ProductStoreDO> storeMap = productStoreService.getStoreMap(convertSet(reviews, BookingReviewRespVO::getStoreId));
         Map<Long, MemberUserRespDTO> memberMap = memberUserApi.getUserMap(convertSet(reviews, BookingReviewRespVO::getMemberId));
         Map<Long, TechnicianDO> technicianMap = buildTechnicianMap(convertSet(reviews, BookingReviewRespVO::getTechnicianId));
-        reviews.forEach(review -> enrichReadableField(review, storeMap, memberMap, technicianMap));
+        Map<Long, List<BookingReviewNotifyOutboxDO>> notifyOutboxMap = buildNotifyOutboxMap(convertSet(reviews, BookingReviewRespVO::getId));
+        reviews.forEach(review -> enrichReadableField(review, storeMap, memberMap, technicianMap, notifyOutboxMap));
     }
 
     private void enrichHistoryScanFields(List<BookingReviewHistoryScanItemRespVO> items) {
@@ -167,11 +177,13 @@ public class BookingReviewController {
         Map<Long, ProductStoreDO> storeMap = productStoreService.getStoreMap(CollUtil.newHashSet(review.getStoreId()));
         Map<Long, MemberUserRespDTO> memberMap = memberUserApi.getUserMap(CollUtil.newHashSet(review.getMemberId()));
         Map<Long, TechnicianDO> technicianMap = buildTechnicianMap(CollUtil.newHashSet(review.getTechnicianId()));
-        enrichReadableField(review, storeMap, memberMap, technicianMap);
+        Map<Long, List<BookingReviewNotifyOutboxDO>> notifyOutboxMap = buildNotifyOutboxMap(CollUtil.newHashSet(review.getId()));
+        enrichReadableField(review, storeMap, memberMap, technicianMap, notifyOutboxMap);
     }
 
     private void enrichReadableField(BookingReviewRespVO review, Map<Long, ProductStoreDO> storeMap,
-                                     Map<Long, MemberUserRespDTO> memberMap, Map<Long, TechnicianDO> technicianMap) {
+                                     Map<Long, MemberUserRespDTO> memberMap, Map<Long, TechnicianDO> technicianMap,
+                                     Map<Long, List<BookingReviewNotifyOutboxDO>> notifyOutboxMap) {
         if (review == null) {
             return;
         }
@@ -187,6 +199,19 @@ public class BookingReviewController {
         if (member != null) {
             review.setMemberNickname(member.getNickname());
         }
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        BookingReviewDO reviewDO = BeanUtils.toBean(review, BookingReviewDO.class);
+        String managerSlaStage = BookingReviewAdminPrioritySupport.resolveManagerSlaStage(reviewDO, now);
+        BookingReviewAdminPrioritySupport.NotifyRiskSnapshot notifyRiskSnapshot =
+                BookingReviewAdminPrioritySupport.resolveNotifyRisk(review.getId() == null
+                        ? Collections.emptyList()
+                        : notifyOutboxMap.getOrDefault(review.getId(), Collections.emptyList()));
+        BookingReviewAdminPrioritySupport.PrioritySnapshot prioritySnapshot =
+                BookingReviewAdminPrioritySupport.resolvePriority(managerSlaStage, notifyRiskSnapshot);
+        review.setManagerSlaStage(managerSlaStage);
+        review.setPriorityLevel(prioritySnapshot.getLevel());
+        review.setPriorityReason(prioritySnapshot.getReason());
+        review.setNotifyRiskSummary(notifyRiskSnapshot.getSummary());
     }
 
     private void enrichHistoryScanField(BookingReviewHistoryScanItemRespVO item, Map<Long, ProductStoreDO> storeMap,
@@ -220,5 +245,18 @@ public class BookingReviewController {
             }
         });
         return technicianMap;
+    }
+
+    private Map<Long, List<BookingReviewNotifyOutboxDO>> buildNotifyOutboxMap(Set<Long> reviewIds) {
+        if (CollUtil.isEmpty(reviewIds)) {
+            return Collections.emptyMap();
+        }
+        List<BookingReviewNotifyOutboxDO> outboxes = bookingReviewNotifyOutboxMapper.selectListByBizIds(new ArrayList<>(reviewIds));
+        if (CollUtil.isEmpty(outboxes)) {
+            return Collections.emptyMap();
+        }
+        return outboxes.stream()
+                .filter(outbox -> outbox.getBizId() != null)
+                .collect(Collectors.groupingBy(BookingReviewNotifyOutboxDO::getBizId));
     }
 }

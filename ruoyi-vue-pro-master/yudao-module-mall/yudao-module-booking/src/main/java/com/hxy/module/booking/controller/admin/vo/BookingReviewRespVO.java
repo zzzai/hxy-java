@@ -127,6 +127,18 @@ public class BookingReviewRespVO {
     @Schema(description = "店长待办闭环时间")
     private LocalDateTime managerClosedAt;
 
+    @Schema(description = "店长待办 SLA 阶段")
+    private String managerSlaStage;
+
+    @Schema(description = "值班优先级")
+    private String priorityLevel;
+
+    @Schema(description = "值班优先级原因")
+    private String priorityReason;
+
+    @Schema(description = "通知风险摘要")
+    private String notifyRiskSummary;
+
     @Schema(description = "店长待办最近处理备注")
     private String managerLatestActionRemark;
 

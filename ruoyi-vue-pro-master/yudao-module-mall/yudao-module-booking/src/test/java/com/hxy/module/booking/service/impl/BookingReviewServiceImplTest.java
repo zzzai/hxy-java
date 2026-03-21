@@ -424,6 +424,126 @@ class BookingReviewServiceImplTest extends BaseDbUnitTest {
     }
 
     @Test
+    void shouldFilterAdminPageByManagerSlaDueSoonStage() {
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        BookingReviewDO claimDueSoon = BookingReviewDO.builder()
+                .bookingOrderId(3201L)
+                .storeId(4201L)
+                .technicianId(5201L)
+                .memberId(6201L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus())
+                .submitTime(now.minusMinutes(6))
+                .managerClaimDeadlineAt(now.plusMinutes(4))
+                .managerFirstActionDeadlineAt(now.plusMinutes(24))
+                .managerCloseDeadlineAt(now.plusHours(12))
+                .build();
+        bookingReviewMapper.insert(claimDueSoon);
+        BookingReviewDO firstActionDueSoon = BookingReviewDO.builder()
+                .bookingOrderId(3202L)
+                .storeId(4202L)
+                .technicianId(5202L)
+                .memberId(6202L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus())
+                .submitTime(now.minusMinutes(20))
+                .managerClaimedAt(now.minusMinutes(8))
+                .managerClaimDeadlineAt(now.minusMinutes(10))
+                .managerFirstActionDeadlineAt(now.plusMinutes(8))
+                .managerCloseDeadlineAt(now.plusHours(10))
+                .build();
+        bookingReviewMapper.insert(firstActionDueSoon);
+        BookingReviewDO closeDueSoon = BookingReviewDO.builder()
+                .bookingOrderId(3203L)
+                .storeId(4203L)
+                .technicianId(5203L)
+                .memberId(6203L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus())
+                .submitTime(now.minusHours(5))
+                .managerClaimedAt(now.minusHours(4))
+                .managerFirstActionAt(now.minusHours(3))
+                .managerClaimDeadlineAt(now.minusHours(4).plusMinutes(10))
+                .managerFirstActionDeadlineAt(now.minusHours(3).plusMinutes(20))
+                .managerCloseDeadlineAt(now.plusMinutes(90))
+                .build();
+        bookingReviewMapper.insert(closeDueSoon);
+
+        BookingReviewPageReqVO reqVO = new BookingReviewPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        reqVO.setManagerSlaStatus("CLAIM_DUE_SOON");
+        PageResult<BookingReviewDO> claimPage = bookingReviewService.getAdminReviewPage(reqVO);
+        reqVO.setManagerSlaStatus("FIRST_ACTION_DUE_SOON");
+        PageResult<BookingReviewDO> firstActionPage = bookingReviewService.getAdminReviewPage(reqVO);
+        reqVO.setManagerSlaStatus("CLOSE_DUE_SOON");
+        PageResult<BookingReviewDO> closePage = bookingReviewService.getAdminReviewPage(reqVO);
+
+        assertEquals(1L, claimPage.getTotal());
+        assertEquals(claimDueSoon.getId(), claimPage.getList().get(0).getId());
+        assertEquals(1L, firstActionPage.getTotal());
+        assertEquals(firstActionDueSoon.getId(), firstActionPage.getList().get(0).getId());
+        assertEquals(1L, closePage.getTotal());
+        assertEquals(closeDueSoon.getId(), closePage.getList().get(0).getId());
+    }
+
+    @Test
+    void shouldCountManagerTodoDueSoonInDashboardSummary() {
+        LocalDateTime now = LocalDateTime.now().withNano(0);
+        bookingReviewMapper.insert(BookingReviewDO.builder()
+                .bookingOrderId(3301L)
+                .storeId(4301L)
+                .technicianId(5301L)
+                .memberId(6301L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PENDING_CLAIM.getStatus())
+                .submitTime(now.minusMinutes(6))
+                .managerClaimDeadlineAt(now.plusMinutes(3))
+                .managerFirstActionDeadlineAt(now.plusMinutes(25))
+                .managerCloseDeadlineAt(now.plusHours(11))
+                .build());
+        bookingReviewMapper.insert(BookingReviewDO.builder()
+                .bookingOrderId(3302L)
+                .storeId(4302L)
+                .technicianId(5302L)
+                .memberId(6302L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.CLAIMED.getStatus())
+                .submitTime(now.minusMinutes(20))
+                .managerClaimedAt(now.minusMinutes(7))
+                .managerClaimDeadlineAt(now.minusMinutes(10))
+                .managerFirstActionDeadlineAt(now.plusMinutes(6))
+                .managerCloseDeadlineAt(now.plusHours(8))
+                .build());
+        bookingReviewMapper.insert(BookingReviewDO.builder()
+                .bookingOrderId(3303L)
+                .storeId(4303L)
+                .technicianId(5303L)
+                .memberId(6303L)
+                .overallScore(1)
+                .reviewLevel(BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .managerTodoStatus(BookingReviewManagerTodoStatusEnum.PROCESSING.getStatus())
+                .submitTime(now.minusHours(5))
+                .managerClaimedAt(now.minusHours(4))
+                .managerFirstActionAt(now.minusHours(3))
+                .managerClaimDeadlineAt(now.minusHours(4).plusMinutes(10))
+                .managerFirstActionDeadlineAt(now.minusHours(3).plusMinutes(20))
+                .managerCloseDeadlineAt(now.plusMinutes(60))
+                .build());
+
+        BookingReviewDashboardRespVO summary = bookingReviewService.getDashboardSummary();
+
+        assertEquals(1L, summary.getManagerTodoClaimDueSoonCount());
+        assertEquals(1L, summary.getManagerTodoFirstActionDueSoonCount());
+        assertEquals(1L, summary.getManagerTodoCloseDueSoonCount());
+    }
+
+    @Test
     void shouldReturnAdminPageAndDashboardSummary() {
         bookingReviewMapper.insert(BookingReviewDO.builder()
                 .bookingOrderId(3003L)

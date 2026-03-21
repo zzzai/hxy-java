@@ -89,9 +89,13 @@
       <el-form-item label="SLA状态" prop="managerSlaStatus">
         <el-select v-model="queryParams.managerSlaStatus" class="!w-180px" clearable placeholder="全部">
           <el-option label="正常" value="NORMAL" />
+          <el-option label="即将认领超时" value="CLAIM_DUE_SOON" />
           <el-option label="认领超时" value="CLAIM_TIMEOUT" />
+          <el-option label="即将首次处理超时" value="FIRST_ACTION_DUE_SOON" />
           <el-option label="首次处理超时" value="FIRST_ACTION_TIMEOUT" />
+          <el-option label="即将闭环超时" value="CLOSE_DUE_SOON" />
           <el-option label="闭环超时" value="CLOSE_TIMEOUT" />
+          <el-option label="已闭环" value="CLOSED" />
         </el-select>
       </el-form-item>
       <el-form-item label="回复状态" prop="replyStatus">
@@ -146,9 +150,12 @@
     <div class="mb-12px text-13px text-[var(--el-text-color-secondary)]">SLA 提醒：认领超时提醒、首次处理超时提醒、闭环超时提醒会继续走 App / 企微双通道，但当前仍是 admin-only 治理视角。</div>
     <div class="mb-16px flex flex-wrap gap-8px">
       <el-button plain type="danger" @click="applyQuickFilter('todoPending')">待认领优先</el-button>
-      <el-button plain type="warning" @click="applyQuickFilter('claimTimeout')">认领超时提醒</el-button>
-      <el-button plain type="warning" @click="applyQuickFilter('firstActionTimeout')">首次处理超时提醒</el-button>
-      <el-button plain type="danger" @click="applyQuickFilter('closeTimeout')">闭环超时提醒</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('claimDueSoon')">即将认领超时</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('claimTimeout')">认领超时</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('firstActionDueSoon')">即将首次处理超时</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('firstActionTimeout')">首次处理超时</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('closeDueSoon')">即将闭环超时</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('closeTimeout')">闭环超时</el-button>
       <el-button plain @click="applyQuickFilter('pendingInit')">历史待初始化</el-button>
       <el-button plain @click="applyQuickFilter()">查看全部</el-button>
     </div>
@@ -195,6 +202,21 @@
       <el-table-column label="SLA状态" width="130">
         <template #default="{ row }">
           <el-tag :type="managerSlaStatusTagType(row)">{{ managerSlaStatusText(row) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="优先级" width="100">
+        <template #default="{ row }">
+          <el-tag :type="priorityLevelTagType(row.priorityLevel)">{{ row.priorityLevel || '-' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="优先级原因" min-width="180" prop="priorityReason" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.priorityReason || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="通知风险" min-width="160" prop="notifyRiskSummary" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.notifyRiskSummary || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="店长联系人" min-width="170">
@@ -284,8 +306,11 @@ const actingIds = ref<number[]>([])
 
 const QUICK_FILTER_MAP = {
   todoPending: { onlyManagerTodo: true, managerTodoStatus: 1 },
+  claimDueSoon: { onlyManagerTodo: true, managerSlaStatus: 'CLAIM_DUE_SOON' },
   claimTimeout: { onlyManagerTodo: true, managerSlaStatus: 'CLAIM_TIMEOUT' },
+  firstActionDueSoon: { onlyManagerTodo: true, managerSlaStatus: 'FIRST_ACTION_DUE_SOON' },
   firstActionTimeout: { onlyManagerTodo: true, managerSlaStatus: 'FIRST_ACTION_TIMEOUT' },
+  closeDueSoon: { onlyManagerTodo: true, managerSlaStatus: 'CLOSE_DUE_SOON' },
   closeTimeout: { onlyManagerTodo: true, managerSlaStatus: 'CLOSE_TIMEOUT' },
   pendingInit: { onlyPendingInit: true, reviewLevel: 3 }
 } as const
@@ -457,6 +482,9 @@ const parseTime = (value?: string) => {
 }
 
 const managerSlaStatusValue = (row: BookingReviewApi.BookingReview) => {
+  if (row?.managerSlaStage) {
+    return row.managerSlaStage
+  }
   if (!hasManagerTodo(row)) {
     return row.reviewLevel === 3 ? 'PENDING_INIT' : ''
   }
@@ -475,6 +503,17 @@ const managerSlaStatusValue = (row: BookingReviewApi.BookingReview) => {
   }
   if (!row.managerClaimedAt && !Number.isNaN(claimDeadline) && now > claimDeadline) {
     return 'CLAIM_TIMEOUT'
+  }
+  if (!Number.isNaN(closeDeadline) && closeDeadline >= now && closeDeadline - now <= 120 * 60 * 1000) {
+    return 'CLOSE_DUE_SOON'
+  }
+  if (!row.managerFirstActionAt && !Number.isNaN(firstActionDeadline)
+    && firstActionDeadline >= now && firstActionDeadline - now <= 10 * 60 * 1000) {
+    return 'FIRST_ACTION_DUE_SOON'
+  }
+  if (!row.managerClaimedAt && !Number.isNaN(claimDeadline)
+    && claimDeadline >= now && claimDeadline - now <= 5 * 60 * 1000) {
+    return 'CLAIM_DUE_SOON'
   }
   return 'NORMAL'
 }
@@ -545,9 +584,13 @@ const managerTodoStatusTagType = (row: BookingReviewApi.BookingReview) => {
 const managerSlaStatusText = (row: BookingReviewApi.BookingReview) => {
   const value = managerSlaStatusValue(row)
   if (value === 'NORMAL') return '正常'
+  if (value === 'CLAIM_DUE_SOON') return '即将认领超时'
   if (value === 'CLAIM_TIMEOUT') return '认领超时'
+  if (value === 'FIRST_ACTION_DUE_SOON') return '即将首次处理超时'
   if (value === 'FIRST_ACTION_TIMEOUT') return '首次处理超时'
+  if (value === 'CLOSE_DUE_SOON') return '即将闭环超时'
   if (value === 'CLOSE_TIMEOUT') return '闭环超时'
+  if (value === 'CLOSED') return '已闭环'
   if (value === 'PENDING_INIT') return '待初始化'
   return '-'
 }
@@ -555,10 +598,22 @@ const managerSlaStatusText = (row: BookingReviewApi.BookingReview) => {
 const managerSlaStatusTagType = (row: BookingReviewApi.BookingReview) => {
   const value = managerSlaStatusValue(row)
   if (value === 'NORMAL') return 'success'
+  if (value === 'CLAIM_DUE_SOON') return 'warning'
   if (value === 'CLAIM_TIMEOUT') return 'warning'
+  if (value === 'FIRST_ACTION_DUE_SOON') return 'warning'
   if (value === 'FIRST_ACTION_TIMEOUT') return 'warning'
+  if (value === 'CLOSE_DUE_SOON') return 'danger'
   if (value === 'CLOSE_TIMEOUT') return 'danger'
+  if (value === 'CLOSED') return 'success'
   if (value === 'PENDING_INIT') return 'warning'
+  return 'info'
+}
+
+const priorityLevelTagType = (value?: string) => {
+  if (value === 'P0') return 'danger'
+  if (value === 'P1') return 'warning'
+  if (value === 'P2') return 'primary'
+  if (value === 'P3') return 'info'
   return 'info'
 }
 

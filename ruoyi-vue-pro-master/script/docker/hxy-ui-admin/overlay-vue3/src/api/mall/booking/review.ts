@@ -57,6 +57,10 @@ export interface BookingReview {
   managerClaimedAt?: string
   managerFirstActionAt?: string
   managerClosedAt?: string
+  managerSlaStage?: string
+  priorityLevel?: string
+  priorityReason?: string
+  notifyRiskSummary?: string
   managerLatestActionRemark?: string
   managerLatestActionByUserId?: number
   firstResponseAt?: string
@@ -103,8 +107,11 @@ export interface BookingReviewDashboardSummary {
   repliedCount?: number
   managerTodoPendingCount?: number
   managerTodoClaimTimeoutCount?: number
+  managerTodoClaimDueSoonCount?: number
   managerTodoFirstActionTimeoutCount?: number
+  managerTodoFirstActionDueSoonCount?: number
   managerTodoCloseTimeoutCount?: number
+  managerTodoCloseDueSoonCount?: number
   managerTodoClosedCount?: number
 }
 
