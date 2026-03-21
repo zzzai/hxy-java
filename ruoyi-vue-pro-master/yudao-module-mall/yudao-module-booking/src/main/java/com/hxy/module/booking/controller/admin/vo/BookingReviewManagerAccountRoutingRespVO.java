@@ -24,6 +24,9 @@ public class BookingReviewManagerAccountRoutingRespVO {
     @Schema(description = "店长后台账号ID", example = "7001")
     private Long managerAdminUserId;
 
+    @Schema(description = "店长企微账号ID", example = "wecom-manager-7001")
+    private String managerWecomUserId;
+
     @Schema(description = "路由绑定状态", example = "ACTIVE")
     private String bindingStatus;
 
@@ -50,4 +53,22 @@ public class BookingReviewManagerAccountRoutingRespVO {
 
     @Schema(description = "修复建议")
     private String repairHint;
+
+    @Schema(description = "App 路由状态", example = "APP_READY")
+    private String appRoutingStatus;
+
+    @Schema(description = "App 路由结论", example = "App 路由有效")
+    private String appRoutingLabel;
+
+    @Schema(description = "App 修复建议")
+    private String appRepairHint;
+
+    @Schema(description = "企微路由状态", example = "WECOM_READY")
+    private String wecomRoutingStatus;
+
+    @Schema(description = "企微路由结论", example = "企微路由有效")
+    private String wecomRoutingLabel;
+
+    @Schema(description = "企微修复建议")
+    private String wecomRepairHint;
 }

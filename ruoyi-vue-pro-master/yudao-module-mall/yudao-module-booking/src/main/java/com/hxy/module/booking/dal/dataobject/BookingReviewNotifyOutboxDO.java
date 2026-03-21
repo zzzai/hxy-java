@@ -40,6 +40,9 @@ public class BookingReviewNotifyOutboxDO extends BaseDO {
     /** 接收账号ID */
     private Long receiverUserId;
 
+    /** 接收账号 */
+    private String receiverAccount;
+
     /** 通知类型 */
     private String notifyType;
 

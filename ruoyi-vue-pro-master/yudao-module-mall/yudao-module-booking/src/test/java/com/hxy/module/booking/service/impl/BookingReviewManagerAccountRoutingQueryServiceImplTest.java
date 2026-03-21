@@ -35,7 +35,7 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
     private BookingReviewManagerAccountRoutingMapper bookingReviewManagerAccountRoutingMapper;
 
     @Test
-    void shouldReturnNoRouteSnapshotWhenStoreHasNoRouting() {
+    void shouldReturnMissingBothChannelSnapshotWhenStoreHasNoRouting() {
         ProductStoreDO store = ProductStoreDO.builder()
                 .id(3001L)
                 .name("朝阳门店")
@@ -51,14 +51,17 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals(3001L, respVO.getStoreId());
         assertEquals("朝阳门店", respVO.getStoreName());
         assertEquals("NO_ROUTE", respVO.getRoutingStatus());
-        assertEquals("未绑定店长账号", respVO.getRoutingLabel());
+        assertEquals("未绑定店长双通道路由", respVO.getRoutingLabel());
+        assertEquals("缺店长 App 账号", respVO.getAppRoutingLabel());
+        assertEquals("缺店长企微账号", respVO.getWecomRoutingLabel());
         assertTrue(respVO.getRepairHint().contains("managerAdminUserId"));
+        assertTrue(respVO.getRepairHint().contains("managerWecomUserId"));
         verify(productStoreService).getStore(3001L);
         verify(bookingReviewManagerAccountRoutingMapper).selectLatestByStoreId(3001L);
     }
 
     @Test
-    void shouldReturnActiveRouteSnapshotWhenRoutingEffective() {
+    void shouldReturnDualChannelReadySnapshotWhenRoutingEffective() {
         ProductStoreDO store = ProductStoreDO.builder()
                 .id(3002L)
                 .name("望京门店")
@@ -69,6 +72,7 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
                 .setId(9001L)
                 .setStoreId(3002L)
                 .setManagerAdminUserId(7001L)
+                .setManagerWecomUserId("wecom-manager-7001")
                 .setBindingStatus("ACTIVE")
                 .setSource("MANUAL_BIND")
                 .setLastVerifiedTime(LocalDateTime.now().minusMinutes(5).withNano(0));
@@ -79,9 +83,37 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
 
         assertNotNull(respVO);
         assertEquals("ACTIVE_ROUTE", respVO.getRoutingStatus());
-        assertEquals("路由有效", respVO.getRoutingLabel());
+        assertEquals("双通道路由有效", respVO.getRoutingLabel());
         assertEquals(7001L, respVO.getManagerAdminUserId());
+        assertEquals("wecom-manager-7001", respVO.getManagerWecomUserId());
+        assertEquals("App 路由有效", respVO.getAppRoutingLabel());
+        assertEquals("企微路由有效", respVO.getWecomRoutingLabel());
         assertEquals("MANUAL_BIND", respVO.getSource());
+    }
+
+    @Test
+    void shouldReturnPartialSnapshotWhenWecomMissing() {
+        ProductStoreDO store = ProductStoreDO.builder()
+                .id(3003L)
+                .name("国贸门店")
+                .contactName("周店长")
+                .contactMobile("13700000000")
+                .build();
+        BookingReviewManagerAccountRoutingDO routing = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3003L)
+                .setManagerAdminUserId(7003L)
+                .setManagerWecomUserId(null)
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        when(productStoreService.getStore(3003L)).thenReturn(store);
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(3003L)).thenReturn(routing);
+
+        BookingReviewManagerAccountRoutingRespVO respVO = service.getRouting(3003L);
+
+        assertEquals("PARTIAL_ROUTE", respVO.getRoutingStatus());
+        assertEquals("App 已就绪，企微待补齐", respVO.getRoutingLabel());
+        assertEquals("App 路由有效", respVO.getAppRoutingLabel());
+        assertEquals("缺店长企微账号", respVO.getWecomRoutingLabel());
     }
 
     @Test
@@ -92,19 +124,20 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         reqVO.setStoreName("门店");
 
         ProductStoreDO store = ProductStoreDO.builder()
-                .id(3003L)
+                .id(3004L)
                 .name("国贸门店")
                 .contactName("周店长")
                 .contactMobile("13700000000")
                 .build();
         BookingReviewManagerAccountRoutingDO routing = new BookingReviewManagerAccountRoutingDO()
-                .setStoreId(3003L)
-                .setManagerAdminUserId(7003L)
+                .setStoreId(3004L)
+                .setManagerAdminUserId(7004L)
+                .setManagerWecomUserId("wecom-manager-7004")
                 .setBindingStatus("ACTIVE")
                 .setLastVerifiedTime(LocalDateTime.now().withNano(0));
         when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.singletonList(store), 1L));
-        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(3003L)).thenReturn(routing);
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(3004L)).thenReturn(routing);
 
         PageResult<BookingReviewManagerAccountRoutingRespVO> result = service.getRoutingPage(reqVO);
 
@@ -112,7 +145,8 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals(1L, result.getTotal());
         assertEquals(1, result.getList().size());
         assertEquals("国贸门店", result.getList().get(0).getStoreName());
-        assertEquals("ACTIVE_ROUTE", result.getList().get(0).getRoutingStatus());
+        assertEquals("双通道路由有效", result.getList().get(0).getRoutingLabel());
+        assertEquals("wecom-manager-7004", result.getList().get(0).getManagerWecomUserId());
         verify(productStoreService).getStorePage(any(ProductStorePageReqVO.class));
     }
 }

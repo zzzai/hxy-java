@@ -143,11 +143,12 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div class="mb-12px text-13px text-[var(--el-text-color-secondary)]">SLA 提醒：认领超时提醒、首次处理超时提醒、闭环超时提醒会继续走 App / 企微双通道，但当前仍是 admin-only 治理视角。</div>
     <div class="mb-16px flex flex-wrap gap-8px">
       <el-button plain type="danger" @click="applyQuickFilter('todoPending')">待认领优先</el-button>
-      <el-button plain type="warning" @click="applyQuickFilter('claimTimeout')">认领超时</el-button>
-      <el-button plain type="warning" @click="applyQuickFilter('firstActionTimeout')">首次处理超时</el-button>
-      <el-button plain type="danger" @click="applyQuickFilter('closeTimeout')">闭环超时</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('claimTimeout')">认领超时提醒</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('firstActionTimeout')">首次处理超时提醒</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('closeTimeout')">闭环超时提醒</el-button>
       <el-button plain @click="applyQuickFilter('pendingInit')">历史待初始化</el-button>
       <el-button plain @click="applyQuickFilter()">查看全部</el-button>
     </div>

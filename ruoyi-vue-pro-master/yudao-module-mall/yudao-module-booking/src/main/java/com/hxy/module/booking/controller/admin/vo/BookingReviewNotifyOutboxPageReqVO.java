@@ -24,6 +24,9 @@ public class BookingReviewNotifyOutboxPageReqVO extends PageParam {
     @Schema(description = "接收账号ID", example = "3001")
     private Long receiverUserId;
 
+    @Schema(description = "接收账号", example = "wecom-manager-3001")
+    private String receiverAccount;
+
     @Schema(description = "通知状态", example = "PENDING")
     private String status;
 

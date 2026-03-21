@@ -43,6 +43,7 @@ public class BookingReviewNotifyOutboxController {
     private static final String ACTION_CREATE_OUTBOX = "CREATE_OUTBOX";
     private static final String ACTION_DISPATCH_SUCCESS = "DISPATCH_SUCCESS";
     private static final String ACTION_DISPATCH_FAILED = "DISPATCH_FAILED";
+    private static final String ACTION_DISPATCH_BLOCKED = "DISPATCH_BLOCKED";
     private static final String ACTION_MANUAL_RETRY = "MANUAL_RETRY";
     private static final String ACTION_BLOCKED_NO_OWNER = "BLOCKED_NO_OWNER";
     private static final String SYSTEM_OPERATOR_LABEL = "系统任务";
@@ -162,6 +163,10 @@ public class BookingReviewNotifyOutboxController {
         }
         if (ACTION_DISPATCH_FAILED.equals(actionCode)) {
             return new ActionSnapshot("系统派发失败", SYSTEM_OPERATOR_LABEL,
+                    StrUtil.blankToDefault(outbox.getLastErrorMsg(), "-"));
+        }
+        if (ACTION_DISPATCH_BLOCKED.equals(actionCode)) {
+            return new ActionSnapshot("系统判定阻断", SYSTEM_OPERATOR_LABEL,
                     StrUtil.blankToDefault(outbox.getLastErrorMsg(), "-"));
         }
         if (ACTION_BLOCKED_NO_OWNER.equals(actionCode)) {

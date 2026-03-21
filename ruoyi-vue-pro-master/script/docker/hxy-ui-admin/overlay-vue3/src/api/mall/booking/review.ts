@@ -150,8 +150,9 @@ export interface BookingReviewNotifyOutbox {
   storeId?: number
   receiverRole?: string
   receiverUserId?: number
+  receiverAccount?: string
   notifyType?: string
-  channel?: string
+  channel?: 'IN_APP' | 'WECOM' | string
   status?: string
   diagnosticCode?: string
   diagnosticLabel?: string
@@ -176,8 +177,9 @@ export interface BookingReviewNotifyOutboxPageReq extends PageParam {
   storeId?: number
   receiverRole?: string
   receiverUserId?: number
+  receiverAccount?: string
   status?: string
-  channel?: string
+  channel?: 'IN_APP' | 'WECOM' | string
   notifyType?: string
   lastActionCode?: string
 }
@@ -193,6 +195,7 @@ export interface BookingReviewManagerAccountRouting {
   contactName?: string
   contactMobile?: string
   managerAdminUserId?: number
+  managerWecomUserId?: string
   bindingStatus?: string
   effectiveTime?: string
   expireTime?: string
@@ -202,6 +205,12 @@ export interface BookingReviewManagerAccountRouting {
   routingLabel?: string
   routingDetail?: string
   repairHint?: string
+  appRoutingStatus?: string
+  appRoutingLabel?: string
+  appRepairHint?: string
+  wecomRoutingStatus?: string
+  wecomRoutingLabel?: string
+  wecomRepairHint?: string
 }
 
 export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {

@@ -24,6 +24,9 @@ public class BookingReviewNotifyOutboxRespVO {
     @Schema(description = "接收账号ID", example = "3001")
     private Long receiverUserId;
 
+    @Schema(description = "接收账号", example = "wecom-manager-3001")
+    private String receiverAccount;
+
     @Schema(description = "通知类型", example = "NEGATIVE_REVIEW_CREATED")
     private String notifyType;
 

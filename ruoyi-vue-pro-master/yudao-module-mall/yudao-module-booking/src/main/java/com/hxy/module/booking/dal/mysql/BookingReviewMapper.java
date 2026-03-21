@@ -7,8 +7,10 @@ import com.hxy.module.booking.controller.admin.vo.BookingReviewPageReqVO;
 import com.hxy.module.booking.controller.app.vo.AppBookingReviewPageReqVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.enums.BookingReviewLevelEnum;
+import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -76,5 +78,23 @@ public interface BookingReviewMapper extends BaseMapperX<BookingReviewDO> {
         return selectOne(new LambdaQueryWrapperX<BookingReviewDO>()
                 .eq(BookingReviewDO::getId, id)
                 .eq(BookingReviewDO::getMemberId, memberId));
+    }
+
+    default List<BookingReviewDO> selectManagerTodoSlaReminderCandidates(LocalDateTime now, Integer limit) {
+        int safeLimit = limit == null || limit <= 0 ? 200 : Math.min(limit, 1000);
+        return selectList(new LambdaQueryWrapperX<BookingReviewDO>()
+                .eq(BookingReviewDO::getReviewLevel, BookingReviewLevelEnum.NEGATIVE.getLevel())
+                .isNotNull(BookingReviewDO::getManagerTodoStatus)
+                .ne(BookingReviewDO::getManagerTodoStatus, BookingReviewManagerTodoStatusEnum.CLOSED.getStatus())
+                .and(wrapper -> wrapper.and(claim -> claim.isNull(BookingReviewDO::getManagerClaimedAt)
+                                .isNotNull(BookingReviewDO::getManagerClaimDeadlineAt)
+                                .lt(BookingReviewDO::getManagerClaimDeadlineAt, now))
+                        .or(firstAction -> firstAction.isNull(BookingReviewDO::getManagerFirstActionAt)
+                                .isNotNull(BookingReviewDO::getManagerFirstActionDeadlineAt)
+                                .lt(BookingReviewDO::getManagerFirstActionDeadlineAt, now))
+                        .or(close -> close.isNotNull(BookingReviewDO::getManagerCloseDeadlineAt)
+                                .lt(BookingReviewDO::getManagerCloseDeadlineAt, now)))
+                .orderByAsc(BookingReviewDO::getSubmitTime, BookingReviewDO::getId)
+                .last("LIMIT " + safeLimit));
     }
 }

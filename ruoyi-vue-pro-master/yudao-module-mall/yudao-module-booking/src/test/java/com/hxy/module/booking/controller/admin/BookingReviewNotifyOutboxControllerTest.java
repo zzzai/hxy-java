@@ -32,7 +32,8 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
 
     @Test
     void shouldGetNotifyOutboxListByReviewId() {
-        BookingReviewNotifyOutboxDO outbox = buildOutbox(1001L, "BLOCKED_NO_OWNER");
+        BookingReviewNotifyOutboxDO outbox = buildOutbox(1001L, "BLOCKED_NO_OWNER", "WECOM", null, "wecom-manager-1001");
+        outbox.setLastErrorMsg("BLOCKED_NO_OWNER:NO_WECOM_ACCOUNT");
         when(bookingReviewNotifyOutboxService.getNotifyOutboxList(2001L, "BLOCKED_NO_OWNER", 5))
                 .thenReturn(Collections.singletonList(outbox));
 
@@ -45,9 +46,9 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(1001L, result.getData().get(0).getId());
         assertEquals(2001L, result.getData().get(0).getReviewId());
         assertEquals("BLOCKED_NO_OWNER", result.getData().get(0).getStatus());
-        assertEquals("BLOCKED_NO_MANAGER_ROUTE", result.getData().get(0).getDiagnosticCode());
-        assertEquals("缺店长路由", result.getData().get(0).getDiagnosticLabel());
-        assertEquals("需要先补齐门店到店长账号的有效路由关系", result.getData().get(0).getRepairHint());
+        assertEquals("BLOCKED_NO_WECOM_ACCOUNT", result.getData().get(0).getDiagnosticCode());
+        assertEquals("缺店长企微账号", result.getData().get(0).getDiagnosticLabel());
+        assertEquals("wecom-manager-1001", result.getData().get(0).getReceiverAccount());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxList(2001L, "BLOCKED_NO_OWNER", 5);
     }
 
@@ -58,9 +59,10 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         reqVO.setPageSize(20);
         reqVO.setReviewId(2002L);
         reqVO.setStatus("PENDING");
+        reqVO.setChannel("WECOM");
         reqVO.setLastActionCode("MANUAL_RETRY");
 
-        BookingReviewNotifyOutboxDO outbox = buildOutbox(1002L, "PENDING");
+        BookingReviewNotifyOutboxDO outbox = buildOutbox(1002L, "PENDING", "WECOM", null, "wecom-manager-1002");
         outbox.setLastActionCode("MANUAL_RETRY");
         outbox.setLastActionBizNo("ADMIN#88/OUTBOX#1002");
         outbox.setLastErrorMsg("manual-retry:ops-retry");
@@ -76,6 +78,8 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(2002L, result.getData().getList().get(0).getReviewId());
         assertEquals("READY_TO_DISPATCH", result.getData().getList().get(0).getDiagnosticCode());
         assertEquals("待派发", result.getData().getList().get(0).getDiagnosticLabel());
+        assertEquals("WECOM", result.getData().getList().get(0).getChannel());
+        assertEquals("wecom-manager-1002", result.getData().getList().get(0).getReceiverAccount());
         assertEquals("人工重新入队", result.getData().getList().get(0).getActionLabel());
         assertEquals("管理员#88", result.getData().getList().get(0).getActionOperatorLabel());
         assertEquals("ops-retry", result.getData().getList().get(0).getActionReason());
@@ -97,16 +101,18 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         verify(bookingReviewNotifyOutboxService).retryNotifyOutbox(reqVO.getIds(), null, reqVO.getReason());
     }
 
-    private BookingReviewNotifyOutboxDO buildOutbox(Long id, String status) {
+    private BookingReviewNotifyOutboxDO buildOutbox(Long id, String status, String channel,
+                                                     Long receiverUserId, String receiverAccount) {
         return new BookingReviewNotifyOutboxDO()
                 .setId(id)
                 .setBizType("BOOKING_REVIEW_NEGATIVE")
                 .setBizId(2000L + (id - 1000L))
                 .setStoreId(3001L)
                 .setReceiverRole("STORE_MANAGER")
-                .setReceiverUserId(9001L)
+                .setReceiverUserId(receiverUserId)
+                .setReceiverAccount(receiverAccount)
                 .setNotifyType("NEGATIVE_REVIEW_CREATED")
-                .setChannel("IN_APP")
+                .setChannel(channel)
                 .setStatus(status)
                 .setRetryCount(0)
                 .setLastErrorMsg("BLOCKED_NO_OWNER".equals(status) ? "BLOCKED_NO_OWNER:NO_OWNER" : "")

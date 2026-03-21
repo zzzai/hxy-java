@@ -1114,3 +1114,17 @@
 - 备选方案：新增独立待办主表并同步账号级店长；或直接把差评通知做成微信/短信自动触达；或把待办状态并入 `followStatus`。
 - 否决原因：独立主表与账号级归属会显著增加真值和迁移成本；外部通知当前没有稳定证据与发布前置条件；把待办状态并入 `followStatus` 会破坏既有运营字段语义，导致恢复链路与处置链路混淆。
 - 回滚条件：若后台待办链路需要回退，可停止展示与写入 `managerTodo*` 字段，保留原评价主记录与 `followStatus`；但不得在回滚中反向引入未冻结的自动通知、奖励或补偿逻辑。
+
+## ADR-109：预约评价店长通知采用“双通道路由 + 一通道一条 Outbox + 共享企微 Sender”策略
+
+- 背景：预约服务评价域已具备差评识别、后台店长待办、notify outbox、只读 routing 核查与人工重试，但此前只冻结到单通道 App 通知意图，无法同时满足“店长端 App + 店长企微”双通道分发、通道级失败审计和 1000 家门店 `1 店 1 店长` 的固定业务场景。
+- 决策：
+  1. 路由真值固定为 `storeId -> managerAdminUserId + managerWecomUserId`，分别服务 `IN_APP` 与 `WECOM`；门店联系人 `contactName/contactMobile` 继续只作为快照，不作为自动通知目标；
+  2. 同一条差评与店长待办 SLA 提醒都按“一个通道一条 outbox”落库，幂等键固定带 `notifyType + reviewId + channel + receiver`，确保每通道独立状态、独立失败原因、独立重试；
+  3. `IN_APP` 继续复用 `NotifySendService.sendSingleNotifyToAdmin(...)`，`WECOM` 接入共享机器人 sender，并统一受配置键 `hxy.booking.review.notify.wecom.enabled/webhook-url/app-name` 控制；
+  4. 缺 App 账号、缺企微账号、无路由、企微通道关闭统一落 `BLOCKED_NO_OWNER`，再用 `lastErrorMsg` 区分 `NO_OWNER/NO_APP_ACCOUNT/NO_WECOM_ACCOUNT/CHANNEL_DISABLED`，不得伪装成发送成功；
+  5. 店长待办 SLA 自动提醒继续复用同一套 outbox/dispatch 机制，固定三类提醒 `MANAGER_CLAIM_TIMEOUT/MANAGER_FIRST_ACTION_TIMEOUT/MANAGER_CLOSE_TIMEOUT`，不引入旁路线发送器。
+- 影响范围：booking review 的 SQL 结构、notify outbox 审计模型、manager routing 只读核查页、后台评价详情通知块、共享企微配置治理、后续奖励/补偿/区域负责人升级的扩展边界。
+- 备选方案：继续维持单通道 App 通知；或将 App/企微揉成一条总记录再挂子状态；或在差评提交后同步直发消息、不落 outbox。
+- 否决原因：单通道不能覆盖已冻结业务场景；总记录方案会削弱审计、重试与运维排障；同步直发会把消息失败污染评价主链路，并破坏当前 outbox 解耦模式。
+- 回滚条件：若企微 sender 或双通道路由需暂时停用，只允许关闭 `WECOM` 通道或回退 SQL 字段使用，保留“一通道一条 outbox”和“通知失败不阻断评价主链路”两条架构约束；在发布证据、灰度样本和 runtime gate 未补齐前，整体结论不得升级为 `Can Release=Yes`。

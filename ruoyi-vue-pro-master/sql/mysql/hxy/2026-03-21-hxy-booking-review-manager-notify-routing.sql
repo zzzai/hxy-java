@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS `booking_review_manager_account_routing`
 (
     `id`                    bigint      NOT NULL AUTO_INCREMENT COMMENT '主键',
     `store_id`              bigint      NOT NULL COMMENT '门店ID',
-    `manager_admin_user_id` bigint      NOT NULL COMMENT '店长后台账号ID',
+    `manager_admin_user_id` bigint               DEFAULT NULL COMMENT '店长后台账号ID',
+    `manager_wecom_user_id` varchar(128)         DEFAULT NULL COMMENT '店长企微账号ID',
     `binding_status`        varchar(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '绑定状态',
     `effective_time`        datetime             DEFAULT NULL COMMENT '生效时间',
     `expire_time`           datetime             DEFAULT NULL COMMENT '失效时间',
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS `booking_review_notify_outbox`
     `store_id`          bigint      NOT NULL COMMENT '门店ID',
     `receiver_role`     varchar(32) NOT NULL COMMENT '接收角色',
     `receiver_user_id`  bigint               DEFAULT NULL COMMENT '接收账号ID',
+    `receiver_account`  varchar(128)         DEFAULT NULL COMMENT '接收账号',
     `notify_type`       varchar(64) NOT NULL COMMENT '通知类型',
     `channel`           varchar(32) NOT NULL COMMENT '通知渠道',
     `status`            varchar(32) NOT NULL COMMENT '状态',
@@ -53,5 +55,14 @@ CREATE TABLE IF NOT EXISTS `booking_review_notify_outbox`
     KEY `idx_booking_review_notify_outbox_biz` (`biz_type`, `biz_id`, `id`),
     KEY `idx_booking_review_notify_outbox_status` (`status`, `next_retry_time`, `id`)
 ) COMMENT ='预约评价通知出站表';
+
+ALTER TABLE `booking_review_manager_account_routing`
+    ADD COLUMN IF NOT EXISTS `manager_wecom_user_id` varchar(128) DEFAULT NULL COMMENT '店长企微账号ID' AFTER `manager_admin_user_id`;
+
+ALTER TABLE `booking_review_manager_account_routing`
+    MODIFY COLUMN `manager_admin_user_id` bigint DEFAULT NULL COMMENT '店长后台账号ID';
+
+ALTER TABLE `booking_review_notify_outbox`
+    ADD COLUMN IF NOT EXISTS `receiver_account` varchar(128) DEFAULT NULL COMMENT '接收账号' AFTER `receiver_user_id`;
 
 SET FOREIGN_KEY_CHECKS = 1;

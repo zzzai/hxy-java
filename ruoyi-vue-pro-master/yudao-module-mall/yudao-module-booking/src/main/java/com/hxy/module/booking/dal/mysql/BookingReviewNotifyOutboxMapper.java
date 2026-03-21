@@ -39,6 +39,7 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getStoreId, reqVO.getStoreId())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getReceiverRole, reqVO.getReceiverRole())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getReceiverUserId, reqVO.getReceiverUserId())
+                .eqIfPresent(BookingReviewNotifyOutboxDO::getReceiverAccount, reqVO.getReceiverAccount())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getStatus, reqVO.getStatus())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getChannel, reqVO.getChannel())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getNotifyType, reqVO.getNotifyType())
@@ -51,7 +52,9 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
         int safeMaxRetryCount = Math.max(1, ObjectUtil.defaultIfNull(maxRetryCount, 5));
         LambdaQueryWrapperX<BookingReviewNotifyOutboxDO> query = new LambdaQueryWrapperX<>();
         query.in(BookingReviewNotifyOutboxDO::getStatus, "PENDING", "FAILED");
-        query.isNotNull(BookingReviewNotifyOutboxDO::getReceiverUserId);
+        query.and(wrapper -> wrapper.isNotNull(BookingReviewNotifyOutboxDO::getReceiverUserId)
+                .or()
+                .isNotNull(BookingReviewNotifyOutboxDO::getReceiverAccount));
         query.lt(BookingReviewNotifyOutboxDO::getRetryCount, safeMaxRetryCount);
         if (now != null) {
             query.le(BookingReviewNotifyOutboxDO::getNextRetryTime, now);

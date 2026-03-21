@@ -4,7 +4,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="这里只看 notify outbox 真值：PENDING 表示待派发，BLOCKED_NO_OWNER 表示缺门店店长账号绑定，不代表系统已经自动补发。"
+      description="这里只看 notify outbox 真值：同一条差评会按 App / 企微生成两条独立出站记录。PENDING 表示待派发，BLOCKED_NO_OWNER 表示当前通道缺店长账号或路由阻断，不代表系统已经自动补发。"
       title="通知出站台账"
       type="info"
     />
@@ -27,6 +27,15 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="接收账号">
+        <el-input
+          v-model="queryParams.receiverAccount"
+          class="!w-220px"
+          clearable
+          placeholder="请输入接收账号"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
       <el-form-item label="通知状态">
         <el-select v-model="queryParams.status" class="!w-180px" clearable placeholder="全部">
           <el-option label="待派发" value="PENDING" />
@@ -43,6 +52,7 @@
       <el-form-item label="通知渠道">
         <el-select v-model="queryParams.channel" class="!w-180px" clearable placeholder="全部">
           <el-option label="IN_APP" value="IN_APP" />
+          <el-option label="WECOM" value="WECOM" />
         </el-select>
       </el-form-item>
       <el-form-item label="最近动作">
@@ -86,6 +96,7 @@
       <el-table-column label="门店ID" prop="storeId" width="100" />
       <el-table-column label="接收角色" prop="receiverRole" width="150" />
       <el-table-column label="接收账号ID" prop="receiverUserId" width="120" />
+      <el-table-column label="接收账号" prop="receiverAccount" min-width="180" show-overflow-tooltip />
       <el-table-column label="通知类型" prop="notifyType" min-width="180" />
       <el-table-column label="通知渠道" prop="channel" width="120" />
       <el-table-column label="通知状态" width="150">
@@ -172,6 +183,7 @@ const createDefaultQuery = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq
   storeId: undefined,
   receiverRole: undefined,
   receiverUserId: undefined,
+  receiverAccount: undefined,
   status: undefined,
   channel: undefined,
   notifyType: undefined,

@@ -5,205 +5,112 @@
   - 差评提交
   - admin-only 店长待办治理
   - 台账 / 详情 / 看板 / 历史治理扫描页
-- 当前单一真值已冻结：
-  - “店长”只冻结到门店联系人快照 `contactName/contactMobile`
-  - 当前没有稳定 `storeId -> managerAdminUserId`
-  - 当前没有 booking review 专属自动通知链路
-- 用户已确认本轮设计边界：
-  - 只做账号级通知前置设计
-  - 第一版通知对象只到“门店店长账号”
-  - 差评提交成功后立即触发
-  - 不接受 `contactMobile` 直接作为自动通知目标
+  - notify outbox、manager routing 只读核查、人工重试
+- 2026-03-21 当前设计已经从“单通道 App 通知”升级为“双通道店长通知”：
+  - 店长端 App
+  - 店长企微
+- 固定业务场景：
+  - `1000` 家门店
+  - 默认 `1 店 1 店长`
+  - 集团共用一个企微发送端
+  - 同一条差评按 `storeId` 命中店长后，再拆成两条独立出站记录
 
 ## 2. 目标
-- 设计一套可演进到“门店店长账号通知”的最小闭环方案。
+- 固定 booking review 店长通知的路由真值与分发模型。
 - 保证差评提交主链路与通知链路分离。
-- 在账号归属真值未闭环前，也能诚实表达“立即触发通知意图”，而不是伪装成“已发送成功”。
+- 让每个通道拥有独立状态、失败原因、重试和审计。
+- 在发布证据未闭环前，仍保持 `Can Develop / Cannot Release`。
 
-## 3. 能力边界
+## 3. 核心结论
+1. 当前采用的不是“单记录多子通道”方案，而是“一通道一条 outbox”方案。
+2. 路由真值固定为：
+   - `storeId -> managerAdminUserId`
+   - `storeId -> managerWecomUserId`
+3. 同一条差评会至少生成两条 outbox：
+   - `IN_APP`
+   - `WECOM`
+4. 通道阻断统一进入 `BLOCKED_NO_OWNER`，再由 `lastErrorMsg` 区分：
+   - `NO_OWNER`
+   - `NO_APP_ACCOUNT`
+   - `NO_WECOM_ACCOUNT`
+   - `CHANNEL_DISABLED`
 
-### 3.1 本轮要设计的内容
-1. 差评提交成功后的通知触发点。
-2. `booking review notify outbox` 数据模型。
-3. `storeId -> managerAdminUserId` 账号归属真值要求。
-4. 通知状态机、阻断池和后台可观测面。
-5. 第一版实施顺序与 No-Go。
-
-### 3.2 本轮明确不做的内容
-1. 真实自动通知派发上线。
-2. 基于 `contactMobile` 的自动短信兜底。
-3. 客服负责人 / 区域负责人升级链路。
-4. 奖励、补偿、审批、feature flag、release-ready 结论。
-
-## 4. 方案比较
-
-### 方案 A：评价提交后同步直发通知
-- 做法：在 `createReview()` 成功后直接发送通知。
-- 优点：链路短。
-- 缺点：
-  - 强耦合评价提交与消息发送。
-  - 发送失败会污染主链路语义。
-  - 与仓内现有 outbox 模式不一致。
-- 结论：否决。
-
-### 方案 B：评价提交后写 Notify Outbox，再异步派发
-- 做法：
-  - `createReview()` 成功且为差评后，立即写通知意图。
-  - 异步派发器根据账号归属结果，把记录推进到 `PENDING / SENT / FAILED / BLOCKED_NO_OWNER`。
-- 优点：
-  - 与既有 `TechnicianCommissionSettlementNotifyOutbox` 模式一致。
-  - 可幂等、可重试、可审计。
-  - 不阻塞评价提交主链路。
-  - 方便以后扩展客服负责人或区域负责人。
-- 缺点：
-  - 需要新增 outbox 和后台可观测面。
-- 结论：采用。
-
-### 方案 C：定时扫描差评后延迟触发通知
-- 做法：靠定时任务扫描差评再决定是否通知。
-- 优点：最保守。
-- 缺点：不符合“差评提交成功后立即触发”的业务要求。
-- 结论：否决。
-
-## 5. 核心设计决策
-
-### 5.1 触发点
-- 唯一稳定触发点固定为：
-  - `BookingReviewServiceImpl.createReview(...)` 成功提交评价记录后
-  - 且 `reviewLevel = NEGATIVE`
-- “立即触发”的工程语义固定为：
-  - 立即写出通知意图，不等于立即发送成功。
-
-### 5.2 账号归属模型
-- 第一版通知对象只允许：`门店店长后台账号`。
-- 归属关系必须冻结为类似：
-  - `storeId -> managerAdminUserId`
-- 该关系至少应表达：
+## 4. 路由模型
+- 归属关系至少表达：
   - `storeId`
   - `managerAdminUserId`
+  - `managerWecomUserId`
   - `bindingStatus`
   - `effectiveTime`
   - `expireTime`
   - `source`
   - `lastVerifiedTime`
-- 在上述真值模型未闭环前：
+- 在上述真值未闭环前：
   - 可以生成 outbox
-  - 不允许真实派发
-  - 必须进入 `BLOCKED_NO_OWNER`
+  - 可以进入工程派发
+  - 但不允许宣称“发布级消息闭环已经成立”
 
-### 5.3 Notify Outbox 模型
-建议新增独立数据模型：`booking_review_notify_outbox`
-
-最小字段建议：
-- `id`
-- `bizType`：固定 `BOOKING_REVIEW_NEGATIVE`
-- `bizId`：`reviewId`
-- `storeId`
-- `receiverRole`：固定 `STORE_MANAGER`
-- `receiverUserId`
-- `notifyType`：固定 `NEGATIVE_REVIEW_CREATED`
-- `channel`：第一版固定 `IN_APP`
-- `status`：`PENDING / SENT / FAILED / BLOCKED_NO_OWNER`
-- `retryCount`
-- `nextRetryTime`
-- `sentTime`
-- `lastErrorMsg`
-- `idempotencyKey`
-- `payloadSnapshot`
-- `lastActionCode`
-- `lastActionBizNo`
-- `lastActionTime`
-
-推荐幂等键：
-- `booking_review:negative_created:{reviewId}:{receiverUserId}`
-
-### 5.4 状态机
-- `PENDING`
-  - 已生成通知意图
-  - 已找到有效店长账号
-  - 等待派发
-- `SENT`
-  - 已发送成功
-- `FAILED`
-  - 已找到接收人，但发送失败，可重试
-- `BLOCKED_NO_OWNER`
-  - 当前门店没有有效 `managerAdminUserId`
-  - 这是主数据阻断，不是发送失败
-
-## 6. 后台可观测面
-
-### 6.1 评价详情页
-建议补充只读通知块：
-- 通知状态
-- 接收角色
-- 接收账号 ID
-- 渠道
-- 最近发送时间
-- 最近失败原因
-- 若为 `BLOCKED_NO_OWNER`，明确展示“缺门店店长账号绑定”
-
-### 6.2 Notify Outbox 台账
-建议新增 admin-only 台账：
-- 筛选字段：
-  - `status`
+## 5. 出站模型
+- 最小字段：
+  - `bizType`
+  - `bizId`
   - `storeId`
-  - `reviewId`
+  - `receiverRole`
   - `receiverUserId`
-  - `createTime`
-- 列表字段：
-  - `reviewId`
-  - `storeId`
-  - `receiverUserId`
-  - `status`
+  - `receiverAccount`
+  - `notifyType`
   - `channel`
+  - `status`
   - `retryCount`
+  - `nextRetryTime`
+  - `sentTime`
   - `lastErrorMsg`
-  - `lastActionTime`
-- 允许动作：
-  - 手工重试 `FAILED`
-  - 查看阻断原因
-- 明确不提供：
-  - 强制改接收人
-  - 越权派发
+  - `idempotencyKey`
+  - `payloadSnapshot`
+  - `lastActionCode / lastActionBizNo / lastActionTime`
+- 推荐幂等键：
+  - `booking_review:{notifyType}:{reviewId}:{channel}:{receiver}`
 
-## 7. 测试策略
-1. `createReview()` 差评时生成 outbox，非差评不生成。
-2. 有有效 `managerAdminUserId` 时进入 `PENDING`，无 owner 时进入 `BLOCKED_NO_OWNER`。
-3. 派发器支持 `PENDING -> SENT`、`FAILED` 重试、幂等保护。
-4. 详情页与 outbox 台账都能正确展示通知状态与阻断原因。
+## 6. 派发策略
+1. `IN_APP` 通道继续复用 `NotifySendService.sendSingleNotifyToAdmin(...)`。
+2. `WECOM` 通道走共享企微机器人 sender。
+3. 企微 sender 依赖：
+   - `hxy.booking.review.notify.wecom.enabled`
+   - `hxy.booking.review.notify.wecom.webhook-url`
+   - `hxy.booking.review.notify.wecom.app-name`
+4. 任一通道失败，不影响另一通道状态。
+5. 通知链路失败，不影响用户评价提交成功。
 
-## 8. No-Go
+## 7. SLA 提醒
+1. 当前继续复用同一套 outbox / dispatch 机制，不新增旁路线。
+2. 固定三类提醒：
+   - `MANAGER_CLAIM_TIMEOUT`
+   - `MANAGER_FIRST_ACTION_TIMEOUT`
+   - `MANAGER_CLOSE_TIMEOUT`
+3. 每种提醒都按“评价 + 通道 + 接收账号”幂等。
+
+## 8. 后台观测要求
+1. notify outbox 台账必须能看见：
+   - 通道
+   - 接收账号
+   - 诊断结论
+   - 修复建议
+   - 最近动作
+2. 详情页必须能看见：
+   - 同一条评价下 App / 企微两条记录
+   - 每条的状态、错误原因与修复建议
+3. routing 页必须能看见：
+   - App / 企微各自的绑定状态和 repairHint
+
+## 9. No-Go
 1. 不得把 `contactMobile` 当自动通知目标。
 2. 不得把 `managerClaimedByUserId` 当门店店长账号。
-3. 不得把 `outbox` 已写出写成“店长已收到通知”。
-4. 不得在没有稳定 `managerAdminUserId` 真值前宣称“自动通知已上线”。
+3. 不得把 outbox 已写出写成“店长已收到通知”。
+4. 不得在没有发布级样本前宣称“自动通知已上线”。
 5. 不得扩展到客服负责人、区域负责人升级链路。
-6. 不得让通知失败影响用户评价提交成功。
-7. 不得把本专题写成 release-ready。
-
-## 9. 推荐实施顺序
-1. 先冻结 `manager account routing truth`。
-2. 再新增 `booking review notify outbox`。
-3. 再补后台可观测面。
-4. 最后才接真实 `IN_APP` 派发器。
+6. 不得把本专题写成 release-ready。
 
 ## 10. 单一真值引用
+- `docs/plans/2026-03-21-booking-review-dual-channel-manager-notify-design.md`
 - `docs/products/miniapp/2026-03-21-miniapp-booking-review-manager-account-routing-truth-v1.md`
-- `docs/products/miniapp/2026-03-19-miniapp-booking-review-manager-ownership-truth-review-v1.md`
 - `docs/products/miniapp/2026-03-17-miniapp-booking-review-service-quality-prd-v1.md`
-
-## 11. 当前实现落点（2026-03-21）
-1. 当前分支已补齐：
-   - `booking_review_manager_account_routing`
-   - `booking_review_notify_outbox`
-   - admin 详情页通知块与 outbox 台账
-   - `BookingReviewNotifyDispatchJob`
-2. 当前实现语义固定为：
-   - 差评提交成功后立即写通知意图
-   - 有有效 `managerAdminUserId` 时进入 `PENDING`
-   - 无 owner 时进入 `BLOCKED_NO_OWNER`
-   - dispatch job 仅做 `IN_APP` 占位派发
-3. 当前仍不得写成：
-   - 自动通知已上线
-   - 已具备 release-ready 样本和发布证据
-   - 已扩展到客服负责人 / 区域负责人升级链

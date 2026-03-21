@@ -4,7 +4,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="这里只读核查门店联系人与店长后台账号路由真值，不在当前页面直接修改绑定。BLOCKED_NO_OWNER 进入这里后，先判断是没有路由、路由失效，还是门店联系人本身不完整。"
+      description="这里只读核查门店联系人与店长双通道路由真值，不在当前页面直接修改绑定。BLOCKED_NO_OWNER 进入这里后，要继续区分是缺 App 账号、缺企微账号，还是整条路由未生效。"
       title="店长账号路由核查"
       type="info"
     />
@@ -45,16 +45,21 @@
   </ContentWrap>
 
   <ContentWrap v-if="currentRouting" v-loading="inspectLoading">
-    <el-descriptions :column="2" border title="当前门店核查结论">
-      <el-descriptions-item label="门店">{{ currentRouting.storeName || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="门店ID">{{ currentRouting.storeId || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="联系人">{{ currentRouting.contactName || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="联系人手机号">{{ currentRouting.contactMobile || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="路由结论">{{ currentRouting.routingLabel || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="店长后台账号ID">{{ currentRouting.managerAdminUserId || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="路由说明" :span="2">{{ currentRouting.routingDetail || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="修复建议" :span="2">{{ currentRouting.repairHint || '-' }}</el-descriptions-item>
-    </el-descriptions>
+      <el-descriptions :column="2" border title="当前门店核查结论">
+        <el-descriptions-item label="门店">{{ currentRouting.storeName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="门店ID">{{ currentRouting.storeId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="联系人">{{ currentRouting.contactName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="联系人手机号">{{ currentRouting.contactMobile || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="路由结论">{{ currentRouting.routingLabel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="店长后台账号ID">{{ currentRouting.managerAdminUserId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="店长企微账号ID">{{ currentRouting.managerWecomUserId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="App 路由">{{ currentRouting.appRoutingLabel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="企微路由">{{ currentRouting.wecomRoutingLabel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="App 修复建议" :span="2">{{ currentRouting.appRepairHint || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="企微修复建议" :span="2">{{ currentRouting.wecomRepairHint || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="路由说明" :span="2">{{ currentRouting.routingDetail || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="修复建议" :span="2">{{ currentRouting.repairHint || '-' }}</el-descriptions-item>
+      </el-descriptions>
   </ContentWrap>
 
   <ContentWrap>
@@ -69,6 +74,17 @@
         </template>
       </el-table-column>
       <el-table-column label="店长后台账号ID" prop="managerAdminUserId" width="140" />
+      <el-table-column label="店长企微账号ID" prop="managerWecomUserId" min-width="180" />
+      <el-table-column label="App 路由" min-width="140">
+        <template #default="{ row }">
+          {{ row.appRoutingLabel || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="企微路由" min-width="140">
+        <template #default="{ row }">
+          {{ row.wecomRoutingLabel || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column label="绑定状态" prop="bindingStatus" width="120" />
       <el-table-column label="来源" prop="source" width="140" />
       <el-table-column :formatter="dateFormatter" label="最近核验时间" prop="lastVerifiedTime" width="180" />

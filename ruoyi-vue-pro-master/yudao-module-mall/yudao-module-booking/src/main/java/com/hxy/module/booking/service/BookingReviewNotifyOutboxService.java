@@ -17,6 +17,8 @@ public interface BookingReviewNotifyOutboxService {
 
     PageResult<BookingReviewNotifyOutboxDO> getNotifyOutboxPage(BookingReviewNotifyOutboxPageReqVO reqVO);
 
+    int createManagerTodoSlaReminderOutbox(Integer limit);
+
     default int retryNotifyOutbox(List<Long> ids, String reason) {
         return retryNotifyOutbox(ids, null, reason);
     }

@@ -31,6 +31,9 @@ public class BookingReviewManagerAccountRoutingDO extends BaseDO {
     /** 店长后台账号ID */
     private Long managerAdminUserId;
 
+    /** 店长企微账号ID */
+    private String managerWecomUserId;
+
     /** 绑定状态 */
     private String bindingStatus;
 

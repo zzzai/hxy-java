@@ -133,7 +133,7 @@
         <div class="flex items-center justify-between gap-12px">
           <div class="flex flex-col gap-2">
             <div class="text-16px font-600">通知观测</div>
-            <div class="text-12px text-[var(--el-text-color-secondary)]">只展示 notify outbox 真值，不代表门店店长账号已经收到了通知。</div>
+            <div class="text-12px text-[var(--el-text-color-secondary)]">只展示 notify outbox 真值，不代表门店店长账号已经收到了通知；当前按 App / 企微双通道独立观测。</div>
           </div>
           <div class="flex gap-8px">
             <el-button plain type="warning" @click="goManagerRouting">
@@ -149,9 +149,17 @@
       <el-alert
         :closable="false"
         class="mb-16px"
-        description="差评提交成功后仅承诺立即生成通知意图；若没有稳定店长账号映射，会进入 BLOCKED_NO_OWNER，而不是伪发送成功。"
+        description="差评提交成功后仅承诺立即生成通知意图；若没有稳定店长账号映射，会进入 BLOCKED_NO_OWNER，而不是伪发送成功。当前同一条差评会拆成 IN_APP / WECOM 两条记录。"
         title="notify outbox 口径"
         type="info"
+      />
+
+      <el-alert
+        :closable="false"
+        class="mb-16px"
+        description="SLA 提醒也会继续走 App / 企微双通道 outbox，但当前仍不代表 booking review 已可放量。"
+        title="SLA 提醒"
+        type="warning"
       />
 
       <el-empty v-if="!notifyOutboxList.length" description="当前未生成通知意图记录" />
@@ -164,6 +172,7 @@
           <el-descriptions-item label="诊断结论">{{ latestNotifyOutbox?.diagnosticLabel || '-' }}</el-descriptions-item>
           <el-descriptions-item label="接收角色">{{ latestNotifyOutbox?.receiverRole || '-' }}</el-descriptions-item>
           <el-descriptions-item label="接收账号ID">{{ latestNotifyOutbox?.receiverUserId || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="接收账号">{{ latestNotifyOutbox?.receiverAccount || '-' }}</el-descriptions-item>
           <el-descriptions-item label="通知渠道">{{ latestNotifyOutbox?.channel || '-' }}</el-descriptions-item>
           <el-descriptions-item label="通知类型">{{ latestNotifyOutbox?.notifyType || '-' }}</el-descriptions-item>
           <el-descriptions-item label="重试次数">{{ latestNotifyOutbox?.retryCount ?? '-' }}</el-descriptions-item>
@@ -185,6 +194,7 @@
             </el-table-column>
             <el-table-column label="诊断结论" min-width="160" prop="diagnosticLabel" />
             <el-table-column label="接收账号ID" prop="receiverUserId" width="120" />
+            <el-table-column label="接收账号" prop="receiverAccount" min-width="180" show-overflow-tooltip />
             <el-table-column label="渠道" prop="channel" width="110" />
             <el-table-column label="重试次数" prop="retryCount" width="100" />
             <el-table-column label="最近动作" prop="lastActionCode" width="160" />

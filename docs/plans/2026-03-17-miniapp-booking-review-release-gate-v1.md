@@ -1,10 +1,10 @@
 # MiniApp Booking Review Release Gate v1（2026-03-17）
 
 ## 1. 目标
-- 对 booking review 新域给出当前可执行的 Go / No-Go 判断。
+- 对 booking review 当前工程能力给出可执行的 Go / No-Go 判断。
 - 重点区分：
-  - 页面 / API / controller / 测试 已落地
-  - runtime 发布证据 仍未闭环
+  - 页面 / API / controller / 双通道通知工程已落地
+  - runtime 样本、灰度证据、发布门禁仍未闭环
 
 ## 2. 当前证据面
 - 代码提交：
@@ -18,18 +18,19 @@
   - `7e14a98589 feat(booking-review): add manager routing readonly checks`
   - `9d5011feeb feat(booking-review): enhance notify outbox audit`
   - `d0674863c1 feat(booking-review): add ledger quick ops`
-- 自动化：
-  - `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewNotifyOutboxControllerTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewServiceImplTest,BookingReviewNotifyOutboxServiceTest,BookingReviewNotifyDispatchJobTest,BookingReviewManagerAccountRoutingQueryServiceImplTest test`
-  - `node --test tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs`
-  - 03-21 当前已补齐 `45` 个后端测试与 `20` 个 admin/node 测试样本
+- 2026-03-21 当前分支新增工程证据：
+  - `storeId -> managerAdminUserId + managerWecomUserId` 双通道路由
+  - `IN_APP / WECOM` 双通道 notify outbox
+  - 企微机器人 sender 工程接入
+  - `MANAGER_CLAIM_TIMEOUT / MANAGER_FIRST_ACTION_TIMEOUT / MANAGER_CLOSE_TIMEOUT` SLA reminder job
 - evidence ledger：
   - `docs/plans/2026-03-21-miniapp-booking-review-admin-evidence-ledger-v1.md`
 - 当前未核出：
   - 独立 booking review runtime gate 脚本
   - 发布级样本包
   - feature flag / switch
-  - App / 企微双通道自动通知链路
-  - 稳定双通道 `store -> manager account` 发布样本
+  - 企微真实送达与灰度回执归档
+  - 稳定全量 `store -> manager account` 发布样本
 
 ## 3. Gate 判定表
 
@@ -40,15 +41,15 @@
 | 后端 app controller | Yes | `AppBookingReviewController` 已存在 |
 | 后台 admin controller | Yes | `BookingReviewController` 已存在 |
 | 后台 overlay 页面 | Yes | 台账、详情、看板、notify outbox、manager routing 页面已存在 |
-| 用户端 / admin node tests | Yes | 03-21 当前 admin/node 相关 `20` 项测试已通过 |
-| 后端 controller / service tests | Yes | 03-21 当前 booking review 相关 `45` 项测试已通过 |
-| admin-only 通知阻断诊断 | Yes | 已能区分发送失败、缺路由、缺账号、通道关闭 |
-| admin-only 审计与快捷动作 | Yes | 已能查看最近动作/执行人/原因，并可在台账直接认领、记录首次处理、闭环 |
-| Doc set | Yes | 本批 PRD / Contract / FailureMode / Runbook / Gate / Final Review 已齐 |
+| 双通道路由模型 | Yes | `managerAdminUserId + managerWecomUserId` 已进入工程真值 |
+| 双通道 outbox | Yes | 同一条差评会拆成 `IN_APP / WECOM` 两条记录 |
+| 企微 sender 工程接入 | Yes | 已有 webhook sender 与通道开关配置读取 |
+| SLA reminder job | Yes | 已按认领超时 / 首次处理超时 / 闭环超时生成双通道提醒 outbox |
+| Doc set | Yes | PRD / routing truth / runbook / gate / final review / evidence 已齐 |
 | 发布级 runtime 样本 | No | 未核到真实线上或准线上样本包 |
-| 自动告警 / 店长通知 | No | 当前只有 admin-only 店长待办与 `IN_APP` 占位派发，没有真实 App / 企微外部通知链路 |
 | feature flag / rollout control | No | 未核到独立开关 |
 | 独立 release gate | No | 当前没有 booking review 专属 runtime gate |
+| 企微真实送达回执 | No | 当前只有工程接入，没有发布级送达证据 |
 
 ## 4. 当前结论
 
@@ -61,20 +62,20 @@
 | Release Decision | `No-Go` |
 
 补充说明：
-1. 03-19 的服务端状态机修复只说明写链更严谨，不代表 release 结论升级。
-2. 03-19 复核确认：历史差评仍不会在 read-path 自动补齐店长待办字段，因此 dashboard / SLA 统计不覆盖所有历史数据。
-3. 03-21 的 notify blocked diagnostics、manager routing、审计增强、台账快捷动作都只属于 admin-only 观察与操作面增强，不构成 release-ready 样本。
+1. 双通道通知已进入工程真值，但这只说明“通道模型与异步派发能力存在”，不说明“每家门店店长都已收到真实消息”。
+2. 03-21 的 manager routing、notify outbox、企微 sender、SLA reminder 仍属于 admin-only 治理与工程闭环增强，不构成 release-ready 样本。
+3. 历史差评仍不会在 read-path 自动补齐店长待办字段，因此 dashboard / SLA 统计不覆盖所有历史数据。
 
 ## 5. blocker_pool
 1. 未核到 booking review 发布级成功 / 失败样本包。
-2. 当前只有 admin-only 店长待办，未核到自动通知店长 / 技师负责人 / 客服负责人的链路。
-3. 未核到 feature flag 或独立灰度范围控制。
+2. 未核到企微真实送达样本、回执归档和灰度范围证据。
+3. 未核到 feature flag 或独立灰度控制面。
 4. 未核到独立 booking review runtime gate。
-5. `serviceOrderId` 当前已改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填，但 trace 未命中或异常时仍允许为空。
+5. `serviceOrderId` 当前仍是 best-effort 回填，trace 未命中或异常时允许为空。
 6. `picUrls` 已完成前端提交链路，但历史 / 详情 / 运营回显证据仍未闭环。
-7. 当前未核出稳定 `store -> managerUserId`，店长待办只停留在联系人快照治理，无法形成账号级通知或发布验收口径。
+7. 双通道路由虽已建模，但全量数据覆盖、修复流程、发布验收证据仍未闭环。
 8. 历史差评待办字段当前只在写动作时 lazy-init，read-path 不自动回填。
-9. 当前虽然已支持 `manager account routing + notify outbox + 审计增强 + 台账快捷动作`，但 App / 企微双通道发送、共享企微发送端、样本与门禁仍未闭环。
+9. 当前共享企微发送端只证明“工程可发送”，不证明“当前配置已可发布”。
 
 ## 6. degraded_pool
 1. 当前没有服务端 `degraded=true / degradeReason` 证据。
@@ -89,21 +90,20 @@
 ## 7. 回滚与重入条件
 
 ### 7.1 当前可执行回滚口径
-- 由于未核到独立 feature flag，当前只能按代码回滚或后端资格控制收缩入口理解。
-- 不得把“临时人工通知”写成系统化回滚措施。
+- 由于未核到独立 feature flag，当前只能按代码回滚或配置关闭企微发送端理解。
+- 不得把“人工通知补位”写成系统化回滚措施。
 
 ### 7.2 未来 release 重入条件
 1. 具备真实 runtime 样本包。
 2. 具备明确 rollout / rollback 控制面。
-3. 差评恢复链路有明确的通知或告警证据。
+3. 双通道通知至少有真实送达样本、失败样本与审计归档。
 4. `serviceOrderId` best-effort 回填与 `picUrls` 提交后回显等关键缺口达成明确 release 结论。
 5. 新一轮 A 集成文档重新评估后，才能从 `No-Go` 升级。
-6. 若后续要做自动通知、自动派单或店长账号路由，必须先补 manager ownership 真值与运行样本。
 
 ## 8. Gate No-Go 条件
 1. 把页面和 controller 已存在写成“可以放心放量”。
-2. 把 node test PASS 写成 release-ready。
-3. 把后台台账、看板存在写成“恢复体系已正式上线”。
-4. 把人工通知店长写成“系统已支持即时通知店长”。
-5. 把 `picUrls`、`serviceOrderId`、feature flag 未闭环的能力写成“已补齐”。
-6. 把 03-19 状态机修复外推成“历史数据已自动修复”或“Can Release=Yes”。
+2. 把双通道 outbox、企微 sender 或 SLA reminder job 写成“店长通知已正式上线”。
+3. 把 node / maven 测试 PASS 写成 release-ready。
+4. 把后台台账、看板存在写成“恢复体系已正式上线”。
+5. 把 `picUrls`、`serviceOrderId`、feature flag、runtime 样本未闭环的能力写成“已补齐”。
+6. 把 03-21 双通道路由真值外推成“1000 家门店都已完成店长绑定”。

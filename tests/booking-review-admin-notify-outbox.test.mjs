@@ -48,26 +48,31 @@ const outboxPagePath = path.join(
   'index.vue',
 );
 
-test('review api exposes notify outbox query and retry methods', () => {
+test('review api exposes dual-channel notify outbox types and methods', () => {
   const apiSource = fs.readFileSync(apiPath, 'utf8');
   assert.match(apiSource, /BookingReviewNotifyOutboxPageReq/);
   assert.match(apiSource, /getReviewNotifyOutboxList/);
   assert.match(apiSource, /getReviewNotifyOutboxPage/);
   assert.match(apiSource, /retryReviewNotifyOutbox/);
   assert.match(apiSource, /lastActionCode/);
+  assert.match(apiSource, /receiverAccount/);
+  assert.match(apiSource, /WECOM/);
   assert.match(apiSource, /\/booking\/review\/notify-outbox\/retry/);
 });
 
-test('detail page contains notify observability block and ledger link', () => {
+test('detail page contains dual-channel notify observability block', () => {
   const detailSource = fs.readFileSync(detailPagePath, 'utf8');
   assert.match(detailSource, /通知观测/);
   assert.match(detailSource, /BLOCKED_NO_OWNER/);
   assert.match(detailSource, /查看通知台账/);
   assert.match(detailSource, /getReviewNotifyOutboxList/);
+  assert.match(detailSource, /receiverAccount/);
+  assert.match(detailSource, /IN_APP/);
+  assert.match(detailSource, /WECOM/);
   assert.match(detailSource, /\/mall\/booking\/review\/notify-outbox/);
 });
 
-test('notify outbox page exists and uses review notify outbox api', () => {
+test('notify outbox page exists and uses dual-channel notify fields', () => {
   assert.equal(fs.existsSync(outboxPagePath), true);
   const pageSource = fs.readFileSync(outboxPagePath, 'utf8');
   assert.match(pageSource, /通知出站台账/);
@@ -75,7 +80,10 @@ test('notify outbox page exists and uses review notify outbox api', () => {
   assert.match(pageSource, /retryReviewNotifyOutbox/);
   assert.match(pageSource, /reviewId/);
   assert.match(pageSource, /receiverUserId/);
+  assert.match(pageSource, /receiverAccount/);
   assert.match(pageSource, /BLOCKED_NO_OWNER/);
+  assert.match(pageSource, /WECOM/);
+  assert.match(pageSource, /IN_APP/);
   assert.match(pageSource, /重试/);
   assert.match(pageSource, /FAILED/);
   assert.match(pageSource, /manual-retry/);
