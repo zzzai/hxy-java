@@ -94,6 +94,40 @@
   </ContentWrap>
 
   <ContentWrap v-if="review.id">
+    <el-card shadow="never" class="mb-16px">
+      <template #header>
+        <div class="flex flex-col gap-2">
+          <div class="text-16px font-600">最近动作时间线</div>
+          <div class="text-12px text-[var(--el-text-color-secondary)]">当前状态摘要与时间轴基于真实字段计算</div>
+        </div>
+      </template>
+
+      <div class="mb-16px flex flex-wrap gap-12px">
+        <div
+          v-for="item in detailSummaryItems"
+          :key="item.label"
+          class="flex flex-col gap-4 px-12 py-8 border border-[var(--el-border-color)] rounded-6px bg-[var(--el-card-background-color)]"
+        >
+          <span class="text-11px text-[var(--el-text-color-secondary)]">{{ item.label }}</span>
+          <span class="text-14px font-500">{{ item.value }}</span>
+        </div>
+      </div>
+
+      <el-timeline align="left">
+        <el-timeline-item
+          v-for="item in detailTimelineItems"
+          :key="item.label + item.time"
+          :timestamp="item.time"
+          placement="top"
+        >
+          <div class="el-timeline-right-content">
+            <div class="font-500">{{ item.label }}</div>
+            <div class="text-12px text-[var(--el-text-color-secondary)]">{{ item.description }}</div>
+          </div>
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
+
     <el-row :gutter="16">
       <el-col :lg="12" :md="24" :sm="24" :xs="24">
         <el-card shadow="never">
@@ -301,6 +335,7 @@
 
 <script lang="ts" setup>
 import * as BookingReviewApi from '@/api/mall/booking/review'
+import { buildReviewDetailTimeline } from './timelineHelpers.mjs'
 
 defineOptions({ name: 'BookingReviewDetail' })
 
@@ -427,6 +462,10 @@ const loadDetail = async () => {
 const reload = () => {
   loadDetail()
 }
+
+const reviewTimeline = computed(() => buildReviewDetailTimeline(review.value))
+const detailSummaryItems = computed(() => reviewTimeline.value.summaryItems)
+const detailTimelineItems = computed(() => reviewTimeline.value.timelineItems)
 
 const goBack = () => {
   router.push('/mall/booking/review')
