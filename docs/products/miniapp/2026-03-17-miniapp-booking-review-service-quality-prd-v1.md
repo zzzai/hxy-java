@@ -20,7 +20,7 @@
   - 已放量能力
   - 商品评论 alias
   - 自动奖励 / 自动补偿能力
-  - 已有店长即时通知系统
+  - 已有可放量的店长即时通知系统
 
 ## 2. 能力边界
 
@@ -38,8 +38,8 @@
 4. 公域评价展示、点赞、评论互动。
 5. 独立 feature flag / rollout control / runtime sample pack。
 6. 评价图片历史 / 详情回显的 release 级证据。
-7. 当前已落地的“店长待办”只认门店主数据 `contactName/contactMobile`，不承诺账号级店长通知，不承诺站内信、微信或短信。
-8. 03-19 真值复核后，当前仍未核出稳定 `store -> managerUserId` 映射字段、关系表或后台账号绑定链路。
+7. 当前虽已新增账号级通知工程骨架（routing truth / notify outbox / admin 观测 / `IN_APP` 占位派发），但不承诺 release-ready，不承诺真实模板已配置，也不承诺微信或短信。
+8. 当前联系人快照仍只认 `contactName/contactMobile`；账号级通知只认 `storeId -> managerAdminUserId` 路由表，未绑定时必须进入 `BLOCKED_NO_OWNER`。
 
 ## 3. 页面与入口真值
 
@@ -238,9 +238,10 @@
 ### 6.3 运营恢复原则
 1. 当前差评只进入人工恢复队列，不自动补偿。
 2. 当前好评不触发自动奖励。
-3. 当前差评已可进入后台“店长待办”池，但这只代表后台治理动作已落地，不代表店长已被自动触达。
-4. 当前“店长待办”目标来源固定为门店 `contactName/contactMobile` 快照，不能误写成系统已具备账号级店长消息路由。
+3. 当前差评已具备“提交即写通知意图 -> outbox -> 异步派发”的工程链路，但失败不会影响用户提交成功。
+4. 当前“店长待办”联系人快照仍固定来自门店 `contactName/contactMobile`；账号级派发只认 `booking_review_manager_account_routing.managerAdminUserId`。
 5. 当前后台登录操作人 `managerClaimedByUserId / managerLatestActionByUserId` 仅代表执行动作的人，不代表门店店长账号真值。
+6. 当前 `BLOCKED_NO_OWNER` 是合法阻断态，不得误写成发送失败，更不得误写成已通知成功。
 
 ## 7. 用户可见结构态与恢复动作
 
@@ -255,10 +256,10 @@
 ## 8. 当前工程差距与 No-Go
 1. `picUrls[]` 已接通提交链路，且 member 端 `review-detail` 已可回看；但历史 / 详情 / 后台运营回显样本仍未作为 release 证据闭环。
 2. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许为 `null`，不能写成稳定强绑定。
-3. 当前没有自动通知店长、客服、区域负责人的服务端链路证据。
+3. 当前虽已具备 booking review 专属 notify outbox、admin 观测页与 `IN_APP` 占位派发 job，但仍缺真实模板配置、运行样本、发布门禁与放量证据。
 4. 当前没有自动奖励、自动补偿、自动申诉闭环。
 5. 当前没有专门的 booking review runtime release gate 与发布样本包。
-6. 当前门店主数据只稳定提供 `contactName/contactMobile`，未核到稳定 `managerUserId` 真值，因此后台“店长待办”只能写成联系人快照治理，不能外推成账号级通知系统。
+6. 当前门店主数据只稳定提供 `contactName/contactMobile` 联系人快照；routing 表虽已存在，但其数据覆盖和发布证据未闭环，因此不能外推成账号级通知系统已正式上线。
 7. 历史差评待办字段如果尚未初始化，当前只会在首次认领 / 首次处理 / 闭环写动作时补齐，不能误写成系统会在读链路自动修复全量历史记录。
 8. 因此当前结论只能是：`Can Develop / Cannot Release`。
 

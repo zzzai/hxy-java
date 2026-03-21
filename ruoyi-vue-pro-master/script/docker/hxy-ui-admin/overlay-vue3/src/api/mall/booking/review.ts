@@ -144,6 +144,35 @@ export interface BookingReviewHistoryScanResp {
   total?: number
 }
 
+export interface BookingReviewNotifyOutbox {
+  id: number
+  reviewId?: number
+  storeId?: number
+  receiverRole?: string
+  receiverUserId?: number
+  notifyType?: string
+  channel?: string
+  status?: string
+  retryCount?: number
+  nextRetryTime?: string
+  sentTime?: string
+  lastErrorMsg?: string
+  lastActionCode?: string
+  lastActionBizNo?: string
+  lastActionTime?: string
+  createTime?: string
+}
+
+export interface BookingReviewNotifyOutboxPageReq extends PageParam {
+  reviewId?: number
+  storeId?: number
+  receiverRole?: string
+  receiverUserId?: number
+  status?: string
+  channel?: string
+  notifyType?: string
+}
+
 export const getReviewPage = async (params: BookingReviewPageReq) => {
   return await request.get({ url: '/booking/review/page', params })
 }
@@ -154,6 +183,18 @@ export const getReviewHistoryScan = async (params: BookingReviewHistoryScanReq) 
 
 export const getReview = async (id: number) => {
   return await request.get<BookingReview>({ url: '/booking/review/get', params: { id } })
+}
+
+export const getReviewNotifyOutboxList = async (params: {
+  reviewId: number
+  status?: string
+  limit?: number
+}) => {
+  return await request.get<BookingReviewNotifyOutbox[]>({ url: '/booking/review/notify-outbox/list', params })
+}
+
+export const getReviewNotifyOutboxPage = async (params: BookingReviewNotifyOutboxPageReq) => {
+  return await request.get<PageResult<BookingReviewNotifyOutbox>>({ url: '/booking/review/notify-outbox/page', params })
 }
 
 export const replyReview = async (data: BookingReviewReplyReq) => {

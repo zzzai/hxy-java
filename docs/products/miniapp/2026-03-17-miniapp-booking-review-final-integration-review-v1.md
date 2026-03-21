@@ -63,12 +63,12 @@
 1. 发布级 runtime 样本包 `未核出`。
 2. booking review 专属 release gate `未核出`。
 3. feature flag / rollout 控制面 `未核出`。
-4. 自动通知店长 / 技师负责人 / 客服恢复 owner 链路 `未核出`；当前只落地后台待办，不落地外部触达。
+4. 当前分支已落地 booking review 专属 `manager account routing + notify outbox + admin 观测 + IN_APP` 占位派发 job；但仍缺真实模板配置、运行样本与发布门禁，只能写成 `Can Develop / Cannot Release`。
 5. `serviceOrderId` 当前改为后端按 `payOrderId -> TradeServiceOrderApi.listTraceByPayOrderId` best-effort 回填；trace 未命中或异常时仍允许写 `null`。
 6. `picUrls` 已在用户端提交页接入上传并随创建请求发送，但历史 / 详情 / 运营回显证据仍未闭环。
 7. 03-18 的 detail acceptance checklist 只补齐 query-side 页面验收，不构成独立 release evidence。
 8. 历史差评若 `managerTodoStatus` 仍为空，当前不会在 list / dashboard / page read-path 自动回填；只会在首次执行店长待办写动作时 lazy-init。
-9. 当前没有稳定 `store -> managerUserId` 或账号级 owner 映射；“店长”仍只等于门店联系人快照，不等于后台账号通知目标。
+9. 当前分支已新增 `booking_review_manager_account_routing` 作为工程 owner 映射模型；但联系人快照仍独立存在，且 routing 数据覆盖、样本与发布证据未闭环，不能外推成“门店店长账号通知已上线”。
 10. 03-21 新增的历史治理扫描页只做人工触发识别，不做 repair write；不能把“能扫出候选”写成“历史数据已修复”。
 
 ## 5. 评价域能力拆分
@@ -103,7 +103,7 @@
 |---|---|---|
 | 独立 review route 目录 | 实际使用扁平 route：`review-add / review-detail / review-result / review-list` | 只认当前代码 route |
 | 支持图片评价 | 提交页已支持上传并提交 `picUrls`；历史 / 详情回显未单独闭环 | 不能写成整链路已 release-ready |
-| 店长即时通知 | 已落地后台店长待办 + 联系人快照 + SLA 截止时间 | 当前仍只能后台治理，不能写成自动通知 |
+| 店长即时通知 | 已落地后台店长待办 + routing model + notify outbox + admin 观测 + `IN_APP` 占位派发 | 当前仍只能写成 `Can Develop / Cannot Release`，不能写成正式上线 |
 | 店长账号归属 | 当前只核到 `contactName/contactMobile` 快照 | 不能写成 `managerUserId` 已闭环 |
 | 自动好评奖励 | 设计明确不做 | 当前仍不做 |
 | 自动差评补偿 | 设计明确不做 | 当前仍不做 |
