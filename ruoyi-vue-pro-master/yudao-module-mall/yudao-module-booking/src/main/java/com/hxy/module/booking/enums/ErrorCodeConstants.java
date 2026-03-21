@@ -73,5 +73,7 @@ public interface ErrorCodeConstants {
     ErrorCode BOOKING_REVIEW_NOT_EXISTS = new ErrorCode(1_030_008_000, "预约服务评价不存在");
     ErrorCode BOOKING_REVIEW_ALREADY_EXISTS = new ErrorCode(1_030_008_001, "预约服务评价已存在");
     ErrorCode BOOKING_REVIEW_NOT_ELIGIBLE = new ErrorCode(1_030_008_002, "当前预约订单暂不可评价");
+    ErrorCode BOOKING_REVIEW_NOTIFY_OUTBOX_NOT_EXISTS = new ErrorCode(1_030_008_003, "预约服务评价通知出站记录不存在");
+    ErrorCode BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID = new ErrorCode(1_030_008_004, "预约服务评价通知出站记录状态非法，当前状态【{}】仅支持失败记录重试");
 
 }
