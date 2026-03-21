@@ -45,6 +45,15 @@
           <el-option label="IN_APP" value="IN_APP" />
         </el-select>
       </el-form-item>
+      <el-form-item label="最近动作">
+        <el-select v-model="queryParams.lastActionCode" class="!w-180px" clearable placeholder="全部">
+          <el-option label="CREATE_OUTBOX" value="CREATE_OUTBOX" />
+          <el-option label="MANUAL_RETRY" value="MANUAL_RETRY" />
+          <el-option label="DISPATCH_SUCCESS" value="DISPATCH_SUCCESS" />
+          <el-option label="DISPATCH_FAILED" value="DISPATCH_FAILED" />
+          <el-option label="BLOCKED_NO_OWNER" value="BLOCKED_NO_OWNER" />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button :loading="loading" @click="handleQuery">
           <Icon class="mr-5px" icon="ep:search" />
@@ -67,6 +76,7 @@
       <el-button plain type="danger" @click="applyQuickStatus('BLOCKED_NO_OWNER')">只看阻断</el-button>
       <el-button plain type="warning" @click="applyQuickStatus('FAILED')">只看失败</el-button>
       <el-button plain type="primary" @click="applyQuickStatus('PENDING')">只看待派发</el-button>
+      <el-button plain type="success" @click="applyQuickAction('MANUAL_RETRY')">只看人工重试</el-button>
       <el-button plain @click="applyQuickStatus()">查看全部</el-button>
     </div>
 
@@ -91,6 +101,21 @@
       <el-table-column label="修复建议" min-width="260" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.repairHint || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="最近动作说明" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.actionLabel || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="最近动作人" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.actionOperatorLabel || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="动作原因" min-width="220" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.actionReason || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="重试次数" prop="retryCount" width="100" />
@@ -149,7 +174,8 @@ const createDefaultQuery = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq
   receiverUserId: undefined,
   status: undefined,
   channel: undefined,
-  notifyType: undefined
+  notifyType: undefined,
+  lastActionCode: undefined
 })
 
 const queryParams = reactive<BookingReviewApi.BookingReviewNotifyOutboxPageReq>(createDefaultQuery())
@@ -162,6 +188,10 @@ const applyRouteQuery = () => {
   const status = Array.isArray(route.query.status) ? route.query.status[0] : route.query.status
   if (status) {
     queryParams.status = String(status)
+  }
+  const lastActionCode = Array.isArray(route.query.lastActionCode) ? route.query.lastActionCode[0] : route.query.lastActionCode
+  if (lastActionCode) {
+    queryParams.lastActionCode = String(lastActionCode)
   }
 }
 
@@ -183,6 +213,15 @@ const handleQuery = () => {
 
 const applyQuickStatus = (status?: string) => {
   queryParams.status = status
+  queryParams.lastActionCode = undefined
+  handleQuery()
+}
+
+const applyQuickAction = (lastActionCode?: string) => {
+  queryParams.lastActionCode = lastActionCode
+  if (lastActionCode) {
+    queryParams.status = undefined
+  }
   handleQuery()
 }
 
@@ -246,7 +285,7 @@ const notifyStatusText = (status?: string) => {
   if (status === 'PENDING') return '待派发'
   if (status === 'SENT') return '已发送'
   if (status === 'FAILED') return '发送失败'
-  if (status === 'BLOCKED_NO_OWNER') return 'BLOCKED_NO_OWNER'
+  if (status === 'BLOCKED_NO_OWNER') return '缺店长路由阻断'
   return '-'
 }
 

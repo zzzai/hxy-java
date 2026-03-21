@@ -42,6 +42,7 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getStatus, reqVO.getStatus())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getChannel, reqVO.getChannel())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getNotifyType, reqVO.getNotifyType())
+                .eqIfPresent(BookingReviewNotifyOutboxDO::getLastActionCode, reqVO.getLastActionCode())
                 .orderByDesc(BookingReviewNotifyOutboxDO::getId));
     }
 

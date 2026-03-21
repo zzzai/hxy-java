@@ -40,6 +40,12 @@ public class BookingReviewNotifyOutboxController {
     private static final String STATUS_SENT = "SENT";
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_BLOCKED_NO_OWNER = "BLOCKED_NO_OWNER";
+    private static final String ACTION_CREATE_OUTBOX = "CREATE_OUTBOX";
+    private static final String ACTION_DISPATCH_SUCCESS = "DISPATCH_SUCCESS";
+    private static final String ACTION_DISPATCH_FAILED = "DISPATCH_FAILED";
+    private static final String ACTION_MANUAL_RETRY = "MANUAL_RETRY";
+    private static final String ACTION_BLOCKED_NO_OWNER = "BLOCKED_NO_OWNER";
+    private static final String SYSTEM_OPERATOR_LABEL = "系统任务";
 
     @Resource
     private BookingReviewNotifyOutboxService bookingReviewNotifyOutboxService;
@@ -93,6 +99,10 @@ public class BookingReviewNotifyOutboxController {
         respVO.setDiagnosticDetail(diagnostic.detail);
         respVO.setRepairHint(diagnostic.repairHint);
         respVO.setManualRetryAllowed(diagnostic.manualRetryAllowed);
+        ActionSnapshot action = buildAction(outbox);
+        respVO.setActionLabel(action.label);
+        respVO.setActionOperatorLabel(action.operatorLabel);
+        respVO.setActionReason(action.reason);
         return respVO;
     }
 
@@ -139,6 +149,67 @@ public class BookingReviewNotifyOutboxController {
                 "当前通知意图已被阻断，但尚未识别出标准化阻断类型。", "需要先核查门店路由、账号映射和通道配置。", Boolean.FALSE);
     }
 
+    private ActionSnapshot buildAction(BookingReviewNotifyOutboxDO outbox) {
+        String actionCode = StrUtil.blankToDefault(outbox.getLastActionCode(), ACTION_CREATE_OUTBOX);
+        if (ACTION_MANUAL_RETRY.equals(actionCode)) {
+            return new ActionSnapshot("人工重新入队",
+                    parseManualRetryOperatorLabel(outbox.getLastActionBizNo()),
+                    parseManualRetryReason(outbox.getLastErrorMsg()));
+        }
+        if (ACTION_DISPATCH_SUCCESS.equals(actionCode)) {
+            return new ActionSnapshot("系统派发成功", SYSTEM_OPERATOR_LABEL,
+                    parseDispatchReason(outbox.getLastActionBizNo()));
+        }
+        if (ACTION_DISPATCH_FAILED.equals(actionCode)) {
+            return new ActionSnapshot("系统派发失败", SYSTEM_OPERATOR_LABEL,
+                    StrUtil.blankToDefault(outbox.getLastErrorMsg(), "-"));
+        }
+        if (ACTION_BLOCKED_NO_OWNER.equals(actionCode)) {
+            return new ActionSnapshot("创建后立即阻断", SYSTEM_OPERATOR_LABEL,
+                    StrUtil.blankToDefault(outbox.getLastErrorMsg(), "-"));
+        }
+        return new ActionSnapshot("通知意图已创建", SYSTEM_OPERATOR_LABEL,
+                parseCreateReason(outbox.getLastActionBizNo()));
+    }
+
+    private String parseManualRetryOperatorLabel(String bizNo) {
+        String text = StrUtil.blankToDefault(bizNo, "");
+        if (StrUtil.startWithIgnoreCase(text, "ADMIN#")) {
+            String adminId = StrUtil.subBetween(text, "ADMIN#", "/");
+            if (StrUtil.isNotBlank(adminId)) {
+                return "管理员#" + adminId;
+            }
+        }
+        return SYSTEM_OPERATOR_LABEL;
+    }
+
+    private String parseManualRetryReason(String lastErrorMsg) {
+        String text = StrUtil.blankToDefault(lastErrorMsg, "");
+        if (StrUtil.startWithIgnoreCase(text, "manual-retry:")) {
+            return StrUtil.blankToDefault(StrUtil.removePrefixIgnoreCase(text, "manual-retry:"), "manual-retry");
+        }
+        return StrUtil.blankToDefault(text, "manual-retry");
+    }
+
+    private String parseDispatchReason(String bizNo) {
+        String text = StrUtil.blankToDefault(bizNo, "");
+        if (StrUtil.startWithIgnoreCase(text, "MSG#")) {
+            return text;
+        }
+        if (StrUtil.startWithIgnoreCase(text, "OUTBOX#")) {
+            return "待消息回执";
+        }
+        return "-";
+    }
+
+    private String parseCreateReason(String bizNo) {
+        String text = StrUtil.blankToDefault(bizNo, "");
+        if (StrUtil.isBlank(text)) {
+            return "评价触发后已写入通知意图";
+        }
+        return text;
+    }
+
     private static final class DiagnosticSnapshot {
         private final String code;
         private final String label;
@@ -153,6 +224,18 @@ public class BookingReviewNotifyOutboxController {
             this.detail = detail;
             this.repairHint = repairHint;
             this.manualRetryAllowed = manualRetryAllowed;
+        }
+    }
+
+    private static final class ActionSnapshot {
+        private final String label;
+        private final String operatorLabel;
+        private final String reason;
+
+        private ActionSnapshot(String label, String operatorLabel, String reason) {
+            this.label = label;
+            this.operatorLabel = operatorLabel;
+            this.reason = reason;
         }
     }
 }

@@ -54,6 +54,7 @@ test('review api exposes notify outbox query and retry methods', () => {
   assert.match(apiSource, /getReviewNotifyOutboxList/);
   assert.match(apiSource, /getReviewNotifyOutboxPage/);
   assert.match(apiSource, /retryReviewNotifyOutbox/);
+  assert.match(apiSource, /lastActionCode/);
   assert.match(apiSource, /\/booking\/review\/notify-outbox\/retry/);
 });
 
@@ -82,7 +83,11 @@ test('notify outbox page exists and uses review notify outbox api', () => {
   assert.match(pageSource, /只看阻断/);
   assert.match(pageSource, /只看失败/);
   assert.match(pageSource, /只看待派发/);
+  assert.match(pageSource, /只看人工重试/);
   assert.match(pageSource, /diagnosticLabel/);
   assert.match(pageSource, /repairHint/);
   assert.match(pageSource, /manualRetryAllowed/);
+  assert.match(pageSource, /actionLabel/);
+  assert.match(pageSource, /actionOperatorLabel/);
+  assert.match(pageSource, /actionReason/);
 });

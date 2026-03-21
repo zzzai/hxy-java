@@ -66,6 +66,15 @@ public class BookingReviewNotifyOutboxRespVO {
     @Schema(description = "最近动作业务号", example = "REVIEW#1001")
     private String lastActionBizNo;
 
+    @Schema(description = "最近动作说明", example = "人工重新入队")
+    private String actionLabel;
+
+    @Schema(description = "最近动作执行人说明", example = "管理员#88")
+    private String actionOperatorLabel;
+
+    @Schema(description = "最近动作原因")
+    private String actionReason;
+
     @Schema(description = "最近动作时间")
     private LocalDateTime lastActionTime;
 

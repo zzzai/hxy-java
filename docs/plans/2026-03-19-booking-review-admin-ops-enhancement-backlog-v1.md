@@ -24,6 +24,9 @@
 | A3 | 详情页增加“最近动作时间线”只读块 | 当前只有最近一次处理备注，没有时间线 | 提升复盘可读性 | 已落地（admin-only） |
 | A4 | 台账增加“历史未初始化差评”筛选提示 | 当前 read-path 不自动补齐，容易误读 | 降低误判 | 已落地（admin-only） |
 | A5 | 后台历史治理扫描页（scan-only） | 已新增 `GET /booking/review/history-scan` 与 admin 扫描页，只做人工触发扫描、候选清单和风险提示 | 为后续数据治理准备，先把识别边界做实 | 已落地（admin-only, scan-only） |
+| A6 | notify outbox 阻断诊断与修复建议 | 当前 notify outbox 已补标准化诊断码、修复建议和 `manualRetryAllowed`，详情/台账可区分“发送失败”与“缺店长路由/账号” | 降低误重试和误判 | 已落地（admin-only, diagnosis-only） |
+| A7 | 门店店长账号路由只读核查页 | 当前已新增 `/booking/review/manager-routing/get|page` 与 admin 只读核查页，notify outbox/详情可一跳查看 | 让 `BLOCKED_NO_OWNER` 有明确排查入口 | 已落地（admin-only, readonly） |
+| A8 | 通知链路审计增强 | 当前 notify outbox 台账已支持按 `lastActionCode` 过滤，并展示“最近动作说明 / 最近动作人 / 动作原因” | 回答“谁重试的、什么时候重试的、为什么失败” | 已落地（admin-only, audit-only） |
 
 ## 5. Not Now（当前不得排进本批开发）
 
@@ -36,10 +39,9 @@
 | N5 | 发布级 rollout / feature flag | 当前不属于 admin-only UI 增强范围 |
 
 ## 6. 排序建议
-1. 先做 `A1 + A2`，它们不依赖新后端能力，能直接改善值班效率。
-2. 再做 `A4`，明确告诉运营哪些记录尚未进入店长待办池。
-3. `A3` 可在字段真值确认后进入实现。
-4. `A5` 第一阶段已落地为 scan-only 工具；后续若要进入修复工具，必须另起方案评审，不得直接外推。
+1. `A1 ~ A8` 当前都已完成第一阶段 admin-only 落地。
+2. 下一阶段应转入“多门店多店长通知分发、SLA 看板效率、审计证据包”三条线，不再重复建设只读真值面。
+3. `A5` 若要进入修复工具，必须另起方案评审，不得从 scan-only 直接外推到自动修复。
 
 ## 7. No-Go
 1. 不得把 admin-only 增强 backlog 写成 release plan。

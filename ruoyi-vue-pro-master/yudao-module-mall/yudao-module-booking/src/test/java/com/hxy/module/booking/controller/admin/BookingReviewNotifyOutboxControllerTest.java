@@ -58,8 +58,12 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         reqVO.setPageSize(20);
         reqVO.setReviewId(2002L);
         reqVO.setStatus("PENDING");
+        reqVO.setLastActionCode("MANUAL_RETRY");
 
         BookingReviewNotifyOutboxDO outbox = buildOutbox(1002L, "PENDING");
+        outbox.setLastActionCode("MANUAL_RETRY");
+        outbox.setLastActionBizNo("ADMIN#88/OUTBOX#1002");
+        outbox.setLastErrorMsg("manual-retry:ops-retry");
         when(bookingReviewNotifyOutboxService.getNotifyOutboxPage(reqVO))
                 .thenReturn(new PageResult<>(Collections.singletonList(outbox), 1L));
 
@@ -72,6 +76,9 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals(2002L, result.getData().getList().get(0).getReviewId());
         assertEquals("READY_TO_DISPATCH", result.getData().getList().get(0).getDiagnosticCode());
         assertEquals("待派发", result.getData().getList().get(0).getDiagnosticLabel());
+        assertEquals("人工重新入队", result.getData().getList().get(0).getActionLabel());
+        assertEquals("管理员#88", result.getData().getList().get(0).getActionOperatorLabel());
+        assertEquals("ops-retry", result.getData().getList().get(0).getActionReason());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxPage(reqVO);
     }
 

@@ -164,6 +164,9 @@ export interface BookingReviewNotifyOutbox {
   lastErrorMsg?: string
   lastActionCode?: string
   lastActionBizNo?: string
+  actionLabel?: string
+  actionOperatorLabel?: string
+  actionReason?: string
   lastActionTime?: string
   createTime?: string
 }
@@ -176,6 +179,7 @@ export interface BookingReviewNotifyOutboxPageReq extends PageParam {
   status?: string
   channel?: string
   notifyType?: string
+  lastActionCode?: string
 }
 
 export interface BookingReviewNotifyOutboxRetryReq {

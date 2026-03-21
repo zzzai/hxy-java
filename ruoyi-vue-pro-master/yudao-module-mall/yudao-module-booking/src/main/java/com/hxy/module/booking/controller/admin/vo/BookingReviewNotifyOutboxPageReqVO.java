@@ -32,4 +32,7 @@ public class BookingReviewNotifyOutboxPageReqVO extends PageParam {
 
     @Schema(description = "通知类型", example = "NEGATIVE_REVIEW_CREATED")
     private String notifyType;
+
+    @Schema(description = "最近动作编码", example = "MANUAL_RETRY")
+    private String lastActionCode;
 }
