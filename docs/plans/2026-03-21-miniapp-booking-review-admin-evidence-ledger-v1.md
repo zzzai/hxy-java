@@ -15,6 +15,7 @@
 8. 门店绑定治理工作台。
 9. notify outbox 跨通道派发审计二期。
 10. 门店绑定来源真值闭环。
+11. P2 运营效率 + 告警联动最终集成。
 
 ## 3. 当前已核实证据
 
@@ -64,6 +65,30 @@
    - `MANAGER_CLOSE_TIMEOUT`
 4. 通道缺账号、无路由、企微关闭时统一落 `BLOCKED_NO_OWNER`，并通过 `lastErrorMsg` 区分 `NO_OWNER / NO_APP_ACCOUNT / NO_WECOM_ACCOUNT / CHANNEL_DISABLED`。
 
+### 3.3 03-22 P2 正式窗口证据
+1. 已核实并吸收的正式提交：
+   - B：`acd28f8dbf9d3b41211a779dd2f9c07d39b94d45`
+   - C：`ccfdcddd8f982a1ed3c3620ac479736eafeedbb1`
+   - D：`5060844bacec84f25b99a8af6ea2c5d040a4d4e4`
+2. P2 后台运营效率真值已固定：
+   - `/mall/booking/review/dashboard` 只认观察入口 + 治理跳转入口
+   - `/mall/booking/review` 只认唯一运营治理台账
+   - 看板卡片与台账快捷筛选统一收口到同一套 query helper
+3. P2 contract 真值已固定：
+   - query 字段只认 `id / bookingOrderId / storeId / technicianId / memberId / reviewLevel / riskLevel / followStatus / onlyManagerTodo / onlyPendingInit / managerTodoStatus / managerSlaStatus / replyStatus / submitTime[]`
+   - `priorityLevel / priorityReason / notifyRiskSummary` 当前只是返回字段或展示文案，不是 query 字段
+   - `page/get/dashboard-summary` 已固定 `managerTimeoutCategory / priorityReasonCode / notifyAuditStage / priorityP0Count~P3Count / managerTimeout* / notifyAudit*`
+4. P2 alert/runbook 真值已固定：
+   - due soon 只认观察态：`CLAIM_DUE_SOON / FIRST_ACTION_DUE_SOON / CLOSE_DUE_SOON`
+   - blocker 只认：`CLAIM_TIMEOUT / FIRST_ACTION_TIMEOUT / CLOSE_TIMEOUT / ANY_BLOCKED / BLOCKED_NO_OWNER:* / FAILED`
+   - 当前没有服务端 `degraded=true / degradeReason` 真实证据
+5. 03-22 P2 最终结论：
+   - `已完成开发`
+   - `已完成联调`
+   - `admin-only 已可用`
+   - `Can Release=No`
+   - `Release Decision=No-Go`
+
 ## 4. 自动化证据
 
 | 命令 | 结果 | 说明 |
@@ -76,6 +101,10 @@
 | `node --test tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-manager-routing.test.mjs` | PASS，`14` tests | 覆盖 notify outbox 跨通道审计概览、详情双通道观测、manager routing 联动回归 |
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest test` | PASS，`28` tests | 覆盖 notify outbox summary、review 级跨通道审计派生、manager routing 既有回归 |
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`31` tests | 覆盖来源真值分层、来源概览统计、来源真值筛选，以及非 ACTIVE 路由记录的来源真值回归 |
+| `node --test tests/booking-review-admin-ledger-efficiency.test.mjs tests/booking-review-admin-query-helpers.test.mjs` | PASS | 覆盖 P2 看板/台账 drill-down 与 query helper 回归 |
+| `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewServiceImplTest test` | PASS，`27` tests | 覆盖 P2 admin query / detail / dashboard-summary 合同与派生字段回归 |
+| `node --test tests/booking-review-admin-sla-reminder.test.mjs` | PASS，`5` tests | 覆盖 P2 SLA reminder 阈值与观察/阻断边界 |
+| `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerTodoSlaReminderJobTest test` | PASS，`2` tests | 覆盖 P2 reminder job 边界，不把 due soon 外推成 timeout reminder |
 | `git diff --check` | PASS | 无 whitespace / patch error |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=2` | naming guard 正常 |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=13`、`core_domains=0` | memory guard 正常 |
@@ -86,6 +115,9 @@
 3. booking review 专属 runtime gate 脚本 `未核出`。
 4. feature flag / rollout / rollback 控制面 `未核出`。
 5. 发布级成功 / 失败样本包 `未核出`。
+6. `priorityLevel / priorityReason / notifyRiskSummary` 独立 query / release capability `未核出`。
+7. 稳定 admin 专属错误码 `未核出`。
+8. 服务端 `degraded=true / degradeReason` 真实证据 `未核出`。
 
 ## 6. 当前结论
 
@@ -93,6 +125,8 @@
 |---|---|
 | 文档状态 | `Doc Closed` |
 | 工程状态 | `Admin Ops Strengthened, Release Evidence Pending` |
+| 已完成联调 | `Yes` |
+| admin-only 已可用 | `Yes` |
 | Can Develop | `Yes` |
 | Can Release | `No` |
 | Release Decision | `No-Go` |
@@ -103,3 +137,6 @@
 3. 不得把 node / maven 测试 PASS 写成发布级样本已齐。
 4. 不得把 notify outbox 的审计增强写成“系统已稳定送达店长”。
 5. 不得把 SLA reminder job 写成“超时升级链路已发布”。
+6. 不得把 `priorityLevel`、`priorityReason`、`notifyRiskSummary` 写成独立 query 或稳定 release capability。
+7. 不得把 `SENT / DUAL_SENT`、dashboard 聚合计数或 notify audit 阶段写成真实外部送达率、已读率、闭环率。
+8. 不得把 due soon 观察态、`ANY_FAILED`、`MANUAL_RETRY_PENDING`、`DIVERGED` 写成自动告警联动已上线。
