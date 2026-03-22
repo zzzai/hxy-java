@@ -78,6 +78,15 @@ public class BookingReviewNotifyOutboxRespVO {
     @Schema(description = "最近动作原因")
     private String actionReason;
 
+    @Schema(description = "跨通道审计阶段", example = "MANUAL_RETRY_PENDING")
+    private String reviewAuditStage;
+
+    @Schema(description = "跨通道审计结论", example = "人工重试后待复核")
+    private String reviewAuditLabel;
+
+    @Schema(description = "跨通道审计说明")
+    private String reviewAuditDetail;
+
     @Schema(description = "最近动作时间")
     private LocalDateTime lastActionTime;
 

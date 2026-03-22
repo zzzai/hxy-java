@@ -13,6 +13,7 @@
 6. 详情页双通道通知审计摘要。
 7. 店长路由覆盖率与缺失绑定运营视图。
 8. 门店绑定治理工作台。
+9. notify outbox 跨通道派发审计二期。
 
 ## 3. 当前已核实证据
 
@@ -32,6 +33,9 @@
    - `receiverAccount / receiverUserId / channel / notifyType`
    - 诊断结论、修复建议、是否允许人工重试
    - 最近动作说明、最近动作人、动作原因
+   - `跨通道审计概览`
+   - `跨通道结论 / 跨通道说明`
+   - review 级 `双通道已发送 / 存在阻断 / 存在失败 / 人工重试待复核 / 跨通道分裂` 聚合统计
 4. 店长路由核查页已具备：
    - `managerAdminUserId`
    - `managerWecomUserId`
@@ -65,6 +69,8 @@
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`25` tests | 覆盖 manager routing summary、覆盖率统计、缺失绑定过滤与 notify outbox 回归 |
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`26` tests | 覆盖治理字段派生、治理分组过滤、manager routing summary 与 notify outbox 回归 |
 | `node --test tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-notify-outbox.test.mjs` | PASS，`9` tests | 覆盖门店绑定治理工作台、路由页治理文案与 notify outbox 跳转回归 |
+| `node --test tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-manager-routing.test.mjs` | PASS，`14` tests | 覆盖 notify outbox 跨通道审计概览、详情双通道观测、manager routing 联动回归 |
+| `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest test` | PASS，`28` tests | 覆盖 notify outbox summary、review 级跨通道审计派生、manager routing 既有回归 |
 | `git diff --check` | PASS | 无 whitespace / patch error |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=3` | naming guard 正常 |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=16`、`core_domains=0` | memory guard 正常 |

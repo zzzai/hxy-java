@@ -82,6 +82,25 @@
   </ContentWrap>
 
   <ContentWrap>
+    <div v-loading="summaryLoading" class="grid grid-cols-1 gap-12px md:grid-cols-5">
+      <el-card v-for="item in auditCards" :key="item.label" shadow="never">
+        <div class="text-12px text-[#909399]">{{ item.label }}</div>
+        <div class="mt-8px text-24px font-600 text-[#303133]">{{ item.value }}</div>
+        <div class="mt-8px text-12px text-[#606266]">{{ item.detail }}</div>
+      </el-card>
+    </div>
+  </ContentWrap>
+
+  <ContentWrap>
+    <el-alert
+      :closable="false"
+      description="跨通道审计概览只用于说明同一条差评在 App / 企微两条出站记录上的当前整体状态，不代表真实送达率，也不改变现有人工重试和阻断治理规则。"
+      title="跨通道审计概览"
+      type="warning"
+    />
+  </ContentWrap>
+
+  <ContentWrap>
     <div class="mb-16px flex flex-wrap gap-8px">
       <el-button plain type="danger" @click="applyQuickStatus('BLOCKED_NO_OWNER')">只看阻断</el-button>
       <el-button plain type="warning" @click="applyQuickStatus('FAILED')">只看失败</el-button>
@@ -129,6 +148,16 @@
           {{ row.actionReason || '-' }}
         </template>
       </el-table-column>
+      <el-table-column label="跨通道结论" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.reviewAuditLabel || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="跨通道说明" min-width="260" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.reviewAuditDetail || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column label="重试次数" prop="retryCount" width="100" />
       <el-table-column label="最后错误" prop="lastErrorMsg" min-width="240" show-overflow-tooltip />
       <el-table-column label="最近动作" prop="lastActionCode" width="160" />
@@ -172,9 +201,19 @@ const message = useMessage()
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
+const summaryLoading = ref(false)
 const total = ref(0)
 const list = ref<BookingReviewApi.BookingReviewNotifyOutbox[]>([])
 const retryingIds = ref<number[]>([])
+const createEmptySummary = (): BookingReviewApi.BookingReviewNotifyOutboxSummary => ({
+  totalReviewCount: 0,
+  dualSentReviewCount: 0,
+  blockedReviewCount: 0,
+  failedReviewCount: 0,
+  manualRetryPendingReviewCount: 0,
+  divergedReviewCount: 0,
+})
+const auditSummary = ref<BookingReviewApi.BookingReviewNotifyOutboxSummary>(createEmptySummary())
 
 const createDefaultQuery = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq => ({
   pageNo: 1,
@@ -192,6 +231,20 @@ const createDefaultQuery = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq
 
 const queryParams = reactive<BookingReviewApi.BookingReviewNotifyOutboxPageReq>(createDefaultQuery())
 
+const buildSummaryQueryParams = (): BookingReviewApi.BookingReviewNotifyOutboxPageReq => ({
+  pageNo: 1,
+  pageSize: 1,
+  reviewId: queryParams.reviewId,
+  storeId: queryParams.storeId,
+  receiverRole: queryParams.receiverRole,
+  receiverUserId: queryParams.receiverUserId,
+  receiverAccount: queryParams.receiverAccount,
+  status: queryParams.status,
+  channel: queryParams.channel,
+  notifyType: queryParams.notifyType,
+  lastActionCode: queryParams.lastActionCode,
+})
+
 const applyRouteQuery = () => {
   const reviewId = Number(Array.isArray(route.query.reviewId) ? route.query.reviewId[0] : route.query.reviewId)
   if (Number.isFinite(reviewId) && reviewId > 0) {
@@ -207,6 +260,16 @@ const applyRouteQuery = () => {
   }
 }
 
+const loadSummary = async () => {
+  summaryLoading.value = true
+  try {
+    auditSummary.value =
+      (await BookingReviewApi.getReviewNotifyOutboxSummary(buildSummaryQueryParams())) || createEmptySummary()
+  } finally {
+    summaryLoading.value = false
+  }
+}
+
 const getList = async () => {
   loading.value = true
   try {
@@ -218,9 +281,41 @@ const getList = async () => {
   }
 }
 
+const auditCards = computed(() => [
+  {
+    label: '双通道已发送',
+    value: String(auditSummary.value.dualSentReviewCount || 0),
+    detail: `当前筛选范围内共 ${auditSummary.value.totalReviewCount || 0} 条评价`
+  },
+  {
+    label: '存在阻断',
+    value: String(auditSummary.value.blockedReviewCount || 0),
+    detail: '至少一个通道仍卡在店长路由或账号阻断'
+  },
+  {
+    label: '存在失败',
+    value: String(auditSummary.value.failedReviewCount || 0),
+    detail: '至少一个通道发送失败，需先排查失败原因'
+  },
+  {
+    label: '人工重试待复核',
+    value: String(auditSummary.value.manualRetryPendingReviewCount || 0),
+    detail: '人工重试后仍需继续观察双通道最新状态'
+  },
+  {
+    label: '跨通道分裂',
+    value: String(auditSummary.value.divergedReviewCount || 0),
+    detail: 'App / 企微当前最新状态不一致'
+  },
+])
+
+const refreshPage = async () => {
+  await Promise.all([getList(), loadSummary()])
+}
+
 const handleQuery = () => {
   queryParams.pageNo = 1
-  getList()
+  refreshPage()
 }
 
 const applyQuickStatus = (status?: string) => {
@@ -283,7 +378,7 @@ const handleRetry = async (row: BookingReviewApi.BookingReviewNotifyOutbox) => {
     retryingIds.value.push(row.id)
     await BookingReviewApi.retryReviewNotifyOutbox({ ids: [row.id], reason })
     message.success('已重新入队')
-    await getList()
+    await refreshPage()
   } catch (error: any) {
     if (error !== 'cancel') {
       // 请求失败由全局错误拦截处理
@@ -314,7 +409,7 @@ watch(
   () => {
     Object.assign(queryParams, createDefaultQuery())
     applyRouteQuery()
-    getList()
+    refreshPage()
   },
   { immediate: true },
 )

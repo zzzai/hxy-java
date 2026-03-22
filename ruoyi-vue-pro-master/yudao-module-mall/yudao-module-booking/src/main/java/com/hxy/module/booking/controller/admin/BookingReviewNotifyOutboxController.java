@@ -8,8 +8,10 @@ import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRetryReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
+import com.hxy.module.booking.service.support.BookingReviewAdminPrioritySupport;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,7 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import javax.validation.Valid;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
@@ -70,10 +74,19 @@ public class BookingReviewNotifyOutboxController {
             @Valid BookingReviewNotifyOutboxPageReqVO reqVO) {
         PageResult<BookingReviewNotifyOutboxDO> pageResult =
                 bookingReviewNotifyOutboxService.getNotifyOutboxPage(reqVO);
+        Map<Long, List<BookingReviewNotifyOutboxDO>> reviewOutboxMap = buildReviewOutboxMap(pageResult.getList());
         PageResult<BookingReviewNotifyOutboxRespVO> result = new PageResult<>();
         result.setTotal(pageResult.getTotal());
-        result.setList(toRespList(pageResult.getList()));
+        result.setList(toRespList(pageResult.getList(), reviewOutboxMap));
         return success(result);
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "获得预约服务评价通知跨通道审计摘要")
+    @PreAuthorize("@ss.hasPermission('booking:review:query')")
+    public CommonResult<BookingReviewNotifyOutboxSummaryRespVO> summary(
+            @Valid BookingReviewNotifyOutboxPageReqVO reqVO) {
+        return success(bookingReviewNotifyOutboxService.getNotifyOutboxSummary(reqVO));
     }
 
     @PostMapping("/retry")
@@ -85,13 +98,19 @@ public class BookingReviewNotifyOutboxController {
     }
 
     private List<BookingReviewNotifyOutboxRespVO> toRespList(List<BookingReviewNotifyOutboxDO> list) {
+        return toRespList(list, Collections.emptyMap());
+    }
+
+    private List<BookingReviewNotifyOutboxRespVO> toRespList(List<BookingReviewNotifyOutboxDO> list,
+                                                             Map<Long, List<BookingReviewNotifyOutboxDO>> reviewOutboxMap) {
         if (CollUtil.isEmpty(list)) {
             return Collections.emptyList();
         }
-        return list.stream().map(this::toResp).collect(Collectors.toList());
+        return list.stream().map(outbox -> toResp(outbox, reviewOutboxMap.get(outbox.getBizId()))).collect(Collectors.toList());
     }
 
-    private BookingReviewNotifyOutboxRespVO toResp(BookingReviewNotifyOutboxDO outbox) {
+    private BookingReviewNotifyOutboxRespVO toResp(BookingReviewNotifyOutboxDO outbox,
+                                                   List<BookingReviewNotifyOutboxDO> reviewOutboxes) {
         BookingReviewNotifyOutboxRespVO respVO = BeanUtils.toBean(outbox, BookingReviewNotifyOutboxRespVO.class);
         respVO.setReviewId(outbox.getBizId());
         DiagnosticSnapshot diagnostic = buildDiagnostic(outbox);
@@ -104,7 +123,32 @@ public class BookingReviewNotifyOutboxController {
         respVO.setActionLabel(action.label);
         respVO.setActionOperatorLabel(action.operatorLabel);
         respVO.setActionReason(action.reason);
+        if (CollUtil.isNotEmpty(reviewOutboxes)) {
+            BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot reviewAudit =
+                    BookingReviewAdminPrioritySupport.resolveReviewNotifyAudit(reviewOutboxes);
+            respVO.setReviewAuditStage(reviewAudit.getStage());
+            respVO.setReviewAuditLabel(reviewAudit.getLabel());
+            respVO.setReviewAuditDetail(reviewAudit.getDetail());
+        }
         return respVO;
+    }
+
+    private Map<Long, List<BookingReviewNotifyOutboxDO>> buildReviewOutboxMap(List<BookingReviewNotifyOutboxDO> pageList) {
+        List<Long> reviewIds = pageList == null ? Collections.emptyList() : pageList.stream()
+                .map(BookingReviewNotifyOutboxDO::getBizId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (CollUtil.isEmpty(reviewIds)) {
+            return Collections.emptyMap();
+        }
+        List<BookingReviewNotifyOutboxDO> outboxes = bookingReviewNotifyOutboxService.getNotifyOutboxListByReviewIds(reviewIds);
+        if (CollUtil.isEmpty(outboxes)) {
+            return Collections.emptyMap();
+        }
+        return outboxes.stream()
+                .filter(outbox -> outbox.getBizId() != null)
+                .collect(Collectors.groupingBy(BookingReviewNotifyOutboxDO::getBizId, LinkedHashMap::new, Collectors.toList()));
     }
 
     private DiagnosticSnapshot buildDiagnostic(BookingReviewNotifyOutboxDO outbox) {

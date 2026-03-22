@@ -40,6 +40,7 @@ public final class BookingReviewAdminPrioritySupport {
     private static final String STATUS_SENT = "SENT";
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_BLOCKED_NO_OWNER = "BLOCKED_NO_OWNER";
+    private static final String ACTION_MANUAL_RETRY = "MANUAL_RETRY";
 
     private static final long CLAIM_DUE_SOON_MINUTES = 5L;
     private static final long FIRST_ACTION_DUE_SOON_MINUTES = 10L;
@@ -86,19 +87,57 @@ public final class BookingReviewAdminPrioritySupport {
         if (outboxes == null || outboxes.isEmpty()) {
             return new NotifyRiskSnapshot("未核出通知记录", false, false);
         }
-        Map<String, BookingReviewNotifyOutboxDO> latestByChannel = new LinkedHashMap<>();
-        for (BookingReviewNotifyOutboxDO outbox : outboxes) {
-            if (outbox == null || StrUtil.isBlank(outbox.getChannel())) {
-                continue;
-            }
-            latestByChannel.putIfAbsent(outbox.getChannel(), outbox);
-        }
+        Map<String, BookingReviewNotifyOutboxDO> latestByChannel = buildLatestByChannel(outboxes);
         BookingReviewNotifyOutboxDO inApp = latestByChannel.get(CHANNEL_IN_APP);
         BookingReviewNotifyOutboxDO wecom = latestByChannel.get(CHANNEL_WECOM);
         String summary = resolveNotifyRiskSummary(inApp, wecom, latestByChannel);
         return new NotifyRiskSnapshot(summary,
                 isStatus(inApp, STATUS_BLOCKED_NO_OWNER) || isStatus(wecom, STATUS_BLOCKED_NO_OWNER),
                 isStatus(inApp, STATUS_FAILED) || isStatus(wecom, STATUS_FAILED));
+    }
+
+    public static ReviewNotifyAuditSnapshot resolveReviewNotifyAudit(List<BookingReviewNotifyOutboxDO> outboxes) {
+        if (outboxes == null || outboxes.isEmpty()) {
+            return new ReviewNotifyAuditSnapshot("PENDING_DISPATCH", "待继续派发",
+                    "当前筛选范围内未核出完整的双通道通知记录，需要继续观察后续派发。", false, false, false, false, false);
+        }
+        Map<String, BookingReviewNotifyOutboxDO> latestByChannel = buildLatestByChannel(outboxes);
+        BookingReviewNotifyOutboxDO inApp = latestByChannel.get(CHANNEL_IN_APP);
+        BookingReviewNotifyOutboxDO wecom = latestByChannel.get(CHANNEL_WECOM);
+        String summary = resolveNotifyRiskSummary(inApp, wecom, latestByChannel);
+        boolean dualSent = isStatus(inApp, STATUS_SENT) && isStatus(wecom, STATUS_SENT);
+        boolean anyBlocked = isStatus(inApp, STATUS_BLOCKED_NO_OWNER) || isStatus(wecom, STATUS_BLOCKED_NO_OWNER);
+        boolean anyFailed = isStatus(inApp, STATUS_FAILED) || isStatus(wecom, STATUS_FAILED);
+        boolean manualRetryPending = isManualRetryPending(inApp) || isManualRetryPending(wecom);
+        boolean diverged = isDiverged(inApp, wecom);
+        if (anyBlocked) {
+            return new ReviewNotifyAuditSnapshot("ANY_BLOCKED", "存在阻断",
+                    "至少一个通道仍被路由或账号问题阻断；当前整体状态：" + summary, dualSent, anyBlocked, anyFailed,
+                    manualRetryPending, diverged);
+        }
+        if (manualRetryPending) {
+            return new ReviewNotifyAuditSnapshot("MANUAL_RETRY_PENDING", "人工重试后待复核",
+                    "存在人工重试后待复核记录；当前整体状态：" + summary, dualSent, anyBlocked, anyFailed,
+                    true, diverged);
+        }
+        if (anyFailed) {
+            return new ReviewNotifyAuditSnapshot("ANY_FAILED", "存在失败",
+                    "至少一个通道发送失败；当前整体状态：" + summary, dualSent, anyBlocked, true,
+                    manualRetryPending, diverged);
+        }
+        if (dualSent) {
+            return new ReviewNotifyAuditSnapshot("DUAL_SENT", "双通道已发送",
+                    "App / 企微两条通道的最新记录都已发送。", true, anyBlocked, anyFailed,
+                    manualRetryPending, diverged);
+        }
+        if (diverged) {
+            return new ReviewNotifyAuditSnapshot("DIVERGED", "跨通道分裂",
+                    "App / 企微两条通道的最新状态不一致；当前整体状态：" + summary, dualSent, anyBlocked, anyFailed,
+                    manualRetryPending, true);
+        }
+        return new ReviewNotifyAuditSnapshot("PENDING_DISPATCH", "待继续派发",
+                "至少一个通道仍待派发；当前整体状态：" + summary, dualSent, anyBlocked, anyFailed,
+                manualRetryPending, diverged);
     }
 
     public static PrioritySnapshot resolvePriority(BookingReviewDO review, LocalDateTime now,
@@ -216,6 +255,49 @@ public final class BookingReviewAdminPrioritySupport {
         return "未核出通知记录";
     }
 
+    private static Map<String, BookingReviewNotifyOutboxDO> buildLatestByChannel(List<BookingReviewNotifyOutboxDO> outboxes) {
+        Map<String, BookingReviewNotifyOutboxDO> latestByChannel = new LinkedHashMap<>();
+        for (BookingReviewNotifyOutboxDO outbox : outboxes) {
+            if (outbox == null || StrUtil.isBlank(outbox.getChannel())) {
+                continue;
+            }
+            latestByChannel.compute(outbox.getChannel(), (channel, current) ->
+                    isNewer(current, outbox) ? outbox : current);
+        }
+        return latestByChannel;
+    }
+
+    private static boolean isNewer(BookingReviewNotifyOutboxDO current, BookingReviewNotifyOutboxDO candidate) {
+        if (current == null) {
+            return true;
+        }
+        Long currentId = current.getId();
+        Long candidateId = candidate.getId();
+        if (candidateId != null && currentId != null) {
+            return candidateId > currentId;
+        }
+        if (candidate.getLastActionTime() != null && current.getLastActionTime() != null) {
+            return candidate.getLastActionTime().isAfter(current.getLastActionTime());
+        }
+        return candidate.getCreateTime() != null && current.getCreateTime() != null
+                && candidate.getCreateTime().isAfter(current.getCreateTime());
+    }
+
+    private static boolean isManualRetryPending(BookingReviewNotifyOutboxDO outbox) {
+        return outbox != null
+                && isStatus(outbox, STATUS_PENDING)
+                && Objects.equals(ACTION_MANUAL_RETRY, StrUtil.blankToDefault(outbox.getLastActionCode(), ""));
+    }
+
+    private static boolean isDiverged(BookingReviewNotifyOutboxDO inApp, BookingReviewNotifyOutboxDO wecom) {
+        if (inApp == null || wecom == null) {
+            return false;
+        }
+        String inAppStatus = StrUtil.blankToDefault(inApp.getStatus(), STATUS_PENDING);
+        String wecomStatus = StrUtil.blankToDefault(wecom.getStatus(), STATUS_PENDING);
+        return !Objects.equals(inAppStatus, wecomStatus);
+    }
+
     private static boolean isStatus(BookingReviewNotifyOutboxDO outbox, String status) {
         return outbox != null && Objects.equals(status, StrUtil.blankToDefault(outbox.getStatus(), STATUS_PENDING));
     }
@@ -263,6 +345,62 @@ public final class BookingReviewAdminPrioritySupport {
 
         public String getReason() {
             return reason;
+        }
+    }
+
+    public static final class ReviewNotifyAuditSnapshot {
+        private final String stage;
+        private final String label;
+        private final String detail;
+        private final boolean dualSent;
+        private final boolean blocked;
+        private final boolean failed;
+        private final boolean manualRetryPending;
+        private final boolean diverged;
+
+        private ReviewNotifyAuditSnapshot(String stage, String label, String detail,
+                                          boolean dualSent, boolean blocked, boolean failed,
+                                          boolean manualRetryPending, boolean diverged) {
+            this.stage = stage;
+            this.label = label;
+            this.detail = detail;
+            this.dualSent = dualSent;
+            this.blocked = blocked;
+            this.failed = failed;
+            this.manualRetryPending = manualRetryPending;
+            this.diverged = diverged;
+        }
+
+        public String getStage() {
+            return stage;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public String getDetail() {
+            return detail;
+        }
+
+        public boolean isDualSent() {
+            return dualSent;
+        }
+
+        public boolean isBlocked() {
+            return blocked;
+        }
+
+        public boolean isFailed() {
+            return failed;
+        }
+
+        public boolean isManualRetryPending() {
+            return manualRetryPending;
+        }
+
+        public boolean isDiverged() {
+            return diverged;
         }
     }
 }

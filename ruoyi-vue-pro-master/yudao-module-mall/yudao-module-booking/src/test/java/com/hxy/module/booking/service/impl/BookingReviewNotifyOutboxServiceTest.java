@@ -3,6 +3,8 @@ package com.hxy.module.booking.service.impl;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.framework.test.core.ut.BaseDbUnitTest;
 import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
@@ -249,6 +251,48 @@ class BookingReviewNotifyOutboxServiceTest extends BaseDbUnitTest {
         ServiceException ex = assertThrows(ServiceException.class,
                 () -> bookingReviewNotifyOutboxService.retryNotifyOutbox(List.of(outboxId), "manual-retry"));
         assertEquals(BOOKING_REVIEW_NOTIFY_OUTBOX_STATUS_INVALID.getCode(), ex.getCode());
+    }
+
+    @Test
+    void shouldBuildNotifyOutboxSummaryByReview() {
+        Long scopedStoreId = 3601L;
+        BookingReviewNotifyOutboxDO sentInApp = bookingReviewNotifyOutboxMapper.selectById(
+                insertOutbox("SENT", "IN_APP", 9101L, "ADMIN#9101", 0, ""));
+        sentInApp.setBizId(6001L);
+        sentInApp.setStoreId(scopedStoreId);
+        bookingReviewNotifyOutboxMapper.updateById(sentInApp);
+        BookingReviewNotifyOutboxDO sentWecom = bookingReviewNotifyOutboxMapper.selectById(
+                insertOutbox("SENT", "WECOM", null, "wecom-manager-9101", 0, ""));
+        sentWecom.setBizId(6001L);
+        sentWecom.setStoreId(scopedStoreId);
+        bookingReviewNotifyOutboxMapper.updateById(sentWecom);
+
+        BookingReviewNotifyOutboxDO blockedInApp = bookingReviewNotifyOutboxMapper.selectById(
+                insertOutbox("BLOCKED_NO_OWNER", "IN_APP", null, null, 0, "BLOCKED_NO_OWNER:NO_APP_ACCOUNT"));
+        blockedInApp.setBizId(6002L);
+        blockedInApp.setStoreId(scopedStoreId);
+        bookingReviewNotifyOutboxMapper.updateById(blockedInApp);
+        BookingReviewNotifyOutboxDO blockedWecom = bookingReviewNotifyOutboxMapper.selectById(
+                insertOutbox("FAILED", "WECOM", null, "wecom-manager-9102", 1, "dispatch-failed"));
+        blockedWecom.setBizId(6002L);
+        blockedWecom.setStoreId(scopedStoreId);
+        blockedWecom.setLastActionCode("MANUAL_RETRY");
+        blockedWecom.setStatus("PENDING");
+        bookingReviewNotifyOutboxMapper.updateById(blockedWecom);
+
+        BookingReviewNotifyOutboxPageReqVO reqVO = new BookingReviewNotifyOutboxPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(20);
+        reqVO.setStoreId(scopedStoreId);
+
+        BookingReviewNotifyOutboxSummaryRespVO summary = bookingReviewNotifyOutboxService.getNotifyOutboxSummary(reqVO);
+
+        assertEquals(2L, summary.getTotalReviewCount());
+        assertEquals(1L, summary.getDualSentReviewCount());
+        assertEquals(1L, summary.getBlockedReviewCount());
+        assertEquals(0L, summary.getFailedReviewCount());
+        assertEquals(1L, summary.getManualRetryPendingReviewCount());
+        assertEquals(1L, summary.getDivergedReviewCount());
     }
 
     private void insertRouting(Long storeId, Long managerAdminUserId, String managerWecomUserId, String bindingStatus) {

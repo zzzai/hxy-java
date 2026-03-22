@@ -175,8 +175,20 @@ export interface BookingReviewNotifyOutbox {
   actionLabel?: string
   actionOperatorLabel?: string
   actionReason?: string
+  reviewAuditStage?: string
+  reviewAuditLabel?: string
+  reviewAuditDetail?: string
   lastActionTime?: string
   createTime?: string
+}
+
+export interface BookingReviewNotifyOutboxSummary {
+  totalReviewCount?: number
+  dualSentReviewCount?: number
+  blockedReviewCount?: number
+  failedReviewCount?: number
+  manualRetryPendingReviewCount?: number
+  divergedReviewCount?: number
 }
 
 export interface BookingReviewNotifyOutboxPageReq extends PageParam {
@@ -281,6 +293,10 @@ export const getReviewNotifyOutboxList = async (params: {
 
 export const getReviewNotifyOutboxPage = async (params: BookingReviewNotifyOutboxPageReq) => {
   return await request.get<PageResult<BookingReviewNotifyOutbox>>({ url: '/booking/review/notify-outbox/page', params })
+}
+
+export const getReviewNotifyOutboxSummary = async (params: BookingReviewNotifyOutboxPageReq) => {
+  return await request.get<BookingReviewNotifyOutboxSummary>({ url: '/booking/review/notify-outbox/summary', params })
 }
 
 export const retryReviewNotifyOutbox = async (data: BookingReviewNotifyOutboxRetryReq) => {

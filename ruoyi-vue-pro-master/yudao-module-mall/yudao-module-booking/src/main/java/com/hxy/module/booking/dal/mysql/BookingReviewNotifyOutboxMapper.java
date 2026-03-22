@@ -43,7 +43,15 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
     }
 
     default PageResult<BookingReviewNotifyOutboxDO> selectPage(BookingReviewNotifyOutboxPageReqVO reqVO) {
-        return selectPage(reqVO, new LambdaQueryWrapperX<BookingReviewNotifyOutboxDO>()
+        return selectPage(reqVO, buildPageQuery(reqVO));
+    }
+
+    default List<BookingReviewNotifyOutboxDO> selectList(BookingReviewNotifyOutboxPageReqVO reqVO) {
+        return selectList(buildPageQuery(reqVO));
+    }
+
+    default LambdaQueryWrapperX<BookingReviewNotifyOutboxDO> buildPageQuery(BookingReviewNotifyOutboxPageReqVO reqVO) {
+        return new LambdaQueryWrapperX<BookingReviewNotifyOutboxDO>()
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getBizId, reqVO.getReviewId())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getStoreId, reqVO.getStoreId())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getReceiverRole, reqVO.getReceiverRole())
@@ -53,7 +61,7 @@ public interface BookingReviewNotifyOutboxMapper extends BaseMapperX<BookingRevi
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getChannel, reqVO.getChannel())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getNotifyType, reqVO.getNotifyType())
                 .eqIfPresent(BookingReviewNotifyOutboxDO::getLastActionCode, reqVO.getLastActionCode())
-                .orderByDesc(BookingReviewNotifyOutboxDO::getId));
+                .orderByDesc(BookingReviewNotifyOutboxDO::getId);
     }
 
     default List<BookingReviewNotifyOutboxDO> selectDispatchableList(LocalDateTime now, Integer limit, Integer maxRetryCount) {

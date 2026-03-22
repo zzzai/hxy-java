@@ -2,6 +2,7 @@ package com.hxy.module.booking.service;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 
@@ -15,7 +16,11 @@ public interface BookingReviewNotifyOutboxService {
 
     List<BookingReviewNotifyOutboxDO> getNotifyOutboxList(Long reviewId, String status, Integer limit);
 
+    List<BookingReviewNotifyOutboxDO> getNotifyOutboxListByReviewIds(List<Long> reviewIds);
+
     PageResult<BookingReviewNotifyOutboxDO> getNotifyOutboxPage(BookingReviewNotifyOutboxPageReqVO reqVO);
+
+    BookingReviewNotifyOutboxSummaryRespVO getNotifyOutboxSummary(BookingReviewNotifyOutboxPageReqVO reqVO);
 
     int createManagerTodoSlaReminderOutbox(Integer limit);
 

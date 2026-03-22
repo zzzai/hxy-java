@@ -110,12 +110,17 @@ test('notify audit helper keeps missing channel explicit', () => {
 test('review api exposes dual-channel notify outbox types and methods', () => {
   const apiSource = fs.readFileSync(apiPath, 'utf8');
   assert.match(apiSource, /BookingReviewNotifyOutboxPageReq/);
+  assert.match(apiSource, /BookingReviewNotifyOutboxSummary/);
   assert.match(apiSource, /getReviewNotifyOutboxList/);
   assert.match(apiSource, /getReviewNotifyOutboxPage/);
+  assert.match(apiSource, /getReviewNotifyOutboxSummary/);
   assert.match(apiSource, /retryReviewNotifyOutbox/);
   assert.match(apiSource, /lastActionCode/);
   assert.match(apiSource, /receiverAccount/);
+  assert.match(apiSource, /reviewAuditLabel/);
+  assert.match(apiSource, /reviewAuditDetail/);
   assert.match(apiSource, /WECOM/);
+  assert.match(apiSource, /\/booking\/review\/notify-outbox\/summary/);
   assert.match(apiSource, /\/booking\/review\/notify-outbox\/retry/);
 });
 
@@ -140,6 +145,7 @@ test('notify outbox page exists and uses dual-channel notify fields', () => {
   const pageSource = fs.readFileSync(outboxPagePath, 'utf8');
   assert.match(pageSource, /通知出站台账/);
   assert.match(pageSource, /getReviewNotifyOutboxPage/);
+  assert.match(pageSource, /getReviewNotifyOutboxSummary/);
   assert.match(pageSource, /retryReviewNotifyOutbox/);
   assert.match(pageSource, /reviewId/);
   assert.match(pageSource, /receiverUserId/);
@@ -155,10 +161,20 @@ test('notify outbox page exists and uses dual-channel notify fields', () => {
   assert.match(pageSource, /只看失败/);
   assert.match(pageSource, /只看待派发/);
   assert.match(pageSource, /只看人工重试/);
+  assert.match(pageSource, /跨通道审计概览/);
+  assert.match(pageSource, /双通道已发送/);
+  assert.match(pageSource, /存在阻断/);
+  assert.match(pageSource, /存在失败/);
+  assert.match(pageSource, /人工重试待复核/);
+  assert.match(pageSource, /跨通道分裂/);
+  assert.match(pageSource, /跨通道结论/);
+  assert.match(pageSource, /跨通道说明/);
   assert.match(pageSource, /diagnosticLabel/);
   assert.match(pageSource, /repairHint/);
   assert.match(pageSource, /manualRetryAllowed/);
   assert.match(pageSource, /actionLabel/);
   assert.match(pageSource, /actionOperatorLabel/);
   assert.match(pageSource, /actionReason/);
+  assert.match(pageSource, /reviewAuditLabel/);
+  assert.match(pageSource, /reviewAuditDetail/);
 });

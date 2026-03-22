@@ -6,6 +6,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.system.service.notify.NotifySendService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
@@ -16,6 +17,7 @@ import com.hxy.module.booking.enums.BookingReviewLevelEnum;
 import com.hxy.module.booking.enums.BookingReviewManagerTodoStatusEnum;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import com.hxy.module.booking.service.BookingReviewWecomRobotSender;
+import com.hxy.module.booking.service.support.BookingReviewAdminPrioritySupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -175,8 +177,45 @@ public class BookingReviewNotifyOutboxServiceImpl implements BookingReviewNotify
     }
 
     @Override
+    public List<BookingReviewNotifyOutboxDO> getNotifyOutboxListByReviewIds(List<Long> reviewIds) {
+        if (reviewIds == null || reviewIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return bookingReviewNotifyOutboxMapper.selectListByBizIds(reviewIds);
+    }
+
+    @Override
     public PageResult<BookingReviewNotifyOutboxDO> getNotifyOutboxPage(BookingReviewNotifyOutboxPageReqVO reqVO) {
         return bookingReviewNotifyOutboxMapper.selectPage(reqVO);
+    }
+
+    @Override
+    public BookingReviewNotifyOutboxSummaryRespVO getNotifyOutboxSummary(BookingReviewNotifyOutboxPageReqVO reqVO) {
+        List<BookingReviewNotifyOutboxDO> filteredList = bookingReviewNotifyOutboxMapper.selectList(reqVO);
+        BookingReviewNotifyOutboxSummaryRespVO summary = new BookingReviewNotifyOutboxSummaryRespVO();
+        if (filteredList.isEmpty()) {
+            summary.setTotalReviewCount(0L);
+            summary.setDualSentReviewCount(0L);
+            summary.setBlockedReviewCount(0L);
+            summary.setFailedReviewCount(0L);
+            summary.setManualRetryPendingReviewCount(0L);
+            summary.setDivergedReviewCount(0L);
+            return summary;
+        }
+        Map<Long, List<BookingReviewNotifyOutboxDO>> reviewOutboxMap = filteredList.stream()
+                .filter(outbox -> outbox != null && outbox.getBizId() != null)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        BookingReviewNotifyOutboxDO::getBizId, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        List<BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot> snapshots = reviewOutboxMap.values().stream()
+                .map(BookingReviewAdminPrioritySupport::resolveReviewNotifyAudit)
+                .collect(java.util.stream.Collectors.toList());
+        summary.setTotalReviewCount((long) reviewOutboxMap.size());
+        summary.setDualSentReviewCount(snapshots.stream().filter(BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot::isDualSent).count());
+        summary.setBlockedReviewCount(snapshots.stream().filter(BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot::isBlocked).count());
+        summary.setFailedReviewCount(snapshots.stream().filter(BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot::isFailed).count());
+        summary.setManualRetryPendingReviewCount(snapshots.stream().filter(BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot::isManualRetryPending).count());
+        summary.setDivergedReviewCount(snapshots.stream().filter(BookingReviewAdminPrioritySupport.ReviewNotifyAuditSnapshot::isDiverged).count());
+        return summary;
     }
 
     @Override

@@ -6,6 +6,7 @@ import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRetryReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewNotifyOutboxSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewNotifyOutboxDO;
 import com.hxy.module.booking.service.BookingReviewNotifyOutboxService;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,11 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         outbox.setLastErrorMsg("manual-retry:ops-retry");
         when(bookingReviewNotifyOutboxService.getNotifyOutboxPage(reqVO))
                 .thenReturn(new PageResult<>(Collections.singletonList(outbox), 1L));
+        when(bookingReviewNotifyOutboxService.getNotifyOutboxListByReviewIds(List.of(2002L)))
+                .thenReturn(List.of(
+                        outbox,
+                        buildOutbox(1003L, "FAILED", "IN_APP", 9010L, "ADMIN#9010")
+                ));
 
         CommonResult<PageResult<BookingReviewNotifyOutboxRespVO>> result = controller.page(reqVO);
 
@@ -83,7 +89,33 @@ class BookingReviewNotifyOutboxControllerTest extends BaseMockitoUnitTest {
         assertEquals("人工重新入队", result.getData().getList().get(0).getActionLabel());
         assertEquals("管理员#88", result.getData().getList().get(0).getActionOperatorLabel());
         assertEquals("ops-retry", result.getData().getList().get(0).getActionReason());
+        assertEquals("MANUAL_RETRY_PENDING", result.getData().getList().get(0).getReviewAuditStage());
+        assertEquals("人工重试后待复核", result.getData().getList().get(0).getReviewAuditLabel());
         verify(bookingReviewNotifyOutboxService).getNotifyOutboxPage(reqVO);
+        verify(bookingReviewNotifyOutboxService).getNotifyOutboxListByReviewIds(List.of(2002L));
+    }
+
+    @Test
+    void shouldGetNotifyOutboxSummary() {
+        BookingReviewNotifyOutboxPageReqVO reqVO = new BookingReviewNotifyOutboxPageReqVO();
+        reqVO.setStoreId(3001L);
+
+        BookingReviewNotifyOutboxSummaryRespVO summary = new BookingReviewNotifyOutboxSummaryRespVO();
+        summary.setTotalReviewCount(12L);
+        summary.setDualSentReviewCount(5L);
+        summary.setBlockedReviewCount(3L);
+        summary.setFailedReviewCount(2L);
+        summary.setManualRetryPendingReviewCount(1L);
+        summary.setDivergedReviewCount(4L);
+        when(bookingReviewNotifyOutboxService.getNotifyOutboxSummary(reqVO)).thenReturn(summary);
+
+        CommonResult<BookingReviewNotifyOutboxSummaryRespVO> result = controller.summary(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(12L, result.getData().getTotalReviewCount());
+        assertEquals(4L, result.getData().getDivergedReviewCount());
+        verify(bookingReviewNotifyOutboxService).getNotifyOutboxSummary(reqVO);
     }
 
     @Test
