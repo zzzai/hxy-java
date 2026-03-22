@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.mysql.BookingReviewManagerAccountRoutingMapper;
 import org.junit.jupiter.api.Test;
@@ -14,11 +15,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -137,7 +140,8 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
                 .setLastVerifiedTime(LocalDateTime.now().withNano(0));
         when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
                 .thenReturn(new PageResult<>(Collections.singletonList(store), 1L));
-        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(3004L)).thenReturn(routing);
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
+                .thenReturn(Collections.singletonList(routing));
 
         PageResult<BookingReviewManagerAccountRoutingRespVO> result = service.getRoutingPage(reqVO);
 
@@ -148,5 +152,83 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals("双通道路由有效", result.getList().get(0).getRoutingLabel());
         assertEquals("wecom-manager-7004", result.getList().get(0).getManagerWecomUserId());
         verify(productStoreService).getStorePage(any(ProductStorePageReqVO.class));
+    }
+
+    @Test
+    void shouldBuildCoverageSummaryForMissingBindingOpsView() {
+        BookingReviewManagerAccountRoutingPageReqVO reqVO = new BookingReviewManagerAccountRoutingPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+
+        ProductStoreDO store1 = ProductStoreDO.builder().id(3101L).name("门店A").contactMobile("13900000001").build();
+        ProductStoreDO store2 = ProductStoreDO.builder().id(3102L).name("门店B").contactMobile("13900000002").build();
+        ProductStoreDO store3 = ProductStoreDO.builder().id(3103L).name("门店C").contactMobile("13900000003").build();
+        ProductStoreDO store4 = ProductStoreDO.builder().id(3104L).name("门店D").contactMobile("13900000004").build();
+        when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
+                .thenReturn(new PageResult<>(Arrays.asList(store1, store2, store3, store4), 4L));
+
+        BookingReviewManagerAccountRoutingDO dualReady = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3102L)
+                .setManagerAdminUserId(7102L)
+                .setManagerWecomUserId("wecom-7102")
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        BookingReviewManagerAccountRoutingDO appOnly = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3103L)
+                .setManagerAdminUserId(7103L)
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        BookingReviewManagerAccountRoutingDO wecomOnly = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3104L)
+                .setManagerWecomUserId("wecom-7104")
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
+                .thenReturn(Arrays.asList(dualReady, appOnly, wecomOnly));
+
+        BookingReviewManagerAccountRoutingSummaryRespVO summary = service.getRoutingCoverageSummary(reqVO);
+
+        assertEquals(4L, summary.getTotalStoreCount());
+        assertEquals(1L, summary.getDualReadyCount());
+        assertEquals(2L, summary.getAppReadyCount());
+        assertEquals(2L, summary.getWecomReadyCount());
+        assertEquals(3L, summary.getMissingAnyCount());
+        assertEquals(2L, summary.getMissingAppCount());
+        assertEquals(2L, summary.getMissingWecomCount());
+        assertEquals(1L, summary.getMissingBothCount());
+    }
+
+    @Test
+    void shouldFilterRoutingPageByWecomRoutingStatus() {
+        BookingReviewManagerAccountRoutingPageReqVO reqVO = new BookingReviewManagerAccountRoutingPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        reqVO.setWecomRoutingStatus("WECOM_MISSING");
+
+        ProductStoreDO appOnlyStore = ProductStoreDO.builder().id(3201L).name("门店E").contactMobile("13900000005").build();
+        ProductStoreDO dualReadyStore = ProductStoreDO.builder().id(3202L).name("门店F").contactMobile("13900000006").build();
+        when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
+                .thenReturn(new PageResult<>(Arrays.asList(appOnlyStore, dualReadyStore), 2L));
+
+        BookingReviewManagerAccountRoutingDO appOnly = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3201L)
+                .setManagerAdminUserId(7201L)
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        BookingReviewManagerAccountRoutingDO dualReady = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3202L)
+                .setManagerAdminUserId(7202L)
+                .setManagerWecomUserId("wecom-7202")
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
+                .thenReturn(Arrays.asList(appOnly, dualReady));
+
+        PageResult<BookingReviewManagerAccountRoutingRespVO> result = service.getRoutingPage(reqVO);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals(1, result.getList().size());
+        assertEquals("门店E", result.getList().get(0).getStoreName());
+        assertEquals("缺店长企微账号", result.getList().get(0).getWecomRoutingLabel());
     }
 }

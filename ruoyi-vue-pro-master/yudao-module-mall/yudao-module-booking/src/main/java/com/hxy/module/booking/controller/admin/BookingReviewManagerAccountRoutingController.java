@@ -4,6 +4,7 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingSummaryRespVO;
 import com.hxy.module.booking.service.BookingReviewManagerAccountRoutingQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,5 +44,13 @@ public class BookingReviewManagerAccountRoutingController {
     public CommonResult<PageResult<BookingReviewManagerAccountRoutingRespVO>> page(
             @Valid BookingReviewManagerAccountRoutingPageReqVO reqVO) {
         return success(bookingReviewManagerAccountRoutingQueryService.getRoutingPage(reqVO));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "获得门店店长账号路由覆盖率摘要")
+    @PreAuthorize("@ss.hasPermission('booking:review:query')")
+    public CommonResult<BookingReviewManagerAccountRoutingSummaryRespVO> summary(
+            @Valid BookingReviewManagerAccountRoutingPageReqVO reqVO) {
+        return success(bookingReviewManagerAccountRoutingQueryService.getRoutingCoverageSummary(reqVO));
     }
 }

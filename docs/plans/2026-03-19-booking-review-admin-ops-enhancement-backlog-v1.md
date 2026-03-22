@@ -31,6 +31,7 @@
 | A10 | 台账页店长待办快捷动作 | 当前台账页已支持直接“快速认领 / 记录首次处理 / 标记闭环”，无需先进入详情页 | 缩短常见处理路径 | 已落地（admin-only, ops-efficiency） |
 | A11 | SLA 优先级视图与即将超时入口 | 当前后端已统一派生 `managerSlaStage / priorityLevel / priorityReason / notifyRiskSummary`，看板新增“即将认领超时 / 即将首次处理超时 / 即将闭环超时”卡片，台账补优先级 / 通知风险列 | 让值班人员先看最该处理的事项，而不是只看已超时结果 | 已落地（admin-only, ops-priority） |
 | A12 | 详情页双通道通知摘要 | 当前详情页已新增 `双通道摘要 + App 通道 + 企微通道` 聚合视图，区分“总体结论”和“最近一条通知真值”，并保留原始 outbox 表格 | 降低运营把单条最新记录误判成整条通知链路状态的风险 | 已落地（admin-only, audit-summary） |
+| A13 | 店长路由覆盖率与缺失绑定运营视图 | 当前 manager routing 页已新增覆盖率摘要卡片、`只看缺任一绑定 / 缺 App / 缺企微 / 双缺失 / 双通道就绪` 快捷筛选，以及 `summary` 汇总接口 | 让运营在 1000 门店量级下先看全局覆盖率，再精准下钻缺失绑定门店 | 已落地（admin-only, routing-coverage） |
 
 ## 5. Not Now（当前不得排进本批开发）
 

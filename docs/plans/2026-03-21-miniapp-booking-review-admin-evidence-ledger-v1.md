@@ -11,6 +11,7 @@
 4. App / 企微双通道出站与共享企微 sender 工程接入。
 5. 店长待办 SLA 自动提醒出站。
 6. 详情页双通道通知审计摘要。
+7. 店长路由覆盖率与缺失绑定运营视图。
 
 ## 3. 当前已核实证据
 
@@ -35,6 +36,8 @@
    - `managerWecomUserId`
    - `bindingStatus / effectiveTime / expireTime`
    - `appRoutingLabel / wecomRoutingLabel / repairHint`
+   - `覆盖率概览`
+   - `只看缺任一绑定 / 缺 App / 缺企微 / 双缺失 / 双通道就绪` 快捷筛选
 
 ### 3.2 工程能力证据
 1. 差评创建后会按门店路由生成两条独立 outbox：
@@ -56,9 +59,10 @@
 |---|---|---|
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewNotifyOutboxControllerTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewServiceImplTest,BookingReviewNotifyOutboxServiceTest,BookingReviewNotifyDispatchJobTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewManagerTodoSlaReminderJobTest test` | PASS，`50` tests | 覆盖 controller / service / notify dispatch / manager routing / SLA reminder |
 | `node --test tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-sla-reminder.test.mjs` | PASS，`30` tests | 覆盖 admin 台账、详情、notify outbox、manager routing、快捷筛选、双通道摘要与 SLA 提醒 |
+| `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`25` tests | 覆盖 manager routing summary、覆盖率统计、缺失绑定过滤与 notify outbox 回归 |
 | `git diff --check` | PASS | 无 whitespace / patch error |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=3` | naming guard 正常 |
-| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=7`、`core_domains=0` | memory guard 正常 |
+| `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=16`、`core_domains=0` | memory guard 正常 |
 
 ## 5. 当前还不能当作发布证据的项
 1. 真实 App / 企微双通道消息发送样本 `未核出`。

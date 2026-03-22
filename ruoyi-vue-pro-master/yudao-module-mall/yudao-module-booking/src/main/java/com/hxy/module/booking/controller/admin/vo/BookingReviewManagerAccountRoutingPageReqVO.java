@@ -20,4 +20,16 @@ public class BookingReviewManagerAccountRoutingPageReqVO extends PageParam {
 
     @Schema(description = "联系人手机号", example = "13900000000")
     private String contactMobile;
+
+    @Schema(description = "是否只看缺任一绑定")
+    private Boolean onlyMissingAny;
+
+    @Schema(description = "路由状态", example = "ACTIVE_ROUTE")
+    private String routingStatus;
+
+    @Schema(description = "App 路由状态", example = "APP_MISSING")
+    private String appRoutingStatus;
+
+    @Schema(description = "企微路由状态", example = "WECOM_MISSING")
+    private String wecomRoutingStatus;
 }

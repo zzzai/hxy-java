@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.product.dal.dataobject.store.ProductStoreDO;
 import cn.iocoder.yudao.module.product.service.store.ProductStoreService;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingSummaryRespVO;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import com.hxy.module.booking.dal.mysql.BookingReviewManagerAccountRoutingMapper;
 import com.hxy.module.booking.service.BookingReviewManagerAccountRoutingQueryService;
@@ -14,9 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +29,10 @@ import java.util.stream.Collectors;
 public class BookingReviewManagerAccountRoutingQueryServiceImpl implements BookingReviewManagerAccountRoutingQueryService {
 
     private static final String BINDING_STATUS_ACTIVE = "ACTIVE";
+    private static final String ROUTING_STATUS_ACTIVE = "ACTIVE_ROUTE";
+    private static final String APP_ROUTING_MISSING = "APP_MISSING";
+    private static final String WECOM_ROUTING_MISSING = "WECOM_MISSING";
+    private static final int STORE_BATCH_SIZE = 200;
 
     @Resource
     private ProductStoreService productStoreService;
@@ -46,24 +55,43 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
     @Override
     public PageResult<BookingReviewManagerAccountRoutingRespVO> getRoutingPage(
             BookingReviewManagerAccountRoutingPageReqVO reqVO) {
-        if (reqVO.getStoreId() != null) {
-            BookingReviewManagerAccountRoutingRespVO respVO = getRouting(reqVO.getStoreId());
-            if (respVO == null || !matchesStoreFilters(respVO, reqVO)) {
-                return new PageResult<>(Collections.emptyList(), 0L);
-            }
-            return new PageResult<>(Collections.singletonList(respVO), 1L);
-        }
+        List<BookingReviewManagerAccountRoutingRespVO> filteredList = buildFilteredRoutingList(reqVO);
+        int pageNo = reqVO.getPageNo() == null || reqVO.getPageNo() < 1 ? 1 : reqVO.getPageNo();
+        int pageSize = reqVO.getPageSize() == null || reqVO.getPageSize() < 1 ? 10 : reqVO.getPageSize();
+        int fromIndex = Math.min((pageNo - 1) * pageSize, filteredList.size());
+        int toIndex = Math.min(fromIndex + pageSize, filteredList.size());
+        return new PageResult<>(filteredList.subList(fromIndex, toIndex), (long) filteredList.size());
+    }
 
-        ProductStorePageReqVO storeReqVO = new ProductStorePageReqVO();
-        storeReqVO.setPageNo(reqVO.getPageNo());
-        storeReqVO.setPageSize(reqVO.getPageSize());
-        storeReqVO.setName(toNullable(reqVO.getStoreName()));
-        storeReqVO.setContactMobile(toNullable(reqVO.getContactMobile()));
-        PageResult<ProductStoreDO> storePage = productStoreService.getStorePage(storeReqVO);
-        List<BookingReviewManagerAccountRoutingRespVO> list = storePage.getList().stream()
-                .map(store -> buildResp(store, bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(store.getId())))
-                .collect(Collectors.toList());
-        return new PageResult<>(list, storePage.getTotal());
+    @Override
+    public BookingReviewManagerAccountRoutingSummaryRespVO getRoutingCoverageSummary(
+            BookingReviewManagerAccountRoutingPageReqVO reqVO) {
+        List<BookingReviewManagerAccountRoutingRespVO> filteredList = buildFilteredRoutingList(reqVO);
+        BookingReviewManagerAccountRoutingSummaryRespVO summary = new BookingReviewManagerAccountRoutingSummaryRespVO();
+        summary.setTotalStoreCount((long) filteredList.size());
+        summary.setDualReadyCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getRoutingStatus(), ROUTING_STATUS_ACTIVE))
+                .count());
+        summary.setAppReadyCount(filteredList.stream()
+                .filter(item -> !StrUtil.equalsIgnoreCase(item.getAppRoutingStatus(), APP_ROUTING_MISSING))
+                .count());
+        summary.setWecomReadyCount(filteredList.stream()
+                .filter(item -> !StrUtil.equalsIgnoreCase(item.getWecomRoutingStatus(), WECOM_ROUTING_MISSING))
+                .count());
+        summary.setMissingAnyCount(filteredList.stream()
+                .filter(this::isMissingAny)
+                .count());
+        summary.setMissingAppCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getAppRoutingStatus(), APP_ROUTING_MISSING))
+                .count());
+        summary.setMissingWecomCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getWecomRoutingStatus(), WECOM_ROUTING_MISSING))
+                .count());
+        summary.setMissingBothCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getAppRoutingStatus(), APP_ROUTING_MISSING))
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getWecomRoutingStatus(), WECOM_ROUTING_MISSING))
+                .count());
+        return summary;
     }
 
     private boolean matchesStoreFilters(BookingReviewManagerAccountRoutingRespVO respVO,
@@ -79,9 +107,87 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         return true;
     }
 
+    private boolean matchesRoutingFilters(BookingReviewManagerAccountRoutingRespVO respVO,
+                                          BookingReviewManagerAccountRoutingPageReqVO reqVO) {
+        if (Boolean.TRUE.equals(reqVO.getOnlyMissingAny()) && !isMissingAny(respVO)) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getRoutingStatus())
+                && !StrUtil.equalsIgnoreCase(respVO.getRoutingStatus(), reqVO.getRoutingStatus())) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getAppRoutingStatus())
+                && !StrUtil.equalsIgnoreCase(respVO.getAppRoutingStatus(), reqVO.getAppRoutingStatus())) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getWecomRoutingStatus())
+                && !StrUtil.equalsIgnoreCase(respVO.getWecomRoutingStatus(), reqVO.getWecomRoutingStatus())) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isMissingAny(BookingReviewManagerAccountRoutingRespVO respVO) {
+        return StrUtil.equalsIgnoreCase(respVO.getAppRoutingStatus(), APP_ROUTING_MISSING)
+                || StrUtil.equalsIgnoreCase(respVO.getWecomRoutingStatus(), WECOM_ROUTING_MISSING);
+    }
+
     private String toNullable(String value) {
         String trimmed = StrUtil.trim(value);
         return StrUtil.isBlank(trimmed) ? null : trimmed;
+    }
+
+    private List<BookingReviewManagerAccountRoutingRespVO> buildFilteredRoutingList(
+            BookingReviewManagerAccountRoutingPageReqVO reqVO) {
+        List<ProductStoreDO> matchedStores = loadMatchedStores(reqVO);
+        if (matchedStores.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<Long, BookingReviewManagerAccountRoutingDO> routingMap = loadLatestRoutingMap(matchedStores);
+        return matchedStores.stream()
+                .map(store -> buildResp(store, routingMap.get(store.getId())))
+                .filter(respVO -> matchesStoreFilters(respVO, reqVO))
+                .filter(respVO -> matchesRoutingFilters(respVO, reqVO))
+                .collect(Collectors.toList());
+    }
+
+    private List<ProductStoreDO> loadMatchedStores(BookingReviewManagerAccountRoutingPageReqVO reqVO) {
+        if (reqVO.getStoreId() != null) {
+            ProductStoreDO store = productStoreService.getStore(reqVO.getStoreId());
+            if (store == null) {
+                return Collections.emptyList();
+            }
+            return Collections.singletonList(store);
+        }
+        List<ProductStoreDO> stores = new ArrayList<>();
+        int pageNo = 1;
+        long total = Long.MAX_VALUE;
+        while (stores.size() < total) {
+            ProductStorePageReqVO storeReqVO = new ProductStorePageReqVO();
+            storeReqVO.setPageNo(pageNo);
+            storeReqVO.setPageSize(STORE_BATCH_SIZE);
+            storeReqVO.setName(toNullable(reqVO.getStoreName()));
+            storeReqVO.setContactMobile(toNullable(reqVO.getContactMobile()));
+            PageResult<ProductStoreDO> storePage = productStoreService.getStorePage(storeReqVO);
+            if (storePage == null || storePage.getList() == null || storePage.getList().isEmpty()) {
+                break;
+            }
+            stores.addAll(storePage.getList());
+            total = storePage.getTotal() == null ? stores.size() : storePage.getTotal();
+            pageNo++;
+        }
+        return stores;
+    }
+
+    private Map<Long, BookingReviewManagerAccountRoutingDO> loadLatestRoutingMap(List<ProductStoreDO> stores) {
+        List<Long> storeIds = stores.stream().map(ProductStoreDO::getId).collect(Collectors.toList());
+        List<BookingReviewManagerAccountRoutingDO> routingList =
+                bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(storeIds);
+        Map<Long, BookingReviewManagerAccountRoutingDO> latestMap = new LinkedHashMap<>();
+        for (BookingReviewManagerAccountRoutingDO routing : routingList) {
+            latestMap.putIfAbsent(routing.getStoreId(), routing);
+        }
+        return latestMap;
     }
 
     private BookingReviewManagerAccountRoutingRespVO buildResp(ProductStoreDO store,

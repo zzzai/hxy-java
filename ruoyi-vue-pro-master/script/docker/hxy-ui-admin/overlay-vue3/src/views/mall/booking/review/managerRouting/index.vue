@@ -44,6 +44,37 @@
     </el-form>
   </ContentWrap>
 
+  <ContentWrap v-loading="summaryLoading">
+    <div class="mb-12px flex items-center justify-between gap-12px">
+      <div>
+        <div class="text-16px font-600">覆盖率概览</div>
+        <div class="mt-4px text-12px text-[var(--el-text-color-secondary)]">
+          只统计当前筛选范围内的门店主数据，不代表真实送达率。
+        </div>
+      </div>
+      <div class="text-12px text-[var(--el-text-color-secondary)]">
+        总门店 {{ coverageSummary.totalStoreCount || 0 }}
+      </div>
+    </div>
+
+    <div class="mb-12px flex flex-wrap gap-8px">
+      <el-button plain @click="applyQuickFilter('ALL')">全部</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('MISSING_ANY')">只看缺任一绑定</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('MISSING_APP')">只看缺 App</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('MISSING_WECOM')">只看缺企微</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('MISSING_BOTH')">只看双缺失</el-button>
+      <el-button plain type="success" @click="applyQuickFilter('READY')">只看双通道就绪</el-button>
+    </div>
+
+    <div class="grid gap-12px md:grid-cols-2 xl:grid-cols-4">
+      <el-card v-for="item in coverageCards" :key="item.label" shadow="never">
+        <div class="text-12px text-[var(--el-text-color-secondary)]">{{ item.label }}</div>
+        <div class="mt-8px text-18px font-600">{{ item.value }}</div>
+        <div class="mt-4px text-12px text-[var(--el-text-color-secondary)]">{{ item.detail }}</div>
+      </el-card>
+    </div>
+  </ContentWrap>
+
   <ContentWrap v-if="currentRouting" v-loading="inspectLoading">
       <el-descriptions :column="2" border title="当前门店核查结论">
         <el-descriptions-item label="门店">{{ currentRouting.storeName || '-' }}</el-descriptions-item>
@@ -114,16 +145,31 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const inspectLoading = ref(false)
+const summaryLoading = ref(false)
 const total = ref(0)
 const list = ref<BookingReviewApi.BookingReviewManagerAccountRouting[]>([])
 const currentRouting = ref<BookingReviewApi.BookingReviewManagerAccountRouting>()
+const coverageSummary = ref<BookingReviewApi.BookingReviewManagerAccountRoutingSummary>({
+  totalStoreCount: 0,
+  dualReadyCount: 0,
+  appReadyCount: 0,
+  wecomReadyCount: 0,
+  missingAnyCount: 0,
+  missingAppCount: 0,
+  missingWecomCount: 0,
+  missingBothCount: 0
+})
 
 const createDefaultQuery = (): BookingReviewApi.BookingReviewManagerAccountRoutingPageReq => ({
   pageNo: 1,
   pageSize: 10,
   storeId: undefined,
   storeName: undefined,
-  contactMobile: undefined
+  contactMobile: undefined,
+  onlyMissingAny: undefined,
+  routingStatus: undefined,
+  appRoutingStatus: undefined,
+  wecomRoutingStatus: undefined
 })
 
 const queryParams = reactive<BookingReviewApi.BookingReviewManagerAccountRoutingPageReq>(createDefaultQuery())
@@ -148,6 +194,34 @@ const loadCurrentRouting = async () => {
   }
 }
 
+const buildSummaryQueryParams = (): BookingReviewApi.BookingReviewManagerAccountRoutingPageReq => ({
+  pageNo: 1,
+  pageSize: 1,
+  storeId: queryParams.storeId,
+  storeName: queryParams.storeName,
+  contactMobile: queryParams.contactMobile
+})
+
+const loadCoverageSummary = async () => {
+  summaryLoading.value = true
+  try {
+    coverageSummary.value = (await BookingReviewApi.getReviewManagerAccountRoutingCoverageSummary(
+      buildSummaryQueryParams(),
+    )) || {
+      totalStoreCount: 0,
+      dualReadyCount: 0,
+      appReadyCount: 0,
+      wecomReadyCount: 0,
+      missingAnyCount: 0,
+      missingAppCount: 0,
+      missingWecomCount: 0,
+      missingBothCount: 0
+    }
+  } finally {
+    summaryLoading.value = false
+  }
+}
+
 const getList = async () => {
   loading.value = true
   try {
@@ -159,15 +233,68 @@ const getList = async () => {
   }
 }
 
+const formatCoverageValue = (count?: number) => {
+  const totalCount = coverageSummary.value.totalStoreCount || 0
+  const currentCount = count || 0
+  if (!totalCount) {
+    return '0 / 0 (0.0%)'
+  }
+  return `${currentCount} / ${totalCount} (${((currentCount / totalCount) * 100).toFixed(1)}%)`
+}
+
+const coverageCards = computed(() => [
+  {
+    label: '双通道覆盖率',
+    value: formatCoverageValue(coverageSummary.value.dualReadyCount),
+    detail: 'App 与企微都已具备可派发账号'
+  },
+  {
+    label: 'App 覆盖率',
+    value: formatCoverageValue(coverageSummary.value.appReadyCount),
+    detail: '门店已命中 managerAdminUserId'
+  },
+  {
+    label: '企微覆盖率',
+    value: formatCoverageValue(coverageSummary.value.wecomReadyCount),
+    detail: '门店已命中 managerWecomUserId'
+  },
+  {
+    label: '缺任一绑定',
+    value: String(coverageSummary.value.missingAnyCount || 0),
+    detail: `缺 App ${coverageSummary.value.missingAppCount || 0} / 缺企微 ${coverageSummary.value.missingWecomCount || 0} / 双缺失 ${coverageSummary.value.missingBothCount || 0}`
+  }
+])
+
 const handleQuery = async () => {
   queryParams.pageNo = 1
-  await Promise.all([loadCurrentRouting(), getList()])
+  await Promise.all([loadCurrentRouting(), loadCoverageSummary(), getList()])
 }
 
 const resetQuery = async () => {
   Object.assign(queryParams, createDefaultQuery())
   applyRouteQuery()
-  await Promise.all([loadCurrentRouting(), getList()])
+  await Promise.all([loadCurrentRouting(), loadCoverageSummary(), getList()])
+}
+
+const applyQuickFilter = async (mode: string) => {
+  queryParams.pageNo = 1
+  queryParams.onlyMissingAny = undefined
+  queryParams.routingStatus = undefined
+  queryParams.appRoutingStatus = undefined
+  queryParams.wecomRoutingStatus = undefined
+  if (mode === 'MISSING_ANY') {
+    queryParams.onlyMissingAny = true
+  } else if (mode === 'MISSING_APP') {
+    queryParams.appRoutingStatus = 'APP_MISSING'
+  } else if (mode === 'MISSING_WECOM') {
+    queryParams.wecomRoutingStatus = 'WECOM_MISSING'
+  } else if (mode === 'MISSING_BOTH') {
+    queryParams.appRoutingStatus = 'APP_MISSING'
+    queryParams.wecomRoutingStatus = 'WECOM_MISSING'
+  } else if (mode === 'READY') {
+    queryParams.routingStatus = 'ACTIVE_ROUTE'
+  }
+  await Promise.all([loadCoverageSummary(), getList()])
 }
 
 const goBack = () => {
@@ -184,7 +311,7 @@ watch(
   async () => {
     Object.assign(queryParams, createDefaultQuery())
     applyRouteQuery()
-    await Promise.all([loadCurrentRouting(), getList()])
+    await Promise.all([loadCurrentRouting(), loadCoverageSummary(), getList()])
   },
   { immediate: true },
 )

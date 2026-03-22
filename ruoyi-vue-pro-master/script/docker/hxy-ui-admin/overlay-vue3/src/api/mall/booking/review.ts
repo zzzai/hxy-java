@@ -220,10 +220,25 @@ export interface BookingReviewManagerAccountRouting {
   wecomRepairHint?: string
 }
 
+export interface BookingReviewManagerAccountRoutingSummary {
+  totalStoreCount?: number
+  dualReadyCount?: number
+  appReadyCount?: number
+  wecomReadyCount?: number
+  missingAnyCount?: number
+  missingAppCount?: number
+  missingWecomCount?: number
+  missingBothCount?: number
+}
+
 export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
   storeId?: number
   storeName?: string
   contactMobile?: string
+  onlyMissingAny?: boolean
+  routingStatus?: string
+  appRoutingStatus?: string
+  wecomRoutingStatus?: string
 }
 
 export const getReviewPage = async (params: BookingReviewPageReq) => {
@@ -264,6 +279,13 @@ export async function getReviewManagerAccountRouting(storeId: number) {
 export async function getReviewManagerAccountRoutingPage(params: BookingReviewManagerAccountRoutingPageReq) {
   return await request.get<PageResult<BookingReviewManagerAccountRouting>>({
     url: '/booking/review/manager-routing/page',
+    params
+  })
+}
+
+export async function getReviewManagerAccountRoutingCoverageSummary(params: BookingReviewManagerAccountRoutingPageReq) {
+  return await request.get<BookingReviewManagerAccountRoutingSummary>({
+    url: '/booking/review/manager-routing/summary',
     params
   })
 }

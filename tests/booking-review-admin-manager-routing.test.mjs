@@ -66,11 +66,16 @@ const managerRoutingPagePath = path.join(
 test('review api exposes dual-channel manager routing query types and methods', () => {
   const apiSource = fs.readFileSync(apiPath, 'utf8');
   assert.match(apiSource, /BookingReviewManagerAccountRouting/);
+  assert.match(apiSource, /BookingReviewManagerAccountRoutingSummary/);
   assert.match(apiSource, /getReviewManagerAccountRouting\(/);
   assert.match(apiSource, /getReviewManagerAccountRoutingPage\(/);
+  assert.match(apiSource, /getReviewManagerAccountRoutingCoverageSummary\(/);
   assert.match(apiSource, /managerWecomUserId/);
   assert.match(apiSource, /appRoutingLabel/);
   assert.match(apiSource, /wecomRoutingLabel/);
+  assert.match(apiSource, /dualReadyCount/);
+  assert.match(apiSource, /missingBothCount/);
+  assert.match(apiSource, /\/booking\/review\/manager-routing\/summary/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/get/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/page/);
 });
@@ -87,6 +92,17 @@ test('manager routing page exists and renders app/wecom routing truth fields', (
   assert.match(pageSource, /managerWecomUserId/);
   assert.match(pageSource, /App 路由/);
   assert.match(pageSource, /企微路由/);
+  assert.match(pageSource, /覆盖率概览/);
+  assert.match(pageSource, /双通道覆盖率/);
+  assert.match(pageSource, /App 覆盖率/);
+  assert.match(pageSource, /企微覆盖率/);
+  assert.match(pageSource, /只看缺任一绑定/);
+  assert.match(pageSource, /只看缺 App/);
+  assert.match(pageSource, /只看缺企微/);
+  assert.match(pageSource, /只看双缺失/);
+  assert.match(pageSource, /getReviewManagerAccountRoutingCoverageSummary/);
+  assert.match(pageSource, /appRoutingStatus/);
+  assert.match(pageSource, /wecomRoutingStatus/);
 });
 
 test('notify pages link blocked diagnostics to manager routing page', () => {

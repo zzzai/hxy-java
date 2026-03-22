@@ -25,7 +25,7 @@
 | 差评提交流程触发点 | `BookingReviewServiceImpl.createReview(...)` 成功写入评价记录后即可判定是否差评 | `已核实` |
 | 店长联系人快照 | 当前只核到 `ProductStoreDO.contactName / contactMobile` | `已核实` |
 | 门店 -> 店长账号映射 | 当前分支已新增 `booking_review_manager_account_routing`，字段包含 `storeId / managerAdminUserId / managerWecomUserId / bindingStatus / effectiveTime / expireTime / source / lastVerifiedTime` | `已新增工程真值，发布未闭环` |
-| 后台只读核查入口 | 当前分支已新增 `/booking/review/manager-routing/get`、`/booking/review/manager-routing/page` 与 `/mall/booking/review/manager-routing` | `已落地（admin-only）` |
+| 后台只读核查入口 | 当前分支已新增 `/booking/review/manager-routing/get`、`/booking/review/manager-routing/page`、`/booking/review/manager-routing/summary` 与 `/mall/booking/review/manager-routing` | `已落地（admin-only）` |
 | 后台执行动作账号 | `managerClaimedByUserId / managerLatestActionByUserId` 只表示执行认领/处理/闭环的后台操作人 | `已核实` |
 | 自动通知目标账号 | 第一版只认 `managerAdminUserId` 和 `managerWecomUserId`；任一通道缺账号时只阻断对应通道 | `已新增工程口径，发布未闭环` |
 | booking review 独立 outbox | 当前分支已新增双通道 `booking_review_notify_outbox`、admin 观测面与异步派发 job | `已核实` |
@@ -57,6 +57,7 @@
    - 详情页/通知台账里的 `查看店长路由`
    - 只读核查页按 `storeId / storeName / contactMobile` 查询
    - 页面展示 App / 企微各自的 routingLabel、repairHint、账号字段，不提供在线改绑
+   - 页面新增覆盖率摘要与缺失绑定快捷筛选，但仍然只是 admin-only 只读治理视图
 
 ## 5. 当前不能成立的说法
 1. “系统已经找到全量门店店长账号并自动发送差评通知。”
@@ -71,7 +72,8 @@
 3. 当前分支已新增 `storeId -> managerAdminUserId + managerWecomUserId` 的双通道路由工程模型，但其数据覆盖、样本和发布证据仍未闭环。
 4. 当前分支已新增 booking review 专属双通道 notify outbox、admin-only 观测页、人工重试与 SLA reminder job。
 5. 当前运营已能通过只读核查页判断某个阻断到底是无路由、缺 App 账号、缺企微账号、路由未启用、未生效、已过期还是通道关闭。
-6. 即使已经有 routing、outbox、sender 和 job，也只能写成 `Can Develop / Cannot Release`。
+6. 当前运营已能在 manager routing 页直接看到当前筛选范围内的双通道覆盖率、App 覆盖率、企微覆盖率，以及缺任一绑定 / 缺 App / 缺企微 / 双缺失数量。
+7. 即使已经有 routing、outbox、sender 和 job，也只能写成 `Can Develop / Cannot Release`。
 
 ## 7. 对后续设计与开发的直接约束
 

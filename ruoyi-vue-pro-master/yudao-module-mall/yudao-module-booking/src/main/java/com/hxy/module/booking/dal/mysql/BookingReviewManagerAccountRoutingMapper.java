@@ -5,6 +5,9 @@ import cn.iocoder.yudao.framework.mybatis.core.query.LambdaQueryWrapperX;
 import com.hxy.module.booking.dal.dataobject.BookingReviewManagerAccountRoutingDO;
 import org.apache.ibatis.annotations.Mapper;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.time.LocalDateTime;
 
 @Mapper
@@ -16,6 +19,17 @@ public interface BookingReviewManagerAccountRoutingMapper extends BaseMapperX<Bo
                 .orderByDesc(BookingReviewManagerAccountRoutingDO::getLastVerifiedTime,
                         BookingReviewManagerAccountRoutingDO::getId)
                 .last("LIMIT 1"));
+    }
+
+    default List<BookingReviewManagerAccountRoutingDO> selectLatestListByStoreIds(Collection<Long> storeIds) {
+        if (storeIds == null || storeIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return selectList(new LambdaQueryWrapperX<BookingReviewManagerAccountRoutingDO>()
+                .in(BookingReviewManagerAccountRoutingDO::getStoreId, storeIds)
+                .orderByAsc(BookingReviewManagerAccountRoutingDO::getStoreId)
+                .orderByDesc(BookingReviewManagerAccountRoutingDO::getLastVerifiedTime,
+                        BookingReviewManagerAccountRoutingDO::getId));
     }
 
     default BookingReviewManagerAccountRoutingDO selectEffectiveByStoreId(Long storeId, String bindingStatus, LocalDateTime now) {

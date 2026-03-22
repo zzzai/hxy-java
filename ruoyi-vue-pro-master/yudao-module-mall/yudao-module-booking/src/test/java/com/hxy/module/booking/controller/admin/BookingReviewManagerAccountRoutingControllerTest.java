@@ -5,6 +5,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.test.core.ut.BaseMockitoUnitTest;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingPageReqVO;
 import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingRespVO;
+import com.hxy.module.booking.controller.admin.vo.BookingReviewManagerAccountRoutingSummaryRespVO;
 import com.hxy.module.booking.service.BookingReviewManagerAccountRoutingQueryService;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -63,5 +64,26 @@ class BookingReviewManagerAccountRoutingControllerTest extends BaseMockitoUnitTe
         assertEquals(1L, result.getData().getTotal());
         assertEquals("ACTIVE_ROUTE", result.getData().getList().get(0).getRoutingStatus());
         verify(bookingReviewManagerAccountRoutingQueryService).getRoutingPage(reqVO);
+    }
+
+    @Test
+    void shouldGetManagerRoutingCoverageSummary() {
+        BookingReviewManagerAccountRoutingPageReqVO reqVO = new BookingReviewManagerAccountRoutingPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+
+        BookingReviewManagerAccountRoutingSummaryRespVO summary = new BookingReviewManagerAccountRoutingSummaryRespVO();
+        summary.setTotalStoreCount(1000L);
+        summary.setDualReadyCount(820L);
+        summary.setMissingAnyCount(180L);
+        when(bookingReviewManagerAccountRoutingQueryService.getRoutingCoverageSummary(reqVO)).thenReturn(summary);
+
+        CommonResult<BookingReviewManagerAccountRoutingSummaryRespVO> result = controller.summary(reqVO);
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getData());
+        assertEquals(1000L, result.getData().getTotalStoreCount());
+        assertEquals(180L, result.getData().getMissingAnyCount());
+        verify(bookingReviewManagerAccountRoutingQueryService).getRoutingCoverageSummary(reqVO);
     }
 }
