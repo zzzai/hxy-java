@@ -76,6 +76,10 @@ test('review api exposes dual-channel manager routing query types and methods', 
   assert.match(apiSource, /governanceStageLabel/);
   assert.match(apiSource, /verificationFreshnessLabel/);
   assert.match(apiSource, /sourceClosureLabel/);
+  assert.match(apiSource, /sourceTruthStage/);
+  assert.match(apiSource, /sourceTruthLabel/);
+  assert.match(apiSource, /sourceTruthDetail/);
+  assert.match(apiSource, /sourceTruthActionHint/);
   assert.match(apiSource, /governanceActionSummary/);
   assert.match(apiSource, /dualReadyCount/);
   assert.match(apiSource, /missingBothCount/);
@@ -84,9 +88,15 @@ test('review api exposes dual-channel manager routing query types and methods', 
   assert.match(apiSource, /staleVerifyCount/);
   assert.match(apiSource, /sourcePendingCount/);
   assert.match(apiSource, /observeReadyCount/);
+  assert.match(apiSource, /routeConfirmedCount/);
+  assert.match(apiSource, /sourceMissingCount/);
+  assert.match(apiSource, /contactOnlyPendingBindCount/);
+  assert.match(apiSource, /contactMissingCount/);
+  assert.match(apiSource, /verifyStaleCount/);
   assert.match(apiSource, /governanceStage\?:/);
   assert.match(apiSource, /verificationFreshnessStatus\?:/);
   assert.match(apiSource, /sourceClosureStatus\?:/);
+  assert.match(apiSource, /sourceTruthStage\?:/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/summary/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/get/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/page/);
@@ -117,10 +127,19 @@ test('manager routing page exists and renders app/wecom routing truth fields', (
   assert.match(pageSource, /只看来源待闭环/);
   assert.match(pageSource, /只看长期未核验/);
   assert.match(pageSource, /只看可观察就绪/);
+  assert.match(pageSource, /来源闭环概览/);
+  assert.match(pageSource, /只看来源已确认/);
+  assert.match(pageSource, /只看来源缺失/);
+  assert.match(pageSource, /只看联系人待转绑定/);
+  assert.match(pageSource, /只看联系人缺失/);
+  assert.match(pageSource, /只看来源待复核/);
   assert.match(pageSource, /治理优先级/);
   assert.match(pageSource, /治理分组/);
   assert.match(pageSource, /核验状态/);
   assert.match(pageSource, /来源闭环/);
+  assert.match(pageSource, /来源结论/);
+  assert.match(pageSource, /来源说明/);
+  assert.match(pageSource, /下一步动作/);
   assert.match(pageSource, /治理归口/);
   assert.match(pageSource, /交接摘要/);
   assert.match(pageSource, /getReviewManagerAccountRoutingCoverageSummary/);
@@ -129,6 +148,10 @@ test('manager routing page exists and renders app/wecom routing truth fields', (
   assert.match(pageSource, /governanceStage/);
   assert.match(pageSource, /verificationFreshnessStatus/);
   assert.match(pageSource, /sourceClosureStatus/);
+  assert.match(pageSource, /sourceTruthStage/);
+  assert.match(pageSource, /sourceTruthLabel/);
+  assert.match(pageSource, /sourceTruthDetail/);
+  assert.match(pageSource, /sourceTruthActionHint/);
 });
 
 test('notify pages link blocked diagnostics to manager routing page', () => {

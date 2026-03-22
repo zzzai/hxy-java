@@ -96,6 +96,18 @@ public class BookingReviewManagerAccountRoutingRespVO {
     @Schema(description = "来源闭环状态标签", example = "来源待闭环")
     private String sourceClosureLabel;
 
+    @Schema(description = "来源真值阶段", example = "ROUTE_CONFIRMED")
+    private String sourceTruthStage;
+
+    @Schema(description = "来源真值结论", example = "来源已确认")
+    private String sourceTruthLabel;
+
+    @Schema(description = "来源真值说明")
+    private String sourceTruthDetail;
+
+    @Schema(description = "来源真值下一步动作")
+    private String sourceTruthActionHint;
+
     @Schema(description = "治理归口", example = "企微账号治理")
     private String governanceOwnerLabel;
 

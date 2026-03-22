@@ -45,4 +45,19 @@ public class BookingReviewManagerAccountRoutingSummaryRespVO {
 
     @Schema(description = "可观察就绪数", example = "700")
     private Long observeReadyCount;
+
+    @Schema(description = "来源已确认数", example = "680")
+    private Long routeConfirmedCount;
+
+    @Schema(description = "来源缺失数", example = "70")
+    private Long sourceMissingCount;
+
+    @Schema(description = "联系人待转绑定数", example = "160")
+    private Long contactOnlyPendingBindCount;
+
+    @Schema(description = "联系人缺失数", example = "90")
+    private Long contactMissingCount;
+
+    @Schema(description = "来源待复核数", example = "40")
+    private Long verifyStaleCount;
 }

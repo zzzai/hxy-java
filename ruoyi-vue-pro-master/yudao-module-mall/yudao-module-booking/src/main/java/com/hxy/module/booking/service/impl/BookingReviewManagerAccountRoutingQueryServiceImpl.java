@@ -18,7 +18,6 @@ import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +51,11 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
     private static final String VERIFICATION_ATTENTION = "ATTENTION_REQUIRED";
     private static final String SOURCE_PENDING = "SOURCE_PENDING";
     private static final String SOURCE_READY = "SOURCE_READY";
+    private static final String SOURCE_TRUTH_ROUTE_CONFIRMED = "ROUTE_CONFIRMED";
+    private static final String SOURCE_TRUTH_SOURCE_MISSING = "SOURCE_MISSING";
+    private static final String SOURCE_TRUTH_CONTACT_ONLY_PENDING_BIND = "CONTACT_ONLY_PENDING_BIND";
+    private static final String SOURCE_TRUTH_CONTACT_MISSING = "CONTACT_MISSING";
+    private static final String SOURCE_TRUTH_VERIFY_STALE = "VERIFY_STALE";
     private static final int RECENT_VERIFY_DAYS = 7;
     private static final int STORE_BATCH_SIZE = 200;
 
@@ -127,6 +131,21 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         summary.setObserveReadyCount(filteredList.stream()
                 .filter(item -> StrUtil.equalsIgnoreCase(item.getGovernanceStage(), GOVERNANCE_STAGE_OBSERVE_READY))
                 .count());
+        summary.setRouteConfirmedCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceTruthStage(), SOURCE_TRUTH_ROUTE_CONFIRMED))
+                .count());
+        summary.setSourceMissingCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceTruthStage(), SOURCE_TRUTH_SOURCE_MISSING))
+                .count());
+        summary.setContactOnlyPendingBindCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceTruthStage(), SOURCE_TRUTH_CONTACT_ONLY_PENDING_BIND))
+                .count());
+        summary.setContactMissingCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceTruthStage(), SOURCE_TRUTH_CONTACT_MISSING))
+                .count());
+        summary.setVerifyStaleCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceTruthStage(), SOURCE_TRUTH_VERIFY_STALE))
+                .count());
         return summary;
     }
 
@@ -170,6 +189,10 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         }
         if (StrUtil.isNotBlank(reqVO.getSourceClosureStatus())
                 && !StrUtil.equalsIgnoreCase(respVO.getSourceClosureStatus(), reqVO.getSourceClosureStatus())) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getSourceTruthStage())
+                && !StrUtil.equalsIgnoreCase(respVO.getSourceTruthStage(), reqVO.getSourceTruthStage())) {
             return false;
         }
         return true;
@@ -289,6 +312,12 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         respVO.setSourceClosureStatus(sourceClosureStatus);
         respVO.setSourceClosureLabel(buildSourceClosureLabel(sourceClosureStatus));
 
+        SourceTruthSnapshot sourceTruthSnapshot = buildSourceTruthSnapshot(respVO, sourceClosureStatus, verificationFreshnessStatus);
+        respVO.setSourceTruthStage(sourceTruthSnapshot.stage);
+        respVO.setSourceTruthLabel(sourceTruthSnapshot.label);
+        respVO.setSourceTruthDetail(sourceTruthSnapshot.detail);
+        respVO.setSourceTruthActionHint(sourceTruthSnapshot.actionHint);
+
         GovernanceSnapshot governance = buildGovernanceSnapshot(respVO, verificationFreshnessStatus, sourceClosureStatus);
         respVO.setGovernanceStage(governance.stage);
         respVO.setGovernanceStageLabel(governance.stageLabel);
@@ -322,6 +351,43 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
 
     private String buildSourceClosureLabel(String status) {
         return StrUtil.equalsIgnoreCase(status, SOURCE_PENDING) ? "来源待闭环" : "来源已登记";
+    }
+
+    private SourceTruthSnapshot buildSourceTruthSnapshot(BookingReviewManagerAccountRoutingRespVO respVO,
+                                                         String sourceClosureStatus,
+                                                         String verificationFreshnessStatus) {
+        boolean hasRoutingRecord = respVO.getManagerAdminUserId() != null
+                || StrUtil.isNotBlank(respVO.getManagerWecomUserId())
+                || StrUtil.isNotBlank(respVO.getBindingStatus())
+                || respVO.getEffectiveTime() != null
+                || respVO.getExpireTime() != null
+                || StrUtil.isNotBlank(respVO.getSource());
+        boolean hasContact = StrUtil.isNotBlank(respVO.getContactName()) || StrUtil.isNotBlank(respVO.getContactMobile());
+        boolean sourceReady = StrUtil.equalsIgnoreCase(sourceClosureStatus, SOURCE_READY);
+        boolean verificationRecent = StrUtil.equalsIgnoreCase(verificationFreshnessStatus, VERIFICATION_RECENT);
+        if (hasRoutingRecord) {
+            if (!sourceReady) {
+                return new SourceTruthSnapshot(SOURCE_TRUTH_SOURCE_MISSING, "来源缺失",
+                        "当前已存在店长路由记录，但 source 仍为空或 UNKNOWN，不能写成来源闭环。",
+                        "补登记稳定来源，并保留当前 storeId -> managerAdminUserId / managerWecomUserId 的核查依据。");
+            }
+            if (!verificationRecent) {
+                return new SourceTruthSnapshot(SOURCE_TRUTH_VERIFY_STALE, "来源待复核",
+                        "当前来源已登记，但 lastVerifiedTime 缺失或超过 7 天，不能直接按最新真值使用。",
+                        "复核当前门店双通道路由并更新 lastVerifiedTime，再关闭来源复核项。");
+            }
+            return new SourceTruthSnapshot(SOURCE_TRUTH_ROUTE_CONFIRMED, "来源已确认",
+                    "当前门店已存在可追的店长路由记录，来源与核验信息都已闭环。",
+                    "继续观察 App / 企微双通道派发结果，无需额外处理。");
+        }
+        if (hasContact) {
+            return new SourceTruthSnapshot(SOURCE_TRUTH_CONTACT_ONLY_PENDING_BIND, "联系人待转绑定",
+                    "当前没有稳定双通道路由，但门店联系人已核出，可作为绑定治理入口。",
+                    "先将联系人对应到店长 App / 企微账号，再补登记来源与最近核验时间。");
+        }
+        return new SourceTruthSnapshot(SOURCE_TRUTH_CONTACT_MISSING, "联系人缺失",
+                "当前既没有稳定双通道路由，也没有可追的门店联系人主数据。",
+                "先补齐门店联系人主数据，再建立店长 App / 企微绑定并登记来源。");
     }
 
     private GovernanceSnapshot buildGovernanceSnapshot(BookingReviewManagerAccountRoutingRespVO respVO,
@@ -516,6 +582,20 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
             this.wecomRoutingStatus = wecomRoutingStatus;
             this.wecomRoutingLabel = wecomRoutingLabel;
             this.wecomRepairHint = wecomRepairHint;
+        }
+    }
+
+    private static final class SourceTruthSnapshot {
+        private final String stage;
+        private final String label;
+        private final String detail;
+        private final String actionHint;
+
+        private SourceTruthSnapshot(String stage, String label, String detail, String actionHint) {
+            this.stage = stage;
+            this.label = label;
+            this.detail = detail;
+            this.actionHint = actionHint;
         }
     }
 }

@@ -59,6 +59,8 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals("缺店长企微账号", respVO.getWecomRoutingLabel());
         assertTrue(respVO.getRepairHint().contains("managerAdminUserId"));
         assertTrue(respVO.getRepairHint().contains("managerWecomUserId"));
+        assertEquals("CONTACT_ONLY_PENDING_BIND", respVO.getSourceTruthStage());
+        assertEquals("联系人待转绑定", respVO.getSourceTruthLabel());
         verify(productStoreService).getStore(3001L);
         verify(bookingReviewManagerAccountRoutingMapper).selectLatestByStoreId(3001L);
     }
@@ -92,6 +94,8 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals("App 路由有效", respVO.getAppRoutingLabel());
         assertEquals("企微路由有效", respVO.getWecomRoutingLabel());
         assertEquals("MANUAL_BIND", respVO.getSource());
+        assertEquals("ROUTE_CONFIRMED", respVO.getSourceTruthStage());
+        assertEquals("来源已确认", respVO.getSourceTruthLabel());
     }
 
     @Test
@@ -117,6 +121,56 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals("App 已就绪，企微待补齐", respVO.getRoutingLabel());
         assertEquals("App 路由有效", respVO.getAppRoutingLabel());
         assertEquals("缺店长企微账号", respVO.getWecomRoutingLabel());
+    }
+
+    @Test
+    void shouldKeepSourceTruthConfirmedWhenInactiveRouteAlreadyHasSource() {
+        ProductStoreDO store = ProductStoreDO.builder()
+                .id(30031L)
+                .name("三里屯门店")
+                .contactName("吴店长")
+                .contactMobile("13600000000")
+                .build();
+        BookingReviewManagerAccountRoutingDO routing = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(30031L)
+                .setManagerAdminUserId(7031L)
+                .setManagerWecomUserId("wecom-7031")
+                .setBindingStatus("INACTIVE")
+                .setSource("SYNC")
+                .setLastVerifiedTime(LocalDateTime.now().minusHours(2).withNano(0));
+        when(productStoreService.getStore(30031L)).thenReturn(store);
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(30031L)).thenReturn(routing);
+
+        BookingReviewManagerAccountRoutingRespVO respVO = service.getRouting(30031L);
+
+        assertEquals("INACTIVE_ROUTE", respVO.getRoutingStatus());
+        assertEquals("ROUTE_CONFIRMED", respVO.getSourceTruthStage());
+        assertEquals("来源已确认", respVO.getSourceTruthLabel());
+    }
+
+    @Test
+    void shouldKeepSourceTruthMissingWhenExpiredRouteHasNoSource() {
+        ProductStoreDO store = ProductStoreDO.builder()
+                .id(30032L)
+                .name("亚运村门店")
+                .contactName("郑店长")
+                .contactMobile("13500000000")
+                .build();
+        BookingReviewManagerAccountRoutingDO routing = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(30032L)
+                .setManagerAdminUserId(7032L)
+                .setManagerWecomUserId("wecom-7032")
+                .setBindingStatus("ACTIVE")
+                .setExpireTime(LocalDateTime.now().minusHours(1).withNano(0))
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        when(productStoreService.getStore(30032L)).thenReturn(store);
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestByStoreId(30032L)).thenReturn(routing);
+
+        BookingReviewManagerAccountRoutingRespVO respVO = service.getRouting(30032L);
+
+        assertEquals("EXPIRED_ROUTE", respVO.getRoutingStatus());
+        assertEquals("SOURCE_MISSING", respVO.getSourceTruthStage());
+        assertEquals("来源缺失", respVO.getSourceTruthLabel());
     }
 
     @Test
@@ -160,7 +214,7 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         reqVO.setPageNo(1);
         reqVO.setPageSize(10);
 
-        ProductStoreDO store1 = ProductStoreDO.builder().id(3101L).name("门店A").contactMobile("13900000001").build();
+        ProductStoreDO store1 = ProductStoreDO.builder().id(3101L).name("门店A").build();
         ProductStoreDO store2 = ProductStoreDO.builder().id(3102L).name("门店B").contactMobile("13900000002").build();
         ProductStoreDO store3 = ProductStoreDO.builder().id(3103L).name("门店C").contactMobile("13900000003").build();
         ProductStoreDO store4 = ProductStoreDO.builder().id(3104L).name("门店D").contactMobile("13900000004").build();
@@ -204,6 +258,11 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals(2L, summary.getSourcePendingCount());
         assertEquals(2L, summary.getStaleVerifyCount());
         assertEquals(1L, summary.getObserveReadyCount());
+        assertEquals(1L, summary.getRouteConfirmedCount());
+        assertEquals(1L, summary.getSourceMissingCount());
+        assertEquals(0L, summary.getContactOnlyPendingBindCount());
+        assertEquals(1L, summary.getContactMissingCount());
+        assertEquals(1L, summary.getVerifyStaleCount());
     }
 
     @Test
@@ -290,5 +349,47 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals("来源已登记", item.getSourceClosureLabel());
         assertEquals("P1", item.getGovernancePriority());
         assertEquals("P1 待核来源", item.getGovernancePriorityLabel());
+    }
+
+    @Test
+    void shouldFilterRoutingPageBySourceTruthStage() {
+        BookingReviewManagerAccountRoutingPageReqVO reqVO = new BookingReviewManagerAccountRoutingPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        reqVO.setSourceTruthStage("VERIFY_STALE");
+
+        ProductStoreDO store1 = ProductStoreDO.builder()
+                .id(3401L).name("门店J").contactName("赵店长").contactMobile("13900000010").build();
+        ProductStoreDO store2 = ProductStoreDO.builder()
+                .id(3402L).name("门店K").contactName("钱店长").contactMobile("13900000011").build();
+        ProductStoreDO store3 = ProductStoreDO.builder()
+                .id(3403L).name("门店L").contactName("孙店长").contactMobile("13900000012").build();
+        when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
+                .thenReturn(new PageResult<>(Arrays.asList(store1, store2, store3), 3L));
+
+        BookingReviewManagerAccountRoutingDO verifiedStale = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3401L)
+                .setManagerAdminUserId(7401L)
+                .setManagerWecomUserId("wecom-7401")
+                .setBindingStatus("ACTIVE")
+                .setSource("MANUAL_BIND")
+                .setLastVerifiedTime(LocalDateTime.now().minusDays(30).withNano(0));
+        BookingReviewManagerAccountRoutingDO sourceMissing = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3402L)
+                .setManagerAdminUserId(7402L)
+                .setManagerWecomUserId("wecom-7402")
+                .setBindingStatus("ACTIVE")
+                .setLastVerifiedTime(LocalDateTime.now().minusDays(1).withNano(0));
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
+                .thenReturn(Arrays.asList(verifiedStale, sourceMissing));
+
+        PageResult<BookingReviewManagerAccountRoutingRespVO> result = service.getRoutingPage(reqVO);
+
+        assertEquals(1L, result.getTotal());
+        BookingReviewManagerAccountRoutingRespVO item = result.getList().get(0);
+        assertEquals("门店J", item.getStoreName());
+        assertEquals("VERIFY_STALE", item.getSourceTruthStage());
+        assertEquals("来源待复核", item.getSourceTruthLabel());
+        assertTrue(item.getSourceTruthDetail().contains("lastVerifiedTime"));
     }
 }

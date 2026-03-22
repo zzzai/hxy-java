@@ -41,4 +41,7 @@ public class BookingReviewManagerAccountRoutingPageReqVO extends PageParam {
 
     @Schema(description = "来源闭环状态", example = "SOURCE_PENDING")
     private String sourceClosureStatus;
+
+    @Schema(description = "来源真值阶段", example = "ROUTE_CONFIRMED")
+    private String sourceTruthStage;
 }

@@ -238,6 +238,10 @@ export interface BookingReviewManagerAccountRouting {
   verificationFreshnessLabel?: string
   sourceClosureStatus?: string
   sourceClosureLabel?: string
+  sourceTruthStage?: string
+  sourceTruthLabel?: string
+  sourceTruthDetail?: string
+  sourceTruthActionHint?: string
   governanceOwnerLabel?: string
   governanceActionSummary?: string
 }
@@ -256,6 +260,11 @@ export interface BookingReviewManagerAccountRoutingSummary {
   staleVerifyCount?: number
   sourcePendingCount?: number
   observeReadyCount?: number
+  routeConfirmedCount?: number
+  sourceMissingCount?: number
+  contactOnlyPendingBindCount?: number
+  contactMissingCount?: number
+  verifyStaleCount?: number
 }
 
 export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
@@ -269,6 +278,7 @@ export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
   governanceStage?: string
   verificationFreshnessStatus?: string
   sourceClosureStatus?: string
+  sourceTruthStage?: string
 }
 
 export const getReviewPage = async (params: BookingReviewPageReq) => {

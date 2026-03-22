@@ -47,6 +47,11 @@
           <el-option v-for="item in sourceClosureOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
       </el-form-item>
+      <el-form-item label="来源真值">
+        <el-select v-model="queryParams.sourceTruthStage" class="!w-180px" clearable placeholder="全部来源真值">
+          <el-option v-for="item in sourceTruthOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button :loading="loading" @click="handleQuery">
           <Icon class="mr-5px" icon="ep:search" />
@@ -124,6 +129,36 @@
     </div>
   </ContentWrap>
 
+  <ContentWrap v-loading="summaryLoading">
+    <div class="mb-12px flex items-center justify-between gap-12px">
+      <div>
+        <div class="text-16px font-600">来源闭环概览</div>
+        <div class="mt-4px text-12px text-[var(--el-text-color-secondary)]">
+          这里只表达当前路由来源真值，不代表已经获得线上改绑能力。
+        </div>
+      </div>
+      <div class="text-12px text-[var(--el-text-color-secondary)]">
+        1000 门店默认 1 店 1 店长，仍需按 App / 企微双通道分别核实
+      </div>
+    </div>
+
+    <div class="mb-12px flex flex-wrap gap-8px">
+      <el-button plain type="success" @click="applyQuickFilter('SOURCE_TRUTH_CONFIRMED')">只看来源已确认</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('SOURCE_TRUTH_MISSING')">只看来源缺失</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('CONTACT_ONLY_PENDING_BIND')">只看联系人待转绑定</el-button>
+      <el-button plain type="danger" @click="applyQuickFilter('CONTACT_MISSING')">只看联系人缺失</el-button>
+      <el-button plain type="warning" @click="applyQuickFilter('VERIFY_STALE')">只看来源待复核</el-button>
+    </div>
+
+    <div class="grid gap-12px md:grid-cols-2 xl:grid-cols-5">
+      <el-card v-for="item in sourceTruthCards" :key="item.label" shadow="never">
+        <div class="text-12px text-[var(--el-text-color-secondary)]">{{ item.label }}</div>
+        <div class="mt-8px text-18px font-600">{{ item.value }}</div>
+        <div class="mt-4px text-12px text-[var(--el-text-color-secondary)]">{{ item.detail }}</div>
+      </el-card>
+    </div>
+  </ContentWrap>
+
   <ContentWrap v-if="currentRouting" v-loading="inspectLoading">
       <el-descriptions :column="2" border title="当前门店核查结论">
         <el-descriptions-item label="门店">{{ currentRouting.storeName || '-' }}</el-descriptions-item>
@@ -135,11 +170,14 @@
         <el-descriptions-item label="治理分组">{{ currentRouting.governanceStageLabel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="核验状态">{{ currentRouting.verificationFreshnessLabel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="来源闭环">{{ currentRouting.sourceClosureLabel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="来源结论">{{ currentRouting.sourceTruthLabel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="治理归口">{{ currentRouting.governanceOwnerLabel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="店长后台账号ID">{{ currentRouting.managerAdminUserId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="店长企微账号ID">{{ currentRouting.managerWecomUserId || '-' }}</el-descriptions-item>
         <el-descriptions-item label="App 路由">{{ currentRouting.appRoutingLabel || '-' }}</el-descriptions-item>
         <el-descriptions-item label="企微路由">{{ currentRouting.wecomRoutingLabel || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="来源说明" :span="2">{{ currentRouting.sourceTruthDetail || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="下一步动作" :span="2">{{ currentRouting.sourceTruthActionHint || '-' }}</el-descriptions-item>
         <el-descriptions-item label="交接摘要" :span="2">{{ currentRouting.governanceActionSummary || '-' }}</el-descriptions-item>
         <el-descriptions-item label="App 修复建议" :span="2">{{ currentRouting.appRepairHint || '-' }}</el-descriptions-item>
         <el-descriptions-item label="企微修复建议" :span="2">{{ currentRouting.wecomRepairHint || '-' }}</el-descriptions-item>
@@ -179,6 +217,11 @@
           {{ row.sourceClosureLabel || '-' }}
         </template>
       </el-table-column>
+      <el-table-column label="来源结论" min-width="140">
+        <template #default="{ row }">
+          {{ row.sourceTruthLabel || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column label="治理归口" min-width="140">
         <template #default="{ row }">
           {{ row.governanceOwnerLabel || '-' }}
@@ -202,6 +245,16 @@
       <el-table-column label="交接摘要" min-width="260" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.governanceActionSummary || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="来源说明" min-width="260" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.sourceTruthDetail || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="下一步动作" min-width="260" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.sourceTruthActionHint || '-' }}
         </template>
       </el-table-column>
       <el-table-column label="修复建议" min-width="260" show-overflow-tooltip>
@@ -248,6 +301,11 @@ const createEmptySummary = (): BookingReviewApi.BookingReviewManagerAccountRouti
   staleVerifyCount: 0,
   sourcePendingCount: 0,
   observeReadyCount: 0,
+  routeConfirmedCount: 0,
+  sourceMissingCount: 0,
+  contactOnlyPendingBindCount: 0,
+  contactMissingCount: 0,
+  verifyStaleCount: 0,
 })
 const coverageSummary = ref<BookingReviewApi.BookingReviewManagerAccountRoutingSummary>(createEmptySummary())
 
@@ -270,6 +328,14 @@ const sourceClosureOptions = [
   { label: '来源已登记', value: 'SOURCE_READY' },
 ]
 
+const sourceTruthOptions = [
+  { label: '来源已确认', value: 'ROUTE_CONFIRMED' },
+  { label: '来源缺失', value: 'SOURCE_MISSING' },
+  { label: '联系人待转绑定', value: 'CONTACT_ONLY_PENDING_BIND' },
+  { label: '联系人缺失', value: 'CONTACT_MISSING' },
+  { label: '来源待复核', value: 'VERIFY_STALE' },
+]
+
 const createDefaultQuery = (): BookingReviewApi.BookingReviewManagerAccountRoutingPageReq => ({
   pageNo: 1,
   pageSize: 10,
@@ -283,6 +349,7 @@ const createDefaultQuery = (): BookingReviewApi.BookingReviewManagerAccountRouti
   governanceStage: undefined,
   verificationFreshnessStatus: undefined,
   sourceClosureStatus: undefined,
+  sourceTruthStage: undefined,
 })
 
 const queryParams = reactive<BookingReviewApi.BookingReviewManagerAccountRoutingPageReq>(createDefaultQuery())
@@ -320,6 +387,7 @@ const buildSummaryQueryParams = (): BookingReviewApi.BookingReviewManagerAccount
   governanceStage: queryParams.governanceStage,
   verificationFreshnessStatus: queryParams.verificationFreshnessStatus,
   sourceClosureStatus: queryParams.sourceClosureStatus,
+  sourceTruthStage: queryParams.sourceTruthStage,
 })
 
 const loadCoverageSummary = async () => {
@@ -399,6 +467,34 @@ const governanceCards = computed(() => [
   },
 ])
 
+const sourceTruthCards = computed(() => [
+  {
+    label: '来源已确认',
+    value: String(coverageSummary.value.routeConfirmedCount || 0),
+    detail: '当前已有可追路由记录，来源登记和最近核验都已齐备'
+  },
+  {
+    label: '来源缺失',
+    value: String(coverageSummary.value.sourceMissingCount || 0),
+    detail: '双通道路由已命中，但 source 还未正式登记'
+  },
+  {
+    label: '联系人待转绑定',
+    value: String(coverageSummary.value.contactOnlyPendingBindCount || 0),
+    detail: '门店联系人已核出，但还没有稳定店长双通道路由'
+  },
+  {
+    label: '联系人缺失',
+    value: String(coverageSummary.value.contactMissingCount || 0),
+    detail: '路由和联系人主数据都缺，需先补主数据'
+  },
+  {
+    label: '来源待复核',
+    value: String(coverageSummary.value.verifyStaleCount || 0),
+    detail: '来源已登记但 lastVerifiedTime 缺失或超过 7 天'
+  },
+])
+
 const clearRoutingFilters = () => {
   queryParams.onlyMissingAny = undefined
   queryParams.routingStatus = undefined
@@ -407,6 +503,7 @@ const clearRoutingFilters = () => {
   queryParams.governanceStage = undefined
   queryParams.verificationFreshnessStatus = undefined
   queryParams.sourceClosureStatus = undefined
+  queryParams.sourceTruthStage = undefined
 }
 
 const handleQuery = async () => {
@@ -442,6 +539,16 @@ const applyQuickFilter = async (mode: string) => {
     queryParams.verificationFreshnessStatus = 'ATTENTION_REQUIRED'
   } else if (mode === 'OBSERVE_READY') {
     queryParams.governanceStage = 'OBSERVE_READY'
+  } else if (mode === 'SOURCE_TRUTH_CONFIRMED') {
+    queryParams.sourceTruthStage = 'ROUTE_CONFIRMED'
+  } else if (mode === 'SOURCE_TRUTH_MISSING') {
+    queryParams.sourceTruthStage = 'SOURCE_MISSING'
+  } else if (mode === 'CONTACT_ONLY_PENDING_BIND') {
+    queryParams.sourceTruthStage = 'CONTACT_ONLY_PENDING_BIND'
+  } else if (mode === 'CONTACT_MISSING') {
+    queryParams.sourceTruthStage = 'CONTACT_MISSING'
+  } else if (mode === 'VERIFY_STALE') {
+    queryParams.sourceTruthStage = 'VERIFY_STALE'
   }
   await Promise.all([loadCoverageSummary(), getList()])
 }
