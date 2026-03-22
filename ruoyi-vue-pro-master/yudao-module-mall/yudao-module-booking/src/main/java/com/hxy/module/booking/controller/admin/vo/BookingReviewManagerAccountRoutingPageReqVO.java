@@ -32,4 +32,13 @@ public class BookingReviewManagerAccountRoutingPageReqVO extends PageParam {
 
     @Schema(description = "企微路由状态", example = "WECOM_MISSING")
     private String wecomRoutingStatus;
+
+    @Schema(description = "治理分组", example = "IMMEDIATE_FIX")
+    private String governanceStage;
+
+    @Schema(description = "核验状态", example = "STALE_VERIFY")
+    private String verificationFreshnessStatus;
+
+    @Schema(description = "来源闭环状态", example = "SOURCE_PENDING")
+    private String sourceClosureStatus;
 }

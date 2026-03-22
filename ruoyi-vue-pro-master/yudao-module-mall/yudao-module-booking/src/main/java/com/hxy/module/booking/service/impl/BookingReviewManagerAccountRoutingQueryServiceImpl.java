@@ -29,9 +29,30 @@ import java.util.stream.Collectors;
 public class BookingReviewManagerAccountRoutingQueryServiceImpl implements BookingReviewManagerAccountRoutingQueryService {
 
     private static final String BINDING_STATUS_ACTIVE = "ACTIVE";
+    private static final String ROUTING_STATUS_NO_ROUTE = "NO_ROUTE";
     private static final String ROUTING_STATUS_ACTIVE = "ACTIVE_ROUTE";
+    private static final String ROUTING_STATUS_PARTIAL = "PARTIAL_ROUTE";
+    private static final String ROUTING_STATUS_INACTIVE = "INACTIVE_ROUTE";
+    private static final String ROUTING_STATUS_PENDING_EFFECTIVE = "PENDING_EFFECTIVE";
+    private static final String ROUTING_STATUS_EXPIRED = "EXPIRED_ROUTE";
     private static final String APP_ROUTING_MISSING = "APP_MISSING";
     private static final String WECOM_ROUTING_MISSING = "WECOM_MISSING";
+    private static final String APP_ROUTING_READY = "APP_READY";
+    private static final String WECOM_ROUTING_READY = "WECOM_READY";
+    private static final String GOVERNANCE_STAGE_IMMEDIATE_FIX = "IMMEDIATE_FIX";
+    private static final String GOVERNANCE_STAGE_WAIT_EFFECTIVE = "WAIT_EFFECTIVE";
+    private static final String GOVERNANCE_STAGE_VERIFY_SOURCE = "VERIFY_SOURCE";
+    private static final String GOVERNANCE_STAGE_OBSERVE_READY = "OBSERVE_READY";
+    private static final String GOVERNANCE_PRIORITY_P0 = "P0";
+    private static final String GOVERNANCE_PRIORITY_P1 = "P1";
+    private static final String GOVERNANCE_PRIORITY_P2 = "P2";
+    private static final String VERIFICATION_UNVERIFIED = "UNVERIFIED";
+    private static final String VERIFICATION_STALE = "STALE_VERIFY";
+    private static final String VERIFICATION_RECENT = "RECENT_VERIFY";
+    private static final String VERIFICATION_ATTENTION = "ATTENTION_REQUIRED";
+    private static final String SOURCE_PENDING = "SOURCE_PENDING";
+    private static final String SOURCE_READY = "SOURCE_READY";
+    private static final int RECENT_VERIFY_DAYS = 7;
     private static final int STORE_BATCH_SIZE = 200;
 
     @Resource
@@ -91,6 +112,21 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
                 .filter(item -> StrUtil.equalsIgnoreCase(item.getAppRoutingStatus(), APP_ROUTING_MISSING))
                 .filter(item -> StrUtil.equalsIgnoreCase(item.getWecomRoutingStatus(), WECOM_ROUTING_MISSING))
                 .count());
+        summary.setImmediateFixCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getGovernanceStage(), GOVERNANCE_STAGE_IMMEDIATE_FIX))
+                .count());
+        summary.setVerifySourceCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getGovernanceStage(), GOVERNANCE_STAGE_VERIFY_SOURCE))
+                .count());
+        summary.setStaleVerifyCount(filteredList.stream()
+                .filter(this::needsVerificationAttention)
+                .count());
+        summary.setSourcePendingCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getSourceClosureStatus(), SOURCE_PENDING))
+                .count());
+        summary.setObserveReadyCount(filteredList.stream()
+                .filter(item -> StrUtil.equalsIgnoreCase(item.getGovernanceStage(), GOVERNANCE_STAGE_OBSERVE_READY))
+                .count());
         return summary;
     }
 
@@ -124,12 +160,35 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
                 && !StrUtil.equalsIgnoreCase(respVO.getWecomRoutingStatus(), reqVO.getWecomRoutingStatus())) {
             return false;
         }
+        if (StrUtil.isNotBlank(reqVO.getGovernanceStage())
+                && !StrUtil.equalsIgnoreCase(respVO.getGovernanceStage(), reqVO.getGovernanceStage())) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getVerificationFreshnessStatus())
+                && !matchesVerificationFreshness(respVO, reqVO.getVerificationFreshnessStatus())) {
+            return false;
+        }
+        if (StrUtil.isNotBlank(reqVO.getSourceClosureStatus())
+                && !StrUtil.equalsIgnoreCase(respVO.getSourceClosureStatus(), reqVO.getSourceClosureStatus())) {
+            return false;
+        }
         return true;
     }
 
     private boolean isMissingAny(BookingReviewManagerAccountRoutingRespVO respVO) {
         return StrUtil.equalsIgnoreCase(respVO.getAppRoutingStatus(), APP_ROUTING_MISSING)
                 || StrUtil.equalsIgnoreCase(respVO.getWecomRoutingStatus(), WECOM_ROUTING_MISSING);
+    }
+
+    private boolean matchesVerificationFreshness(BookingReviewManagerAccountRoutingRespVO respVO, String filterStatus) {
+        if (StrUtil.equalsIgnoreCase(filterStatus, VERIFICATION_ATTENTION)) {
+            return needsVerificationAttention(respVO);
+        }
+        return StrUtil.equalsIgnoreCase(respVO.getVerificationFreshnessStatus(), filterStatus);
+    }
+
+    private boolean needsVerificationAttention(BookingReviewManagerAccountRoutingRespVO respVO) {
+        return !StrUtil.equalsIgnoreCase(respVO.getVerificationFreshnessStatus(), VERIFICATION_RECENT);
     }
 
     private String toNullable(String value) {
@@ -217,7 +276,135 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         respVO.setWecomRoutingStatus(snapshot.wecomRoutingStatus);
         respVO.setWecomRoutingLabel(snapshot.wecomRoutingLabel);
         respVO.setWecomRepairHint(snapshot.wecomRepairHint);
+        populateGovernanceFields(respVO);
         return respVO;
+    }
+
+    private void populateGovernanceFields(BookingReviewManagerAccountRoutingRespVO respVO) {
+        String verificationFreshnessStatus = buildVerificationFreshnessStatus(respVO.getLastVerifiedTime());
+        respVO.setVerificationFreshnessStatus(verificationFreshnessStatus);
+        respVO.setVerificationFreshnessLabel(buildVerificationFreshnessLabel(verificationFreshnessStatus));
+
+        String sourceClosureStatus = buildSourceClosureStatus(respVO.getSource());
+        respVO.setSourceClosureStatus(sourceClosureStatus);
+        respVO.setSourceClosureLabel(buildSourceClosureLabel(sourceClosureStatus));
+
+        GovernanceSnapshot governance = buildGovernanceSnapshot(respVO, verificationFreshnessStatus, sourceClosureStatus);
+        respVO.setGovernanceStage(governance.stage);
+        respVO.setGovernanceStageLabel(governance.stageLabel);
+        respVO.setGovernancePriority(governance.priority);
+        respVO.setGovernancePriorityLabel(governance.priorityLabel);
+        respVO.setGovernanceOwnerLabel(governance.ownerLabel);
+        respVO.setGovernanceActionSummary(governance.actionSummary);
+    }
+
+    private String buildVerificationFreshnessStatus(LocalDateTime lastVerifiedTime) {
+        if (lastVerifiedTime == null) {
+            return VERIFICATION_UNVERIFIED;
+        }
+        LocalDateTime threshold = LocalDateTime.now().withNano(0).minusDays(RECENT_VERIFY_DAYS);
+        return lastVerifiedTime.isBefore(threshold) ? VERIFICATION_STALE : VERIFICATION_RECENT;
+    }
+
+    private String buildVerificationFreshnessLabel(String status) {
+        if (StrUtil.equalsIgnoreCase(status, VERIFICATION_UNVERIFIED)) {
+            return "未核验";
+        }
+        if (StrUtil.equalsIgnoreCase(status, VERIFICATION_STALE)) {
+            return "长期未核验";
+        }
+        return RECENT_VERIFY_DAYS + " 天内已核验";
+    }
+
+    private String buildSourceClosureStatus(String source) {
+        return StrUtil.isBlank(source) || StrUtil.equalsIgnoreCase(source, "UNKNOWN") ? SOURCE_PENDING : SOURCE_READY;
+    }
+
+    private String buildSourceClosureLabel(String status) {
+        return StrUtil.equalsIgnoreCase(status, SOURCE_PENDING) ? "来源待闭环" : "来源已登记";
+    }
+
+    private GovernanceSnapshot buildGovernanceSnapshot(BookingReviewManagerAccountRoutingRespVO respVO,
+                                                       String verificationFreshnessStatus,
+                                                       String sourceClosureStatus) {
+        if (StrUtil.equalsIgnoreCase(respVO.getRoutingStatus(), ROUTING_STATUS_PENDING_EFFECTIVE)) {
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_WAIT_EFFECTIVE, "等待生效",
+                    GOVERNANCE_PRIORITY_P1, "P1 等待生效",
+                    "路由配置治理",
+                    "等待路由生效时间到达，或调整生效时间后再复核。");
+        }
+        if (needsImmediateFix(respVO)) {
+            return buildImmediateFixSnapshot(respVO);
+        }
+        if (StrUtil.equalsIgnoreCase(sourceClosureStatus, SOURCE_PENDING)
+                || !StrUtil.equalsIgnoreCase(verificationFreshnessStatus, VERIFICATION_RECENT)) {
+            String actionSummary;
+            if (StrUtil.equalsIgnoreCase(sourceClosureStatus, SOURCE_PENDING)
+                    && !StrUtil.equalsIgnoreCase(verificationFreshnessStatus, VERIFICATION_RECENT)) {
+                actionSummary = "转绑定来源核验：补登记来源并更新最近核验时间，再关闭治理项。";
+            } else if (StrUtil.equalsIgnoreCase(sourceClosureStatus, SOURCE_PENDING)) {
+                actionSummary = "转绑定来源核验：补登记稳定来源后再关闭治理项。";
+            } else {
+                actionSummary = "转绑定来源核验：重新核验当前门店双通道路由并更新时间。";
+            }
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_VERIFY_SOURCE, "待核来源闭环",
+                    GOVERNANCE_PRIORITY_P1, "P1 待核来源",
+                    "绑定来源核验",
+                    actionSummary);
+        }
+        return new GovernanceSnapshot(GOVERNANCE_STAGE_OBSERVE_READY, "可观察就绪",
+                GOVERNANCE_PRIORITY_P2, "P2 观察",
+                "运营观察",
+                "当前双通道已就绪，继续观察派发结果与告警即可。");
+    }
+
+    private boolean needsImmediateFix(BookingReviewManagerAccountRoutingRespVO respVO) {
+        return StrUtil.equalsAnyIgnoreCase(respVO.getRoutingStatus(),
+                ROUTING_STATUS_NO_ROUTE, ROUTING_STATUS_PARTIAL, ROUTING_STATUS_INACTIVE, ROUTING_STATUS_EXPIRED);
+    }
+
+    private GovernanceSnapshot buildImmediateFixSnapshot(BookingReviewManagerAccountRoutingRespVO respVO) {
+        if (StrUtil.equalsIgnoreCase(respVO.getRoutingStatus(), ROUTING_STATUS_INACTIVE)) {
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                    GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                    "路由配置治理",
+                    "转路由配置治理：先启用 ACTIVE 路由，再重新核验双通道派发。");
+        }
+        if (StrUtil.equalsIgnoreCase(respVO.getRoutingStatus(), ROUTING_STATUS_EXPIRED)) {
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                    GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                    "路由配置治理",
+                    "转路由配置治理：先续期或重绑有效路由，再重新核验双通道派发。");
+        }
+        boolean appMissing = StrUtil.equalsIgnoreCase(respVO.getAppRoutingStatus(), APP_ROUTING_MISSING);
+        boolean wecomMissing = StrUtil.equalsIgnoreCase(respVO.getWecomRoutingStatus(), WECOM_ROUTING_MISSING);
+        if (appMissing && wecomMissing) {
+            String owner = StrUtil.isBlank(respVO.getContactName()) && StrUtil.isBlank(respVO.getContactMobile())
+                    ? "门店主数据治理"
+                    : "账号绑定治理";
+            String action = StrUtil.isBlank(respVO.getContactName()) && StrUtil.isBlank(respVO.getContactMobile())
+                    ? "转门店主数据治理：先补联系人，再补 managerAdminUserId / managerWecomUserId。"
+                    : "转账号绑定治理：补齐 managerAdminUserId / managerWecomUserId 后重新核验。";
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                    GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                    owner, action);
+        }
+        if (appMissing) {
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                    GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                    "App 账号治理",
+                    "转 App 账号治理：补齐 managerAdminUserId 后重新核验。");
+        }
+        if (wecomMissing) {
+            return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                    GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                    "企微账号治理",
+                    "转企微账号治理：补齐 managerWecomUserId 后重新核验。");
+        }
+        return new GovernanceSnapshot(GOVERNANCE_STAGE_IMMEDIATE_FIX, "立即治理",
+                GOVERNANCE_PRIORITY_P0, "P0 立即治理",
+                "账号绑定治理",
+                "当前路由阻断双通道派发，需要优先核查并修复。");
     }
 
     private RoutingSnapshot buildRoutingSnapshot(ProductStoreDO store, BookingReviewManagerAccountRoutingDO routing) {
@@ -234,21 +421,21 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         }
         LocalDateTime now = LocalDateTime.now().withNano(0);
         if (!StrUtil.equalsIgnoreCase(BINDING_STATUS_ACTIVE, routing.getBindingStatus())) {
-            return new RoutingSnapshot("INACTIVE_ROUTE", "路由未启用",
+            return new RoutingSnapshot(ROUTING_STATUS_INACTIVE, "路由未启用",
                     "当前存在双通道路由记录，但 bindingStatus 不是 ACTIVE。",
                     "需要先将路由状态切换为 ACTIVE，再观察通知派发。",
                     "APP_BLOCKED", "App 路由未启用", "需要先启用路由。",
                     "WECOM_BLOCKED", "企微路由未启用", "需要先启用路由。");
         }
         if (routing.getEffectiveTime() != null && routing.getEffectiveTime().isAfter(now)) {
-            return new RoutingSnapshot("PENDING_EFFECTIVE", "路由未生效",
+            return new RoutingSnapshot(ROUTING_STATUS_PENDING_EFFECTIVE, "路由未生效",
                     "当前存在双通道路由记录，但生效时间尚未到达。",
                     "需要等待路由生效时间到达，或调整生效时间。",
                     "APP_PENDING", "App 路由未生效", "需要等待或调整生效时间。",
                     "WECOM_PENDING", "企微路由未生效", "需要等待或调整生效时间。");
         }
         if (routing.getExpireTime() != null && !routing.getExpireTime().isAfter(now)) {
-            return new RoutingSnapshot("EXPIRED_ROUTE", "路由已过期",
+            return new RoutingSnapshot(ROUTING_STATUS_EXPIRED, "路由已过期",
                     "当前双通道路由记录已过期。",
                     "需要续期或重新绑定有效路由。",
                     "APP_EXPIRED", "App 路由已过期", "需要续期 App 路由。",
@@ -258,31 +445,50 @@ public class BookingReviewManagerAccountRoutingQueryServiceImpl implements Booki
         boolean appReady = routing.getManagerAdminUserId() != null && routing.getManagerAdminUserId() > 0;
         boolean wecomReady = StrUtil.isNotBlank(routing.getManagerWecomUserId());
         if (appReady && wecomReady) {
-            return new RoutingSnapshot("ACTIVE_ROUTE", "双通道路由有效",
+            return new RoutingSnapshot(ROUTING_STATUS_ACTIVE, "双通道路由有效",
                     "当前 storeId 已命中有效店长 App / 企微双通道路由，可进入可派发状态。",
                     "当前无需修复，可继续观察通知派发结果。",
-                    "APP_READY", "App 路由有效", "当前无需修复。",
-                    "WECOM_READY", "企微路由有效", "当前无需修复。");
+                    APP_ROUTING_READY, "App 路由有效", "当前无需修复。",
+                    WECOM_ROUTING_READY, "企微路由有效", "当前无需修复。");
         }
         if (appReady) {
-            return new RoutingSnapshot("PARTIAL_ROUTE", "App 已就绪，企微待补齐",
+            return new RoutingSnapshot(ROUTING_STATUS_PARTIAL, "App 已就绪，企微待补齐",
                     "当前 storeId 已命中店长 App 路由，但企微账号仍缺失。",
                     "需要先补齐店长企微账号，再完成双通道派发。",
-                    "APP_READY", "App 路由有效", "当前无需修复。",
+                    APP_ROUTING_READY, "App 路由有效", "当前无需修复。",
                     "WECOM_MISSING", "缺店长企微账号", "需要先补齐 managerWecomUserId。");
         }
         if (wecomReady) {
-            return new RoutingSnapshot("PARTIAL_ROUTE", "企微已就绪，App 待补齐",
+            return new RoutingSnapshot(ROUTING_STATUS_PARTIAL, "企微已就绪，App 待补齐",
                     "当前 storeId 已命中店长企微路由，但后台 App 账号仍缺失。",
                     "需要先补齐店长后台账号，再完成双通道派发。",
                     "APP_MISSING", "缺店长 App 账号", "需要先补齐 managerAdminUserId。",
-                    "WECOM_READY", "企微路由有效", "当前无需修复。");
+                    WECOM_ROUTING_READY, "企微路由有效", "当前无需修复。");
         }
-        return new RoutingSnapshot("NO_ROUTE", "未绑定店长双通道路由",
+        return new RoutingSnapshot(ROUTING_STATUS_NO_ROUTE, "未绑定店长双通道路由",
                 "当前路由记录存在，但 App / 企微接收账号都还未补齐。",
                 "需要先补齐 managerAdminUserId 和 managerWecomUserId。",
                 "APP_MISSING", "缺店长 App 账号", "需要先补齐 managerAdminUserId。",
                 "WECOM_MISSING", "缺店长企微账号", "需要先补齐 managerWecomUserId。");
+    }
+
+    private static final class GovernanceSnapshot {
+        private final String stage;
+        private final String stageLabel;
+        private final String priority;
+        private final String priorityLabel;
+        private final String ownerLabel;
+        private final String actionSummary;
+
+        private GovernanceSnapshot(String stage, String stageLabel, String priority, String priorityLabel,
+                                   String ownerLabel, String actionSummary) {
+            this.stage = stage;
+            this.stageLabel = stageLabel;
+            this.priority = priority;
+            this.priorityLabel = priorityLabel;
+            this.ownerLabel = ownerLabel;
+            this.actionSummary = actionSummary;
+        }
     }
 
     private static final class RoutingSnapshot {

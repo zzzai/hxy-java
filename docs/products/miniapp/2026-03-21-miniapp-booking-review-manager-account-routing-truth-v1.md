@@ -57,7 +57,7 @@
    - 详情页/通知台账里的 `查看店长路由`
    - 只读核查页按 `storeId / storeName / contactMobile` 查询
    - 页面展示 App / 企微各自的 routingLabel、repairHint、账号字段，不提供在线改绑
-   - 页面新增覆盖率摘要与缺失绑定快捷筛选，但仍然只是 admin-only 只读治理视图
+   - 页面新增覆盖率摘要、治理工作台概览，以及缺失绑定 / 治理队列快捷筛选，但仍然只是 admin-only 只读治理视图
 
 ## 5. 当前不能成立的说法
 1. “系统已经找到全量门店店长账号并自动发送差评通知。”
@@ -73,7 +73,8 @@
 4. 当前分支已新增 booking review 专属双通道 notify outbox、admin-only 观测页、人工重试与 SLA reminder job。
 5. 当前运营已能通过只读核查页判断某个阻断到底是无路由、缺 App 账号、缺企微账号、路由未启用、未生效、已过期还是通道关闭。
 6. 当前运营已能在 manager routing 页直接看到当前筛选范围内的双通道覆盖率、App 覆盖率、企微覆盖率，以及缺任一绑定 / 缺 App / 缺企微 / 双缺失数量。
-7. 即使已经有 routing、outbox、sender 和 job，也只能写成 `Can Develop / Cannot Release`。
+7. 当前运营已能把门店进一步拆成 `立即治理 / 等待生效 / 待核来源闭环 / 可观察就绪`，并按 `核验状态 / 来源闭环 / 治理归口` 下钻。
+8. 即使已经有 routing、outbox、sender、job 和治理工作台，也只能写成 `Can Develop / Cannot Release`。
 
 ## 7. 对后续设计与开发的直接约束
 

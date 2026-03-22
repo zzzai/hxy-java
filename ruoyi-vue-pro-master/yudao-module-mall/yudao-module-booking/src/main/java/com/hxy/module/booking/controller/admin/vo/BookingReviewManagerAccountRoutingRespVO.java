@@ -71,4 +71,34 @@ public class BookingReviewManagerAccountRoutingRespVO {
 
     @Schema(description = "企微修复建议")
     private String wecomRepairHint;
+
+    @Schema(description = "治理分组", example = "IMMEDIATE_FIX")
+    private String governanceStage;
+
+    @Schema(description = "治理分组标签", example = "立即治理")
+    private String governanceStageLabel;
+
+    @Schema(description = "治理优先级", example = "P0")
+    private String governancePriority;
+
+    @Schema(description = "治理优先级标签", example = "P0 立即治理")
+    private String governancePriorityLabel;
+
+    @Schema(description = "核验状态", example = "STALE_VERIFY")
+    private String verificationFreshnessStatus;
+
+    @Schema(description = "核验状态标签", example = "长期未核验")
+    private String verificationFreshnessLabel;
+
+    @Schema(description = "来源闭环状态", example = "SOURCE_PENDING")
+    private String sourceClosureStatus;
+
+    @Schema(description = "来源闭环状态标签", example = "来源待闭环")
+    private String sourceClosureLabel;
+
+    @Schema(description = "治理归口", example = "企微账号治理")
+    private String governanceOwnerLabel;
+
+    @Schema(description = "治理交接摘要")
+    private String governanceActionSummary;
 }

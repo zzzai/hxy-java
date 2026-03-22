@@ -30,4 +30,19 @@ public class BookingReviewManagerAccountRoutingSummaryRespVO {
 
     @Schema(description = "双缺失数", example = "50")
     private Long missingBothCount;
+
+    @Schema(description = "立即治理数", example = "120")
+    private Long immediateFixCount;
+
+    @Schema(description = "来源待闭环数", example = "80")
+    private Long verifySourceCount;
+
+    @Schema(description = "长期未核验数", example = "90")
+    private Long staleVerifyCount;
+
+    @Schema(description = "来源待登记数", example = "60")
+    private Long sourcePendingCount;
+
+    @Schema(description = "可观察就绪数", example = "700")
+    private Long observeReadyCount;
 }

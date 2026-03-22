@@ -12,6 +12,7 @@
 5. 店长待办 SLA 自动提醒出站。
 6. 详情页双通道通知审计摘要。
 7. 店长路由覆盖率与缺失绑定运营视图。
+8. 门店绑定治理工作台。
 
 ## 3. 当前已核实证据
 
@@ -38,6 +39,8 @@
    - `appRoutingLabel / wecomRoutingLabel / repairHint`
    - `覆盖率概览`
    - `只看缺任一绑定 / 缺 App / 缺企微 / 双缺失 / 双通道就绪` 快捷筛选
+   - `治理优先级 / 治理分组 / 核验状态 / 来源闭环 / 治理归口 / 交接摘要`
+   - `只看立即治理 / 来源待闭环 / 长期未核验 / 可观察就绪` 快捷筛选
 
 ### 3.2 工程能力证据
 1. 差评创建后会按门店路由生成两条独立 outbox：
@@ -60,6 +63,8 @@
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewControllerTest,BookingReviewNotifyOutboxControllerTest,BookingReviewManagerAccountRoutingControllerTest,BookingReviewServiceImplTest,BookingReviewNotifyOutboxServiceTest,BookingReviewNotifyDispatchJobTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewManagerTodoSlaReminderJobTest test` | PASS，`50` tests | 覆盖 controller / service / notify dispatch / manager routing / SLA reminder |
 | `node --test tests/booking-review-admin-notify-outbox.test.mjs tests/booking-review-admin-detail-timeline.test.mjs tests/booking-review-admin-query-helpers.test.mjs tests/booking-review-admin-ledger-efficiency.test.mjs tests/booking-review-admin-history-scan.test.mjs tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-sla-reminder.test.mjs` | PASS，`30` tests | 覆盖 admin 台账、详情、notify outbox、manager routing、快捷筛选、双通道摘要与 SLA 提醒 |
 | `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`25` tests | 覆盖 manager routing summary、覆盖率统计、缺失绑定过滤与 notify outbox 回归 |
+| `mvn -pl yudao-module-mall/yudao-module-booking -Dtest=BookingReviewManagerAccountRoutingControllerTest,BookingReviewManagerAccountRoutingQueryServiceImplTest,BookingReviewNotifyOutboxControllerTest,BookingReviewNotifyOutboxServiceTest test` | PASS，`26` tests | 覆盖治理字段派生、治理分组过滤、manager routing summary 与 notify outbox 回归 |
+| `node --test tests/booking-review-admin-manager-routing.test.mjs tests/booking-review-admin-notify-outbox.test.mjs` | PASS，`9` tests | 覆盖门店绑定治理工作台、路由页治理文案与 notify outbox 跳转回归 |
 | `git diff --check` | PASS | 无 whitespace / patch error |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_naming_guard.sh` | PASS，`checked_files=3` | naming guard 正常 |
 | `CHECK_UNSTAGED=1 CHECK_UNTRACKED=1 bash ruoyi-vue-pro-master/script/dev/check_hxy_memory_guard.sh` | PASS，`checked_files=16`、`core_domains=0` | memory guard 正常 |

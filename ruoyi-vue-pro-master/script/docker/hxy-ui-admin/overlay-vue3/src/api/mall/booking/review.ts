@@ -218,6 +218,16 @@ export interface BookingReviewManagerAccountRouting {
   wecomRoutingStatus?: string
   wecomRoutingLabel?: string
   wecomRepairHint?: string
+  governanceStage?: string
+  governanceStageLabel?: string
+  governancePriority?: string
+  governancePriorityLabel?: string
+  verificationFreshnessStatus?: string
+  verificationFreshnessLabel?: string
+  sourceClosureStatus?: string
+  sourceClosureLabel?: string
+  governanceOwnerLabel?: string
+  governanceActionSummary?: string
 }
 
 export interface BookingReviewManagerAccountRoutingSummary {
@@ -229,6 +239,11 @@ export interface BookingReviewManagerAccountRoutingSummary {
   missingAppCount?: number
   missingWecomCount?: number
   missingBothCount?: number
+  immediateFixCount?: number
+  verifySourceCount?: number
+  staleVerifyCount?: number
+  sourcePendingCount?: number
+  observeReadyCount?: number
 }
 
 export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
@@ -239,6 +254,9 @@ export interface BookingReviewManagerAccountRoutingPageReq extends PageParam {
   routingStatus?: string
   appRoutingStatus?: string
   wecomRoutingStatus?: string
+  governanceStage?: string
+  verificationFreshnessStatus?: string
+  sourceClosureStatus?: string
 }
 
 export const getReviewPage = async (params: BookingReviewPageReq) => {

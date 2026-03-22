@@ -73,8 +73,20 @@ test('review api exposes dual-channel manager routing query types and methods', 
   assert.match(apiSource, /managerWecomUserId/);
   assert.match(apiSource, /appRoutingLabel/);
   assert.match(apiSource, /wecomRoutingLabel/);
+  assert.match(apiSource, /governanceStageLabel/);
+  assert.match(apiSource, /verificationFreshnessLabel/);
+  assert.match(apiSource, /sourceClosureLabel/);
+  assert.match(apiSource, /governanceActionSummary/);
   assert.match(apiSource, /dualReadyCount/);
   assert.match(apiSource, /missingBothCount/);
+  assert.match(apiSource, /immediateFixCount/);
+  assert.match(apiSource, /verifySourceCount/);
+  assert.match(apiSource, /staleVerifyCount/);
+  assert.match(apiSource, /sourcePendingCount/);
+  assert.match(apiSource, /observeReadyCount/);
+  assert.match(apiSource, /governanceStage\?:/);
+  assert.match(apiSource, /verificationFreshnessStatus\?:/);
+  assert.match(apiSource, /sourceClosureStatus\?:/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/summary/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/get/);
   assert.match(apiSource, /\/booking\/review\/manager-routing\/page/);
@@ -100,9 +112,23 @@ test('manager routing page exists and renders app/wecom routing truth fields', (
   assert.match(pageSource, /只看缺 App/);
   assert.match(pageSource, /只看缺企微/);
   assert.match(pageSource, /只看双缺失/);
+  assert.match(pageSource, /治理工作台概览/);
+  assert.match(pageSource, /只看立即治理/);
+  assert.match(pageSource, /只看来源待闭环/);
+  assert.match(pageSource, /只看长期未核验/);
+  assert.match(pageSource, /只看可观察就绪/);
+  assert.match(pageSource, /治理优先级/);
+  assert.match(pageSource, /治理分组/);
+  assert.match(pageSource, /核验状态/);
+  assert.match(pageSource, /来源闭环/);
+  assert.match(pageSource, /治理归口/);
+  assert.match(pageSource, /交接摘要/);
   assert.match(pageSource, /getReviewManagerAccountRoutingCoverageSummary/);
   assert.match(pageSource, /appRoutingStatus/);
   assert.match(pageSource, /wecomRoutingStatus/);
+  assert.match(pageSource, /governanceStage/);
+  assert.match(pageSource, /verificationFreshnessStatus/);
+  assert.match(pageSource, /sourceClosureStatus/);
 });
 
 test('notify pages link blocked diagnostics to manager routing page', () => {

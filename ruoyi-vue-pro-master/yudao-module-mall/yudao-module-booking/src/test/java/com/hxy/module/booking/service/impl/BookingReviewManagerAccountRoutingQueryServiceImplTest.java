@@ -172,30 +172,38 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
                 .setManagerAdminUserId(7102L)
                 .setManagerWecomUserId("wecom-7102")
                 .setBindingStatus("ACTIVE")
+                .setSource("MANUAL_BIND")
                 .setLastVerifiedTime(LocalDateTime.now().withNano(0));
         BookingReviewManagerAccountRoutingDO appOnly = new BookingReviewManagerAccountRoutingDO()
                 .setStoreId(3103L)
                 .setManagerAdminUserId(7103L)
                 .setBindingStatus("ACTIVE")
-                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
-        BookingReviewManagerAccountRoutingDO wecomOnly = new BookingReviewManagerAccountRoutingDO()
+                .setSource("MANUAL_BIND")
+                .setLastVerifiedTime(LocalDateTime.now().minusDays(10).withNano(0));
+        BookingReviewManagerAccountRoutingDO dualReadySourcePending = new BookingReviewManagerAccountRoutingDO()
                 .setStoreId(3104L)
+                .setManagerAdminUserId(7104L)
                 .setManagerWecomUserId("wecom-7104")
                 .setBindingStatus("ACTIVE")
                 .setLastVerifiedTime(LocalDateTime.now().withNano(0));
         when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
-                .thenReturn(Arrays.asList(dualReady, appOnly, wecomOnly));
+                .thenReturn(Arrays.asList(dualReady, appOnly, dualReadySourcePending));
 
         BookingReviewManagerAccountRoutingSummaryRespVO summary = service.getRoutingCoverageSummary(reqVO);
 
         assertEquals(4L, summary.getTotalStoreCount());
-        assertEquals(1L, summary.getDualReadyCount());
-        assertEquals(2L, summary.getAppReadyCount());
+        assertEquals(2L, summary.getDualReadyCount());
+        assertEquals(3L, summary.getAppReadyCount());
         assertEquals(2L, summary.getWecomReadyCount());
-        assertEquals(3L, summary.getMissingAnyCount());
-        assertEquals(2L, summary.getMissingAppCount());
+        assertEquals(2L, summary.getMissingAnyCount());
+        assertEquals(1L, summary.getMissingAppCount());
         assertEquals(2L, summary.getMissingWecomCount());
         assertEquals(1L, summary.getMissingBothCount());
+        assertEquals(2L, summary.getImmediateFixCount());
+        assertEquals(1L, summary.getVerifySourceCount());
+        assertEquals(2L, summary.getSourcePendingCount());
+        assertEquals(2L, summary.getStaleVerifyCount());
+        assertEquals(1L, summary.getObserveReadyCount());
     }
 
     @Test
@@ -230,5 +238,57 @@ class BookingReviewManagerAccountRoutingQueryServiceImplTest extends BaseMockito
         assertEquals(1, result.getList().size());
         assertEquals("门店E", result.getList().get(0).getStoreName());
         assertEquals("缺店长企微账号", result.getList().get(0).getWecomRoutingLabel());
+    }
+
+    @Test
+    void shouldDeriveGovernanceFieldsAndFilterByGovernanceStage() {
+        BookingReviewManagerAccountRoutingPageReqVO reqVO = new BookingReviewManagerAccountRoutingPageReqVO();
+        reqVO.setPageNo(1);
+        reqVO.setPageSize(10);
+        reqVO.setGovernanceStage("VERIFY_SOURCE");
+
+        ProductStoreDO store1 = ProductStoreDO.builder().id(3301L).name("门店G").contactMobile("13900000007").build();
+        ProductStoreDO store2 = ProductStoreDO.builder().id(3302L).name("门店H").contactMobile("13900000008").build();
+        ProductStoreDO store3 = ProductStoreDO.builder().id(3303L).name("门店I").contactMobile("13900000009").build();
+        when(productStoreService.getStorePage(any(ProductStorePageReqVO.class)))
+                .thenReturn(new PageResult<>(Arrays.asList(store1, store2, store3), 3L));
+
+        BookingReviewManagerAccountRoutingDO recentReady = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3301L)
+                .setManagerAdminUserId(7301L)
+                .setManagerWecomUserId("wecom-7301")
+                .setBindingStatus("ACTIVE")
+                .setSource("MANUAL_BIND")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        BookingReviewManagerAccountRoutingDO staleReady = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3302L)
+                .setManagerAdminUserId(7302L)
+                .setManagerWecomUserId("wecom-7302")
+                .setBindingStatus("ACTIVE")
+                .setSource("SYNC")
+                .setLastVerifiedTime(LocalDateTime.now().minusDays(14).withNano(0));
+        BookingReviewManagerAccountRoutingDO appMissing = new BookingReviewManagerAccountRoutingDO()
+                .setStoreId(3303L)
+                .setManagerWecomUserId("wecom-7303")
+                .setBindingStatus("ACTIVE")
+                .setSource("SYNC")
+                .setLastVerifiedTime(LocalDateTime.now().withNano(0));
+        when(bookingReviewManagerAccountRoutingMapper.selectLatestListByStoreIds(anyCollection()))
+                .thenReturn(Arrays.asList(recentReady, staleReady, appMissing));
+
+        PageResult<BookingReviewManagerAccountRoutingRespVO> result = service.getRoutingPage(reqVO);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals(1, result.getList().size());
+        BookingReviewManagerAccountRoutingRespVO item = result.getList().get(0);
+        assertEquals("门店H", item.getStoreName());
+        assertEquals("VERIFY_SOURCE", item.getGovernanceStage());
+        assertEquals("待核来源闭环", item.getGovernanceStageLabel());
+        assertEquals("STALE_VERIFY", item.getVerificationFreshnessStatus());
+        assertEquals("长期未核验", item.getVerificationFreshnessLabel());
+        assertEquals("SOURCE_READY", item.getSourceClosureStatus());
+        assertEquals("来源已登记", item.getSourceClosureLabel());
+        assertEquals("P1", item.getGovernancePriority());
+        assertEquals("P1 待核来源", item.getGovernancePriorityLabel());
     }
 }
