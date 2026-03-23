@@ -4,7 +4,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="当前“店长待办”仅是后台治理台账，不代表系统已经自动通知店长，也不代表 booking review 已可放量。"
+      description="当前“店长待办”仅是后台治理台账，不代表系统已经自动通知店长，也不代表 booking review 已可放量。priorityLevel / priorityReason / notifyRiskSummary 当前只是返回展示字段，不是 query capability。"
       title="后台待办真值说明"
       type="info"
     />
@@ -83,7 +83,7 @@
           <el-option :value="1" label="待认领" />
           <el-option :value="2" label="已认领" />
           <el-option :value="3" label="处理中" />
-          <el-option :value="4" label="已闭环" />
+          <el-option :value="4" label="已闭环（CLOSED）" />
         </el-select>
       </el-form-item>
       <el-form-item label="SLA状态" prop="managerSlaStatus">
@@ -95,7 +95,7 @@
           <el-option label="首次处理超时" value="FIRST_ACTION_TIMEOUT" />
           <el-option label="即将闭环超时" value="CLOSE_DUE_SOON" />
           <el-option label="闭环超时" value="CLOSE_TIMEOUT" />
-          <el-option label="已闭环" value="CLOSED" />
+          <el-option label="已闭环（CLOSED）" value="CLOSED" />
         </el-select>
       </el-form-item>
       <el-form-item label="回复状态" prop="replyStatus">
@@ -291,7 +291,7 @@
 <script lang="ts" setup>
 import { dateFormatter } from '@/utils/formatTime'
 import * as BookingReviewApi from '@/api/mall/booking/review'
-import { createDefaultLedgerQuery, parseLedgerQuery } from './queryHelpers.mjs'
+import { createDefaultLedgerQuery, parseLedgerQuery, resolveManagerTodoSlaStage } from './queryHelpers.mjs'
 import { ElMessageBox } from 'element-plus'
 
 defineOptions({ name: 'BookingReviewIndex' })
@@ -368,10 +368,6 @@ const readableEntityText = (name?: string, id?: number) => {
     return `ID: ${id}`
   }
   return '-'
-}
-
-const hasManagerTodo = (row?: BookingReviewApi.BookingReview) => {
-  return row?.managerTodoStatus !== undefined && row?.managerTodoStatus !== null
 }
 
 const canQuickClaim = (row: BookingReviewApi.BookingReview) => {
@@ -474,48 +470,8 @@ const handleCloseManagerTodo = async (row: BookingReviewApi.BookingReview) => {
   }
 }
 
-const parseTime = (value?: string) => {
-  if (!value) {
-    return NaN
-  }
-  return new Date(value.replace(/-/g, '/')).getTime()
-}
-
 const managerSlaStatusValue = (row: BookingReviewApi.BookingReview) => {
-  if (row?.managerSlaStage) {
-    return row.managerSlaStage
-  }
-  if (!hasManagerTodo(row)) {
-    return row.reviewLevel === 3 ? 'PENDING_INIT' : ''
-  }
-  if (row.managerTodoStatus === 4) {
-    return 'NORMAL'
-  }
-  const now = Date.now()
-  const closeDeadline = parseTime(row.managerCloseDeadlineAt)
-  const firstActionDeadline = parseTime(row.managerFirstActionDeadlineAt)
-  const claimDeadline = parseTime(row.managerClaimDeadlineAt)
-  if (!Number.isNaN(closeDeadline) && now > closeDeadline) {
-    return 'CLOSE_TIMEOUT'
-  }
-  if (!row.managerFirstActionAt && !Number.isNaN(firstActionDeadline) && now > firstActionDeadline) {
-    return 'FIRST_ACTION_TIMEOUT'
-  }
-  if (!row.managerClaimedAt && !Number.isNaN(claimDeadline) && now > claimDeadline) {
-    return 'CLAIM_TIMEOUT'
-  }
-  if (!Number.isNaN(closeDeadline) && closeDeadline >= now && closeDeadline - now <= 120 * 60 * 1000) {
-    return 'CLOSE_DUE_SOON'
-  }
-  if (!row.managerFirstActionAt && !Number.isNaN(firstActionDeadline)
-    && firstActionDeadline >= now && firstActionDeadline - now <= 10 * 60 * 1000) {
-    return 'FIRST_ACTION_DUE_SOON'
-  }
-  if (!row.managerClaimedAt && !Number.isNaN(claimDeadline)
-    && claimDeadline >= now && claimDeadline - now <= 5 * 60 * 1000) {
-    return 'CLAIM_DUE_SOON'
-  }
-  return 'NORMAL'
+  return resolveManagerTodoSlaStage(row)
 }
 
 const reviewLevelText = (value?: number) => {
@@ -567,7 +523,7 @@ const managerTodoStatusText = (row: BookingReviewApi.BookingReview) => {
   if (row.managerTodoStatus === 1) return '待认领'
   if (row.managerTodoStatus === 2) return '已认领'
   if (row.managerTodoStatus === 3) return '处理中'
-  if (row.managerTodoStatus === 4) return '已闭环'
+  if (row.managerTodoStatus === 4) return '已闭环（CLOSED）'
   if (row.reviewLevel === 3) return '待初始化'
   return '-'
 }
@@ -590,7 +546,7 @@ const managerSlaStatusText = (row: BookingReviewApi.BookingReview) => {
   if (value === 'FIRST_ACTION_TIMEOUT') return '首次处理超时'
   if (value === 'CLOSE_DUE_SOON') return '即将闭环超时'
   if (value === 'CLOSE_TIMEOUT') return '闭环超时'
-  if (value === 'CLOSED') return '已闭环'
+  if (value === 'CLOSED') return '已闭环（CLOSED）'
   if (value === 'PENDING_INIT') return '待初始化'
   return '-'
 }

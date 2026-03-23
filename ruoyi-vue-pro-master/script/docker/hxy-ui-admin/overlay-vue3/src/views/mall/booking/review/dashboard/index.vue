@@ -23,7 +23,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="当前看板里的店长待办指标仅用于后台值班与 SLA 观察，不代表系统已经打通外部通知链路。"
+      description="当前看板只使用 dashboard-summary 已正式返回的计数，店长待办指标仅用于后台值班与 SLA 观察，不代表系统已经打通外部通知链路。"
       title="看板口径说明"
       type="info"
     />
@@ -178,9 +178,9 @@ const cards = computed(() => [
   },
   {
     key: 'managerTodoClosed',
-    label: '店长已闭环',
+    label: '店长待办 CLOSED',
     value: displayCount(summary.value.managerTodoClosedCount),
-    hint: '仅表示后台待办收口，不代表 release-ready',
+    hint: '仅表示后台待办收口，不代表提醒已派发成功或门店已处理完成',
     hintClass: 'text-[var(--el-color-success)]'
   },
   {

@@ -4,7 +4,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="这里只看 notify outbox 真值：同一条差评会按 App / 企微生成两条独立出站记录。PENDING 表示待派发，BLOCKED_NO_OWNER 表示当前通道缺店长账号或路由阻断，不代表系统已经自动补发。"
+      description="列表结果只展示当前筛选命中的 notify outbox 记录子集；审计摘要按 review 维度聚合同一条差评在 App / 企微的当前状态。PENDING 表示待派发，BLOCKED_NO_OWNER 表示当前通道缺店长账号或路由阻断，不代表系统已经自动补发。"
       title="通知出站台账"
       type="info"
     />
@@ -39,7 +39,7 @@
       <el-form-item label="通知状态">
         <el-select v-model="queryParams.status" class="!w-180px" clearable placeholder="全部">
           <el-option label="待派发" value="PENDING" />
-          <el-option label="已发送" value="SENT" />
+          <el-option label="已派发" value="SENT" />
           <el-option label="发送失败" value="FAILED" />
           <el-option label="BLOCKED_NO_OWNER" value="BLOCKED_NO_OWNER" />
         </el-select>
@@ -94,7 +94,7 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="跨通道审计概览只用于说明同一条差评在 App / 企微两条出站记录上的当前整体状态，不代表真实送达率，也不改变现有人工重试和阻断治理规则。"
+      description="审计摘要按 review 维度聚合同一条差评在 App / 企微的当前状态，不代表全链路送达，不代表门店已处理完成，也不改变现有人工重试和阻断治理规则。"
       title="跨通道审计概览"
       type="warning"
     />
@@ -237,12 +237,7 @@ const buildSummaryQueryParams = (): BookingReviewApi.BookingReviewNotifyOutboxPa
   reviewId: queryParams.reviewId,
   storeId: queryParams.storeId,
   receiverRole: queryParams.receiverRole,
-  receiverUserId: queryParams.receiverUserId,
-  receiverAccount: queryParams.receiverAccount,
-  status: queryParams.status,
-  channel: queryParams.channel,
   notifyType: queryParams.notifyType,
-  lastActionCode: queryParams.lastActionCode,
 })
 
 const applyRouteQuery = () => {
@@ -283,9 +278,9 @@ const getList = async () => {
 
 const auditCards = computed(() => [
   {
-    label: '双通道已发送',
+    label: '双通道均已派发',
     value: String(auditSummary.value.dualSentReviewCount || 0),
-    detail: `当前筛选范围内共 ${auditSummary.value.totalReviewCount || 0} 条评价`
+    detail: `当前 review 范围内共 ${auditSummary.value.totalReviewCount || 0} 条评价`
   },
   {
     label: '存在阻断',
@@ -298,12 +293,12 @@ const auditCards = computed(() => [
     detail: '至少一个通道发送失败，需先排查失败原因'
   },
   {
-    label: '人工重试待复核',
+    label: '人工重试后待观察',
     value: String(auditSummary.value.manualRetryPendingReviewCount || 0),
     detail: '人工重试后仍需继续观察双通道最新状态'
   },
   {
-    label: '跨通道分裂',
+    label: '跨通道状态分裂',
     value: String(auditSummary.value.divergedReviewCount || 0),
     detail: 'App / 企微当前最新状态不一致'
   },
@@ -390,7 +385,7 @@ const handleRetry = async (row: BookingReviewApi.BookingReviewNotifyOutbox) => {
 
 const notifyStatusText = (status?: string) => {
   if (status === 'PENDING') return '待派发'
-  if (status === 'SENT') return '已发送'
+  if (status === 'SENT') return '已派发'
   if (status === 'FAILED') return '发送失败'
   if (status === 'BLOCKED_NO_OWNER') return '缺店长路由阻断'
   return '-'
