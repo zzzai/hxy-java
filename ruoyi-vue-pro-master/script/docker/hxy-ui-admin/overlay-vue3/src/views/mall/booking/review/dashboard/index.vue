@@ -23,10 +23,27 @@
   <ContentWrap>
     <el-alert
       :closable="false"
-      description="当前看板只使用 dashboard-summary 已正式返回的计数，店长待办指标仅用于后台值班与 SLA 观察，不代表系统已经打通外部通知链路。"
+      description="当前看板只使用 dashboard-summary 已正式返回的计数，店长待办指标仅用于后台值班与 SLA 观察，不代表系统已经打通外部通知链路。新增聚合字段也只用于只读观察，不代表 release capability。"
       title="看板口径说明"
       type="info"
     />
+  </ContentWrap>
+
+  <ContentWrap>
+    <el-card shadow="never">
+      <template #header>
+        <span>高标准只读观察聚合</span>
+      </template>
+      <el-row :gutter="12">
+        <el-col v-for="item in readonlyObserveCards" :key="item.label" :lg="8" :md="24" :sm="24" :xs="24">
+          <div class="rounded-8px border border-[var(--el-border-color-lighter)] p-12px">
+            <div class="text-12px text-[var(--el-text-color-secondary)]">{{ item.label }}</div>
+            <div class="mt-8px text-15px font-600">{{ item.summary }}</div>
+            <div class="mt-8px text-12px text-[var(--el-text-color-secondary)]">{{ item.detail }}</div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
   </ContentWrap>
 
   <ContentWrap>
@@ -97,6 +114,24 @@ const getSummary = async () => {
 const displayCount = (value?: number) => {
   return value ?? 0
 }
+
+const readonlyObserveCards = computed(() => [
+  {
+    label: '优先级观察',
+    summary: `P0 ${displayCount(summary.value.priorityP0Count)} / P1 ${displayCount(summary.value.priorityP1Count)} / P2 ${displayCount(summary.value.priorityP2Count)} / P3 ${displayCount(summary.value.priorityP3Count)}`,
+    detail: '只读观察当前差评优先级堆积，不代表升级、送达或 release capability。'
+  },
+  {
+    label: '超时池观察',
+    summary: `即将超时 ${displayCount(summary.value.managerTimeoutDueSoonCount)} / 已超时 ${displayCount(summary.value.managerTimeoutCount)}`,
+    detail: '只用于值班排队与人工介入顺序，不改变 CLOSED、timeout 和观察态边界。'
+  },
+  {
+    label: '跨通道审计观察',
+    summary: `阻断 ${displayCount(summary.value.notifyAuditBlockedCount)} / 失败 ${displayCount(summary.value.notifyAuditFailedCount)} / 重试待观察 ${displayCount(summary.value.notifyAuditManualRetryPendingCount)} / 分裂 ${displayCount(summary.value.notifyAuditDivergedCount)}`,
+    detail: '只读反映 review 维度审计聚合，不代表全链路送达，也不代表门店已处理完成。'
+  }
+])
 
 const cards = computed(() => [
   {

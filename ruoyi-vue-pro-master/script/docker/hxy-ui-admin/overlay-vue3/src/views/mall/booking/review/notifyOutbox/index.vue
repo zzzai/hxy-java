@@ -82,12 +82,20 @@
   </ContentWrap>
 
   <ContentWrap>
-    <div v-loading="summaryLoading" class="grid grid-cols-1 gap-12px md:grid-cols-5">
-      <el-card v-for="item in auditCards" :key="item.label" shadow="never">
-        <div class="text-12px text-[#909399]">{{ item.label }}</div>
-        <div class="mt-8px text-24px font-600 text-[#303133]">{{ item.value }}</div>
-        <div class="mt-8px text-12px text-[#606266]">{{ item.detail }}</div>
-      </el-card>
+    <div v-loading="summaryLoading">
+      <div class="grid grid-cols-1 gap-12px md:grid-cols-5">
+        <el-card v-for="item in auditCards" :key="item.label" shadow="never">
+          <div class="text-12px text-[#909399]">{{ item.label }}</div>
+          <div class="mt-8px text-24px font-600 text-[#303133]">{{ item.value }}</div>
+          <div class="mt-8px text-12px text-[#606266]">{{ item.detail }}</div>
+        </el-card>
+      </div>
+      <div class="mt-12px text-12px text-[var(--el-text-color-secondary)]">
+        跨通道摘要 base scope：{{ summaryBaseScopeText }}
+      </div>
+      <div class="mt-4px text-12px text-[var(--el-text-color-secondary)]">
+        仅用于说明跨通道摘要的聚合基线，不代表 release capability。
+      </div>
     </div>
   </ContentWrap>
 
@@ -212,6 +220,7 @@ const createEmptySummary = (): BookingReviewApi.BookingReviewNotifyOutboxSummary
   failedReviewCount: 0,
   manualRetryPendingReviewCount: 0,
   divergedReviewCount: 0,
+  baseScope: undefined,
 })
 const auditSummary = ref<BookingReviewApi.BookingReviewNotifyOutboxSummary>(createEmptySummary())
 
@@ -303,6 +312,8 @@ const auditCards = computed(() => [
     detail: 'App / 企微当前最新状态不一致'
   },
 ])
+
+const summaryBaseScopeText = computed(() => auditSummary.value.baseScope || '未返回，按 review 维度真值观察')
 
 const refreshPage = async () => {
   await Promise.all([getList(), loadSummary()])

@@ -71,7 +71,6 @@ const {
   resolveManagerTodoSlaStage,
   BOOKING_REVIEW_LEDGER_QUERY_FIELDS,
   BOOKING_REVIEW_DISPLAY_ONLY_RETURN_FIELDS,
-  BOOKING_REVIEW_DASHBOARD_SUMMARY_FIELDS,
 } = await import(pathToFileURL(queryHelpersPath).href);
 
 const extractInterfaceBlock = (source, interfaceName) => {
@@ -167,18 +166,23 @@ test('review api keeps query truth separate from display-only return fields', ()
     },
   );
 
-  ['managerTimeoutCategory', 'priorityReasonCode', 'notifyAuditStage', 'degraded', 'degradeReason'].forEach((field) => {
+  ['managerTimeoutCategory', 'priorityReasonCode', 'notifyAuditStage'].forEach((field) => {
+    assert.doesNotMatch(pageReqBlock, new RegExp(`\\b${field}\\??:`));
+    assert.match(reviewRespBlock, new RegExp(`\\b${field}\\?:`));
+  });
+
+  ['degraded', 'degradeReason'].forEach((field) => {
     assert.doesNotMatch(pageReqBlock, new RegExp(`\\b${field}\\??:`));
     assert.doesNotMatch(reviewRespBlock, new RegExp(`\\b${field}\\??:`));
   });
 });
 
-test('review dashboard only uses committed summary counters', () => {
+test('review dashboard absorbs committed summary counters and keeps them read-only', () => {
   const dashboardSource = fs.readFileSync(dashboardPagePath, 'utf8');
   const apiSource = fs.readFileSync(reviewApiPath, 'utf8');
   const dashboardSummaryBlock = extractInterfaceBlock(apiSource, 'BookingReviewDashboardSummary');
 
-  assert.deepEqual(BOOKING_REVIEW_DASHBOARD_SUMMARY_FIELDS, [
+  const baseSummaryFields = [
     'totalCount',
     'positiveCount',
     'neutralCount',
@@ -194,18 +198,34 @@ test('review dashboard only uses committed summary counters', () => {
     'managerTodoCloseTimeoutCount',
     'managerTodoCloseDueSoonCount',
     'managerTodoClosedCount',
-  ]);
+  ];
+  const deltaSummaryFields = [
+    'priorityP0Count',
+    'priorityP1Count',
+    'priorityP2Count',
+    'priorityP3Count',
+    'managerTimeoutDueSoonCount',
+    'managerTimeoutCount',
+    'notifyAuditBlockedCount',
+    'notifyAuditFailedCount',
+    'notifyAuditManualRetryPendingCount',
+    'notifyAuditDivergedCount',
+  ];
 
-  BOOKING_REVIEW_DASHBOARD_SUMMARY_FIELDS.forEach((field) => {
+  baseSummaryFields.forEach((field) => {
     assert.match(dashboardSummaryBlock, new RegExp(`\\b${field}\\?:`));
   });
 
-  ['priorityP0Count', 'priorityP1Count', 'priorityP2Count', 'priorityP3Count', 'managerTimeoutDueSoonCount', 'notifyAuditAnyBlockedCount'].forEach((field) => {
-    assert.doesNotMatch(dashboardSummaryBlock, new RegExp(`\\b${field}\\??:`));
-    assert.doesNotMatch(dashboardSource, new RegExp(`\\.${field}\\b`));
+  deltaSummaryFields.forEach((field) => {
+    assert.match(dashboardSummaryBlock, new RegExp(`\\b${field}\\?:`));
   });
 
   assert.match(dashboardSource, /只使用 dashboard-summary 已正式返回的计数/);
+  assert.match(dashboardSource, /高标准只读观察聚合/);
+  ['priorityP0Count', 'priorityP1Count', 'priorityP2Count', 'priorityP3Count', 'managerTimeoutDueSoonCount', 'managerTimeoutCount', 'notifyAuditBlockedCount', 'notifyAuditFailedCount', 'notifyAuditManualRetryPendingCount', 'notifyAuditDivergedCount'].forEach((field) => {
+    assert.match(dashboardSource, new RegExp(`\\.${field}\\b`));
+  });
   assert.match(dashboardSource, /店长待办 CLOSED/);
   assert.match(dashboardSource, /不代表提醒已派发成功或门店已处理完成/);
+  assert.match(dashboardSource, /不代表 release capability/);
 });

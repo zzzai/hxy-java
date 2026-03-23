@@ -58,9 +58,12 @@ export interface BookingReview {
   managerFirstActionAt?: string
   managerClosedAt?: string
   managerSlaStage?: string
+  managerTimeoutCategory?: string
   priorityLevel?: string
   priorityReason?: string
+  priorityReasonCode?: string
   notifyRiskSummary?: string
+  notifyAuditStage?: string
   managerLatestActionRemark?: string
   managerLatestActionByUserId?: number
   firstResponseAt?: string
@@ -113,6 +116,16 @@ export interface BookingReviewDashboardSummary {
   managerTodoCloseTimeoutCount?: number
   managerTodoCloseDueSoonCount?: number
   managerTodoClosedCount?: number
+  priorityP0Count?: number
+  priorityP1Count?: number
+  priorityP2Count?: number
+  priorityP3Count?: number
+  managerTimeoutDueSoonCount?: number
+  managerTimeoutCount?: number
+  notifyAuditBlockedCount?: number
+  notifyAuditFailedCount?: number
+  notifyAuditManualRetryPendingCount?: number
+  notifyAuditDivergedCount?: number
 }
 
 export interface BookingReviewHistoryScanReq extends PageParam {
@@ -189,6 +202,7 @@ export interface BookingReviewNotifyOutboxSummary {
   failedReviewCount?: number
   manualRetryPendingReviewCount?: number
   divergedReviewCount?: number
+  baseScope?: string
 }
 
 export interface BookingReviewNotifyOutboxPageReq extends PageParam {

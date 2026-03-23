@@ -122,6 +122,7 @@ test('review api exposes notify outbox types and methods without fake degraded f
   assert.match(apiSource, /WECOM/);
   assert.match(apiSource, /\/booking\/review\/notify-outbox\/summary/);
   assert.match(apiSource, /\/booking\/review\/notify-outbox\/retry/);
+  assert.match(apiSource, /baseScope\?: string/);
   assert.doesNotMatch(apiSource, /\bdegraded\b/);
   assert.doesNotMatch(apiSource, /\bdegradeReason\b/);
 });
@@ -149,6 +150,7 @@ test('notify outbox page distinguishes list subset from review-level audit summa
   assert.match(pageSource, /通知出站台账/);
   assert.match(pageSource, /列表结果只展示当前筛选命中的 notify outbox 记录子集/);
   assert.match(pageSource, /审计摘要按 review 维度聚合同一条差评在 App \/ 企微的当前状态/);
+  assert.match(pageSource, /跨通道摘要 base scope/);
   assert.match(pageSource, /不代表全链路送达/);
   assert.match(pageSource, /不代表门店已处理完成/);
   assert.match(pageSource, /只看阻断/);
@@ -162,10 +164,18 @@ test('notify outbox page distinguishes list subset from review-level audit summa
   assert.match(pageSource, /跨通道状态分裂/);
   assert.match(pageSource, /跨通道结论/);
   assert.match(pageSource, /跨通道说明/);
+  assert.match(pageSource, /baseScope/);
   assert.match(pageSource, /已派发/);
   assert.doesNotMatch(pageSource, /label="已送达"|>已送达</);
   assert.doesNotMatch(pageSource, /label="已闭环"|>已闭环</);
   assert.doesNotMatch(pageSource, /label="已处理完成"|>已处理完成</);
+});
+
+test('notify outbox page keeps base scope as read-only audit context', () => {
+  const pageSource = fs.readFileSync(outboxPagePath, 'utf8');
+  assert.match(pageSource, /auditSummary\.value\.baseScope/);
+  assert.match(pageSource, /仅用于说明跨通道摘要的聚合基线/);
+  assert.doesNotMatch(pageSource, /release-ready/);
 });
 
 test('notify outbox summary request ignores subset-only filters', () => {
