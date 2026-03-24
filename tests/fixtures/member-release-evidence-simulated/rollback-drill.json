@@ -1,0 +1,7 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "rollbackMode": "NO_RELEASE_PROMOTION",
+  "result": "PASS",
+  "owner": "window-a-selftest",
+  "note": "Rollback means member level/assets/tag stay in can-develop-only state and do not enter release-ready pool."
+}

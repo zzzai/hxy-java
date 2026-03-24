@@ -1,0 +1,24 @@
+{
+  "capability": "member.level-progress",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/member/level/list"
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": [
+        {
+          "name": "黄金会员",
+          "level": 2,
+          "experience": 200,
+          "discountPercent": 95
+        }
+      ]
+    }
+  },
+  "audit": {
+    "runId": "member-selftest-level-001"
+  }
+}

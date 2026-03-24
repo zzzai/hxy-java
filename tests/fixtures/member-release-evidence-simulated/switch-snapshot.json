@@ -1,0 +1,6 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "hasDedicatedFeatureFlag": false,
+  "gateStrategy": "A_WINDOW_RELEASE_SIGNOFF_REQUIRED",
+  "note": "Member level/assets/tag currently have no dedicated feature flag. Release gate depends on evidence pack and A-window signoff."
+}

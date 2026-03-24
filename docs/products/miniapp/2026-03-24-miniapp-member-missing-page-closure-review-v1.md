@@ -11,6 +11,7 @@
   - `/pages/profile/assets`
   - `/pages/user/tag`
 - 本轮已完成：真实页面、`pages.json`、个人中心入口、前端 API、后端 app/controller 或 server 集成层、最小回归测试。
+- 03-24 追加完成：仓内 simulated selftest pack 与 `check_member_release_evidence_gate.sh`，已把页面样本结构、无独立 feature flag、gray / rollback / sign-off 字段口径固定下来。
 - 本轮未完成：release 样本包、灰度 / 回滚 / 门禁材料、客服与运营放量演练。
 - 因此 Member 域当前正确结论是：
   - `level / assets / tag = Doc Closed / Can Develop / Cannot Release`
@@ -38,8 +39,8 @@
 
 ## 5. 当前剩余 blocker
 1. `level`：缺发布级样本与 A 窗口签发，仍不能进入可放量能力分母。
-2. `assets`：缺真实灰度 / 回滚 / 门禁 / 降级样本；`degraded=false` 只是默认字段，不是门禁证据。
-3. `tag`：缺 release 样本与客服 / 运营演练记录，仍不能对外改口径。
+2. `assets`：虽已补 simulated selftest pack，但仍缺真实灰度 / 回滚 / 门禁 / 降级样本；`degraded=false` 只是默认字段，不是门禁证据。
+3. `tag`：缺真实 release 样本与客服 / 运营演练记录，仍不能对外改口径。
 4. 项目总账、capability ledger、release decision 若不回填，会继续把本轮成果误记为“缺页能力”或误记为“已可放量”。
 
 ## 6. 明确禁止的误写

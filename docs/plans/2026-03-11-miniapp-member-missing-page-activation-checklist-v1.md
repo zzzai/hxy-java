@@ -45,9 +45,10 @@
 
 ## 4. 剩余发布 blocker
 1. `level / assets / tag` 当前只能写成 `Can Develop / Cannot Release`，不得写成 `ACTIVE 可放量`。
-2. `/member/asset-ledger/page` 虽已存在真实 controller，但当前没有真实灰度、回滚、门禁样本与降级证据；`degraded/degradeReason` 不能被误写成“已完成降级链路验证”。
-3. 三个页面都还缺发布级样本包、客服/运营演练记录与 A 窗口最终 allowlist。
-4. Member 域相关总账、capability ledger、release decision 如不回填，会造成“工程已闭环但总账仍写成缺页”或“误升成可放量”的双向失真。
+2. 03-24 已新增仓内 simulated selftest pack 与 `check_member_release_evidence_gate.sh`，但它只证明 evidence structure 与无独立 feature flag 的边界已固定，不能替代真实发布证据。
+3. `/member/asset-ledger/page` 虽已存在真实 controller，但当前没有真实灰度、回滚、门禁样本与降级证据；`degraded/degradeReason` 不能被误写成“已完成降级链路验证”。
+4. 三个页面都还缺真实发布级样本包、客服/运营演练记录与 A 窗口最终 allowlist。
+5. Member 域相关总账、capability ledger、release decision 如不回填，会造成“工程已闭环但总账仍写成缺页”或“误升成可放量”的双向失真。
 
 ## 5. 明确禁止的表述
 - 不得再把这三项写成“缺页能力”。

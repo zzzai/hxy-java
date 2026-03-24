@@ -1,0 +1,30 @@
+{
+  "capability": "member.level-progress",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/member/experience-record/page",
+    "query": {
+      "pageNo": 1,
+      "pageSize": 10
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "title": "完成预约",
+            "experience": 30,
+            "description": "模拟成长记录"
+          }
+        ],
+        "total": 1
+      }
+    }
+  },
+  "audit": {
+    "runId": "member-selftest-level-002"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "capability": "member.user-tag",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/member/tag/my"
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": [
+        {
+          "id": 301,
+          "name": "高复购"
+        }
+      ]
+    }
+  },
+  "audit": {
+    "runId": "member-selftest-tag-001"
+  }
+}
