@@ -1,0 +1,28 @@
+{
+  "capability": "referral",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/promotion/referral/bind-inviter",
+    "body": {
+      "inviteCode": "INV20260324",
+      "clientToken": "referral-selftest-001"
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "refereeMemberId": 90001,
+        "inviterMemberId": 90002,
+        "bindStatus": "BOUND"
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-referral-002",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}

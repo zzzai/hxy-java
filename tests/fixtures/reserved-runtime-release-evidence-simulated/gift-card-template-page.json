@@ -1,0 +1,29 @@
+{
+  "capability": "gift-card",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/promotion/gift-card/template/page",
+    "query": {
+      "pageNo": 1,
+      "pageSize": 10
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "templateId": 5001,
+            "name": "模拟礼品卡模板"
+          }
+        ],
+        "total": 1
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-gift-card-001"
+  }
+}

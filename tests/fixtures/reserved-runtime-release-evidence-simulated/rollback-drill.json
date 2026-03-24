@@ -1,0 +1,7 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "rollbackMode": "ALL_SWITCH_OFF",
+  "result": "PASS",
+  "owner": "window-a-selftest",
+  "note": "Rollback means all reserved runtime switches stay off."
+}

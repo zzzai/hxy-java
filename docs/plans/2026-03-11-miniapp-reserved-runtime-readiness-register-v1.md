@@ -20,6 +20,7 @@
   - 开关审批 / 灰度 / 回滚样本未闭环
   - sign-off 与误发布告警演练未闭环
   - 开关默认仍为 `off`
+- 03-24 已新增仓内 simulated selftest pack 与 `check_reserved_runtime_release_evidence_gate.sh`，只能证明 evidence structure 与 switch / gray / rollback / sign-off 字段口径可校验，不能替代真实发布证据。
 
 ## 3. 运行证据登记表
 
@@ -44,7 +45,8 @@
 - [x] `RESERVED_DISABLED` 开关关闭态命中规则明确
 
 ### 4.3 仍缺失的发布级证据
-- [ ] 最小运行样本包存在
+- [x] 仓内 simulated selftest pack 已存在，但只用于固定 evidence structure
+- [ ] 真实最小运行样本包已归档
 - [ ] 开关审批 / 灰度名单 / 回滚样本已归档
 - [ ] 误发布告警与 `RESERVED_DISABLED` 关闭态演练已完成
 - [ ] sign-off 与人工接管入口已演练

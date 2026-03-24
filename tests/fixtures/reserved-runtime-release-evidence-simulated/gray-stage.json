@@ -1,0 +1,7 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "result": "PASS",
+  "scope": "RESERVED_RUNTIME_STRUCTURE_ONLY",
+  "runId": "reserved-selftest-gray-20260324",
+  "decision": "NO_RELEASE"
+}

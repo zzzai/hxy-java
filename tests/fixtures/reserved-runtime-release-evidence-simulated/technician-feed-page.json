@@ -1,0 +1,33 @@
+{
+  "capability": "technician-feed",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/booking/technician/feed/page",
+    "query": {
+      "storeId": 1001,
+      "pageNo": 1,
+      "pageSize": 10
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "list": [
+          {
+            "postId": 81001,
+            "technicianId": 9001,
+            "content": "模拟技师动态",
+            "likeCount": 6,
+            "commentCount": 2
+          }
+        ],
+        "total": 1
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-feed-001"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "capability": "referral",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/promotion/referral/overview"
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "referralCode": "INV20260324",
+        "totalInvites": 12,
+        "rewardBalance": 18800,
+        "degraded": false
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-referral-001"
+  }
+}

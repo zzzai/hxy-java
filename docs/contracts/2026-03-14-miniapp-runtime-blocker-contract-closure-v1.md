@@ -75,6 +75,7 @@
 - 结论：
   - 规划 / 治理层就算全部补齐，也只能说明 `Doc Closed / Contract Closed`。
   - 当前三域已具备真实 runtime capability，但在真实对外行为样本、灰度、回滚与 sign-off 未闭环前，不能写成“可灰度”“已验证通过”“可放量”。
+  - 03-24 新增的 simulated selftest pack 与 `check_reserved_runtime_release_evidence_gate.sh` 只证明仓内 evidence structure 可校验，不改变 `Release Blocked` 结论。
 
 | Reserved 能力 | 已有规划 / 治理证据 | 缺失的 release 证据 | 明确禁止误写为 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
 |---|---|---|---|---|---|---|---|

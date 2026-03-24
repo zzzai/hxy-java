@@ -1,0 +1,29 @@
+{
+  "capability": "gift-card",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/promotion/gift-card/order/create",
+    "body": {
+      "templateId": 5001,
+      "quantity": 1,
+      "sendScene": "SELF_USE",
+      "clientToken": "gift-selftest-001"
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "orderId": 71001,
+        "giftCardBatchNo": "GC20260324001"
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-gift-card-002",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}

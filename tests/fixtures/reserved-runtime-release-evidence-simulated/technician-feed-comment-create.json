@@ -1,0 +1,29 @@
+{
+  "capability": "technician-feed",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/technician/feed/comment/create",
+    "body": {
+      "postId": 81001,
+      "content": "模拟评论内容",
+      "clientToken": "feed-selftest-001"
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": {
+        "commentId": 82001,
+        "status": "REVIEWING",
+        "degraded": false
+      }
+    }
+  },
+  "audit": {
+    "runId": "reserved-selftest-feed-002",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}

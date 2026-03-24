@@ -1,0 +1,14 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "switches": {
+    "miniapp": {
+      "gift-card": "off",
+      "referral": "off",
+      "technician-feed": {
+        "audit": "off"
+      }
+    }
+  },
+  "decision": "NO_RELEASE",
+  "note": "Switch defaults remain off because this pack is only for selftest evidence structure."
+}

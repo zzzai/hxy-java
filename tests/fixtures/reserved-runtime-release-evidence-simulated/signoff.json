@@ -1,0 +1,10 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "decision": "SELFTEST_ONLY_NO_RELEASE",
+  "owners": {
+    "product": "window-a-product",
+    "tech": "window-a-tech",
+    "ops": "window-a-ops"
+  },
+  "note": "Simulated reserved runtime evidence only proves pack structure, not real release evidence."
+}
