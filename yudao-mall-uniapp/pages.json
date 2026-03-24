@@ -810,6 +810,15 @@
 					}
 				},
 				{
+					"path": "service-select",
+					"style": {
+						"navigationBarTitleText": "选择服务项目"
+					},
+					"meta": {
+						"auth": true
+					}
+				},
+				{
 					"path": "order-confirm",
 					"style": {
 						"navigationBarTitleText": "确认预约"

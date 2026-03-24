@@ -18,6 +18,14 @@ export async function loadReviewEligibility(api, bookingOrderId) {
   return api.getEligibility(bookingOrderId);
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
+function hasExplicitProductSource(payload = {}) {
+  return hasValue(payload.spuId) && hasValue(payload.skuId);
+}
+
 export async function submitBookingOrder(api, payload) {
   return api.createOrder({
     ...payload,
@@ -61,6 +69,10 @@ export function goToTechnicianDetail(router, id, storeId) {
   return router.go('/pages/booking/technician-detail', { id, storeId });
 }
 
+export function goToBookingServiceSelect(router, payload) {
+  return router.go('/pages/booking/service-select', payload);
+}
+
 export function goToOrderConfirm(router, payload) {
   return router.go('/pages/booking/order-confirm', payload);
 }
@@ -71,4 +83,48 @@ export function goToOrderDetail(router, id) {
 
 export function goToReviewAdd(router, bookingOrderId) {
   return router.go('/pages/booking/review-add', { bookingOrderId });
+}
+
+export function buildBookingCreatePayload(payload = {}) {
+  if (!hasValue(payload.timeSlotId) || !hasExplicitProductSource(payload)) {
+    return null;
+  }
+
+  return {
+    timeSlotId: payload.timeSlotId,
+    spuId: payload.spuId,
+    skuId: payload.skuId,
+    userRemark: payload.userRemark,
+  };
+}
+
+export function buildBookingAddonPayload(payload = {}) {
+  if (!hasValue(payload.parentOrderId) || !hasValue(payload.addonType)) {
+    return null;
+  }
+
+  if (payload.addonType === 1) {
+    const spuId = hasValue(payload.spuId) ? payload.spuId : payload.parentOrderSpuId;
+    const skuId = hasValue(payload.skuId) ? payload.skuId : payload.parentOrderSkuId;
+    if (!hasValue(spuId) || !hasValue(skuId)) {
+      return null;
+    }
+    return {
+      parentOrderId: payload.parentOrderId,
+      addonType: payload.addonType,
+      spuId,
+      skuId,
+    };
+  }
+
+  if (!hasExplicitProductSource(payload)) {
+    return null;
+  }
+
+  return {
+    parentOrderId: payload.parentOrderId,
+    addonType: payload.addonType,
+    spuId: payload.spuId,
+    skuId: payload.skuId,
+  };
 }

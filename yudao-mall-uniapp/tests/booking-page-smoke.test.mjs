@@ -28,9 +28,12 @@ module.exports = {
   submitAddonOrder,
   submitAddonOrderAndGo,
   goToTechnicianDetail,
+  goToBookingServiceSelect,
   goToOrderConfirm,
   goToOrderDetail,
   goToReviewAdd,
+  buildBookingCreatePayload,
+  buildBookingAddonPayload,
 };
 `;
 
@@ -61,9 +64,12 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.submitAddonOrder, 'function');
   assert.equal(typeof logic.submitAddonOrderAndGo, 'function');
   assert.equal(typeof logic.goToTechnicianDetail, 'function');
+  assert.equal(typeof logic.goToBookingServiceSelect, 'function');
   assert.equal(typeof logic.goToOrderConfirm, 'function');
   assert.equal(typeof logic.goToOrderDetail, 'function');
   assert.equal(typeof logic.goToReviewAdd, 'function');
+  assert.equal(typeof logic.buildBookingCreatePayload, 'function');
+  assert.equal(typeof logic.buildBookingAddonPayload, 'function');
 });
 
 test('booking technician list and detail helpers call canonical apis', async () => {
@@ -148,10 +154,18 @@ test('booking technician navigation helpers keep canonical routes and query keys
   };
 
   const detailNav = logic.goToTechnicianDetail(router, 22, 7);
+  const serviceSelectNav = logic.goToBookingServiceSelect(router, {
+    flow: 'create',
+    timeSlotId: 101,
+    technicianId: 22,
+    storeId: 7,
+  });
   const confirmNav = logic.goToOrderConfirm(router, {
     timeSlotId: 101,
     technicianId: 22,
     storeId: 7,
+    spuId: 201,
+    skuId: 301,
   });
 
   assert.deepEqual(normalize(routeCalls), [
@@ -160,18 +174,98 @@ test('booking technician navigation helpers keep canonical routes and query keys
       query: { id: 22, storeId: 7 },
     },
     {
+      route: '/pages/booking/service-select',
+      query: { flow: 'create', timeSlotId: 101, technicianId: 22, storeId: 7 },
+    },
+    {
       route: '/pages/booking/order-confirm',
-      query: { timeSlotId: 101, technicianId: 22, storeId: 7 },
+      query: { timeSlotId: 101, technicianId: 22, storeId: 7, spuId: 201, skuId: 301 },
     },
   ]);
   assert.deepEqual(normalize(detailNav), {
     route: '/pages/booking/technician-detail',
     query: { id: 22, storeId: 7 },
   });
+  assert.deepEqual(normalize(serviceSelectNav), {
+    route: '/pages/booking/service-select',
+    query: { flow: 'create', timeSlotId: 101, technicianId: 22, storeId: 7 },
+  });
   assert.deepEqual(normalize(confirmNav), {
     route: '/pages/booking/order-confirm',
-    query: { timeSlotId: 101, technicianId: 22, storeId: 7 },
+    query: { timeSlotId: 101, technicianId: 22, storeId: 7, spuId: 201, skuId: 301 },
   });
+});
+
+test('booking create payload only accepts explicit product source', () => {
+  const logic = loadBookingLogic();
+
+  assert.deepEqual(normalize(logic.buildBookingCreatePayload({
+    timeSlotId: 10,
+    spuId: 20,
+    skuId: 30,
+    userRemark: 'ok',
+  })), {
+    timeSlotId: 10,
+    spuId: 20,
+    skuId: 30,
+    userRemark: 'ok',
+  });
+
+  assert.equal(logic.buildBookingCreatePayload({
+    timeSlotId: 10,
+    slot: { spuId: 20, skuId: 30 },
+    userRemark: 'slot-fallback-must-not-work',
+  }), null);
+});
+
+test('booking addon payload only lets extend-time reuse parent order product', () => {
+  const logic = loadBookingLogic();
+
+  assert.deepEqual(normalize(logic.buildBookingAddonPayload({
+    parentOrderId: 1,
+    addonType: 1,
+    parentOrderSpuId: 200,
+    parentOrderSkuId: 300,
+  })), {
+    parentOrderId: 1,
+    addonType: 1,
+    spuId: 200,
+    skuId: 300,
+  });
+
+  assert.deepEqual(normalize(logic.buildBookingAddonPayload({
+    parentOrderId: 1,
+    addonType: 2,
+    spuId: 201,
+    skuId: 301,
+  })), {
+    parentOrderId: 1,
+    addonType: 2,
+    spuId: 201,
+    skuId: 301,
+  });
+
+  assert.equal(logic.buildBookingAddonPayload({
+    parentOrderId: 1,
+    addonType: 2,
+    parentOrderSpuId: 200,
+    parentOrderSkuId: 300,
+  }), null);
+});
+
+test('booking pages register service-select route and stop using slot fallback as product source', () => {
+  const projectRoot = path.resolve(__dirname, '..');
+  const pagesJson = fs.readFileSync(path.join(projectRoot, 'pages.json'), 'utf8');
+  const technicianDetailPage = fs.readFileSync(path.join(projectRoot, 'pages/booking/technician-detail.vue'), 'utf8');
+  const orderConfirmPage = fs.readFileSync(path.join(projectRoot, 'pages/booking/order-confirm.vue'), 'utf8');
+  const addonPage = fs.readFileSync(path.join(projectRoot, 'pages/booking/addon.vue'), 'utf8');
+
+  assert.match(pagesJson, /"path": "service-select"/);
+  assert.match(technicianDetailPage, /goToBookingServiceSelect/);
+  assert.doesNotMatch(orderConfirmPage, /state\\.slot\\.spuId/);
+  assert.doesNotMatch(orderConfirmPage, /state\\.slot\\.skuId/);
+  assert.match(addonPage, /spuId/);
+  assert.match(addonPage, /skuId/);
 });
 
 test('booking submit helper adds dispatchMode and jumps to order detail on success', async () => {

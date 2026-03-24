@@ -28,12 +28,23 @@
             :key="t.value"
             class="type-item"
             :class="{ active: state.addonType === t.value }"
-            @tap="state.addonType = t.value"
+            @tap="onSelectAddonType(t.value)"
           >
             <view class="ss-font-28">{{ t.icon }}</view>
             <view class="ss-font-26 ss-m-t-8">{{ t.label }}</view>
             <view class="ss-font-22 text-gray ss-m-t-4">{{ t.desc }}</view>
           </view>
+        </view>
+      </view>
+
+      <view v-if="state.addonType === 2 || state.addonType === 3" class="section bg-white ss-r-10 ss-p-30 ss-m-b-20">
+        <view class="ss-flex ss-row-between ss-col-center ss-m-b-16">
+          <view class="ss-font-28 ss-font-bold">服务项目</view>
+          <button class="choose-btn ss-reset-button" @tap="onChooseService">选择项目</button>
+        </view>
+        <view class="info-row ss-flex ss-row-between">
+          <text class="text-gray">当前选择</text>
+          <text>{{ state.selectedServiceName || '未选择服务项目' }}</text>
         </view>
       </view>
 
@@ -71,7 +82,8 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
-  import { submitAddonOrderAndGo } from './logic';
+  import SpuApi from '@/sheep/api/product/spu';
+  import { buildBookingAddonPayload, goToBookingServiceSelect, submitAddonOrderAndGo } from './logic';
 
   const addonTypes = [
     { value: 1, label: '加钟', desc: '延长当前服务', icon: '⏱' },
@@ -83,10 +95,24 @@
     parentOrderId: 0,
     parentOrder: {},
     addonType: null,
+    spuId: 0,
+    skuId: 0,
+    selectedServiceName: '',
+    selectedSkuName: '',
     remark: '',
     loading: false,
     submitting: false,
   });
+
+  function onSelectAddonType(type) {
+    state.addonType = type;
+    if (type === 1) {
+      state.spuId = 0;
+      state.skuId = 0;
+      state.selectedServiceName = '';
+      state.selectedSkuName = '';
+    }
+  }
 
   async function loadParentOrder() {
     state.loading = true;
@@ -97,19 +123,61 @@
     state.loading = false;
   }
 
-  async function onSubmit() {
-    if (!state.addonType || state.submitting) return;
-    state.submitting = true;
-    await submitAddonOrderAndGo(BookingApi, sheep.$router, {
+  async function loadSelectedProduct() {
+    if (!state.spuId || state.selectedServiceName) {
+      return;
+    }
+    const { code, data } = await SpuApi.getSpuDetail(state.spuId);
+    if (code !== 0 || !data) {
+      return;
+    }
+    state.selectedServiceName = data.name || '';
+    if (!state.selectedSkuName && state.skuId) {
+      const matchedSku = (data.skus || []).find((item) => Number(item.id) === Number(state.skuId));
+      state.selectedSkuName = matchedSku?.name || matchedSku?.goods_sku_text || '';
+    }
+  }
+
+  function onChooseService() {
+    if (state.addonType !== 2 && state.addonType !== 3) {
+      return;
+    }
+    goToBookingServiceSelect(sheep.$router, {
+      flow: 'addon',
       parentOrderId: state.parentOrderId,
+      storeId: state.parentOrder.storeId || 0,
       addonType: state.addonType,
     });
+  }
+
+  async function onSubmit() {
+    if (!state.addonType || state.submitting) return;
+    const payload = buildBookingAddonPayload({
+      parentOrderId: state.parentOrderId,
+      addonType: state.addonType,
+      spuId: state.spuId,
+      skuId: state.skuId,
+      parentOrderSpuId: state.parentOrder.spuId,
+      parentOrderSkuId: state.parentOrder.skuId,
+    });
+    if (!payload) {
+      sheep.$helper.toast(state.addonType === 1 ? '当前订单缺少服务项目' : '请先选择服务项目');
+      return;
+    }
+    state.submitting = true;
+    await submitAddonOrderAndGo(BookingApi, sheep.$router, payload);
     state.submitting = false;
   }
 
   onLoad((options) => {
-    state.parentOrderId = options.parentOrderId;
+    state.parentOrderId = Number(options.parentOrderId || 0);
+    state.addonType = options.addonType ? Number(options.addonType) : null;
+    state.spuId = Number(options.spuId || 0);
+    state.skuId = Number(options.skuId || 0);
+    state.selectedServiceName = options.spuName || '';
+    state.selectedSkuName = options.skuName || '';
     loadParentOrder();
+    loadSelectedProduct();
   });
 </script>
 
@@ -131,6 +199,15 @@
       color: #fff;
       .text-gray { color: rgba(255,255,255,0.7); }
     }
+  }
+  .choose-btn {
+    min-width: 160rpx;
+    height: 56rpx;
+    padding: 0 24rpx;
+    border-radius: 999rpx;
+    background: #fff7e6;
+    color: #ad6800;
+    font-size: 22rpx;
   }
   .remark-input {
     width: 100%;

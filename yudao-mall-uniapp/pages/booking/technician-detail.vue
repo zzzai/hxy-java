@@ -81,7 +81,7 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
-  import { goToOrderConfirm, loadTechnicianDetail, loadTimeSlots } from './logic';
+  import { goToBookingServiceSelect, loadTechnicianDetail, loadTimeSlots } from './logic';
 
   const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -146,7 +146,8 @@
 
   function onConfirm() {
     if (!state.selectedSlotId) return;
-    goToOrderConfirm(sheep.$router, {
+    goToBookingServiceSelect(sheep.$router, {
+      flow: 'create',
       timeSlotId: state.selectedSlotId,
       technicianId: state.technicianId,
       storeId: state.storeId,
@@ -161,8 +162,8 @@
   }
 
   onLoad((options) => {
-    state.technicianId = options.id;
-    state.storeId = options.storeId || 0;
+    state.technicianId = Number(options.id || 0);
+    state.storeId = Number(options.storeId || 0);
     initDates();
     getTechnician();
     getSlots();

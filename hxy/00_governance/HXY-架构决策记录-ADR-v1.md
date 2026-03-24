@@ -1135,9 +1135,10 @@
 - 决策：
   1. 先以真实页面、真实 helper、真实 controller/VO 为准，收口当前能客观验证的协议真值；
   2. 已修复的协议漂移必须从 blocker 列表移除，不能继续以旧漂移口径描述现状；
-  3. 剩余未闭环项单列为结构性 blocker，目前固定为“create / addon 的真实商品来源缺失 + release 级样本缺失”；
-  4. 在这些 blocker 解除前，booking 统一保持 `Can Develop / Cannot Release`。
-- 当前落地：`GET /booking/order/list` 已升级为真实分页协议；`AppBookingOrderRespVO` 已暴露 `payOrderId/timeSlotId/spuId/skuId`；`order-confirm` 已改用 `GET /booking/slot/get` 单点读取时段详情并闭环 `duration`。
+  3. create 与 addon 的商品来源必须显式收口到真实页面回传的 `spuId/skuId`，不得从 slot、fallback 字段或 message 文案侧推；
+  4. 剩余未闭环项单列为结构性 blocker；在商品来源收口完成后，blocker 口径切换为“release 级样本、gray / rollback / sign-off 与少量 fallback 字段”；
+  5. 在这些 blocker 解除前，booking 统一保持 `Can Develop / Cannot Release`。
+- 当前落地：`GET /booking/order/list` 已升级为真实分页协议；`AppBookingOrderRespVO` 已暴露 `payOrderId/timeSlotId/spuId/skuId`；`order-confirm` 已改用 `GET /booking/slot/get` 单点读取时段详情并闭环 `duration`；小程序已新增 `/pages/booking/service-select`，并固定 create / addon 的商品来源只认显式 `spuId/skuId`。
 - 影响范围：booking 小程序 query/create 页面、app controller/VO、contract/runbook、release gate 判定。
 - 备选方案：继续让前端兼容旧结构，或把已修复项长期保留在 blocker 文档中不更新。
 - 否决原因：兼容层会继续制造“能跑但不可信”的假闭环；旧 blocker 不清理会直接误导后续开发、联调和老板汇报。

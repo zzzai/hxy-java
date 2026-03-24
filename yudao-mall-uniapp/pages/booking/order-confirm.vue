@@ -25,6 +25,10 @@
         <text>{{ state.slot.startTime }} - {{ state.slot.endTime }}</text>
       </view>
       <view class="info-row ss-flex ss-row-between ss-m-b-16">
+        <text class="text-gray">服务项目</text>
+        <text>{{ state.serviceName || '请先选择服务项目' }}</text>
+      </view>
+      <view class="info-row ss-flex ss-row-between ss-m-b-16">
         <text class="text-gray">服务时长</text>
         <text>{{ state.slot.duration }}分钟</text>
       </view>
@@ -66,7 +70,9 @@
   import { onLoad } from '@dcloudio/uni-app';
   import sheep from '@/sheep';
   import BookingApi from '@/sheep/api/trade/booking';
+  import SpuApi from '@/sheep/api/product/spu';
   import {
+    buildBookingCreatePayload,
     loadTechnicianDetail,
     loadTimeSlotDetail,
     submitBookingOrderAndGo,
@@ -80,11 +86,33 @@
     timeSlotId: 0,
     technicianId: 0,
     storeId: 0,
+    spuId: 0,
+    skuId: 0,
+    serviceName: '',
+    skuName: '',
     technician: {},
     slot: {},
     userRemark: '',
     submitting: false,
   });
+
+  function formatSkuName(sku) {
+    if (!sku) return '';
+    return sku.name || sku.goods_sku_text || '';
+  }
+
+  async function loadSelectedProduct() {
+    if (!state.spuId) return;
+    const { code, data } = await SpuApi.getSpuDetail(state.spuId);
+    if (code !== 0 || !data) return;
+    if (!state.serviceName) {
+      state.serviceName = data.name || '';
+    }
+    if (!state.skuName && state.skuId) {
+      const matchedSku = (data.skus || []).find((item) => Number(item.id) === Number(state.skuId));
+      state.skuName = formatSkuName(matchedSku);
+    }
+  }
 
   async function loadData() {
     const [techRes, slotRes] = await Promise.all([
@@ -97,24 +125,34 @@
     if (slotRes.code === 0) {
       state.slot = slotRes.data || {};
     }
+    await loadSelectedProduct();
   }
 
   async function onSubmit() {
     if (state.submitting) return;
-    state.submitting = true;
-    await submitBookingOrderAndGo(BookingApi, sheep.$router, {
+    const payload = buildBookingCreatePayload({
       timeSlotId: state.timeSlotId,
-      spuId: state.slot.spuId || undefined,
-      skuId: state.slot.skuId || undefined,
+      spuId: state.spuId,
+      skuId: state.skuId,
       userRemark: state.userRemark,
     });
+    if (!payload) {
+      sheep.$helper.toast('请先选择服务项目');
+      return;
+    }
+    state.submitting = true;
+    await submitBookingOrderAndGo(BookingApi, sheep.$router, payload);
     state.submitting = false;
   }
 
   onLoad((options) => {
-    state.timeSlotId = options.timeSlotId;
-    state.technicianId = options.technicianId;
-    state.storeId = options.storeId || 0;
+    state.timeSlotId = Number(options.timeSlotId || 0);
+    state.technicianId = Number(options.technicianId || 0);
+    state.storeId = Number(options.storeId || 0);
+    state.spuId = Number(options.spuId || 0);
+    state.skuId = Number(options.skuId || 0);
+    state.serviceName = options.spuName || '';
+    state.skuName = options.skuName || '';
     loadData();
   });
 </script>

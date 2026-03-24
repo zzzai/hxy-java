@@ -30,23 +30,24 @@
 |---|---|---|---|---|---|
 | `/pages/booking/technician-list` | 展示技师卡片，点击进入详情 | `暂无可用技师` | 当前无独立错误 banner；失败时仍停留当前页空结构 | 重新进入当前页 | `Ready` |
 | `/pages/booking/technician-detail` | 展示技师信息、日期条、时段格；选中时底部显示 `已选：...` | `该日期暂无可用时段` | 当前无独立失败文案；未选时 `立即预约` 不可点 | 切换日期重新拉取；或返回上一页重选技师 | `Ready` |
-| `/pages/booking/order-confirm` | 成功提交后跳详情页 | `未核出（当前页无独立空态组件，依赖 route + 匹配到的 slot）` | 提交失败后停留确认页，loading 结束，不跳详情 | 返回技师详情页改选时段后重提 | `Still Blocked` |
+| `/pages/booking/service-select` | 展示服务目录，选中 SKU 后可回跳下游页面 | `暂无可选服务项目` | 服务详情 / SKU 选择失败时停留当前页，不进入下游写链页 | 重新选择服务项目 / 规格；或返回上一页 | `Ready` |
+| `/pages/booking/order-confirm` | 成功提交后跳详情页 | `未核出（当前页无独立空态组件，依赖 route 中显式商品来源与时段）` | 提交失败后停留确认页，loading 结束，不跳详情 | 返回服务选择页改选项目/规格后重提 | `Still Blocked` |
 | `/pages/booking/order-list` | 展示预约卡片、状态、金额；可去支付、取消 | `暂无预约` | 查询失败时停留当前页；取消失败不刷新 | 下拉刷新、切 tab、或重新进入当前页 | `Ready`（查询） / `Still Blocked`（取消） |
 | `/pages/booking/order-detail` | 展示状态栏、预约信息、备注；可去支付、取消、加钟 | `订单不存在` | 查询失败时当前页只剩空态；取消失败不刷新详情 | 返回预约列表重新进入；或稍后重试 | `Ready`（查询） / `Still Blocked`（取消/加钟入口） |
-| `/pages/booking/addon` | 成功提交后跳详情页 | `订单不存在` | 提交失败后停留 add-on 页，不跳详情 | 重新选择 `addonType` 再提交；或返回预约详情页 | `Still Blocked` |
+| `/pages/booking/addon` | 成功提交后跳详情页 | `订单不存在` | 提交失败后停留 add-on 页，不跳详情 | `addonType=2/3` 返回服务选择页补选项目；或返回预约详情页 | `Still Blocked` |
 
 ## 3. 写链恢复动作矩阵
 
 | 动作 | helper / 页面依据 | 当前用户可见结果 | 恢复动作 | 当前错误码依据 | 状态 |
 |---|---|---|---|---|---|
-| create | `submitBookingOrderAndGo` / `/pages/booking/order-confirm` | 失败时停留确认页，不跳详情 | 返回技师详情页改选时段后重提 | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | `Still Blocked` |
+| create | `submitBookingOrderAndGo` / `/pages/booking/order-confirm` | 失败时停留确认页，不跳详情 | 返回服务选择页改选项目/规格后重提 | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | `Still Blocked` |
 | cancel | `cancelBookingOrderAndRefresh` / `/pages/booking/order-list`、`/pages/booking/order-detail` | 失败时停留当前列表或详情，不自动刷新 | 手动刷新或稍后重试 | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `Still Blocked` |
-| addon | `submitAddonOrderAndGo` / `/pages/booking/addon` | 失败时停留 add-on 页，不跳详情 | 重新选择 `addonType`；或返回详情页 | `TIME_SLOT_NOT_AVAILABLE(1030003001)`、`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `Still Blocked` |
+| addon | `submitAddonOrderAndGo` / `/pages/booking/addon` | 失败时停留 add-on 页，不跳详情 | `addonType=2/3` 返回服务选择页补选项目；或返回详情页 | `TIME_SLOT_NOT_AVAILABLE(1030003001)`、`BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_STATUS_ERROR(1030004001)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `Still Blocked` |
 
 补充：
 - `GET /booking/technician/get` 与 `GET /booking/order/get` 当前查无记录都是真实 `success(null)`，不是稳定错误码分支。
 - `TECHNICIAN_NOT_EXISTS(1030001000)`、`TECHNICIAN_DISABLED(1030001001)`、`SCHEDULE_CONFLICT(1030002001)`、`TIME_SLOT_ALREADY_BOOKED(1030003002)` 当前都不得写成 booking runtime page 稳定分支。
-- `addon` 页当前只提交 `parentOrderId`,`addonType`；`spuId/skuId` 未由页面提交，因此 `code=0` 但读后未变仍必须按 pseudo success / no-op risk 管理。
+- `addon` 页当前已真实提交 `parentOrderId`,`addonType`,`spuId`,`skuId`；但真实发布级 success/failure 样本仍未闭环，因此不能改口为可放量。
 
 ## 4. 当前真实用户文案 / 控件清单
 
@@ -54,6 +55,7 @@
 |---|---|---|---|
 | `/pages/booking/technician-list` | `暂无可用技师` | 空态 | 不是成功样本 |
 | `/pages/booking/technician-detail` | `选择日期`、`选择时段`、`该日期暂无可用时段`、`请选择时段`、`立即预约` | 结构态 + CTA | 未选时段时按钮不可点 |
+| `/pages/booking/service-select` | `服务目录`、`暂无可选服务项目`、`选择规格`、`确认选择` | 商品来源选择页 | 只负责回传显式 `spuId/skuId` |
 | `/pages/booking/order-confirm` | `提交预约`、`请输入备注信息（选填）`、`闲时价` | 提交页 CTA 与展示 | 没有独立失败 banner |
 | `/pages/booking/order-list` | `暂无预约`、`去支付`、`取消` | 列表空态与 CTA | `取消` 先弹确认框 |
 | `/pages/booking/order-detail` | `订单不存在`、`去支付`、`取消预约`、`加钟` | 详情空态与 CTA | 状态说明随 status 切换 |
@@ -73,7 +75,7 @@
    - 只能算页面结构存在，不能算写链可放量。
 6. 当前任何 `[] / null / 0`
    - 只记空态或空结果，不记成功。
-7. 当前 booking 六页没有 `degraded=true / degradeReason`
+7. 当前 booking 七页没有 `degraded=true / degradeReason`
    - 不得补写成用户已看到的降级提示。
 
 ## 6. 与 formal contract 的边界
@@ -83,17 +85,15 @@
    - 当前页面上的恢复动作
 2. 本文必须继续明确“工程未闭环”的内容：
    - `technician-list` 页模板使用的 `title`,`specialties`,`status` 当前没有 backend 字段绑定
-   - `order-confirm` 当前通过 `loadTimeSlots(technicianId, null)` 回捞时段，且 `duration`,`spuId`,`skuId` 没有 slot VO 闭环
-   - `order-list` 当前按 `data.list/data.total` 渲染，但 backend 返回 `data[]`；`payOrderId` 也无响应绑定
-   - `order-detail` 当前 `payOrderId` 无响应绑定
-   - `addon` 页当前只提交 `parentOrderId`,`addonType`，没有提交 `spuId`,`skuId`
+   - `order-confirm` 当前只认 `service-select` 回传的显式 `spuId`,`skuId`；真实发布样本仍未闭环
+   - `addon` 页虽然已提交 `spuId`,`skuId`，但仍缺真实发布级 success/failure 样本
 3. C 窗口吸收时：
    - 只按 code 收口
    - 不得把本文中的用户恢复动作改写成 message 分支
    - 不得把本文已明确排除的旧 code 再写回稳定 runtime page 分支
 
 ## 7. 本批验收清单
-- [ ] 六个真实页面的成功态 / 空态 / 失败态 / 恢复动作均已冻结。
+- [ ] 七个真实页面的成功态 / 空态 / 失败态 / 恢复动作均已冻结。
 - [ ] `create / cancel / addon` 都明确保持 `Still Blocked`。
 - [ ] 空态 `[] / null / 0` 没有被写成成功样本。
 - [ ] 当前没有把 `degraded` 假想字段写进 booking 页面口径。
