@@ -94,6 +94,18 @@ require_file() {
   return 0
 }
 
+require_text_contains() {
+  local file="$1"
+  local needle="$2"
+  local code="$3"
+  if ! grep -Fq "${needle}" "${file}"; then
+    mark_block
+    add_issue "BLOCK" "${code}" "missing text '${needle}' in ${file}"
+    return 1
+  fi
+  return 0
+}
+
 json_get() {
   local file="$1"
   local field="$2"
@@ -161,6 +173,8 @@ addon_conflict_file="${SAMPLE_PACK_DIR}/addon-conflict.json"
 gray_file="${SAMPLE_PACK_DIR}/gray-stage.json"
 rollback_file="${SAMPLE_PACK_DIR}/rollback-drill.json"
 signoff_file="${SAMPLE_PACK_DIR}/signoff.json"
+ledger_doc="${ROOT_DIR}/docs/plans/2026-03-24-miniapp-booking-write-chain-release-evidence-ledger-v1.md"
+package_review_doc="${ROOT_DIR}/docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-package-review-v1.md"
 
 require_file "${tech_file}" "BWC01_TECH_SAMPLE_MISSING" || true
 require_file "${slot_file}" "BWC02_SLOT_SAMPLE_MISSING" || true
@@ -172,6 +186,8 @@ require_file "${addon_conflict_file}" "BWC07_ADDON_CONFLICT_SAMPLE_MISSING" || t
 require_file "${gray_file}" "BWC08_GRAY_SAMPLE_MISSING" || true
 require_file "${rollback_file}" "BWC09_ROLLBACK_SAMPLE_MISSING" || true
 require_file "${signoff_file}" "BWC10_SIGNOFF_SAMPLE_MISSING" || true
+require_file "${ledger_doc}" "BWC10A_LEDGER_DOC_MISSING" || true
+require_file "${package_review_doc}" "BWC10B_PACKAGE_REVIEW_DOC_MISSING" || true
 
 require_json_equals "${tech_file}" "request.method" "GET" "BWC11_TECH_METHOD_INVALID" || true
 require_json_equals "${tech_file}" "request.path" "/booking/technician/list" "BWC12_TECH_PATH_INVALID" || true
@@ -234,14 +250,21 @@ require_json_equals "${signoff_file}" "decision" "SELFTEST_ONLY_NO_RELEASE" "BWC
 require_json_truthy "${signoff_file}" "owners.product" "BWC103_SIGNOFF_PRODUCT_OWNER_MISSING" || true
 require_json_truthy "${signoff_file}" "owners.tech" "BWC104_SIGNOFF_TECH_OWNER_MISSING" || true
 require_json_truthy "${signoff_file}" "owners.ops" "BWC105_SIGNOFF_OPS_OWNER_MISSING" || true
+require_text_contains "${ledger_doc}" "Cannot Release / No-Go" "BWC106_LEDGER_NO_GO_MISSING" || true
+require_text_contains "${ledger_doc}" "selftest pack" "BWC107_LEDGER_SELFTEST_BOUNDARY_MISSING" || true
+require_text_contains "${package_review_doc}" "Cannot Release" "BWC108_PACKAGE_REVIEW_CANNOT_RELEASE_MISSING" || true
+require_text_contains "${package_review_doc}" "No-Go" "BWC109_PACKAGE_REVIEW_NO_GO_MISSING" || true
+require_text_contains "${package_review_doc}" "selftest pack 不能替代真实发布证据" "BWC110_PACKAGE_REVIEW_SELFTEST_BOUNDARY_MISSING" || true
 
 add_issue "INFO" "BWC000_SELFTEST_PACK_PRESENT" "simulated booking write-chain release evidence pack validated"
+add_issue "INFO" "BWC000A_RELEASE_DOCS_PRESENT" "booking write-chain release package docs validated"
 
 cat > "${SUMMARY_FILE}" <<EOF_SUMMARY
 # Booking Write-Chain Release Evidence Gate
 result=${result}
 sample_pack_dir=${SAMPLE_PACK_DIR}
 summary_scope=simulated_selftest_only
+doc_truth=booking_release_package_docs_validated
 release_decision=NO_RELEASE
 EOF_SUMMARY
 

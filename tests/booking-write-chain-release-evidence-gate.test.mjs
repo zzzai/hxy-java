@@ -24,6 +24,22 @@ const samplePackDir = path.join(
   'booking-write-chain-release-evidence-simulated',
 );
 
+const requiredDocs = [
+  path.join(
+    repoRoot,
+    'docs',
+    'plans',
+    '2026-03-24-miniapp-booking-write-chain-release-evidence-ledger-v1.md',
+  ),
+  path.join(
+    repoRoot,
+    'docs',
+    'products',
+    'miniapp',
+    '2026-03-24-miniapp-booking-write-chain-release-package-review-v1.md',
+  ),
+];
+
 const requiredFiles = [
   'technician-list-success.json',
   'slot-list-success.json',
@@ -47,15 +63,29 @@ test('booking write-chain simulated release evidence pack exists with required f
   });
 });
 
+test('booking write-chain release package docs exist with no-go boundary', () => {
+  requiredDocs.forEach((filePath) => {
+    assert.ok(fs.existsSync(filePath), `missing booking write-chain release doc: ${path.relative(repoRoot, filePath)}`);
+    const source = fs.readFileSync(filePath, 'utf8');
+    assert.match(source, /Cannot Release/);
+    assert.match(source, /No-Go/);
+  });
+});
+
 test('booking write-chain release evidence gate script validates simulated evidence pack', () => {
   assert.ok(fs.existsSync(gateScriptPath), 'missing booking write-chain release evidence gate script');
+  const summaryFile = path.join(repoRoot, 'tmp-booking-write-chain-release-gate-summary.txt');
+  fs.rmSync(summaryFile, { force: true });
 
   const output = execFileSync(
     gateScriptPath,
-    ['--repo-root', repoRoot, '--sample-pack-dir', samplePackDir],
+    ['--repo-root', repoRoot, '--sample-pack-dir', samplePackDir, '--summary-file', summaryFile],
     { encoding: 'utf8' },
   );
 
   assert.match(output, /\[booking-write-chain-evidence-gate\] result=PASS/);
   assert.match(output, /sample_pack_dir=/);
+  const summary = fs.readFileSync(summaryFile, 'utf8');
+  assert.match(summary, /doc_truth=booking_release_package_docs_validated/);
+  fs.rmSync(summaryFile, { force: true });
 });

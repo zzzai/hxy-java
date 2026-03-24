@@ -13,12 +13,14 @@
 - 03-24 四个专项闭环 / selftest 评审：
   - `docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-closure-review-v1.md`
   - `docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-evidence-selftest-review-v1.md`
+  - `docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-package-review-v1.md`
   - `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md`
   - `docs/products/miniapp/2026-03-24-miniapp-member-release-evidence-selftest-review-v1.md`
   - `docs/products/miniapp/2026-03-24-miniapp-reserved-runtime-release-evidence-selftest-review-v1.md`
   - `docs/products/miniapp/2026-03-24-miniapp-finance-ops-technician-commission-admin-release-evidence-selftest-review-v1.md`
 - 03-24 对应 selftest pack 说明：
   - `docs/plans/2026-03-24-booking-write-chain-release-evidence-selftest-pack-v1.md`
+  - `docs/plans/2026-03-24-miniapp-booking-write-chain-release-evidence-ledger-v1.md`
   - `docs/plans/2026-03-24-member-release-evidence-selftest-pack-v1.md`
   - `docs/plans/2026-03-24-reserved-runtime-release-evidence-selftest-pack-v1.md`
   - `docs/plans/2026-03-24-bo004-admin-release-evidence-selftest-pack-v1.md`
@@ -38,7 +40,7 @@
 
 | scope | 已完成开发 | 已完成仓内回归 / selftest | 当前可用边界 | 仍未完成 | 当前最终结论 |
 |---|---|---|---|---|---|
-| Booking 写链 | 部分完成 | 是 | query-only 可维护；create / cancel / addon 可继续开发 | 商品来源真值、真实 success/failure 样本、allowlist / 巡检 / gray / rollback / sign-off | `Doc Closed / Can Develop / Cannot Release / No-Go` |
+| Booking 写链 | 部分完成 | 是 | query-only 可维护；create / cancel / addon 可继续开发 | 真实 success/failure 样本、allowlist / 巡检 / gray / rollback / sign-off、technician fallback 字段真值 | `Doc Closed / Can Develop / Cannot Release / No-Go` |
 | Member `level / assets / tag` | 是 | 是 | app 端页面、入口、API 已形成真实 runtime，可继续开发维护 | 真实页面请求样本、真实灰度 / 回滚 / sign-off、客服 / 运营演练 | `Doc Closed / Can Develop / Cannot Release` |
 | Reserved `gift-card / referral / technician-feed` | 是 | 是 | runtime 已实现，可继续开发维护 | 真实运行样本、真实开关审批、真实灰度 / 回滚 / sign-off | `runtime implemented / Can Develop / Cannot Release / No-Go` |
 | `BO-004` 技师提成明细 / 计提管理 | 是 | 是 | admin-only 页面/API 真值已闭环，可继续开发维护 | 真实后台页面请求样本、真实菜单执行样本、真实 gray / rollback / sign-off、写后回读发布证据 | `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release` |
@@ -47,7 +49,7 @@
 
 ### 5.1 已解决
 - 把四类 scope 从“口径模糊”推进到“仓内可反复校验的 evidence structure + gate”。
-- 把 `Booking` 的部分协议漂移从 blocker 列表里移除，剩余问题明确收敛为“商品来源真值 + 真实发布证据”。
+- 把 `Booking` 的部分协议漂移从 blocker 列表里移除，并完成商品来源真值收口；剩余问题已收敛为“真实发布证据 + 发布材料 + 少量字段真值”。
 - 把 `Member` 从“缺页能力”升级为“页面/API 已闭环，但仍不可放量”。
 - 把 `Reserved` 从“缺 runtime”升级为“runtime 已实现，但仍不可放量”。
 - 把 `BO-004` 从“controller-only 误判风险”推进到“admin-only 页面/API 真值已闭环，但仍不可放量”。
@@ -76,7 +78,7 @@
 
 | scope | 当前 blocker | 责任窗口 | 解除条件 |
 |---|---|---|---|
-| Booking 写链 | 商品来源真值未闭环；真实发布样本与发布材料未闭环 | `B + C` 负责商品来源与接口真值；`D` 负责真实 evidence；`A` 负责最终裁决 | 真实商品来源链路落盘；真实 create / cancel / addon success/failure 样本齐全；allowlist / 巡检 / gray / rollback / sign-off 完成 |
+| Booking 写链 | 真实发布样本、发布材料与 technician fallback 字段未闭环 | `B + C` 负责剩余字段真值与 contract 守边界；`D` 负责真实 evidence；`A` 负责最终裁决 | 真实 create / cancel / addon success/failure 样本齐全；allowlist / 巡检 / gray / rollback / sign-off 完成；`title / specialties / status` 真实后端绑定或明确移除 fallback |
 | Member 三页 | 真实页面请求样本与发布材料未闭环 | `B + C` 负责页面/API 真值维持；`D` 负责真实 evidence；`A` 负责最终裁决 | 拿到 `level / assets / tag` 真实页面样本；完成真实 gray / rollback / sign-off 与客服 / 运营演练 |
 | Reserved 三域 | 真实运行样本、真实开关审批与发布材料未闭环 | `B + C` 负责 runtime 真值维持；`D` 负责开关 / 灰度 / 回滚 / sign-off 证据；`A` 负责最终裁决 | 三域真实请求/响应/回读样本齐全；真实开关审批、灰度记录、回滚回执、sign-off 齐全 |
 | `BO-004` admin-only | 真实后台页面请求样本、菜单执行样本、发布材料未闭环 | `C` 负责接口 / 写后回读真值；`D` 负责页面与菜单 evidence；`A` 负责最终裁决 | 真实菜单执行与页面访问样本齐全；真实 settle/config 写后回读样本齐全；真实 gray / rollback / sign-off 完成 |

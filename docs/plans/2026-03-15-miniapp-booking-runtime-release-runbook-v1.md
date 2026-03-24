@@ -58,6 +58,12 @@
 - `local CI PASS` 只代表“共享链没有回退”，不是“allowlist / 日志 / 样本已闭环”。
 - 即使 `REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE=0` 让 CI 结果变成 WARN，也不得把 booking release blocker 降级成 warning。
 
+### 4.3 03-24 release package 单一真值引用
+- 03-24 新增 evidence ledger：`docs/plans/2026-03-24-miniapp-booking-write-chain-release-evidence-ledger-v1.md`
+- 03-24 新增 release package review：`docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-package-review-v1.md`
+- 这两份文档只负责把“还缺什么真实证据、为什么仍 `No-Go`、selftest pack 不能替代什么”固定下来。
+- 它们不会把 booking 从 `Cannot Release / No-Go` 升级。
+
 ## 5. Gate Threshold
 
 | 门禁项 | threshold | 分池 | 说明 |

@@ -17,6 +17,8 @@
   - `ruoyi-vue-pro-master/**/AppTimeSlotRespVO.java`
   - `ruoyi-vue-pro-master/**/AppBookingOrderControllerTest.java`
   - `ruoyi-vue-pro-master/**/AppTimeSlotControllerTest.java`
+  - `docs/plans/2026-03-24-miniapp-booking-write-chain-release-evidence-ledger-v1.md`
+  - `docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-package-review-v1.md`
 
 ## 2. 本轮已真实闭环项
 
@@ -34,8 +36,8 @@
 
 | blocker | 当前状态 | 为什么仍阻断 |
 |---|---|---|
-| release 级样本 | 仍阻断 | 03-24 已补 simulated selftest pack + evidence gate，但仍缺 create / cancel / addon 的真实发布级 success/failure 样本、回放与巡检证据 |
-| gray / rollback / sign-off | 仍阻断 | 即使页面级真值已收口，当前仍缺真实灰度、回滚、门禁签字材料，不能把 app 写链改口成可放量 |
+| release 级样本与日志 | 仍阻断 | 03-24 已新增 release evidence ledger / package review，但仍缺 create / cancel / addon 的真实发布级 success/failure 样本、allowlist 清零、回放与巡检证据 |
+| gray / rollback / sign-off | 仍阻断 | 当前只冻结了 simulated 字段口径，仍未核到真实灰度、回滚、门禁签字材料，不能把 app 写链改口成可放量 |
 | 技师 fallback 字段 | 仍阻断 | `title/specialties/status` 仍是页面 fallback，没有 backend 绑定 |
 
 ## 4. 当前阶段结论
@@ -51,5 +53,5 @@
 ## 5. 单一真值结论
 1. 本轮已把 `data.list/data.total`、`payOrderId`、`order-confirm -> slot detail`、`duration`、`create/addon 商品来源真值` 这几类明确漂移从 blocker 列表中移除。
 2. 本轮没有把 `create / cancel / addon` 改写成 release-ready。
-3. 03-24 新增的 simulated selftest pack 只把“发布证据结构门禁”固定下来，没有替代真实发布样本。
+3. 03-24 新增的 simulated selftest pack 与 release package docs 只把“发布证据结构门禁 + 单一真值裁决”固定下来，没有替代真实发布样本。
 4. 当前 booking 真正剩余的核心问题，已经收敛到“真实发布证据 + gray / rollback / sign-off + fallback 字段”。
