@@ -1156,3 +1156,17 @@
 - 备选方案：只补前端页面、只补 API、或先做大规模模块解耦后再补业务能力。
 - 否决原因：只补单侧无法解除真实 blocker；先做大重构会拖慢项目主线，且本轮没有必要扩大改动面。
 - 回滚条件：若资产聚合链路出现跨模块集成故障，可临时保留页面和 controller 入口但收敛统一账本字段；不得回退到“继续缺页”或重新引入 `member -> promotion` 直接依赖。
+
+## ADR-112：BO-004 采用“独立 admin 页面 + 独立 API + 菜单 SQL + 写后回读”闭环，严格停在 admin-only 阶段
+
+- 背景：`BO-004` 此前长期停留在 `TechnicianCommissionController` 的 controller-only truth，容易被误写成“已有后台能力但页面待核”；若继续复用 `commission-settlement` 页面或只补 API，不仅会混淆 `BO-003/BO-004` 边界，也无法形成可审计的独立证据。
+- 决策：
+  1. `BO-004` 独立页面固定落在 `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission/index.vue`；
+  2. 独立前端 API 固定落在 `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/booking/commission.ts`，只承接 8 条真实 `/booking/commission/*` 路径；
+  3. 后台入口采用独立菜单 SQL `2026-03-24-hxy-booking-commission-admin-menu.sql`，但 SQL 存在不等于已执行上线；
+  4. 所有写动作都必须坚持“写后回读 + no-op 风险显式提示”，`success(true)` 不能被当成真实生效；
+  5. 本轮结论只允许升级到 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`，不得越级写成 release-ready。
+- 影响范围：Finance Ops Admin 的页面/API 真值、菜单接入策略、BO-003/BO-004 边界、后续 release evidence 与灰度验收口径。
+- 备选方案：继续复用 `commission-settlement` 页面；只补 API 不补页面；先做大规模后端语义重构再补前端真值。
+- 否决原因：复用页面会污染能力边界；只补单侧仍会留下“看起来能做、实际上不可验证”的假闭环；先重构后补真值会拖慢当前主线且扩大风险面。
+- 回滚条件：若独立页面接入引发后台兼容问题，可临时下线菜单 SQL 或隐藏入口，但不得回退到“BO-003/BO-004 混用页面证据”的旧口径；未补齐真实页面请求样本、菜单执行样本与发布证据前，整体结论始终保持 `Cannot Release`。

@@ -55,17 +55,17 @@
 |---|---|---|
 | BO-003 结算审批主页面 | 已核出 | `commission-settlement/index.vue` 真实存在 |
 | BO-003 通知出站页面 | 已核出 | `commission-settlement/outbox/index.vue` 真实存在 |
-| BO-004 独立后台页面文件 | 未核出 | 当前未在审查范围内发现独立页面承接 `/booking/commission/*` |
-| BO-004 独立前端 API 文件 | 未核出 | 当前未在审查范围内发现 `commission.ts`、`technicianCommission.ts` 或任何独立 API 文件承接 `/booking/commission/*` |
+| BO-004 独立后台页面文件 | 已核出 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/views/mall/booking/commission/index.vue` 已真实承接 `/booking/commission/*` |
+| BO-004 独立前端 API 文件 | 已核出 | `ruoyi-vue-pro-master/script/docker/hxy-ui-admin/overlay-vue3/src/api/mall/booking/commission.ts` 已真实承接 `/booking/commission/*` |
 
 ### 3.3 页面真值口径
-- `BO-004` 当前是“真实后台运营能力已存在，但独立页面真值待核”的状态。
+- `BO-004` 当前是“admin-only 页面/API 真值已闭环，但仍不可放量”的状态。
 - 当前只认 `TechnicianCommissionController` 的 8 条真实 `/booking/commission/*` 接口，不认任何猜测性页面 path。
 - 不得把 `commission-settlement/index.vue`、`commission-settlement/outbox/index.vue` 反推成 BO-004 页面。
 - 本文不能被用于证明：
-  - 已存在 BO-004 独立后台页面；
-  - 已存在 BO-004 独立后台菜单 path；
-  - 已存在 BO-004 独立前端 API 文件闭环。
+  - 已完成真实环境菜单执行；
+  - 已完成发布证据闭环；
+  - 已达到 release-ready。
 
 ## 4. 真实接口边界
 

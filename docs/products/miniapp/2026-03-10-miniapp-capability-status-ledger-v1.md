@@ -152,12 +152,11 @@
 ### 4.4 03-14 最终阻断集成结论
 1. 当前“缺文档”问题已经清零，但 capability 台账仍必须区分“文档已闭环”和“工程未闭环”。
 2. 当前 booking 的最终 release blocker 已从“旧 path 漂移”转为“shared gate 已接入但 booking 输出仍固定 `can_release=NO`，且页面字段/绑定/发布证据仍未闭环”；create / cancel / addon 仍缺发布级运行证据。
-3. 当前唯一明确的 finance-ops capability blocker 仍是 `BO-004`：
-   - 只核到 `/booking/commission/*` controller truth
-   - 未核到独立后台页面文件
-   - 未核到独立前端 API 文件
+3. 当前 finance-ops capability 的真实剩余风险仍在 `BO-004`：
+   - 独立后台页面文件、独立前端 API 文件、菜单 SQL 与专项测试已补齐
+   - 真实页面请求样本、菜单执行样本、发布证据仍未闭环
    - 写接口存在 `true` 但 no-op / 伪成功 风险
-4. 03-15 的 `BO-004` page/API binding truth review 与 evidence ledger 已正式吸收，但它们只会强化“页面真值待核”的结论，不会把 `BO-004` 改写成后台页面闭环。
+4. 03-24 已把 `BO-004` 从“页面真值待核”升级为“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release”，但不会把它改写成 release-ready。
 5. member / reserved 当前不属于“缺文档”，但属于“禁止误升为 runtime 已上线”的守门项：
    - `/pages/user/level`
    - `/pages/profile/assets`
@@ -281,6 +280,6 @@
 6. gift-card / referral / technician-feed 仍是 `P2/RB3-P2` 规划态，只能按治理和灰度门禁管理，不得算进发布已上线能力。
 7. 03-10 终审结论保持：`Frozen Candidate = 0`。
 8. 03-14 最终阻断集成结论保持：`可进入真值修复开发，不可把 blocker scope 直接纳入放量范围`。
-9. 03-16 booking 最终集成结论保持：`Doc Closed / Can Develop / Cannot Release`；`BO-004` 继续保持“仅接口闭环 + 页面真值待核”。
+9. 03-16 booking 最终集成结论保持：`Doc Closed / Can Develop / Cannot Release`；`BO-004` 当前保持“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release”。
 10. 03-17 booking review 子域已补齐 PRD / contract / failureMode / runbook / gate / final review，但当前只允许把 history / summary 记为 query-side `ACTIVE`，submit / recovery 继续 `Cannot Release`。
 11. 03-19 booking review post-launch audit 进一步冻结：服务端状态机虽已 fail-close，但历史差评只在写路径 lazy-init，且当前没有稳定 `store -> managerUserId`，因此 release 结论继续保持 `No-Go`。

@@ -124,7 +124,7 @@
 | Booking | 文档已闭环 | canonical 代码已收口，shared chain 已接入 booking runtime gate，但 gate summary 仍固定 `can_release=NO`；query-only `ACTIVE` 与 write-chain blocker 已拆开，但字段/绑定/发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 smoke/runtime gate `PASS`、空态或 query-only `ACTIVE` 误写成 release-ready；把未绑定字段或 pseudo success 当成成功；回退到旧 path/method；或移除 shared chain 的 booking runtime gate |
 | Member 缺页能力 | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未实现 | Go for Engineering Closure | No-Go | 把上述缺页能力写成 `ACTIVE`、可发布页面或新增签发范围 |
 | Reserved runtime | 文档已闭环 | gift / referral / technician-feed 仍无 runtime 落地 | Go for Engineering Closure | No-Go | 因治理文档完整就把 gift/referral/feed 当成已上线能力，或 `RESERVED_DISABLED` 关闭态仍命中 |
-| `BO-004` Finance Ops Admin | 文档已闭环 | 03-15 page/API binding truth review 与 evidence ledger 已吸收，结论仍是“仅接口闭环 + 页面真值待核” | Go for Engineering Closure | No-Go | 未核到独立后台页面文件 / 独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 BO-004 页面 |
+| `BO-004` Finance Ops Admin | 文档已闭环 | 已吸收 03-15 page/API binding truth review 与 evidence ledger，且 03-24 已补齐独立后台页面 / 独立前端 API / 菜单 SQL / 专项测试；当前结论为“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release” | Go for Engineering Closure | No-Go | 未核到真实页面请求样本 / 菜单执行样本 / 发布证据；写接口只验 `true` 不验写后回读；把 controller/test 存在外推成 release-ready |
 
 ### 8.3 当前最终门禁结论
 1. 当前项目不再存在“缺文档导致的 No-Go”。

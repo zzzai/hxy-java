@@ -52,7 +52,7 @@
 | Content / Customer Service | 小程序前台 | 3 | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | 完整 | DIY 已活跃；聊天/文章仍需按边界管理 |
 | Brokerage | 小程序前台 | 1 | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | 完整 | 文档闭环；资金类能力仍不能误升 |
 | Reserved | 小程序前台 | 3 | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 只有 PRD/治理闭环，runtime 未实现 |
-| Finance Ops | 后台 | 4 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | `BO-004` 仍是“仅接口闭环 + 页面真值待核” |
+| Finance Ops | 后台 | 4 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md`; `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | `BO-004` 已升级为 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release` |
 | Product SPU / Template | 后台 | 2 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 已有真实页面、真实 controller；独立 contract/runbook 多数未核出 |
 | Store Master | 后台 | 4 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 已有真实页面、真实 controller；独立 contract/runbook 未核出 |
 | Store Product SPU / SKU | 后台 | 2 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | 完整 | 已有真实页面、真实 API、真实 controller |
@@ -93,7 +93,7 @@
 | blocker | 当前状态 | 对开发的影响 | 对放量的影响 |
 |---|---|---|---|
 | Booking | 文档完整，工程未闭环 | 可继续开发真值修复 | 不可放量 |
-| `BO-004` | 文档完整，页面/API 真值待核 | 可继续做页面/API 绑定核查 | 不可放量 |
+| `BO-004` | 文档完整，admin-only 页面/API 真值已闭环 | 可继续做 release evidence / 菜单执行 / 写后回读样本核查 | 不可放量 |
 | Member 缺页能力 | 文档完整，缺真实页面 | 可继续补实现 | 不可放量 |
 | Reserved runtime | 文档完整，runtime 未实现 | 可继续受控开发 | 不可放量 |
 | 多数后台能力缺独立 contract/runbook | PRD 已完整 | 不阻断存量开发 | 阻断更严肃的跨团队联调/冻结归档 |

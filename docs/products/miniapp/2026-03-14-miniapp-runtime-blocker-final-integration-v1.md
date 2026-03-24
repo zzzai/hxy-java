@@ -29,7 +29,7 @@
 | 阻断项 | 文档状态 | 工程状态 | 当前是否可开发 | 当前是否可放量 | No-Go 条件 | 责任窗口 | 解除条件 | 开发进入条件 |
 |---|---|---|---|---|---|---|---|---|
 | `Booking` 域级阻断 | 文档已闭环 | query-only `ACTIVE` 与 write-chain blocker 已拆开，但 `title/specialties/status`、`data.list/data.total`、`payOrderId`、`duration/spuId/skuId` 与发布级样本仍未闭环 | 是。仅允许进入“真值修复开发” | 否 | 把 gate `PASS`、空态或 query-only `ACTIVE` 外推成 release-ready；把未绑定字段或 pseudo success 当成成功；或重新引入旧 path/method | A/B/C/D | 页面读取/提交与 controller/VO 真值收口，create/cancel/addon 具备发布级样本、巡检与回放证据，且 A 窗口重新评审通过 | 以 `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`、`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`、`docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`、`docs/plans/2026-03-16-miniapp-booking-runtime-release-gate-audit-v1.md`、`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` 为唯一输入修复 |
-| `BO-004 Finance Ops Admin` | 文档已闭环 | 仅接口闭环 + 页面真值待核；写接口存在 `code=0` 但 no-op / 伪成功 风险；无稳定 admin 专属错误码锚点 | 是。仅允许进入“页面/API 真值闭环开发” | 否 | 未核到独立后台页面文件；未核到独立前端 API 文件；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 `BO-004` 页面 | A/C/D | 核到独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据，且写路径具备稳定外显行为 | 以 `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`、`docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`、`docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`、`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md` 为唯一输入修复 |
+| `BO-004 Finance Ops Admin` | 文档已闭环 | admin-only 页面/API/menu SQL/test 已闭环；写接口仍存在 `code=0` 但 no-op / 伪成功 风险；菜单执行样本、真实请求样本与发布证据仍未闭环；无稳定 admin 专属错误码锚点 | 是。仅允许进入“release evidence / 写后回读验收补强” | 否 | 把菜单 SQL 当成已执行上线；把 controller/test/页面文件存在外推成 release-ready；写接口只验 `true` 不验写后回读；把 `commission-settlement/*.vue` 反推成 `BO-004` 页面 | A/C/D | 核到菜单执行样本、真实页面 request/response 样本、灰度 / 回滚 / sign-off 证据，且写路径具备稳定外显行为 | 以 `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md`、`docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`、`docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-admin-sop-v1.md`、`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`、`docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md` 为唯一输入修复 |
 | `Member` 缺页能力误升风险 | 文档已闭环 | 页面未实现，但相关域文档已完整，容易被误判为已上线能力 | 是。仅允许进入“缺页补实现 / 真值回填开发” | 否。未落地前不得作为新增放量范围 | 把 `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 写成 `ACTIVE`、真实页面、准发布范围，或把 `/member/asset-ledger/page` 当作已无门禁的用户能力 | A/B/C/D | 真实页面落地，route truth 回填，受保护接口形成真实 FE + controller 承接 | 以 `docs/products/miniapp/2026-03-10-miniapp-member-route-truth-and-active-planned-closure-v1.md` 与 `docs/plans/2026-03-11-miniapp-member-missing-page-activation-checklist-v1.md` 为唯一输入推进 |
 | `Reserved` runtime 未实现误升风险 | 文档已闭环 | gift / referral / technician-feed 仍无真实 runtime 落地，只存在规划/治理/灰度证据 | 是。仅允许进入“受控实现开发” | 否 | 因治理文档、灰度 runbook、activation checklist 完整，就把 gift/referral/feed 写成 runtime 已上线或放量范围 | A/C/D | 真实页面、真实 controller / API、真实运行样本、开关审批、误发布告警全部闭环 | 以 `docs/products/miniapp/2026-03-09-miniapp-feature-priority-alignment-v1.md`、`docs/plans/2026-03-10-miniapp-reserved-expansion-activation-checklist-v1.md`、`docs/plans/2026-03-11-miniapp-reserved-runtime-readiness-register-v1.md` 为唯一输入推进 |
 
@@ -86,16 +86,17 @@
   - `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`
   - `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
 - 最终口径：
-  - `BO-004` 只能写成：`仅接口闭环 + 页面真值待核`
+  - `BO-004` 只能写成：`admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`
   - 查询空态 `[] / 0` 合法，不代表页面闭环
   - 写接口必须“写后回读 + 审计键”判真，不能只看 `true`
+  - 菜单 SQL、truth test、controller 回归测试都不能替代真实发布证据
   - 当前可作为开发输入，不可作为放量依据
 
 ## 5. 先修真值，再开发 / 放量 的最终顺序
 1. `Booking 字段 / 绑定 / 发布证据真值收口`
    - 原因：这是当前唯一明确的域级 `Still Blocked`，不收口就无法进入任何新增放量判断。
-2. `BO-004 独立后台页面 / 独立前端 API 真值闭环`
-   - 原因：Finance Ops Admin 文档已齐，但 `BO-004` 仍只有 controller-only truth。
+2. `BO-004 发布样本 / 菜单执行样本 / 写后回读证据收口`
+   - 原因：Finance Ops Admin 文档与 admin-only 页面/API 真值已齐，但 `BO-004` 仍缺 release evidence。
 3. `Member 缺页能力落地与 active truth 回填`
    - 原因：member 主链可维护，但三类缺页能力仍不得误升。
 4. `Reserved runtime 真实落地与灰度门禁闭环`
@@ -109,7 +110,7 @@
   - 按现有单一真值继续维护 03-09 Frozen 基线范围
 - 当前不能做的事：
   - 把 `Booking create/cancel/addon` 当作已可放心放量能力
-  - 把 `BO-004` 当作后台页面闭环完成能力
+  - 把 `BO-004` 当作已可放量能力
   - 把 `Member` 缺页能力当作已上线页面
   - 把 `Reserved` 规划能力当作已上线 runtime
 

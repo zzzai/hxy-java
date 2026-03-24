@@ -23,7 +23,7 @@
 补充：
 - `管理后台` 已纳入正式总表，不存在“后台没有列出”的问题。
 - `SPU / SKU` 已拆为独立后台能力，不再允许用模糊的“商品后台”替代。
-- `BO-004` 仍然只能写成 `仅接口闭环 + 页面真值待核`。
+- `BO-004` 当前只能写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`。
 - `Booking` 写链、`Member` 缺页、`Reserved` runtime 未实现，仍然只可开发/治理，不可直接放量。
 
 ## 3. 小程序前台功能清单
@@ -69,7 +69,7 @@
 | `BO-001` | Finance Ops | 四账对账 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
 | `BO-002` | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
 | `BO-003` | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `BO-004` | Finance Ops | 技师提成明细 / 计提管理 | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | 已核实 | 已核实 | 仅接口闭环 + 页面真值待核 | 不可放量 |
+| `BO-004` | Finance Ops | 技师提成明细 / 计提管理 | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | 已核实 | 已核实 | admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release | 不可放量 |
 | `ADM-001` | Product | 总部商品 SPU 管理 / 新增编辑 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
 | `ADM-002` | Product | 商品模板校验 / SKU 自动生成 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
 | `ADM-003` | Store | 门店主数据管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
@@ -100,7 +100,7 @@
 
 ## 6. 当前仍需强调的 No-Go
 - `Booking` 写链：文档完整，但当前只允许写成 `Can Develop / Cannot Release`。
-- `BO-004`：只允许写成 `仅接口闭环 + 页面真值待核`，不得误写成后台页面闭环。
-- `Member`：`/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未落地，不得写成 `ACTIVE`。
+- `BO-004`：只允许写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`，不得误写成 release-ready。
+- `Member`：`/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已落地，但当前仍只允许写成 `Can Develop / Cannot Release`。
 - `Reserved`：gift-card / referral / technician-feed 仍是 runtime 未实现，不能因为文档齐了就写成已上线。
 - 多数后台能力：PRD 已完整，但独立 contract/runbook 仍 `未核出`，不能假写成冻结闭环。

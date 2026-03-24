@@ -26,9 +26,9 @@
 |---|---|---|
 | 负责对象 | 结算单、审核、驳回、打款、通知出站 | 佣金记录、待结算金额、门店佣金配置、单条 / 批量直结 |
 | 真实 controller | `TechnicianCommissionSettlementController` | `TechnicianCommissionController` |
-| 真实页面 | `commission-settlement/index.vue`; `commission-settlement/outbox/index.vue` | 当前未核到独立后台页面文件 |
+| 真实页面 | `commission-settlement/index.vue`; `commission-settlement/outbox/index.vue` | `commission/index.vue` |
 | 单一真值文档 | 本文 | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` |
-| 页面闭环结论 | 已核到真实页面与 API 文件 | 当前仍是“仅接口闭环 + 页面真值待核” |
+| 页面闭环结论 | 已核到真实页面与 API 文件 | 当前已升级为“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release” |
 
 ## 3. 页面 / 能力真值
 

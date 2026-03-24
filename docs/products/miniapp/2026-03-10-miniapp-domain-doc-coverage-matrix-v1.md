@@ -37,7 +37,7 @@
 | Product / Search / Catalog | Ready | 分类、search-lite、商品详情为当前真值；评论/收藏/足迹、canonical search 仍有边界 | Full | Full | Full | Full | Full | Full | 94 | `search-lite` 与 `search-canonical` 必须分池；收藏状态路径是 `/product/favorite/exits`；评论/收藏/足迹仍不得误升 `ACTIVE` | P1 |
 | Marketing Expansion | Ready | 秒杀、拼团、满减送、商品营销聚合已形成正式文档；整域仍按 `PLANNED_RESERVED` 管理 | Full | Full | Full | Full | Full | Full | 89 | `type=2 bargain` 只能隐藏或忽略；砍价仍无 FE route/API 绑定；整域不能因页面可访问就记为 `ACTIVE` | P1 |
 | Reserved Expansion（Gift / Referral / Feed） | Ready | 激活 checklist、灰度验收、误发布处置与告警路由均已齐备 | Full | Full | Full | Full | Full | Full | 92 | 仍无真实页面、controller、运行样本；治理文档不能替代 runtime 闭环 | P0 |
-| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；03-15 已补 `BO-004` 独立 page/API binding truth review 与 evidence ledger，但结论仍是 controller-only truth | Full | Full | Partial | Partial | Full | Full | 86 | `BO-004` 独立后台页面文件和独立 API 文件仍 `未核出`；运行样本只到 service/test；发布证据 `未核出`；写接口仍存在 `true` 但 no-op 风险，必须坚持写后回读 | P0 |
+| Finance Ops Admin | Ready | 四账对账、退款回调重放、结算审批页面已核出；03-24 `BO-004` 已补独立 page/API/menu SQL/test，当前为 admin-only 可用但仍不可放量 | Full | Full | Partial | Partial | Full | Full | 90 | `BO-004` 真实页面请求样本、菜单执行样本、发布证据仍 `未核出`；写接口仍存在 `true` 但 no-op 风险，必须坚持写后回读 | P0 |
 
 ## 4. 域级判断与说明
 
@@ -113,11 +113,11 @@
    - `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
 2. 两份文档只基于真实 overlay 页面、真实 overlay API、真实 admin controller、真实 service 测试、真实脚本、真实已提交文档。
 3. 固定结论：
-   - `BO-004` 独立后台页面文件：`未核出`
-   - `BO-004` 独立后台 API 文件：`未核出`
-   - 运行样本只到 service/test
+   - 03-15 文档先把证据池与 page/API binding truth 锁定下来
+   - 03-24 已补齐 `BO-004` 独立后台页面文件、独立后台 API 文件、菜单 SQL、truth test 与 controller 回归测试
+   - 运行样本仍缺真实页面请求样本
    - 发布证据：`未核出`
-4. 因此 03-15 新增的是“专项真值证据包”，不是“`BO-004` 页面闭环升级”。
+4. 因此当前 `BO-004` 的正确表述是“admin-only 页面/API 真值已闭环”，不是“已 release-ready”。
 5. `docs/products/2026-03-15-hxy-full-project-business-function-ledger-v1.md` 已同步回填“前台/后台功能 -> PRD -> contract/runbook”映射。
 6. 其中 `BO-004` 只认：
    - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
@@ -174,9 +174,9 @@
 5. `03-10 Ready 域 capability scope 继续收口`
    - content / brokerage / product / marketing 继续按 contract 明示的 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 管理。
    - 解除条件：A 侧 capability ledger、freeze review、release decision 一致升级，而不是单点误升。
-6. `Finance Ops Admin 页面真值继续收口`
-   - 当前 `BO-004` 仍只有 controller 接口真值，没有独立后台页面文件、没有独立 API 文件、没有独立发布证据。
-   - 解除条件：独立后台页面文件、独立前端 API 文件、页面到 `/booking/commission/*` 的绑定证据、独立发布证据全部核出。
+6. `Finance Ops Admin 发布证据继续收口`
+   - 当前 `BO-004` 已有独立后台页面、独立 API、菜单 SQL 与专项测试，但仍没有真实页面请求样本、菜单执行样本、独立发布证据。
+   - 解除条件：页面到 `/booking/commission/*` 的真实请求样本、菜单执行样本、独立发布证据全部核出。
 7. `Booking Review 发布证据继续收口`
    - 当前 review 子域代码、页面、controller、admin overlay 与文档都已存在，但 release proof 仍未闭环。
    - 解除条件：runtime sample pack、rollout/rollback 控制面、人工恢复升级链路证据与关键字段闭环结论全部核出。
@@ -202,14 +202,14 @@
 | Product / Search / Catalog | Ready | 文档包完整，但 `search-lite`、canonical search、互动链路必须分层 |
 | Marketing Expansion | Ready | 文档包完整，但整域继续按 `PLANNED_RESERVED` 管理 |
 | Reserved Activation | Ready | 治理闭环完整，但 runtime 仍未闭环 |
-| Finance Ops Admin | Ready | A/B/C/D 文档包均已落盘，但 `BO-004` 仍只是“仅接口闭环 + 页面真值待核” |
+| Finance Ops Admin | Ready | A/B/C/D 文档包均已落盘，`BO-004` 已升级为“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release” |
 | Booking Review & Service Recovery | Ready | 文档包完整，但当前最终结论仍固定为 `Doc Closed / Can Develop / Cannot Release`，不得误升为已放量评价体系 |
 
 ## 8. 结论
 1. 当前业务域文档覆盖已经完成从“缺口补齐”到“正式落盘”的闭环，当前 `Ready = 70`，`Draft = 0`，`Pending formal window output = 0`。
 2. 文档完整不等于 capability `ACTIVE`；后续冻结评审仍必须以真实 route/API/contract/runbook 四件套同步校验。
 3. 03-09 Frozen 基线不回退；03-10 当前仍没有新的 `Frozen Candidate`。
-4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review、03-14 的 controller-only contract、03-15 的 page/API binding truth review 与 evidence ledger、03-16 的 booking final truth batch，也都只固定“文档闭环不等于工程闭环，不等于 release-ready”。
+4. 03-11 三份 blocker checklist 只是把 booking/member/reserved 的退出条件写实，不改变既有 `Ready / Still Blocked / PLANNED_RESERVED` 判定；03-12 的 `BO-004` truth review、03-14 的 contract、03-15 的 page/API binding truth review 与 evidence ledger、03-24 的 admin page/API closure，也都只固定“文档闭环不等于工程闭环，不等于 release-ready”。
 5. 03-17 booking review 子域已完成文档闭环，但当前只能按“query/history 可维护、submit/recovery 不可放量”执行，不得外推成已上线评价体系。
 6. 接下来的治理重点不再是补文档数量，而是把 booking、booking review、member、reserved、BF-027 content scope，以及 finance-ops admin mixed-scope 的边界继续守住。
 7. 当前项目级最终判断已经补齐：`文档已闭环`，但 blocker scope 仍只允许“进入真值修复开发”，不允许直接“进入放量”。

@@ -4,15 +4,15 @@
 - 目标：为 `BO-004 技师提成明细 / 计提管理` 建立最终运行门禁，固定“什么算合法空态、什么算真成功、什么必须直接判失败”。
 - 当前固定状态：
   - `Doc Closed`：是。`BO-004` PRD / contract / SOP / runbook 已齐。
-  - `Can Develop`：是。可以继续开发独立后台页面、独立前端 API 文件、稳定错误码。
-  - `Cannot Release`：是。当前仍只有 controller-only 真值，且写接口存在 no-op / 伪成功风险。
+  - `Can Develop`：是。独立后台页面、独立前端 API 文件、菜单 SQL 与专项测试已落地，可继续补 release evidence、稳定错误码。
+  - `Cannot Release`：是。当前仍缺真实页面请求样本、菜单执行样本与发布证据，且写接口存在 no-op / 伪成功风险。
 
 ## 2. 运行边界
 - 当前无服务端 `degraded=true / degradeReason` 证据：
   - 所有降级只允许写成运维动作：`query-only`、`single-review-only`、`default-rate-only`
   - 不得杜撰服务端降级逻辑
-- 页面未闭环时，按“仅接口闭环”治理：
-  - 不做页面成功率统计
+- 页面/API 真值已闭环但未放量时，按“admin-only 受控治理”执行：
+  - 不做发布成功率统计
   - 不拿 `BO-003` `/booking/commission-settlement/*` 页面样本冲抵 `BO-004` `/booking/commission/*`
   - 主成功证据只认：`controller 返回 + 写后回读 + 审计键`
 - `warning / legal-empty / pseudo-success` 一律不得污染主成功率、主转化率、主放量判断。
@@ -115,14 +115,15 @@
   - 配置重复导致同 `storeId+commissionType` 不唯一
   - 权限点 `booking:commission:query|settle|config` 出现集中异常
 
-## 9. 页面未闭环时的“仅接口闭环”治理
+## 9. admin-only 未放量阶段治理
 - 只承认以下事实：
   - controller 存在
+  - 独立后台页面文件、独立前端 API 文件、菜单 SQL、专项测试存在
   - 查询 / 写接口存在
   - 可通过接口回读验证状态
 - 不承认以下事实：
-  - 独立后台页面已上线
-  - 独立前端 API 文件已上线
+  - 菜单已执行上线
+  - 页面已放量
   - 页面可观测性已完整
 
 ### 9.1 页面样本隔离
@@ -134,7 +135,7 @@
 
 | 结论 | 条件 | 说明 |
 |---|---|---|
-| `NO_PAGE_CLOSED_DEFAULT` | 当前无独立后台页面文件 | `BO-004` 维持“仅接口闭环 + 页面真值待核” |
+| `ADMIN_ONLY_NOT_RELEASED` | 当前已有独立后台页面/API，但缺发布样本 | `BO-004` 维持“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release” |
 | `PASS_WITH_EMPTY` | 查询接口返回合法空态 | 只代表接口结构合法，不代表页面闭环或放量成功 |
 | `PASS_WITH_READBACK` | 写接口返回成功且写后回读真实变更 | 只代表接口闭环有效，不代表页面已上线 |
 | `FAIL_PSEUDO_SUCCESS` | 任一写接口返回成功但读后未变 | 直接视为运行阻断 |

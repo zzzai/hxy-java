@@ -80,11 +80,10 @@
    - `docs/products/miniapp/2026-03-15-miniapp-finance-ops-technician-commission-admin-page-api-binding-truth-review-v1.md`
    - `docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md`
 2. 吸收后的固定结论不变：
-   - `BO-004` 当前仍是 `仅接口闭环 + 页面真值待核`
-   - `BO-004` 独立后台页面文件：`未核出`
-   - `BO-004` 独立后台 API 文件：`未核出`
-   - 运行样本只到 service/test；发布证据 `未核出`
-3. 因此 03-16 这轮 A 集成只是在主索引中把 E 的专项证据正式吸收，不会把 `BO-004` 改写成后台页面闭环或 release-ready。
+   - `BO-004` 当前已升级为 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`
+   - `BO-004` 独立后台页面文件、独立后台 API 文件、菜单 SQL 与专项测试已核出
+   - 运行样本仍缺真实页面请求样本；发布证据 `未核出`
+3. 因此跨域总索引对 `BO-004` 的吸收边界更新为：已承认 admin-only 页面/API 真值闭环，但不会把 `BO-004` 改写成 release-ready。
 
 ## 7. 03-16 起的单一真值引用
 - booking 最终集成：`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
