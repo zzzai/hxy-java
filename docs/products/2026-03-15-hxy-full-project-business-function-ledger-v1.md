@@ -49,9 +49,9 @@
 - 当前正式 PRD 缺口已经清零，后台 `SPU / SKU / 门店 / 库存审批 / 生命周期 / 售后工单` 主链均已有正式 PRD。
 - 当前文档剩余短板已经从“缺 PRD”切到：
   - `Booking` 域 5 项能力虽然已经 `Doc Closed`，但仍存在工程真值阻断
-  - 后台 `BO-001` ~ `BO-003` 与 `ADM-001` ~ `ADM-016` 多数仍未核到独立 contract/runbook
+  - 后台 `BO-001` ~ `BO-003` 与 `ADM-001` ~ `ADM-016` 已补齐按业务域成组的独立 contract/runbook，剩余问题转为 release evidence / 工程 blocker
 - `BO-004` 已在 2026-03-24 补齐独立后台页面、独立前端 API、菜单 SQL、truth test 与 controller 回归测试；当前结论升级为 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`
-- 当前剩余工程真值阻断仍以既有项目结论为准：`Booking`、`BO-004` release evidence、`Reserved` runtime 未实现，不因本文新增后台台账而改变。
+- 当前剩余工程真值阻断仍以既有项目结论为准：`Booking`、`BO-004` release evidence、`Reserved` gray / rollback / sign-off evidence，不因本文新增后台台账而改变。
 
 ## 4. 小程序用户侧业务功能清单
 - 本节沿用并吸收 `docs/products/miniapp/2026-03-12-miniapp-business-function-truth-ledger-v1.md` 的当前正式真值。
@@ -134,16 +134,16 @@
 
 | 功能ID | 对应 Contract / Runbook | 当前配套结论 | 说明 |
 |---|---|---|---|
-| `BO-001` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；`docs/plans/2026-03-08-finance-contract-freeze-checklist.md` 属于历史 checklist，不能直接顶替独立 contract/runbook |
-| `BO-002` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；不得把 `BO-004` 的 contract/runbook 借给退款回调重放 |
-| `BO-003` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD 与页面/API/controller 闭环；若后续补 contract/runbook，必须独立落盘，不能复用 `BO-004` 文档 |
+| `BO-001` | Contract：`docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | 完整 | `BO-001` ~ `BO-003` 已按 Finance Ops Core 成组补齐独立 contract/runbook；不得再借历史 checklist 顶替 |
+| `BO-002` | Contract：`docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | 完整 | 退款回调日志 / 重放已归入 Finance Ops Core 独立文档组；仍需与 `BO-004` 保持边界隔离 |
+| `BO-003` | Contract：`docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | 完整 | 技师提成结算 / 通知补偿已归入 Finance Ops Core 独立文档组；不能复用 `BO-004` 文档 |
 | `BO-004` | Contract：`docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`；Runbook：`docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`；专项证据：`docs/plans/2026-03-15-miniapp-finance-ops-technician-commission-admin-evidence-ledger-v1.md` | 完整 | 这是当前后台清单里唯一已核到独立 contract/runbook 且已补齐独立页面/API 真值的专项，但当前仍只能写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release` |
-| `ADM-001` ~ `ADM-002` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前已核到正式 PRD 和真实页面/API/controller，但未核到与 SPU / 模板能力一一对应的独立 contract/runbook |
-| `ADM-003` ~ `ADM-006` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到门店主数据治理 PRD；若后续补 contract/runbook，必须按 store 主数据域独立落盘 |
-| `ADM-007` ~ `ADM-008` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到门店商品映射 / SKU 运维 PRD；不得把库存审批或生命周期治理文档借用为本组 runbook |
-| `ADM-009` ~ `ADM-010` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到库存调整 / 调拨 PRD；没有独立 contract/runbook 就必须继续写 `未核出` |
-| `ADM-011` ~ `ADM-013` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前有 `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-design.md` 与 `docs/plans/2026-03-03-ticket-sla-store-lifecycle-guard-implementation.md`，但它们不是独立 contract/runbook |
-| `ADM-014` ~ `ADM-016` | Contract：`未核出独立 contract`；Runbook：`未核出独立 runbook` | 部分完整 | 当前只核到正式 PRD；review ticket / route 相关 design 或 SQL 配置不能替代正式 contract/runbook |
+| `ADM-001` ~ `ADM-002` | Contract：`docs/contracts/2026-03-24-admin-product-spu-template-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-product-spu-template-runbook-v1.md` | 完整 | SPU / 模板域已独立成组落盘，后续不再写“未核出独立” |
+| `ADM-003` ~ `ADM-006` | Contract：`docs/contracts/2026-03-24-admin-store-master-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-store-master-runbook-v1.md` | 完整 | Store master 域已独立成组落盘 |
+| `ADM-007` ~ `ADM-008` | Contract：`docs/contracts/2026-03-24-admin-store-product-sku-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-store-product-sku-runbook-v1.md` | 完整 | 门店商品映射 / SKU 运维域已独立成组落盘 |
+| `ADM-009` ~ `ADM-010` | Contract：`docs/contracts/2026-03-24-admin-supply-chain-stock-approval-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-supply-chain-stock-approval-runbook-v1.md` | 完整 | 库存调整 / 调拨审批域已独立成组落盘 |
+| `ADM-011` ~ `ADM-013` | Contract：`docs/contracts/2026-03-24-admin-store-lifecycle-governance-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-store-lifecycle-governance-runbook-v1.md` | 完整 | 生命周期治理域已补齐正式 contract/runbook；不再借 design / implementation 充当正式文档 |
+| `ADM-014` ~ `ADM-016` | Contract：`docs/contracts/2026-03-24-admin-trade-ops-after-sale-review-ticket-contract-v1.md`；Runbook：`docs/plans/2026-03-24-admin-trade-ops-after-sale-review-ticket-runbook-v1.md` | 完整 | 售后 / 复核工单 / SLA 路由已独立成组落盘 |
 
 ## 6. 当前项目级结论
 1. 小程序主链与后台 `mall` 域的 P0 业务链路，当前都已经进入正式 PRD 体系；按本文判定口径，`PRD 缺口 = 0`。
@@ -155,8 +155,8 @@
    - `ADM-008` 门店 SKU 价库存管理 / 批量调整 / 库存流水重试
    - `ADM-009` 门店库存调整单审批
    - `ADM-010` 跨店调拨单审批
-4. 当前剩余文档短板已经从“缺 PRD”切到“独立 contract/runbook 未核出”与“工程真值阻断仍在”：
+4. 当前剩余短板已经从“缺 PRD / 缺后台独立 contract-runbook”切到“工程真值阻断与 release evidence 仍在”：
    - `Booking` 5 项能力文档已完整，但 create/cancel/addon 仍受 03-16 真值阻断
-   - 后台 `BO-001` ~ `BO-003` 与 `ADM-001` ~ `ADM-016` 多数仍未核到独立 contract/runbook
-5. `BO-004` 是当前后台清单里唯一已核到独立 contract/runbook 且已补齐独立页面/API 真值的专项，但这不改变它“当前仅到 admin-only 可用、仍不可放量”的结论。
+   - 后台 `BO-001` ~ `BO-003` 与 `ADM-001` ~ `ADM-016` 已补齐成组独立 contract/runbook，剩余问题转为 release evidence / 工程 blocker
+5. `BO-004` 不再是后台唯一具备独立 contract/runbook 的能力，但它仍是当前后台唯一以“单功能粒度独立落盘 + 独立页面/API 真值已闭环”形式收口的专项；这不改变它“当前仅到 admin-only 可用、仍不可放量”的结论。
 6. 后续若要回答“全项目前后端有哪些功能、哪些文档完整、哪些仍是文档短板”，应以本文为根台账，再配合 `docs/products/2026-03-16-hxy-full-project-function-prd-completion-review-v1.md` 使用，而不是只引用 miniapp 子台账。

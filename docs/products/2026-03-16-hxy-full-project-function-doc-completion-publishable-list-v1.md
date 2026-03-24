@@ -18,13 +18,13 @@
 | 管理后台 | `20` |
 | PRD 完整 | `51 / 51` |
 | PRD 缺口 | `0` |
-| 当前主要剩余问题 | 独立 contract/runbook 未核出 + 工程真值 blocker 未解除 |
+| 当前主要剩余问题 | 工程真值 blocker 未解除 + release evidence 未补齐 |
 
 补充：
 - `管理后台` 已纳入正式总表，不存在“后台没有列出”的问题。
 - `SPU / SKU` 已拆为独立后台能力，不再允许用模糊的“商品后台”替代。
 - `BO-004` 当前只能写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`。
-- `Booking` 写链、`Member` 缺页、`Reserved` runtime 未实现，仍然只可开发/治理，不可直接放量。
+- `Booking` 写链、`Member` 缺页、`Reserved` 发布证据未补齐，仍然只可开发/治理，不可直接放量。
 
 ## 3. 小程序前台功能清单
 
@@ -58,34 +58,34 @@
 | `BF-026` | Content | 聊天 / 文章详情 / FAQ 壳页 / WebView | `docs/products/miniapp/2026-03-10-miniapp-content-customer-service-prd-v1.md` | 完整 | 已核实 | 未核出独立 | PLANNED_RESERVED | 不可放量 |
 | `BF-027` | Content | 文章列表 / 分类 / 浏览回写 / 已读回写 | `docs/products/miniapp/2026-03-12-miniapp-content-article-list-category-writeback-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
 | `BF-028` | Brokerage | 分销中心 / 佣金 / 提现 / 团队 / 排行 / 推广订单 / 推广商品 | `docs/products/miniapp/2026-03-10-miniapp-brokerage-distribution-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
-| `BF-029` | Reserved | 礼品卡 | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md` | 完整 | 已核实 | 已核实 | runtime 未实现 | 不可放量 |
-| `BF-030` | Reserved | 邀请有礼 | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | 完整 | 已核实 | 已核实 | runtime 未实现 | 不可放量 |
-| `BF-031` | Reserved | 技师动态 | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 已核实 | 已核实 | runtime 未实现 | 不可放量 |
+| `BF-029` | Reserved | 礼品卡 | `docs/products/miniapp/2026-03-09-miniapp-gift-card-business-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
+| `BF-030` | Reserved | 邀请有礼 | `docs/products/miniapp/2026-03-09-miniapp-referral-business-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
+| `BF-031` | Reserved | 技师动态 | `docs/products/miniapp/2026-03-12-miniapp-technician-feed-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
 
 ## 4. 管理后台功能清单
 
 | ID | 业务域 | 功能 | 主 PRD | PRD | Contract | Runbook | 当前工程结论 | 放量结论 |
 |---|---|---|---|---|---|---|---|---|
-| `BO-001` | Finance Ops | 四账对账 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `BO-002` | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `BO-003` | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
+| `BO-001` | Finance Ops | 四账对账 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-four-account-reconcile-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md` | `docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `BO-002` | Finance Ops | 退款回调日志 / 重放 / 重放运行日志 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-refund-notify-replay-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md` | `docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `BO-003` | Finance Ops | 技师提成结算 / 审核 / 驳回 / 打款 / 通知补偿 | `docs/products/miniapp/2026-03-12-miniapp-finance-ops-technician-commission-settlement-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-finance-ops-core-contract-v1.md` | `docs/plans/2026-03-24-admin-finance-ops-core-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
 | `BO-004` | Finance Ops | 技师提成明细 / 计提管理 | `docs/products/miniapp/2026-03-14-miniapp-finance-ops-technician-commission-detail-config-prd-v1.md` | 完整 | 已核实 | 已核实 | admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release | 不可放量 |
-| `ADM-001` | Product | 总部商品 SPU 管理 / 新增编辑 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-002` | Product | 商品模板校验 / SKU 自动生成 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-003` | Store | 门店主数据管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-004` | Store | 门店分类管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-005` | Store | 门店标签管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-006` | Store | 门店标签组管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-007` | Store Product | 门店商品 SPU 映射 / 上下架 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-008` | Store Product | 门店 SKU 价库存管理 / 批量调整 / 库存流水重试 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-009` | Supply Chain | 门店库存调整单审批 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-010` | Supply Chain | 跨店调拨单审批 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-011` | Store Governance | 门店生命周期批次执行日志 / 批次复核执行 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-012` | Store Governance | 门店生命周期变更单 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-013` | Store Governance | 门店生命周期复核日志 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-014` | Trade Ops | 售后单管理 / 详情 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-015` | Trade Ops | 售后人工复核工单 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
-| `ADM-016` | Trade Ops | 售后工单 SLA 路由规则 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | 未核出独立 | 未核出独立 | ACTIVE_ADMIN | 可开发；冻结待补配套 |
+| `ADM-001` | Product | 总部商品 SPU 管理 / 新增编辑 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-product-spu-template-contract-v1.md` | `docs/plans/2026-03-24-admin-product-spu-template-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-002` | Product | 商品模板校验 / SKU 自动生成 | `docs/products/2026-03-15-hxy-admin-product-spu-and-template-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-product-spu-template-contract-v1.md` | `docs/plans/2026-03-24-admin-product-spu-template-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-003` | Store | 门店主数据管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-master-contract-v1.md` | `docs/plans/2026-03-24-admin-store-master-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-004` | Store | 门店分类管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-master-contract-v1.md` | `docs/plans/2026-03-24-admin-store-master-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-005` | Store | 门店标签管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-master-contract-v1.md` | `docs/plans/2026-03-24-admin-store-master-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-006` | Store | 门店标签组管理 | `docs/products/2026-03-15-hxy-admin-store-master-and-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-master-contract-v1.md` | `docs/plans/2026-03-24-admin-store-master-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-007` | Store Product | 门店商品 SPU 映射 / 上下架 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-product-sku-contract-v1.md` | `docs/plans/2026-03-24-admin-store-product-sku-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-008` | Store Product | 门店 SKU 价库存管理 / 批量调整 / 库存流水重试 | `docs/products/2026-03-15-hxy-admin-store-product-mapping-and-sku-ops-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-product-sku-contract-v1.md` | `docs/plans/2026-03-24-admin-store-product-sku-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-009` | Supply Chain | 门店库存调整单审批 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-supply-chain-stock-approval-contract-v1.md` | `docs/plans/2026-03-24-admin-supply-chain-stock-approval-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-010` | Supply Chain | 跨店调拨单审批 | `docs/products/2026-03-15-hxy-admin-store-stock-adjust-and-transfer-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-supply-chain-stock-approval-contract-v1.md` | `docs/plans/2026-03-24-admin-supply-chain-stock-approval-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-011` | Store Governance | 门店生命周期批次执行日志 / 批次复核执行 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-lifecycle-governance-contract-v1.md` | `docs/plans/2026-03-24-admin-store-lifecycle-governance-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-012` | Store Governance | 门店生命周期变更单 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-lifecycle-governance-contract-v1.md` | `docs/plans/2026-03-24-admin-store-lifecycle-governance-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-013` | Store Governance | 门店生命周期复核日志 | `docs/products/2026-03-15-hxy-admin-store-lifecycle-governance-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-store-lifecycle-governance-contract-v1.md` | `docs/plans/2026-03-24-admin-store-lifecycle-governance-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-014` | Trade Ops | 售后单管理 / 详情 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-trade-ops-after-sale-review-ticket-contract-v1.md` | `docs/plans/2026-03-24-admin-trade-ops-after-sale-review-ticket-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-015` | Trade Ops | 售后人工复核工单 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-trade-ops-after-sale-review-ticket-contract-v1.md` | `docs/plans/2026-03-24-admin-trade-ops-after-sale-review-ticket-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
+| `ADM-016` | Trade Ops | 售后工单 SLA 路由规则 | `docs/products/2026-03-15-hxy-admin-after-sale-review-ticket-prd-v1.md` | 完整 | `docs/contracts/2026-03-24-admin-trade-ops-after-sale-review-ticket-contract-v1.md` | `docs/plans/2026-03-24-admin-trade-ops-after-sale-review-ticket-runbook-v1.md` | ACTIVE_ADMIN | 可开发；独立配套已补齐 |
 
 ## 5. SPU / SKU 专项口径
 - 不允许再把 `SPU / SKU` 混成泛化的“商品后台”。
@@ -102,5 +102,5 @@
 - `Booking` 写链：文档完整，但当前只允许写成 `Can Develop / Cannot Release`。
 - `BO-004`：只允许写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`，不得误写成 release-ready。
 - `Member`：`/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已落地，但当前仍只允许写成 `Can Develop / Cannot Release`。
-- `Reserved`：gift-card / referral / technician-feed 仍是 runtime 未实现，不能因为文档齐了就写成已上线。
-- 多数后台能力：PRD 已完整，但独立 contract/runbook 仍 `未核出`，不能假写成冻结闭环。
+- `Reserved`：gift-card / referral / technician-feed runtime 已闭环，但 gray / rollback / sign-off 证据仍未补齐，不能误写成已可放量。
+- 后台主能力：PRD、独立 contract、独立 runbook 已成体系；当前仍不能把 `ACTIVE_ADMIN` 误写成 release-ready。
