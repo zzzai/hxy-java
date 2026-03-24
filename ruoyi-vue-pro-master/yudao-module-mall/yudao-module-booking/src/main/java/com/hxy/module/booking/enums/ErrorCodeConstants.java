@@ -12,6 +12,7 @@ public interface ErrorCodeConstants {
     // ========== 技师相关 1-030-001-000 ==========
     ErrorCode TECHNICIAN_NOT_EXISTS = new ErrorCode(1_030_001_000, "技师不存在");
     ErrorCode TECHNICIAN_DISABLED = new ErrorCode(1_030_001_001, "技师已禁用");
+    ErrorCode TECHNICIAN_FEED_POST_NOT_EXISTS = new ErrorCode(1_030_001_002, "技师动态不存在或未发布");
 
     // ========== 排班相关 1-030-002-000 ==========
     ErrorCode SCHEDULE_NOT_EXISTS = new ErrorCode(1_030_002_000, "排班不存在");

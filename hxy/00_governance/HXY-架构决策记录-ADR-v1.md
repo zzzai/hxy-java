@@ -1170,3 +1170,16 @@
 - 备选方案：继续复用 `commission-settlement` 页面；只补 API 不补页面；先做大规模后端语义重构再补前端真值。
 - 否决原因：复用页面会污染能力边界；只补单侧仍会留下“看起来能做、实际上不可验证”的假闭环；先重构后补真值会拖慢当前主线且扩大风险面。
 - 回滚条件：若独立页面接入引发后台兼容问题，可临时下线菜单 SQL 或隐藏入口，但不得回退到“BO-003/BO-004 混用页面证据”的旧口径；未补齐真实页面请求样本、菜单执行样本与发布证据前，整体结论始终保持 `Cannot Release`。
+
+## ADR-113：Reserved Runtime 采用“按域分治闭环”，Referral 复用分销真值，Technician Feed 独立轻量建模
+
+- 背景：`Reserved` 三域此前只有 PRD/contract/gate 文档，没有真实小程序页面、真实 app controller 和稳定数据对象。若统一用空壳 controller/page 占位，或让三域都从零新建完整账本，会分别带来“假闭环”和“重复造轮子”两类问题。
+- 决策：
+  1. `Referral` 不新造奖励账本，固定复用现有 `brokerage-user / brokerage-record` 作为真实绑定与奖励来源；对外只新增 façade controller `/promotion/referral/*` 与独立小程序页面 `/pages/referral/index`；
+  2. `Technician Feed` 在 booking 域独立建最小真域对象 `technician_feed_post / like / comment`，只收口 `page / like / comment/create` 三条真实 app 路径，并从 `technician-detail` 提供真实入口 `/pages/technician/feed`；
+  3. `Gift Card` 继续保持单独实现，不为了赶进度去复用无关页面或伪装成已有资产能力；
+  4. 三域统一遵循“工程闭环先于发布闭环”：即使页面、controller、SQL、测试已经具备，未补真实样本、灰度、回滚和 sign-off 前，结论一律保持 `Can Develop / Cannot Release`。
+- 影响范围：Reserved 三域的 runtime 真值、promotion/trade/booking 的边界划分、小程序页面规划、SQL 命名与后续 release gate 判定。
+- 备选方案：三域全部从零独立建模；或统一只补页面/controller 壳页；或让 `Referral` 直接复用分销中心页面作为邀请有礼页面。
+- 否决原因：全量重建成本高且易制造双真值；壳页方案无法支撑后续开发；直接复用分销中心页面会污染“邀请有礼”和“分销中心”的业务边界。
+- 回滚条件：若 `Referral façade` 或 `Technician Feed` 新链路引发兼容问题，可临时隐藏入口或关闭对应 runtime gate，但不得回退到“只有文档、没有真实页面/controller”的旧口径，也不得把当前能力越级写成 release-ready。

@@ -508,6 +508,21 @@
 			}]
 		},
 		{
+			"root": "pages/technician",
+			"pages": [{
+				"path": "feed",
+				"style": {
+					"navigationBarTitleText": "技师动态"
+				},
+				"meta": {
+					"auth": false,
+					"sync": true,
+					"title": "技师动态",
+					"group": "预约服务"
+				}
+			}]
+		},
+		{
 			"root": "pages/app",
 			"pages": [{
 				"path": "sign",

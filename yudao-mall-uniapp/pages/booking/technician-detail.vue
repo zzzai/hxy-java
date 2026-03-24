@@ -12,6 +12,7 @@
             <view class="ss-font-24 text-orange">评分 {{ state.technician.rating || '5.0' }}</view>
             <view class="ss-font-22 text-gray ss-m-l-20">服务 {{ state.technician.serviceCount || 0 }} 次</view>
           </view>
+          <button class="feed-entry ss-reset-button ss-m-t-16" @tap="openFeed">查看技师动态</button>
         </view>
       </view>
       <view v-if="state.technician.introduction" class="ss-font-24 text-gray ss-m-t-20">
@@ -152,6 +153,13 @@
     });
   }
 
+  function openFeed() {
+    sheep.$router.go('/pages/technician/feed', {
+      technicianId: state.technicianId,
+      storeId: state.storeId,
+    });
+  }
+
   onLoad((options) => {
     state.technicianId = options.id;
     state.storeId = options.storeId || 0;
@@ -171,6 +179,15 @@
   }
   .text-gray { color: #999; }
   .text-orange { color: #ff6600; }
+  .feed-entry {
+    margin-top: 16rpx;
+    padding: 0 20rpx;
+    height: 56rpx;
+    border-radius: 999rpx;
+    background: #fff7e6;
+    color: #ad6800;
+    font-size: 22rpx;
+  }
   .date-scroll {
     white-space: nowrap;
   }
