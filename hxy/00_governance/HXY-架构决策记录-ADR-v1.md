@@ -1142,3 +1142,17 @@
 - 备选方案：继续让前端兼容旧结构，或把已修复项长期保留在 blocker 文档中不更新。
 - 否决原因：兼容层会继续制造“能跑但不可信”的假闭环；旧 blocker 不清理会直接误导后续开发、联调和老板汇报。
 - 回滚条件：若分页协议或 slot detail 读取引发兼容故障，可临时回退前端读取实现；但不得回退到“字段真值不清”的文档口径。
+
+## ADR-111：Member 缺页补齐采用“页面 + 真实入口 + app 读取链路一起闭环，资产聚合落 yudao-server”策略
+
+- 背景：`level / assets / tag` 三项历史上已具备部分文档或局部 API，但缺真实页面、真实入口或 app 读取 controller，长期停留在“文档完整、工程缺页”的假闭环状态。若只补页面壳或只补 API，会继续制造“看起来有功能、实际不可维护”的漂移。
+- 决策：
+  1. `Member` 缺页补齐必须同时满足真实页面、`pages.json` 路由、个人中心入口、前端 API 与 app 读取链路五件套；
+  2. `level` 直接复用既有 `GET /member/level/list` 与 `GET /member/experience-record/page`，不重复造新 controller；
+  3. `tag` 在 `yudao-module-member` 补 `GET /member/tag/my` app controller，只返回当前登录用户标签真值；
+  4. `assets` 的统一资产账本聚合层固定落在 `yudao-server`，通过 server 集成层聚合 member/pay/promotion 真实数据，避免 `member -> promotion` 循环依赖；
+  5. 本轮闭环只把能力结论升级为 `Doc Closed / Can Develop / Cannot Release`，不得把默认 `degraded=false/degradeReason=null` 写成“真实降级链路已验证”，也不得跳过 release evidence/gate 就改写为可放量。
+- 影响范围：Member 小程序页面真值、app controller 读链路、项目总账完成度判断、后续 release gate 与灰度样本要求。
+- 备选方案：只补前端页面、只补 API、或先做大规模模块解耦后再补业务能力。
+- 否决原因：只补单侧无法解除真实 blocker；先做大重构会拖慢项目主线，且本轮没有必要扩大改动面。
+- 回滚条件：若资产聚合链路出现跨模块集成故障，可临时保留页面和 controller 入口但收敛统一账本字段；不得回退到“继续缺页”或重新引入 `member -> promotion` 直接依赖。

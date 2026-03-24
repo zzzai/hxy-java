@@ -45,9 +45,9 @@
 | BF-009 | Member | 地址管理 | `/pages/user/address/list`; `/pages/user/address/edit` | `GET /member/address/list`; `GET /member/address/get`; `GET /member/address/get-default`; `POST /member/address/create`; `PUT /member/address/update`; `DELETE /member/address/delete`; `AppAddressController` | ACTIVE | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 否 | 地址 CRUD 主链完整 |
 | BF-010 | Member | 钱包 / 充值 / 钱包流水 / 积分流水 / 优惠券 / 积分商城 | `/pages/user/wallet/money`; `/pages/user/wallet/score`; `/pages/pay/recharge`; `/pages/pay/recharge-log`; `/pages/coupon/list`; `/pages/activity/point/list` | `GET /pay/wallet/get`; `GET /pay/wallet-transaction/page`; `POST /pay/wallet-recharge/create`; `GET /pay/wallet-recharge/page`; `GET /pay/wallet-recharge-package/page`; `GET /member/point/record/page`; `GET /promotion/coupon/page`; `GET /promotion/point-activity/page`; `AppPayWalletController`; `AppPayWalletRechargeController`; `AppPayWalletRechargePackageController`; `AppPayWalletTransactionController`; `AppMemberPointRecordController`; `AppCouponController`; `AppPointActivityController` | ACTIVE | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | 完整 | 否 | 资产域 PRD 边界已较清楚 |
 | BF-011 | Member | 签到 | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page`; `AppMemberSignInConfigController`; `AppMemberSignInRecordController` | ACTIVE | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 否 | 重复签到、奖励发放边界已补齐 |
-| BF-012 | Member | 会员等级 / 成长值 | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page`; `AppMemberLevelController`; `AppMemberExperienceRecordController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 是 | `/pages/user/level` 未落地，直接阻断能力继续推进 |
-| BF-013 | Member | 资产总览 / 统一资产台账 | `N/A（当前无真实 pageRoute）` | `GET /member/asset-ledger/page` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 是 | `/pages/profile/assets` 未落地，且接口仍受门禁保护 |
-| BF-014 | Member | 用户标签中心 | `N/A（当前无真实 pageRoute）` | `N/A（当前无 app 端读取接口）` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 是 | `/pages/user/tag` 缺页，且没有 app 标签读取接口 |
+| BF-012 | Member | 会员等级 / 成长值 | `/pages/user/level` | `GET /member/level/list`; `GET /member/experience-record/page`; `AppMemberLevelController`; `AppMemberExperienceRecordController` | `Can Develop / Cannot Release` | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md` | 完整 | 否（已解除缺页工程阻断） | 页面、入口、API 已闭环；当前缺发布样本与 A 窗口签发，不能写成可放量 |
+| BF-013 | Member | 资产总览 / 统一资产台账 | `/pages/profile/assets` | `GET /member/asset-ledger/page`; `AppMemberAssetLedgerController` | `Can Develop / Cannot Release` | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md` | 完整 | 否（已解除缺页工程阻断） | 页面、入口、controller 已闭环；灰度 / 回滚 / 降级样本未闭环，不能写成可放量 |
+| BF-014 | Member | 用户标签中心 | `/pages/user/tag` | `GET /member/tag/my`; `AppMemberTagController` | `Can Develop / Cannot Release` | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md` | 完整 | 否（已解除缺页工程阻断） | 页面、入口、app 读取接口已闭环；缺 release 样本与客服演练证据 |
 | BF-015 | Product | 商品分类 / 搜索 lite / 商品详情 | `/pages/index/category`; `/pages/index/search`; `/pages/goods/list`; `/pages/goods/index` | `GET /product/category/list`; `GET /product/spu/page`; `GET /product/spu/get-detail`; `GET /trade/order/settlement-product`; `AppCategoryController`; `AppProductSpuController` | ACTIVE | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md` | 完整 | 否 | `search-lite` 已收口 |
 | BF-016 | Product | 评论 / 收藏 / 浏览历史 | `/pages/goods/comment/list`; `/pages/goods/comment/add`; `/pages/user/goods-collect`; `/pages/user/goods-log` | `GET /product/comment/page`; `GET /product/favorite/page`; `GET /product/favorite/exits`; `POST /product/favorite/create`; `DELETE /product/favorite/delete`; `GET /product/browse-history/page`; `DELETE /product/browse-history/delete`; `DELETE /product/browse-history/clean`; `POST /trade/order/item/create-comment`; `AppProductCommentController`; `AppFavoriteController`; `AppProductBrowseHistoryController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | 完整 | 部分 | 页面存在，但当前真值仍不允许直接升 `ACTIVE` |
 | BF-017 | Product | 搜索 canonical | `N/A（当前无真实用户页）` | `GET /product/search/page`; `AppProductSpuController` | PLANNED_RESERVED | `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | 完整 | 是 | 无真实用户页，且 `1008009904` 只允许绑定 canonical |
@@ -82,15 +82,12 @@
 
 ### 5.1 直接阻断放量 / Frozen Candidate 的缺口
 1. Booking 写链路：`BF-022` `BF-023` `BF-024`
-4. Member 等级页：`BF-012`
-5. Member 资产总览：`BF-013`
-6. Member 标签中心：`BF-014`
-7. Product canonical search：`BF-017`
-8. Promotion 砍价：`BF-019`
-9. Content 文章列表 / 分类 / 回写：`BF-027`
-10. Reserved 三类规划能力：`BF-029` ~ `BF-031`
-11. 技师提成管理独立页面真值仍未核出：`BO-004`
-12. Booking Review 提交 / 恢复：`BF-033`、`BO-005`
+2. Product canonical search：`BF-017`
+3. Promotion 砍价：`BF-019`
+4. Content 文章列表 / 分类 / 回写：`BF-027`
+5. Reserved 三类规划能力：`BF-029` ~ `BF-031`
+6. 技师提成管理独立页面真值仍未核出：`BO-004`
+7. Booking Review 提交 / 恢复：`BF-033`、`BO-005`
 
 ### 5.2 不阻断存量主链，但阻断升为 ACTIVE / Frozen 的缺口
 1. Product 互动链路：`BF-016`
@@ -100,11 +97,11 @@
 
 ## 6. 结论
 1. 用户侧主链功能的 PRD 已基本齐备，问题重点已从“有没有 PRD”转为“PRD 对应的页面/API 真值是否闭环”。
-2. 当前最强阻断不再是 booking 旧 path 漂移，而是 booking 写链路 release proof、booking review 发布证据、member 缺页能力、reserved 规划能力和后台运营财务闭环。
+2. 当前最强阻断不再是 booking 旧 path 漂移，而是 booking 写链路 release proof、booking review 发布证据、reserved 规划能力和后台运营财务闭环；Member 缺页工程阻断已解除，转为 release evidence blocker。
 3. booking 当前已经形成清晰分拆：`technician-list / technician-detail / order-list / order-detail` 按 query-only `ACTIVE` 管理；`create / cancel / addon` 继续 `Can Develop / Cannot Release`。
 4. 后台运营财务闭环的主 PRD、独立 PRD、controller-only contract、SOP 与 runbook 已补齐，当前剩余问题转为：佣金管理独立页面真值与前端 API 绑定证据仍需继续收口；该能力当前可进入真值修复开发，但不可直接作为放量依据。
 5. 技师动态的产品文档已升级为完整 PRD，当前剩余问题只在 runtime 未实现，不能因文档齐备就提前进入开发或放量。
-6. `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`、`docs/products/miniapp/2026-03-15-miniapp-booking-runtime-release-evidence-review-v1.md` 与 `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` 已把 `Booking / BO-004 / Member 缺页 / Reserved runtime` 的最终阻断口径统一固定为“可进入真值修复开发，不可直接放量”。
+6. `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md` 已把 Member 三项历史缺页能力固定为“工程闭环完成，但仍 `Can Develop / Cannot Release`”；后续项目级阻断不应再写成“缺页未实现”。
 7. `docs/products/miniapp/2026-03-17-miniapp-booking-review-final-integration-review-v1.md` 已把 booking review 新子域的最终口径固定为：`Doc Closed / Can Develop / Cannot Release`，不得误写成商品评论 alias 或已上线评价体系。
 8. 03-19 新增历史边界审计、店长归属真值审计与 admin-only backlog 后，booking review 的剩余阻断进一步固定为：历史差评读路径不自动补齐待办字段、当前没有稳定 `store -> managerUserId`、自动通知/奖励/补偿继续未落地。
 

@@ -21,12 +21,12 @@
 |---|---|---|---|---|
 | 登录/注册 | `component:s-auth-modal`; `/pages/index/login` | `ACTIVE` | `/member/auth/*` | 本期不拆独立注册页；首次短信登录/微信手机号登录自动注册 |
 | 个人中心 | `/pages/index/user` | `ACTIVE` | `/member/user/get` `/member/user/update` | 展示会员卡、资料入口、资产入口、订单入口 |
-| 等级 | `N/A（当前无真实 pageRoute）` | `缺页能力` | `/member/level/list` `/member/experience-record/page` | `/pages/user/level` 当前不能写成已上线页面 |
+| 等级 | `/pages/user/level` | `Doc Closed / Can Develop / Cannot Release` | `/member/level/list` `/member/experience-record/page` `/member/user/get` | 页面、路由、入口已落地，可继续回归和迭代；当前仍不可放量 |
 | 签到 | `/pages/app/sign` | `ACTIVE` | `/member/sign-in/config/list` `/member/sign-in/record/*` | 日历签到、连续签到、奖励回显 |
 | 积分 | `/pages/user/wallet/score`; `/pages/activity/point/list` | `ACTIVE` | `/member/point/record/page` `/promotion/point-activity/*` | 积分流水与积分商城联动 |
-| 标签 | `N/A（当前无真实 pageRoute）` | `缺页能力` | 标签治理门禁 + 后台标签能力 | `/pages/user/tag` 当前无真实页面、无 app 端读取接口 |
+| 标签 | `/pages/user/tag` | `Doc Closed / Can Develop / Cannot Release` | `/member/tag/my` | 页面与 app 读取接口已落地；当前仍不可放量 |
 | 地址 | `/pages/user/address/list` | `ACTIVE` | `/member/address/*` | 列表、默认地址、新增、编辑、删除 |
-| 会员资产展示 | `/pages/user/wallet/money`; `/pages/coupon/list`; `N/A（统一总账缺页）` | `ACTIVE` + `缺页能力` | 钱包/券/积分现有接口 + 统一资产账本规划接口 | 分资产展示是 runtime 真值；`/pages/profile/assets` 当前不能写成已上线页面 |
+| 会员资产展示 | `/pages/user/wallet/money`; `/pages/coupon/list`; `/pages/profile/assets` | `分资产 ACTIVE + 统一总账 Doc Closed / Can Develop / Cannot Release` | 钱包/券/积分现有接口 + `/member/asset-ledger/page` | 统一总账真实页面/controller 已落地；灰度、回滚、发布样本未闭环 |
 
 ## 0.2 微信登录/手机号能力核验日志
 - 核验日期：`2026-03-10`
@@ -154,29 +154,30 @@
 - [ ] 忘记密码路径与登录页/短信场景一致，不额外发明前端校验规则。
 - [ ] `USER_NOT_EXISTS` 统一回退登录页，不停留半鉴权状态。
 
-## 3. 等级缺页能力（`Doc Closed / Can Develop / Cannot Release`）
+## 3. 等级页（`Doc Closed / Can Develop / Cannot Release`）
 
 ### 3.1 当前真值
-- 当前仓内没有 `/pages/user/level` 页面文件，也没有 `pages.json` 入口。
-- 当前只能承认 API 真值存在：
+- 当前仓内已存在 `/pages/user/level` 页面文件，并已进入 `pages.json`。
+- 当前真实入口为：`/pages/user/info -> 会员等级`。
+- 当前页面只读取三条真实链路：
+  - `GET /member/user/get`
   - `GET /member/level/list`
   - `GET /member/experience-record/page`
-- 因此等级能力当前只能写成“缺页能力”，不能写成“已上线页面”。
 
-### 3.2 为什么当前不能写成已上线页面
-1. 没有真实 route，就没有用户可达入口。
-2. 只有 API 不等于已有等级页 runtime。
-3. 产品当前不能承诺页面态、空态、错误态已经对用户开放。
+### 3.2 主流程
+1. 用户从个人资料页进入 `/pages/user/level`。
+2. 页面先读取 `GET /member/user/get`，展示当前等级、经验值和下一等级差值。
+3. 页面读取 `GET /member/level/list`，展示等级权益列表与当前命中等级。
+4. 页面读取 `GET /member/experience-record/page`，展示成长记录、空态和分页加载。
 
-### 3.3 开发进入条件
-- 新增真实页面文件并进入 `pages.json`。
-- 个人中心或其他真实入口能跳转到等级页。
-- 页面只读取 `GET /member/level/list`、`GET /member/experience-record/page` 与 `GET /member/user/get`。
-- PRD、contract、field dictionary、errorcopy、release gate 全量回填真实 route。
+### 3.3 当前仍不可放量的原因
+1. 等级页已形成真实 runtime，但发布级样本与 allowlist 未闭环。
+2. 客服 / 运营对“无等级记录”“经验空页”“接口失败”的统一演练尚未补齐发布证据。
+3. A 窗口未重新签发 release decision 前，等级页只能按 `Can Develop / Cannot Release` 管理。
 
 ### 3.4 放量进入条件
 - 正常等级、`level=null`、经验空页、接口失败样本全部可回放。
-- 客服与运营口径都按真实页面字段演练通过。
+- field dictionary、errorcopy、release gate、客服 SOP 与真实页面字段一致。
 - A 窗口重新签发 allowlist 前，等级页持续保持 `Cannot Release`。
 
 ### 3.5 产品侧最终标签
@@ -276,28 +277,28 @@
 - [ ] `1011003004` 只出现调整动作，不出现成功态按钮反馈。
 - [ ] 活动失效时能回退列表，且保留用户来路。
 
-## 6. 标签缺页能力（`Doc Closed / Can Develop / Cannot Release`）
+## 6. 标签页（`Doc Closed / Can Develop / Cannot Release`）
 
 ### 6.1 当前真值
-- 当前仓内没有 `/pages/user/tag` 页面文件，也没有 `pages.json` 入口。
-- 当前 app 端没有正式标签读取接口。
-- 当前版本只能写成“默认隐藏，不发请求”，不能写成“标签页已上线”。
+- 当前仓内已存在 `/pages/user/tag` 页面文件，并已进入 `pages.json`。
+- 当前真实入口为：`/pages/user/info -> 我的标签`。
+- 当前 app 端正式读取接口为：`GET /member/tag/my`。
+- 页面只展示真实标签列表和空态，不补假数据，不拼接静态标签。
 
-### 6.2 为什么当前不能写成已上线页面
-1. 缺页面文件。
-2. 缺真实入口。
-3. 缺 app 端正式读取接口。
-4. 没有真实对外暴露证据前，不得承诺稳定错误码分支。
+### 6.2 主流程
+1. 用户从个人资料页进入 `/pages/user/tag`。
+2. 页面调用 `GET /member/tag/my` 获取当前用户标签。
+3. 有标签时展示标签列表；无标签时展示空态说明。
+4. 页面文案只解释“后台会员治理标签”，不承诺任何营销自动化或权益发放结果。
 
-### 6.3 开发进入条件
-- 新增真实页面文件并进入 `pages.json`。
-- app 端正式读取接口进入 contract 与 capability ledger。
-- 标签展示分级、默认隐藏策略、用户恢复动作全部写入发布口径。
-- 没有读取接口前，禁止补假数据或静态标签页冒充 runtime。
+### 6.3 当前仍不可放量的原因
+1. 标签页虽然有真实页面与 app 接口，但 release 级样本尚未闭环。
+2. 客服 / 运营对“无标签”和“读取失败”的解释口径尚未完成正式演练。
+3. A 窗口未签发 release decision 前，标签页仍只能按 `Can Develop / Cannot Release` 管理。
 
 ### 6.4 放量进入条件
-- 入口关闭、无标签、标签读取失败、风险标签拦截样本全部可回放。
-- 客服统一口径完成演练：“未开放”与“读取失败”分开解释。
+- 入口关闭、无标签、标签读取失败样本全部可回放。
+- 客服统一口径完成演练，不再混淆“当前无标签”和“读取失败”。
 - A 窗口重新签发 allowlist 前，标签页持续保持 `Cannot Release`。
 
 ### 6.5 产品侧最终标签
@@ -348,15 +349,18 @@
 - [ ] 编辑/删除不存在地址时只影响当前动作，不影响列表保活。
 - [ ] 表单失败后已填内容仍可继续修改。
 
-## 8. 会员资产展示（`分资产 ACTIVE / 统一总账缺页能力`）
+## 8. 会员资产展示（`分资产 ACTIVE / 统一总账 Doc Closed / Can Develop / Cannot Release`）
 
 ### 8.1 当前真值
-- 当前 runtime 只承认三类分资产能力：
+- 当前 runtime 承认四类会员资产页面：
   - 钱包页：`/pages/user/wallet/money`
   - 券页：`/pages/coupon/list`
   - 积分页：`/pages/user/wallet/score`
-- 当前不承认 `/pages/profile/assets` 是已上线页面。
-- 当前不承认统一资产总账已进入 runtime。
+  - 统一资产总账页：`/pages/profile/assets`
+- 当前统一资产总账 app 接口已真实存在：
+  - `GET /member/asset-ledger/page`
+- 当前统一资产总账 controller 已落在 `yudao-server` 集成层，用于聚合钱包流水、积分流水、优惠券资产。
+- 当前仍不能把统一资产总账写成“已可放量能力”；`degraded=false` / `degradeReason=null` 当前只是默认字段输出，不代表真实降级链路已验证。
 
 ### 8.2 主流程
 1. 个人中心展示资产摘要：
@@ -369,25 +373,20 @@
    - `GET /pay/wallet-transaction/get-summary`
 3. 用户进入券页 `/pages/coupon/list`：`GET /promotion/coupon/page`
 4. 用户进入积分页 `/pages/user/wallet/score`：`GET /member/point/record/page`
-5. `GET /member/asset-ledger/page` 当前只能保留为后续实现目标，不能反推成已有 `/pages/profile/assets` runtime。
+5. `GET /member/asset-ledger/page` 当前已经是 runtime API truth，但仍不能反推成“资产总账已可放量”。
 
-### 8.3 为什么当前不能写成统一资产总账已上线
-1. 当前仓内没有 `/pages/profile/assets` 页面文件，也没有 `pages.json` 入口。
-2. 当前没有真实用户页承接统一资产总账。
-3. 在没有真实对外暴露证据前，产品 PRD 不承诺统一总账稳定错误码分支。
+### 8.3 当前仍不可放量的原因
+1. 统一资产总账虽然已有真实页面与真实 controller，但当前没有真实灰度、回滚、门禁样本。
+2. `degraded / degradeReason` 目前还没有真实降级证据，只能按默认字段存在理解。
+3. 聚合成功、单项为空、读取失败之外，缺少发布级样本包和 A 窗口最终签发。
 
-### 8.4 开发进入条件
-- 新增 `/pages/profile/assets` 真实页面文件并进入 `pages.json`。
-- 真实后端 controller 与前端读取链路同时存在。
-- 统一资产总账与钱包 / 券 / 积分页的字段、跳转、恢复动作全部对齐。
-- capability ledger、contract、客服口径、发布 gate 同步回填真实 route。
-
-### 8.5 放量进入条件
-- 聚合成功、单项为空、总账为空、开关关闭、读取失败样本全部可回放。
+### 8.4 放量进入条件
+- 聚合成功、单项为空、总账为空、读取失败、真实降级样本全部可回放。
 - 分资产页与统一总账页不会互相覆盖、互相伪成功。
+- 灰度、回滚、门禁材料完成工程/文档双闭环。
 - A 窗口重新签发 allowlist 前，`/pages/profile/assets` 持续保持 `Cannot Release`。
 
-### 8.6 产品侧最终标签
+### 8.5 产品侧最终标签
 
 | 能力 | Doc Closed | Engineering Blocked | Can Develop | Cannot Release |
 |---|---|---|---|---|
@@ -398,4 +397,4 @@
 - [ ] 所有降级场景不出现成功态文案、成功 icon、成功彩带或完成动效。
 - [ ] 客服 SOP、运营执行口径、页面文案与本 PRD 保持单一真值。
 - [ ] 会员域联调至少覆盖：1 条 happy path + 1 条业务错误 path + 1 条降级 path。
-- [ ] `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 在真实页面落地前，一律只写 `Can Develop / Cannot Release`，不得写成已上线页面。
+- [ ] `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已形成真实页面，但在 release evidence 闭环前，一律只写 `Can Develop / Cannot Release`，不得写成已放量页面。

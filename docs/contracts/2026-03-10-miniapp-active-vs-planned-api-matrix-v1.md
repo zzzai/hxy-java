@@ -52,19 +52,25 @@
 | 默认地址 | `GET` | `/member/address/get-default` | `member/profile` | `ACTIVE` | `-` | `Member Profile Domain Owner` | `ruoyi-vue-pro-master/yudao-module-member/src/main/java/cn/iocoder/yudao/module/member/controller/app/address/AppAddressController.java#getDefaultUserAddress` |
 | 地址列表 | `GET` | `/member/address/list` | `member/profile` | `ACTIVE` | `-` | `Member Profile Domain Owner` | `ruoyi-vue-pro-master/yudao-module-member/src/main/java/cn/iocoder/yudao/module/member/controller/app/address/AppAddressController.java#getAddressList` |
 
-## 4. PLANNED_RESERVED API Matrix
+### 3.4 标签与统一资产总账
 
 | 能力 | method | path | domain | status | switchKey | owner | controllerPath |
 |---|---|---|---|---|---|---|---|
-| 会员资产账本分页 | `GET` | `/member/asset-ledger/page` | `member/asset-ledger` | `PLANNED_RESERVED` | `miniapp.asset.ledger` | `Member + Promotion Domain Owner` | `TARGET: ruoyi-vue-pro-master/yudao-module-member/src/main/java/cn/iocoder/yudao/module/member/controller/app/asset/AppMemberAssetLedgerController.java#page`（当前分支缺失 controller，固定阻断） |
+| 当前会员标签 | `GET` | `/member/tag/my` | `member/tag` | `ACTIVE` | `-` | `Member Domain Owner` | `ruoyi-vue-pro-master/yudao-module-member/src/main/java/cn/iocoder/yudao/module/member/controller/app/tag/AppMemberTagController.java#getMyTags` |
+| 会员资产账本分页 | `GET` | `/member/asset-ledger/page` | `member/asset-ledger` | `ACTIVE` | `-` | `Member + Promotion Domain Owner` | `ruoyi-vue-pro-master/yudao-server/src/main/java/cn/iocoder/yudao/server/controller/app/member/AppMemberAssetLedgerController.java#getAssetLedgerPage` |
+
+## 4. PLANNED_RESERVED API Matrix
+
+- 当前 member 域已无新增 `PLANNED_RESERVED` app API。
+- 历史 `GET /member/asset-ledger/page` 自 2026-03-24 起已升为 `ACTIVE API/controller truth`；但对应页面 capability 仍不是 release-ready。
 
 ## 5. 03-14 Runtime Blocker Closure Ledger
 
 | 阻断对象 | API / gate 真值 | 当前缺失的 runtime 证据 | 明确禁止误写为 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
 |---|---|---|---|---|---|---|---|
-| `member.level-progress page capability` | `GET /member/level/list`、`GET /member/experience-record/page` 已有真实 controller | 当前无 `/pages/user/level` 页面文件，`pages.json` 也无入口 | “等级页已上线”“等级 capability 已闭环” | `Yes` | `Yes` | `Yes` | `Yes` |
-| `member.asset-hub page capability` | `GET /member/asset-ledger/page` 仍是 `PLANNED_RESERVED`；`switchKey=miniapp.asset.ledger`；错误码锚点仅限 `1004009901` 治理 | 当前无 controller、无 `/pages/profile/assets` 页面、无前端绑定 | “资产总账已上线”“`degraded/degradeReason` 已成稳定 runtime page 字段” | `Yes` | `Yes` | `Yes` | `Yes` |
-| `member.user-tag page capability` | 当前无 app 端读取接口，标签读取 contract 仍是 `N/A` | 当前无 `/pages/user/tag` 页面、无 controller、无前端绑定 | “标签页已上线”“标签 app API 已可发布” | `Yes` | `Yes` | `Yes` | `Yes` |
+| `member.level-progress page capability` | `GET /member/level/list`、`GET /member/experience-record/page` 已有真实 controller，且 `/pages/user/level` 已落地 | 当前缺发布级样本、field dictionary、release 签发 | “等级页已上线可放量”“等级 capability 已进入 ACTIVE 发布分母” | `Yes` | `Yes` | `No` | `Yes` |
+| `member.asset-hub page capability` | `GET /member/asset-ledger/page` 已有真实 controller，`/pages/profile/assets` 已有页面与前端绑定 | 当前缺灰度 / 回滚 / 样本证据；`degraded/degradeReason` 只有默认字段输出，未形成真实降级证据 | “资产总账已上线可放量”“灰度 / 降级 / 回滚已工程闭环” | `Yes` | `Yes` | `No` | `Yes` |
+| `member.user-tag page capability` | `GET /member/tag/my` 已有真实 controller，`/pages/user/tag` 已落地 | 当前缺 release 样本与客服 / 运营演练证据 | “标签页已上线可放量”“标签 app API 已完成 release 审核” | `Yes` | `Yes` | `No` | `Yes` |
 | `reserved.gift-card` | 治理文档、domain contract、gate spec、`miniapp.gift-card`、`1011009901/1011009902` 已落盘 | 当前无真实 `/pages/gift-card/*` 页面、无真实 app controller、无前端绑定 | “礼品卡 runtime capability 已上线/可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
 | `reserved.referral` | 治理文档、domain contract、gate spec、`miniapp.referral`、`1013009901/1013009902` 已落盘 | 当前无真实 `/pages/referral/*` 页面、无真实 app controller、无前端绑定 | “邀请有礼 runtime capability 已上线/可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
 | `reserved.technician-feed` | 治理文档、domain contract、gate spec、`miniapp.technician-feed.audit`、`1030009901` 已落盘 | 当前无真实 `/pages/technician/feed` 页面、无真实 app controller、无前端绑定、无运行样本 | “技师动态 runtime capability 已上线/可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
@@ -74,24 +80,17 @@
 - 第 3 节的 `ACTIVE` 行如果命中第 5 节阻断项，只表示 `ACTIVE API`，不表示 `ACTIVE page capability`。
 
 ## 6. 发布阻断规则
-1. `ACTIVE` 发布口径只允许消费第 3 节接口；第 4 节 `PLANNED_RESERVED` 接口不得进入发布清单、smoke allowlist、页面验收清单、OpenAPI 对外基线。
-2. 第 3 节的 `ACTIVE` 只表示 API/controller truth；若同一能力在第 5 节仍是 runtime blocker，则不得把它外推成页面 capability、联调完成或放量通过。
-3. `switchKey`、灰度规则、`RESERVED_DISABLED` 注册表进入绿色，只能证明治理层准备完成；不能替代真实页面、真实 controller、真实前端绑定或运行样本。
-4. `PLANNED_RESERVED` 接口转 `ACTIVE` 前，必须同时满足：
-   - 精确 controller 文件已存在，且 `method + path` 与本矩阵逐字匹配。
-   - `switchKey` 已配置，默认 `off`，并完成灰度记录。
-   - 对应错误码已进入 canonical register，且 `RESERVED_DISABLED` 门禁为绿色。
-   - 真实页面/入口、真实前端绑定、A/B/D 三窗口字段/错误码/降级行为联调证据同时存在。
-5. 任一 `PLANNED_RESERVED` 接口在 `switchKey=off` 或 controller 缺失条件下出现在发布产物中，发布固定阻断。
-6. 对本批次固定阻断项：
-   - `GET /member/asset-ledger/page`
+1. `ACTIVE` 发布口径只允许消费第 3 节接口；若同一能力在第 5 节仍是 runtime blocker，则不得把它外推成可放量页面 capability。
+2. 第 3 节的 `ACTIVE` 只表示 API/controller truth；不等于 release-ready。
+3. 历史 `switchKey`、灰度规则、`RESERVED_DISABLED` 注册表如果仍停留在文档层，只能证明治理层曾定义过目标，不代表当前代码已经接通真实门禁。
+4. 本批次固定阻断项：
    - `/pages/user/level` 对应的等级 page capability
    - `/pages/profile/assets` 对应的资产总账 page capability
    - `/pages/user/tag` 对应的标签 page capability
    - `gift-card / referral / technician-feed` 的 reserved runtime capability
-7. 上述阻断项的共同原因：
+5. 上述阻断项的共同原因：
    - 治理与契约文档可以 `Doc Closed / Contract Closed`；
-   - 但只要真实页面、真实 controller、真实前端绑定或运行样本任一缺失，就继续 `Runtime Not Proven / Release Blocked`。
+   - 但只要 release 样本、灰度 / 回滚材料、客服演练或 A 窗口签发任一缺失，就继续 `Release Blocked`。
 
 ## 7. 自动门禁判定口径
 - `ACTIVE_SET`：本文件第 3 节全部 `method + path`。
@@ -100,5 +99,5 @@
 - 自动门禁应满足：
   - `ACTIVE_SET` 中每条接口都能扫描到对应 `controllerPath`。
   - `RESERVED_SET` 中任一接口都不得被自动归入 `ACTIVE_SET`。
-  - `BLOCKER_SET` 中任一对象都不得因为“命中了 `switchKey`”或“文档齐套”而被自动归入上线能力。
+  - `BLOCKER_SET` 中任一对象都不得因为“命中了 controllerPath”或“文档齐套”而被自动归入可放量能力。
   - 扫描结果出现通配根路由但无法还原到精确子路径时，视为阻断而不是放行。

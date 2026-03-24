@@ -136,11 +136,11 @@
 
 ### 4.2 member 缺页能力与 route truth
 1. 当前真实用户页存在：`/pages/index/login`、`/pages/index/user`、`/pages/app/sign`、`/pages/user/address/list`、`/pages/user/wallet/money`、`/pages/user/wallet/score`。
-2. 当前缺页能力仍包括：
+2. 当前 member 历史缺页能力已完成工程闭环：
    - `/pages/user/level`
    - `/pages/profile/assets`
    - `/pages/user/tag`
-3. `/member/asset-ledger/page` 继续受 `miniapp.asset.ledger` 保护，未落 controller + FE 承接前不得计入 `ACTIVE`。
+3. `/member/asset-ledger/page` 已有真实 controller + FE 承接，但 `level / assets / tag` 当前统一只允许按 `Can Develop / Cannot Release` 管理，不得计入可放量 `ACTIVE` 分母。
 
 ### 4.3 03-10 新增域真值补充
 1. FAQ 只允许按“壳页”理解：`/pages/public/faq` 真实承接是跳转 `/pages/public/richtext?title=常见问题`。
@@ -214,9 +214,9 @@
 | CAP-MEMBER-003 | member.address | `/pages/user/address/list`; `/pages/user/address/edit` | `GET /member/address/list`; `GET /member/address/get`; `GET /member/address/get-default`; `POST /member/address/create`; `PUT /member/address/update`; `DELETE /member/address/delete` | ACTIVE | P0 | RB1-P0 | Member Domain Owner | `ED-01/ED-02/ED-04/ED-10/ED-21/ED-24` | 地址 CRUD 与默认地址规则已冻结；空地址返回 `[]/null` 有明确语义 |
 | CAP-MEMBER-004 | member.wallet-point | `/pages/user/wallet/money`; `/pages/user/wallet/score`; `/pages/coupon/list`; `/pages/activity/point/list` | `GET /pay/wallet/get`; `GET /pay/wallet-transaction/page`; `GET /member/point/record/page`; `GET /promotion/coupon/page`; `GET /promotion/point-activity/page` | ACTIVE | P0 | RB1-P0 | Member + Promotion Domain Owner | `ED-03/ED-06/ED-10/ED-11/ED-21/ED-24` | 钱包、积分、券、积分商城已属于真实用户能力 |
 | CAP-MEMBER-005 | member.sign-in | `/pages/app/sign` | `GET /member/sign-in/config/list`; `GET /member/sign-in/record/get-summary`; `POST /member/sign-in/record/create`; `GET /member/sign-in/record/page` | ACTIVE | P1 | RB2-P1 | Member Growth Domain Owner | `ED-21/ED-22/ED-23/ED-24/ED-26/ED-27/ED-28/ED-30` | 签到 route 与 contract 已校正；重复签到、积分上限等错误码已落盘 |
-| CAP-MEMBER-006 | member.level-progress | `N/A（当前无真实 pageRoute）` | `GET /member/level/list`; `GET /member/experience-record/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-24/ED-30/ED-38/ED-53` | `/pages/user/level` 缺页；03-11 已补激活前置清单，等级链路不得按已上线页面表述 |
-| CAP-MEMBER-007 | member.asset-hub | `N/A（当前无真实 pageRoute）` | `GET /member/asset-ledger/page` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27/ED-30/ED-38/ED-53` | `/pages/profile/assets` 缺页，且 `miniapp.asset.ledger` 仍受保护；03-11 checklist 已固定退出条件 |
-| CAP-MEMBER-008 | member.user-tag | `N/A（当前无真实 pageRoute）` | `N/A（当前无 app 端读取接口）` | PLANNED_RESERVED | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-25/ED-30/ED-38/ED-53` | `/pages/user/tag` 缺页，标签模块默认隐藏，不发未知 app API；03-11 checklist 已固定激活门槛 |
+| CAP-MEMBER-006 | member.level-progress | `/pages/user/level` | `GET /member/level/list`; `GET /member/experience-record/page` | `Can Develop / Cannot Release` | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-22/ED-24/ED-30/ED-38/ED-53` | 真实页面、入口、API 已闭环；当前缺发布样本与 release sign-off，不得写成可放量 |
+| CAP-MEMBER-007 | member.asset-hub | `/pages/profile/assets` | `GET /member/asset-ledger/page`; `AppMemberAssetLedgerController` | `Can Develop / Cannot Release` | P1 | RB2-P1 | Member Domain Owner | `ED-06/ED-21/ED-24/ED-25/ED-27/ED-30/ED-38/ED-53` | 真实页面、入口、controller 已闭环；灰度 / 回滚 / 降级样本未闭环，`degraded=false` 仅为默认输出 |
+| CAP-MEMBER-008 | member.user-tag | `/pages/user/tag` | `GET /member/tag/my`; `AppMemberTagController` | `Can Develop / Cannot Release` | P1 | RB2-P1 | Member Domain Owner | `ED-21/ED-25/ED-30/ED-38/ED-53` | 真实页面、入口、app 读取接口已闭环；当前缺 release 样本与客服演练证据 |
 
 ### 5.3 Product / Search / Catalog
 

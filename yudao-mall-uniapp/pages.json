@@ -353,8 +353,47 @@
 						"title": "用户积分",
 						"group": "用户中心"
 					}
+				},
+				{
+					"path": "level",
+					"style": {
+						"navigationBarTitleText": "会员等级"
+					},
+					"meta": {
+						"auth": true,
+						"sync": true,
+						"title": "会员等级",
+						"group": "用户中心"
+					}
+				},
+				{
+					"path": "tag",
+					"style": {
+						"navigationBarTitleText": "我的标签"
+					},
+					"meta": {
+						"auth": true,
+						"sync": true,
+						"title": "我的标签",
+						"group": "用户中心"
+					}
 				}
 			]
+		},
+		{
+			"root": "pages/profile",
+			"pages": [{
+				"path": "assets",
+				"style": {
+					"navigationBarTitleText": "资产总览"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "资产总览",
+					"group": "用户中心"
+				}
+			}]
 		},
 		{
 			"root": "pages/commission",

@@ -124,6 +124,29 @@
             :border="false"
             class="list-border"
           />
+          <uni-list-item
+            clickable
+            @tap="sheep.$router.go('/pages/user/level')"
+            title="会员等级"
+            showArrow
+            :border="false"
+            class="list-border"
+          />
+          <uni-list-item
+            clickable
+            @tap="sheep.$router.go('/pages/profile/assets')"
+            title="资产总览"
+            showArrow
+            :border="false"
+            class="list-border"
+          />
+          <uni-list-item
+            clickable
+            @tap="sheep.$router.go('/pages/user/tag')"
+            title="我的标签"
+            showArrow
+            :border="false"
+          />
         </uni-list>
       </view>
     </uni-forms>
