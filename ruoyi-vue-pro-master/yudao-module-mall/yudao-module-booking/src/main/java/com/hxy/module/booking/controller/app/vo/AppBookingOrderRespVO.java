@@ -32,6 +32,15 @@ public class AppBookingOrderRespVO {
     @Schema(description = "技师头像", example = "https://xxx.com/avatar.jpg")
     private String technicianAvatar;
 
+    @Schema(description = "时间槽编号", example = "1")
+    private Long timeSlotId;
+
+    @Schema(description = "服务商品SPU编号", example = "1")
+    private Long spuId;
+
+    @Schema(description = "服务商品SKU编号", example = "1")
+    private Long skuId;
+
     @Schema(description = "服务名称", example = "全身按摩")
     private String serviceName;
 
@@ -58,6 +67,9 @@ public class AppBookingOrderRespVO {
 
     @Schema(description = "实付金额（分）", example = "8000")
     private Integer payPrice;
+
+    @Schema(description = "支付订单编号", example = "90001")
+    private Long payOrderId;
 
     @Schema(description = "是否闲时优惠", example = "true")
     private Boolean isOffpeak;

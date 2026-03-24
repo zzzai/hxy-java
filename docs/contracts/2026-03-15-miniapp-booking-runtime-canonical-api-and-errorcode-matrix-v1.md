@@ -28,7 +28,8 @@
 | `/pages/booking/technician-list` 技师列表查询 | `BookingApi.getTechnicianList(storeId)` | `loadTechnicianList` | `AppTechnicianController#getTechnicianList` | `GET /booking/technician/list` | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | Yes | Yes | 空列表 `[]` 合法；当前只按 query-only `ACTIVE` 管理 |
 | `/pages/booking/technician-detail` 技师详情查询 | `BookingApi.getTechnician(id)` | `loadTechnicianDetail` | `AppTechnicianController#getTechnician` | `GET /booking/technician/get` | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | Yes | Yes | 当前 miss 返回 `success(null)`；不得按 `1030001000/1030001001` 写当前 runtime 分支 |
 | `/pages/booking/technician-detail` 技师时段查询 | `BookingApi.getTimeSlots(technicianId, date)` | `loadTimeSlots` | `AppTimeSlotController#getTimeSlotsByTechnician` | `GET /booking/slot/list-by-technician` | `-` | `FAIL_OPEN` | `NO_AUTO_RETRY` | Yes | Yes | 空列表 `[]` 合法；当前 query path 无稳定 `1030003001/1030003002` 抛出证据 |
-| `/pages/booking/order-list` 预约列表查询 | `BookingApi.getOrderList(params)` | 页面内直接调用 | `AppBookingOrderController#getOrderList` | `GET /booking/order/list` | `-` | `FAIL_OPEN` | `REFRESH_ONCE` | Yes | Yes | FE 透传 `pageNo/pageSize/status`，controller 当前不消费；页面支持手动刷新一次 |
+| `/pages/booking/order-confirm` 已选时段详情查询 | `BookingApi.getTimeSlot(id)` | `loadTimeSlotDetail` | `AppTimeSlotController#getTimeSlot` | `GET /booking/slot/get` | `-` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | Yes | No | 当前页面用单点时段详情取代 `loadTimeSlots(technicianId, null)` 回捞，`duration` 已形成真实读取闭环 |
+| `/pages/booking/order-list` 预约列表查询 | `BookingApi.getOrderList(params)` | 页面内直接调用 | `AppBookingOrderController#getOrderList` | `GET /booking/order/list` | `-` | `FAIL_OPEN` | `REFRESH_ONCE` | Yes | Yes | FE 透传 `pageNo/pageSize/status`，controller 当前已真实消费并返回 `PageResult<{list,total}>` |
 | `/pages/booking/order-detail` 预约详情查询 | `BookingApi.getOrderDetail(id)` | 页面内直接调用 | `AppBookingOrderController#getOrder` | `GET /booking/order/get` | `BOOKING_ORDER_NOT_OWNER(1030004006)` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | Yes | Yes | 越权稳定抛 `1030004006`；订单不存在当前返回 `success(null)`，不是 `1030004000` |
 | `/pages/booking/order-confirm` 创建预约 | `BookingApi.createOrder(data)` | `submitBookingOrder` / `submitBookingOrderAndGo` | `AppBookingOrderController#createOrder` | `POST /booking/order/create` | `TIME_SLOT_NOT_AVAILABLE(1030003001)` | `FAIL_CLOSE` | `NO_AUTO_RETRY` | Yes | No | helper 只在 `code === 0` 时跳详情；当前不得按 `1030002001/1030003002` 写稳定 runtime 分支 |
 | `/pages/booking/order-list`、`/pages/booking/order-detail` 取消预约 | `BookingApi.cancelOrder(id, cancelReason)` | `cancelBookingOrder` / `cancelBookingOrderAndRefresh` | `AppBookingOrderController#cancelOrder` | `POST /booking/order/cancel` | `BOOKING_ORDER_NOT_EXISTS(1030004000)`、`BOOKING_ORDER_CANNOT_CANCEL(1030004005)`、`BOOKING_ORDER_NOT_OWNER(1030004006)` | `FAIL_CLOSE` | `REFRESH_ONCE` | Yes | No | 失败不刷新；成功后只执行一次 `onSuccess()` |
@@ -50,7 +51,7 @@
 | `GET /booking/time-slot/list` | 当前 `booking.js` 已不再发出 | 继续作为 legacy blocker 保留项，不能静默删除 |
 | `PUT /booking/order/cancel` | 当前 `booking.js` 已不再发出 | 继续作为 legacy blocker 保留项，不能静默删除 |
 | `POST /booking/addon/create` | 当前 `booking.js` 已不再发出 | 继续作为 legacy blocker 保留项，不能静默删除 |
-| `GET /booking/order/list` 的 query 参数 | FE 继续透传 `pageNo/pageSize/status` | 当前 controller 不消费这些参数；不能把它们写成稳定服务端筛选协议 |
+| `GET /booking/order/list` 的 query 参数 | FE 继续透传 `pageNo/pageSize/status` | 03-24 起 controller 已真实消费，可按当前页面稳定分页/筛选协议管理 |
 | `GET /booking/technician/get` miss | 当前返回 `success(null)` | 不能按 `TECHNICIAN_NOT_EXISTS(1030001000)` 或 `TECHNICIAN_DISABLED(1030001001)` 写稳定 runtime 分支 |
 | `GET /booking/order/get` miss | 当前返回 `success(null)` | 不能按 `BOOKING_ORDER_NOT_EXISTS(1030004000)` 写稳定 runtime 分支 |
 

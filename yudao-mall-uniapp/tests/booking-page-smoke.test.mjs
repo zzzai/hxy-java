@@ -19,6 +19,7 @@ module.exports = {
   loadTechnicianList,
   loadTechnicianDetail,
   loadTimeSlots,
+  loadTimeSlotDetail,
   loadReviewEligibility,
   submitBookingOrder,
   submitBookingOrderAndGo,
@@ -51,6 +52,7 @@ test('booking page smoke logic exports the expected helper surface', () => {
   assert.equal(typeof logic.loadTechnicianList, 'function');
   assert.equal(typeof logic.loadTechnicianDetail, 'function');
   assert.equal(typeof logic.loadTimeSlots, 'function');
+  assert.equal(typeof logic.loadTimeSlotDetail, 'function');
   assert.equal(typeof logic.loadReviewEligibility, 'function');
   assert.equal(typeof logic.submitBookingOrder, 'function');
   assert.equal(typeof logic.submitBookingOrderAndGo, 'function');
@@ -80,20 +82,27 @@ test('booking technician list and detail helpers call canonical apis', async () 
       calls.push(['getTimeSlots', technicianId, date]);
       return Promise.resolve({ code: 0, data: [{ id: 9, date }] });
     },
+    getTimeSlot(timeSlotId) {
+      calls.push(['getTimeSlot', timeSlotId]);
+      return Promise.resolve({ code: 0, data: { id: timeSlotId, duration: 60 } });
+    },
   };
 
   const listResult = await logic.loadTechnicianList(api, 12);
   const technicianResult = await logic.loadTechnicianDetail(api, 8);
   const slotResult = await logic.loadTimeSlots(api, 8, '2026-03-15');
+  const slotDetailResult = await logic.loadTimeSlotDetail(api, 9);
 
   assert.deepEqual(normalize(calls), [
     ['getTechnicianList', 12],
     ['getTechnician', 8],
     ['getTimeSlots', 8, '2026-03-15'],
+    ['getTimeSlot', 9],
   ]);
   assert.deepEqual(normalize(listResult), { code: 0, data: [{ id: 1 }] });
   assert.deepEqual(normalize(technicianResult), { code: 0, data: { id: 8 } });
   assert.deepEqual(normalize(slotResult), { code: 0, data: [{ id: 9, date: '2026-03-15' }] });
+  assert.deepEqual(normalize(slotDetailResult), { code: 0, data: { id: 9, duration: 60 } });
 });
 
 test('booking review eligibility helper calls review api and review navigation keeps canonical route', async () => {

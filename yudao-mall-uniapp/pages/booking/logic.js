@@ -10,6 +10,10 @@ export async function loadTimeSlots(api, technicianId, date) {
   return api.getTimeSlots(technicianId, date);
 }
 
+export async function loadTimeSlotDetail(api, timeSlotId) {
+  return api.getTimeSlot(timeSlotId);
+}
+
 export async function loadReviewEligibility(api, bookingOrderId) {
   return api.getEligibility(bookingOrderId);
 }

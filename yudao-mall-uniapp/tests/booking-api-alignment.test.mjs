@@ -45,6 +45,13 @@ test('booking api aligns technician list and slot list routes', () => {
     params: { technicianId: 8, date: '2026-03-15' },
     custom: { showLoading: false },
   });
+
+  assert.deepEqual(normalize(bookingApi.getTimeSlot(18)), {
+    url: '/booking/slot/get',
+    method: 'GET',
+    params: { id: 18 },
+    custom: { showLoading: false },
+  });
 });
 
 test('booking cancel uses POST params and addon uses app-api route', () => {

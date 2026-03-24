@@ -42,8 +42,8 @@
 | canonical method/path | `GET /booking/technician/list`、`GET /booking/technician/get`、`GET /booking/slot/list-by-technician`、`GET /booking/order/list`、`GET /booking/order/get`、`POST /booking/order/create`、`POST /booking/order/cancel`、`POST /app-api/booking/addon/create` | 不得再回退到 `list-by-store / time-slot/list / PUT cancel / POST /booking/addon/create` |
 | runtime page stable errorCode | create 只认 `1030003001`；cancel 只认 `1030004000/1030004005/1030004006`；addon 只认 `1030003001/1030004000/1030004001/1030004006` | `1030001000/1030001001/1030002001/1030003002` 当前不得写成 booking runtime page 稳定分支 |
 | technician 页面字段 | backend 稳定字段只到 `id,name,avatar,introduction,tags,rating,serviceCount` | `title/specialties/status` 仍是页面 fallback，无 backend 绑定 |
-| order-confirm 字段 | 页面稳定可见字段只到 `slotDate,startTime,endTime,isOffpeak,offpeakPrice,avatar,name`；create 提交只到 `timeSlotId,spuId?,skuId?,userRemark,dispatchMode=1` | `loadTimeSlots(technicianId, null)` 仍是 helper 回捞；`duration/spuId/skuId` 仍未形成 slot 读取闭环 |
-| order-list / order-detail 字段 | backend 稳定字段不含 `payOrderId`；`GET /booking/order/get` miss=`success(null)` | `order-list` 当前按 `data.list/data.total` 读取，但 controller 返回 `data[]`；支付 CTA 当前没有已提交字段绑定证据 |
+| order-confirm 字段 | 页面稳定可见字段已到 `slotDate,startTime,endTime,duration,isOffpeak,offpeakPrice,avatar,name`；时段读取已切到 `GET /booking/slot/get` | `spuId/skuId` 真实商品来源仍未闭环，create 仍不能改写成可放量 |
+| order-list / order-detail 字段 | backend 稳定字段已含 `payOrderId,timeSlotId,spuId,skuId`；`GET /booking/order/list` 已真实消费 `pageNo/pageSize/status` 并返回 `PageResult` | `GET /booking/order/get` miss 仍是 `success(null)`；写链发布证据仍缺 |
 | addon 提交边界 | 页面只提交 `parentOrderId,addonType`；`remark` 只在本地 | controller 虽支持 `spuId/skuId`，但当前页面不提交；`code=0` 但读后未变必须按 pseudo success / no-op risk 管理 |
 | degrade 语义 | 当前只有合法空态 `[] / null / 0` 与 runbook 人工动作 | 没有服务端 `degraded=true / degradeReason` 证据，不得补写成服务端降级返回 |
 
@@ -71,7 +71,7 @@
 ## 5. 为什么当前仍是 `No-Go`
 1. `check_booking_miniapp_runtime_gate.sh` 与 shared local CI 的 `booking_miniapp_runtime_gate_rc=0` 只证明边界被守住，日志仍固定 `can_release=NO`。
 2. 当前缺少 create / cancel / addon 的发布级 success + failure 样本包、allowlist 命中记录、巡检日志、回放证据，无法证明写链路已经具备 release proof。
-3. query-only 页面虽然已可维护，但 `title/specialties/status`、`data.list/data.total`、`payOrderId`、`duration/spuId/skuId` 等漂移项仍未闭环，不能把“页面可打开”写成“能力已放心开发并可直接放量”。
+3. query-only 页面虽然已可维护，但 `title/specialties/status` fallback、create 的 `spuId/skuId` 商品来源、addon 的 `upgrade / add-item` 提交来源仍未闭环，不能把“页面可打开”写成“能力已放心开发并可直接放量”。
 4. addon 当前只提交 `parentOrderId,addonType`，这使 `upgrade / add-item` 路径仍有 pseudo success / no-op risk；`code=0` 不能直接等于“业务写入已真实生效”。
 5. 当前没有已提交服务端 `degraded=true / degradeReason` 证据，因此任何“服务端降级成功兜底”的 release 叙述都不成立。
 
@@ -88,6 +88,7 @@
 
 ## 7. 03-16 起的单一真值引用
 - booking 最终集成：`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
+- booking 03-24 写链收口增量：`docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-closure-review-v1.md`
 - booking 页面字段：`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`
 - booking 用户结构态与恢复动作：`docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`
 - booking canonical method/path 与 errorCode：`docs/contracts/2026-03-15-miniapp-booking-runtime-canonical-api-and-errorcode-matrix-v1.md`

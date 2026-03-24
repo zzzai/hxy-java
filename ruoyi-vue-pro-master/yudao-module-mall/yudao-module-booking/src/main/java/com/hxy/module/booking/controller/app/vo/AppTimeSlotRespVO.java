@@ -31,6 +31,9 @@ public class AppTimeSlotRespVO {
     @Schema(description = "结束时间", requiredMode = Schema.RequiredMode.REQUIRED, example = "10:00")
     private LocalTime endTime;
 
+    @Schema(description = "时长（分钟）", example = "60")
+    private Integer duration;
+
     @Schema(description = "是否闲时", example = "true")
     private Boolean isOffpeak;
 

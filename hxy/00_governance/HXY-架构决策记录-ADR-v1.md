@@ -1128,3 +1128,17 @@
 - 备选方案：继续维持单通道 App 通知；或将 App/企微揉成一条总记录再挂子状态；或在差评提交后同步直发消息、不落 outbox。
 - 否决原因：单通道不能覆盖已冻结业务场景；总记录方案会削弱审计、重试与运维排障；同步直发会把消息失败污染评价主链路，并破坏当前 outbox 解耦模式。
 - 回滚条件：若企微 sender 或双通道路由需暂时停用，只允许关闭 `WECOM` 通道或回退 SQL 字段使用，保留“一通道一条 outbox”和“通知失败不阻断评价主链路”两条架构约束；在发布证据、灰度样本和 runtime gate 未补齐前，整体结论不得升级为 `Can Release=Yes`。
+
+## ADR-110：Booking Runtime 先收口真实协议，再单列剩余发布 blocker
+
+- 背景：booking 域此前把 query 漂移、VO 字段缺失、helper 回捞、发布级样本缺失混在一起，导致“页面可打开”“文档已闭环”“工程可放量”三者容易被误判成同一件事。
+- 决策：
+  1. 先以真实页面、真实 helper、真实 controller/VO 为准，收口当前能客观验证的协议真值；
+  2. 已修复的协议漂移必须从 blocker 列表移除，不能继续以旧漂移口径描述现状；
+  3. 剩余未闭环项单列为结构性 blocker，目前固定为“create / addon 的真实商品来源缺失 + release 级样本缺失”；
+  4. 在这些 blocker 解除前，booking 统一保持 `Can Develop / Cannot Release`。
+- 当前落地：`GET /booking/order/list` 已升级为真实分页协议；`AppBookingOrderRespVO` 已暴露 `payOrderId/timeSlotId/spuId/skuId`；`order-confirm` 已改用 `GET /booking/slot/get` 单点读取时段详情并闭环 `duration`。
+- 影响范围：booking 小程序 query/create 页面、app controller/VO、contract/runbook、release gate 判定。
+- 备选方案：继续让前端兼容旧结构，或把已修复项长期保留在 blocker 文档中不更新。
+- 否决原因：兼容层会继续制造“能跑但不可信”的假闭环；旧 blocker 不清理会直接误导后续开发、联调和老板汇报。
+- 回滚条件：若分页协议或 slot detail 读取引发兼容故障，可临时回退前端读取实现；但不得回退到“字段真值不清”的文档口径。

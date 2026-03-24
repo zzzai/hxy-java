@@ -27,6 +27,15 @@ const BookingApi = {
       custom: { showLoading: false },
     });
   },
+  // 获取时间槽详情
+  getTimeSlot: (id) => {
+    return request({
+      url: '/booking/slot/get',
+      method: 'GET',
+      params: { id },
+      custom: { showLoading: false },
+    });
+  },
   // 创建预约订单
   createOrder: (data) => {
     return request({

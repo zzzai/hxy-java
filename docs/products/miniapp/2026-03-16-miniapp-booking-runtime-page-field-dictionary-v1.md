@@ -30,9 +30,9 @@
 |---|---|---|---|---|---|---|
 | `/pages/booking/technician-list` | `loadTechnicianList` | `BookingApi.getTechnicianList` | query:`storeId` | `GET /booking/technician/list?storeId=` | backend 稳定字段：`id`,`avatar`,`name`,`introduction`,`tags`,`rating`,`serviceCount`；页面 fallback：`title`,`specialties`,`status` 当前无 backend 绑定 | `已与 03-15 canonical matrix 收口；字段仍未闭环` |
 | `/pages/booking/technician-detail` | `loadTechnicianDetail`、`loadTimeSlots` | `BookingApi.getTechnician`、`BookingApi.getTimeSlots` | route:`id`,`storeId`；本地日期:`date`,`label`,`weekDay` | `GET /booking/technician/get?id=`；`GET /booking/slot/list-by-technician?technicianId=&date=` | 技师 backend 稳定字段：`avatar`,`name`,`introduction`,`tags`,`rating`,`serviceCount`；页面 fallback：`title`；时段 backend 稳定字段：`id`,`technicianId`,`technicianName`,`technicianAvatar`,`slotDate`,`startTime`,`endTime`,`isOffpeak`,`offpeakPrice`,`status` | `已与 03-15 canonical matrix 收口；title/duration 等仍未闭环` |
-| `/pages/booking/order-confirm` | `loadTechnicianDetail`、`loadTimeSlots`、`submitBookingOrderAndGo` | `BookingApi.getTechnician`、`BookingApi.getTimeSlots`、`BookingApi.createOrder` | route:`timeSlotId`,`technicianId`,`storeId` | 查询：`loadTimeSlots(technicianId, null)`；提交：`timeSlotId`,`spuId?`,`skuId?`,`userRemark`,`dispatchMode=1(helper追加)` | 页面稳定可见：`slotDate`,`startTime`,`endTime`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`；页面尝试读取但未闭环：`duration`,`title`,`spuId`,`skuId` | `已与 03-15 canonical matrix 收口；slot 回捞/sku 绑定仍未闭环` |
-| `/pages/booking/order-list` | `cancelBookingOrderAndRefresh`、`goToOrderDetail` | `BookingApi.getOrderList`、`BookingApi.cancelOrder` | query:`type?` 只驱动本地 tab；请求透传：`pageNo`,`pageSize`,`status` | 列表请求：`GET /booking/order/list`；取消请求：`POST /booking/order/cancel?id=&reason=` | backend 稳定字段：`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`；页面当前还读取 `data.list`,`data.total`,`payOrderId` | `已与 03-15 canonical matrix 收口；返回结构/支付字段仍漂移` |
-| `/pages/booking/order-detail` | `cancelBookingOrderAndRefresh` | `BookingApi.getOrderDetail`、`BookingApi.cancelOrder` | query:`id` | 详情：`GET /booking/order/get?id=`；取消：`POST /booking/order/cancel?id=&reason=`；跳转 add-on：`parentOrderId` | backend 稳定字段：`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`userRemark`；页面当前还读取 `payOrderId` | `已与 03-15 canonical matrix 收口；payOrderId 未闭环` |
+| `/pages/booking/order-confirm` | `loadTechnicianDetail`、`loadTimeSlotDetail`、`submitBookingOrderAndGo` | `BookingApi.getTechnician`、`BookingApi.getTimeSlot`、`BookingApi.createOrder` | route:`timeSlotId`,`technicianId`,`storeId` | 查询：`GET /booking/slot/get?id=`；提交：`timeSlotId`,`spuId?`,`skuId?`,`userRemark`,`dispatchMode=1(helper追加)` | 页面稳定可见：`slotDate`,`startTime`,`endTime`,`duration`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`；页面 fallback：`title`；页面仍缺真实商品来源：`spuId`,`skuId` | `03-24 已把 slot 回捞替换为 slot 详情读取；商品来源仍未闭环` |
+| `/pages/booking/order-list` | `cancelBookingOrderAndRefresh`、`goToOrderDetail` | `BookingApi.getOrderList`、`BookingApi.cancelOrder` | query:`type?` 只驱动本地 tab；请求透传：`pageNo`,`pageSize`,`status` | 列表请求：`GET /booking/order/list`；取消请求：`POST /booking/order/cancel?id=&reason=` | backend 稳定字段：`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`,`payOrderId`,`timeSlotId`,`spuId`,`skuId` | `03-24 已完成分页结构与支付字段闭环` |
+| `/pages/booking/order-detail` | `cancelBookingOrderAndRefresh` | `BookingApi.getOrderDetail`、`BookingApi.cancelOrder` | query:`id` | 详情：`GET /booking/order/get?id=`；取消：`POST /booking/order/cancel?id=&reason=`；跳转 add-on：`parentOrderId` | backend 稳定字段：`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`payOrderId`,`timeSlotId`,`spuId`,`skuId`,`userRemark` | `03-24 已完成 payOrderId/订单绑定字段闭环；addon 提交仍阻断` |
 | `/pages/booking/addon` | `submitAddonOrderAndGo` | `BookingApi.getOrderDetail`、`BookingApi.createAddonOrder` | route:`parentOrderId` | 读取母单：`GET /booking/order/get?id=`；提交：`parentOrderId`,`addonType` | `serviceName`,`bookingStartTime`,`bookingEndTime`,`technicianName`；本地字段：`remark` | `已与 03-15 canonical matrix 收口；submit 字段仍未闭环` |
 
 ## 3. 页面级字段字典
@@ -75,13 +75,14 @@
   - 当前没有独立失败文案池。
 - 关键字段：
   - route：`timeSlotId`,`technicianId`,`storeId`
-  - 页面稳定可见：`slotDate`,`startTime`,`endTime`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`
-  - 页面尝试读取但当前未闭环：`duration`,`title`,`spuId`,`skuId`
+  - 页面稳定可见：`slotDate`,`startTime`,`endTime`,`duration`,`isOffpeak`,`offpeakPrice`,`avatar`,`name`
+  - 页面 fallback / 未闭环：`title`,`spuId`,`skuId`
   - 提交：`timeSlotId`,`spuId?`,`skuId?`,`userRemark`
   - helper 自动补：`dispatchMode=1`
 - 特别说明：
-  - 页面当前用 `loadTimeSlots(technicianId, null)` 回捞时段并按 `timeSlotId` 匹配选中项。
-  - slot VO 当前不稳定提供 `duration`,`spuId`,`skuId`；这部分只能记为页面读取尝试，不得写成字段闭环。
+  - 页面当前通过 `GET /booking/slot/get?id=` 单点读取已选时段。
+  - `duration` 已由 slot detail 真实返回并进入页面闭环。
+  - 当前仍没有真实商品选择入口为 create 提供稳定 `spuId/skuId` 来源。
 - 当前状态：
   - 页面文档：`Ready`
   - 能力状态：`Still Blocked`
@@ -93,12 +94,11 @@
 - 关键字段：
   - 本地分页：`pageNo`,`pageSize`
   - 本地 tab 映射：`status`
-  - backend 稳定字段：`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`
-  - 页面当前额外读取：`data.list`,`data.total`,`payOrderId`
+  - backend 稳定字段：`id`,`orderNo`,`status`,`servicePic`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`payPrice`,`payOrderId`,`timeSlotId`,`spuId`,`skuId`
   - 取消请求键：`id`,`reason`
 - 特别说明：
-  - 当前页面透传 `pageNo/pageSize/status`，但 controller 实际返回 `data[]`，不是分页对象。
-  - `payOrderId` 当前没有已提交响应绑定证据；“去支付”按钮只能算页面分支，不得当成字段已闭环。
+  - 当前页面透传 `pageNo/pageSize/status`，controller 已真实消费并返回 `PageResult<{list,total}>`。
+  - `payOrderId` 已有真实响应绑定，“去支付”分支不再是前端假设字段。
 - 当前状态：
   - 列表查询：`Ready`
   - 取消动作：`Still Blocked`
@@ -109,8 +109,7 @@
   - 当前没有读后校验页内提示，失败恢复动作只按 helper 行为定义。
 - 关键字段：
   - query：`id`
-  - backend 稳定字段：`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`userRemark`
-  - 页面当前额外读取：`payOrderId`
+  - backend 稳定字段：`id`,`status`,`technicianAvatar`,`technicianName`,`orderNo`,`serviceName`,`bookingDate`,`bookingStartTime`,`bookingEndTime`,`duration`,`originalPrice`,`discountPrice`,`payPrice`,`payOrderId`,`timeSlotId`,`spuId`,`skuId`,`userRemark`
   - add-on 跳转键：`parentOrderId`
 - 用户可见结构态：
   - 空态：`订单不存在`
@@ -139,7 +138,7 @@
 3. 不得把 `query-only active` 写成 `Release Ready`。
 4. 不得把 `/pages/booking/addon` 的 `remark` 写成当前真实请求字段。
 5. 不得把 `[] / null / 0` 写成成功样本。
-6. 不得把 `title/specialties/status`、`data.list/data.total`、`payOrderId`、`duration/spuId/skuId` 这些漂移项写成“字段已闭环”或 “Release Ready”。
+6. 不得把 `title/specialties/status`、`spuId/skuId` 商品来源缺失、或 addon pseudo success 风险写成“字段已闭环”或 “Release Ready”。
 
 ## 5. 本批验收清单
 - [ ] 六个真实页面的 route、helper、前端 API、展示字段、提交字段均已冻结。

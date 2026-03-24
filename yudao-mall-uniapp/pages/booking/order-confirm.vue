@@ -68,7 +68,7 @@
   import BookingApi from '@/sheep/api/trade/booking';
   import {
     loadTechnicianDetail,
-    loadTimeSlots,
+    loadTimeSlotDetail,
     submitBookingOrderAndGo,
   } from './logic';
 
@@ -89,17 +89,13 @@
   async function loadData() {
     const [techRes, slotRes] = await Promise.all([
       loadTechnicianDetail(BookingApi, state.technicianId),
-      loadTimeSlots(BookingApi, state.technicianId, null),
+      loadTimeSlotDetail(BookingApi, state.timeSlotId),
     ]);
     if (techRes.code === 0) {
       state.technician = techRes.data || {};
     }
-    // 从时段列表中找到选中的时段
-    if (slotRes.code === 0 && slotRes.data) {
-      const matched = slotRes.data.find((s) => s.id == state.timeSlotId);
-      if (matched) {
-        state.slot = matched;
-      }
+    if (slotRes.code === 0) {
+      state.slot = slotRes.data || {};
     }
   }
 

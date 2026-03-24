@@ -1,6 +1,7 @@
 package com.hxy.module.booking.controller.app;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.pay.api.notify.dto.PayRefundNotifyReqDTO;
 import com.hxy.module.booking.controller.app.vo.*;
 import com.hxy.module.booking.service.support.FinanceLogFieldValidator;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.security.PermitAll;
 import javax.validation.Valid;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -75,9 +77,19 @@ public class AppBookingOrderController {
 
     @GetMapping("/list")
     @Operation(summary = "获取我的预约订单列表")
-    public CommonResult<List<AppBookingOrderRespVO>> getOrderList() {
-        List<BookingOrderDO> list = bookingOrderService.getOrderListByUserId(getLoginUserId());
-        return success(BookingOrderConvert.INSTANCE.convertList(list));
+    public CommonResult<PageResult<AppBookingOrderRespVO>> getOrderList(@Valid AppBookingOrderPageReqVO reqVO) {
+        Long userId = getLoginUserId();
+        List<BookingOrderDO> list = reqVO.getStatus() == null
+                ? bookingOrderService.getOrderListByUserId(userId)
+                : bookingOrderService.getOrderListByUserIdAndStatus(userId, reqVO.getStatus());
+        int total = list == null ? 0 : list.size();
+        if (total == 0) {
+            return success(PageResult.empty());
+        }
+        int fromIndex = Math.min((reqVO.getPageNo() - 1) * reqVO.getPageSize(), total);
+        int toIndex = Math.min(fromIndex + reqVO.getPageSize(), total);
+        List<BookingOrderDO> pageList = fromIndex >= toIndex ? Collections.emptyList() : list.subList(fromIndex, toIndex);
+        return success(new PageResult<>(BookingOrderConvert.INSTANCE.convertList(pageList), (long) total));
     }
 
     @GetMapping("/list-by-status")
