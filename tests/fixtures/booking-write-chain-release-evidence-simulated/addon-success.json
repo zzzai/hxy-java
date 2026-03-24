@@ -1,0 +1,31 @@
+{
+  "capabilityId": "BF-024",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/app-api/booking/addon/create",
+    "body": {
+      "parentOrderId": 66001,
+      "addonType": 2
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": 66002
+    }
+  },
+  "helperOutcome": {
+    "route": "/pages/booking/order-detail",
+    "routeQuery": {
+      "id": 66002
+    },
+    "routerStayedOnPage": false
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-006",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}

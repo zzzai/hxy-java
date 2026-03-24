@@ -31,7 +31,7 @@
 |---|---|---|
 | create 商品来源 | 仍阻断 | 当前真实 route 链仍是 `technician-list -> technician-detail -> order-confirm`，但没有真实商品选择入口给出稳定 `spuId/skuId` 来源 |
 | addon 升级 / 加项目 商品来源 | 仍阻断 | `/pages/booking/addon` 仍只提交 `parentOrderId,addonType`；`UPGRADE / ADD_ITEM` 没有真实商品选择器或可审计来源 |
-| release 级样本 | 仍阻断 | 仍缺 create / cancel / addon 的发布级 success/failure 样本、回放与巡检证据 |
+| release 级样本 | 仍阻断 | 03-24 已补 simulated selftest pack + evidence gate，但仍缺 create / cancel / addon 的真实发布级 success/failure 样本、回放与巡检证据 |
 | 技师 fallback 字段 | 仍阻断 | `title/specialties/status` 仍是页面 fallback，没有 backend 绑定 |
 
 ## 4. 当前阶段结论
@@ -47,4 +47,5 @@
 ## 5. 单一真值结论
 1. 本轮已把 `data.list/data.total`、`payOrderId`、`order-confirm -> slot detail`、`duration` 这四类明确漂移从 blocker 列表中移除。
 2. 本轮没有把 `create / cancel / addon` 改写成 release-ready。
-3. 当前 booking 真正剩余的核心问题，已经收敛到“商品来源缺失 + 发布证据缺失”，而不是继续混在 query 漂移里。
+3. 03-24 新增的 simulated selftest pack 只把“发布证据结构门禁”固定下来，没有替代真实发布样本。
+4. 当前 booking 真正剩余的核心问题，已经收敛到“商品来源缺失 + 真实发布证据缺失”，而不是继续混在 query 漂移里。

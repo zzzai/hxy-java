@@ -1,0 +1,26 @@
+{
+  "capabilityId": "BF-022",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/booking/technician/list",
+    "query": {
+      "storeId": 1001
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": [
+        {
+          "id": 9001,
+          "name": "模拟店长技师A"
+        }
+      ]
+    }
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-001",
+    "sampleMeaning": "create chain upstream technician query sample"
+  }
+}

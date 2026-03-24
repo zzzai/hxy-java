@@ -1,0 +1,32 @@
+{
+  "capabilityId": "BF-022",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/order/create",
+    "body": {
+      "timeSlotId": 8801,
+      "spuId": 7001,
+      "skuId": 700101,
+      "userRemark": "selftest-create-conflict",
+      "dispatchMode": 1
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 1030003001,
+      "errorCode": "TIME_SLOT_NOT_AVAILABLE"
+    }
+  },
+  "helperOutcome": {
+    "routerStayedOnPage": true,
+    "didNavigate": false
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-004",
+    "judgement": {
+      "primary": "ERROR_CODE_ONLY",
+      "messageIgnored": true
+    }
+  }
+}

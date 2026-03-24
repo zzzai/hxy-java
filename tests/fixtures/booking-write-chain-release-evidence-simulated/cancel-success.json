@@ -1,0 +1,28 @@
+{
+  "capabilityId": "BF-023",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/order/cancel",
+    "query": {
+      "id": 66001,
+      "reason": "用户主动取消"
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": true
+    }
+  },
+  "readback": {
+    "postStatus": "CANCELLED",
+    "refreshed": true
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-005",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}

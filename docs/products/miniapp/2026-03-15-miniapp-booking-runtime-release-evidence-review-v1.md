@@ -84,6 +84,7 @@
 2. 缺少 allowlist / 巡检日志 / 运行回放证据，无法把 static PASS 外推为放量结论。
 3. booking runtime gate 的设计目标就是固定 `Doc Closed + Can Develop + Cannot Release`，当前没有任何已提交证据把该结论改成 `can_release=YES`。
 4. 当前分支已正式具备 B 产品、C contract、D runbook 三类窗口产出；这些产出共同确认的仍是“query-only active，write-chain blocked”，而不是 `can_release=YES`。
+5. 03-24 即使新增了 `booking` write-chain simulated selftest pack 与 evidence gate，它也只证明仓内 evidence structure 可校验，不是发布证据本身。
 
 ## 8. 当前是否可开发 / 是否可放量
 - 当前可开发：
@@ -106,6 +107,8 @@
 
 ## 10. booking 最终单一真值引用
 - 03-15 这份 review 继续保留为上一轮正式批次证据。
+- 03-24 新增的 simulated selftest pack review 只作为补充证据结构材料引用，不改变本文件的 `Cannot Release / No-Go` 结论：
+  - `docs/products/miniapp/2026-03-24-miniapp-booking-write-chain-release-evidence-selftest-review-v1.md`
 - 03-16 起 booking 当前 release 状态、query/write scope、No-Go 条件统一只认：
   - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
 - 若需要字段、canonical method/path、errorCode 细节，本文继续下钻引用：

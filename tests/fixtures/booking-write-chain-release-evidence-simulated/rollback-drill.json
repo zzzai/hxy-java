@@ -1,0 +1,7 @@
+{
+  "sampleMode": "SIMULATED_SELFTEST",
+  "rollbackMode": "QUERY_ONLY",
+  "result": "PASS",
+  "owner": "window-a-selftest",
+  "note": "Rollback means keeping booking in query-only validation mode, not promoting write-chain."
+}

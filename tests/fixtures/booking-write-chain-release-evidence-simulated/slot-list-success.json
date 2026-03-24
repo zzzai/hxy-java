@@ -1,0 +1,29 @@
+{
+  "capabilityId": "BF-022",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/booking/slot/list-by-technician",
+    "query": {
+      "technicianId": 9001,
+      "date": "2026-03-24"
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": [
+        {
+          "id": 8801,
+          "slotDate": "2026-03-24",
+          "startTime": "10:00:00",
+          "endTime": "11:00:00"
+        }
+      ]
+    }
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-002",
+    "sampleMeaning": "create chain upstream slot query sample"
+  }
+}

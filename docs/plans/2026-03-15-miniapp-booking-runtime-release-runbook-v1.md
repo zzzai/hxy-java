@@ -47,7 +47,13 @@
 | errorCode 判定 | 所有负向样本都以 `errorCode` 判定；`message` 仅作补充展示 | 防止文案漂移误判 | 一旦按 `message` 分支，直接 `No-Go` |
 | 发布签发包 | A 窗口发布门禁、B 窗口口径、C 窗口 contract、D 窗口 runbook 同步更新到同一批次 | 防止窗口间误写 `release-ready` | 缺任一项，继续 `Cannot Release` |
 
-### 4.1 对 gate / local CI 的固定口径
+### 4.1 03-24 新增仓内 selftest pack 的固定读法
+- `tests/fixtures/booking-write-chain-release-evidence-simulated/` 与 `check_booking_write_chain_release_evidence_gate.sh` 已新增。
+- 它们只能证明“样本结构、errorCode-only 判定、gray / rollback / sign-off 字段口径”在仓内已可校验。
+- 它们不能替代真实 request / response / readback 样本，也不能替代 allowlist / 巡检日志 / 回放 / 真实签发证据。
+- 因此新增 selftest pack 后，booking 仍然是 `Doc Closed / Can Develop / Cannot Release / No-Go`。
+
+### 4.2 对 gate / local CI 的固定口径
 - `runtime gate PASS` 只代表“边界被守住”，不是“已经准发布”。
 - `local CI PASS` 只代表“共享链没有回退”，不是“allowlist / 日志 / 样本已闭环”。
 - 即使 `REQUIRE_BOOKING_MINIAPP_RUNTIME_GATE=0` 让 CI 结果变成 WARN，也不得把 booking release blocker 降级成 warning。

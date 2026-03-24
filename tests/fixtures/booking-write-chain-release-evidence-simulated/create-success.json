@@ -1,0 +1,34 @@
+{
+  "capabilityId": "BF-022",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/order/create",
+    "body": {
+      "timeSlotId": 8801,
+      "spuId": 7001,
+      "skuId": 700101,
+      "userRemark": "selftest-create-success",
+      "dispatchMode": 1
+    }
+  },
+  "response": {
+    "commonResult": {
+      "code": 0,
+      "data": 66001
+    }
+  },
+  "helperOutcome": {
+    "route": "/pages/booking/order-detail",
+    "routeQuery": {
+      "id": 66001
+    },
+    "routerStayedOnPage": false
+  },
+  "audit": {
+    "runId": "booking-selftest-20260324-003",
+    "judgement": {
+      "primary": "CODE_EQ_0"
+    }
+  }
+}
