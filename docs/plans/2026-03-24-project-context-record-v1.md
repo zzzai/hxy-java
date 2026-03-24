@@ -25,19 +25,18 @@
 ## 3. 当前目录与仓库真值
 
 ### 3.1 当前 `/root/crmeb-java`
-- 不是 git 仓库。
-- 当前仅剩：
-  - `ruoyi-vue-pro-master`
-  - `.worktrees`
-  - `.vscode`
-- 当前缺失：
+- 已恢复为完整 git 仓库。
+- 当前已确认存在：
   - `.git`
   - `docs/`
   - `hxy/`
   - `yudao-mall-uniapp`
+  - `ruoyi-vue-pro-master`
+- 当前分支：
+  - `recovery/workspace-loss-20260324`
 - 结论：
-  - `/root/crmeb-java` 当前不是可直接信任的正式仓基线。
-  - 但用户要求后续主开发目录仍以 `/root/crmeb-java` 为主，因此必须先恢复，再继续使用。
+  - `/root/crmeb-java` 已恢复为当前正式主开发目录。
+  - 后续所有窗口应基于该目录复制独立副本，不再基于事故期间的残缺目录或 `/tmp` 临时副本直接开发。
 
 ### 3.2 正式恢复仓
 - 恢复路径：
@@ -54,10 +53,11 @@
   - `recovery/workspace-loss-20260324`
 
 ### 3.3 当前建议
-- 在正式完成目录切换前：
-  - 以 `/root/crmeb-java-recovered` 作为真值仓
-- 在完成目录切换后：
-  - 让 `/root/crmeb-java` 恢复成完整主仓
+- `/root/crmeb-java-recovered` 仍可保留为恢复过程的辅助副本，但不再作为主开发目录。
+- 主开发与后续多窗口协作一律以 `/root/crmeb-java` 为基线仓。
+- 事故现场目录保留为：
+  - `/root/crmeb-java-loss-snapshot-20260324`
+  - 仅用于复盘与取证，不再继续开发。
 
 ## 4. 文档真值
 
@@ -128,9 +128,9 @@
 ## 7. 本次事故真值
 
 ### 7.1 事故结论
-- 当前主目录丢失正式仓资格，不是普通单文件误删。
+- 主目录曾丧失正式仓资格，这不是普通单文件误删，而是目录级仓结构丢失事故。
 - 原完整仓结构在 `/tmp` 的多个独立副本中仍然可见。
-- 已成功恢复一份正式工作仓。
+- 已成功恢复正式工作仓，并已重新落回 `/root/crmeb-java`。
 
 ### 7.2 事故复盘文档
 - `docs/plans/2026-03-24-workspace-loss-incident-retrospective-v1.md`
@@ -139,38 +139,50 @@
 1. 临时副本不能长期充当主仓。
 2. `/tmp` 副本完成后必须及时合回正式仓。
 3. 主开发目录每日必须做完整性检查。
-4. origin 指向本地临时目录属于高风险状态。
+4. `origin` 指向本地临时目录属于高风险状态，必须改回正式 GitHub remote。
+5. 任何窗口开工前必须先确认 `git rev-parse --show-toplevel`、`git remote -v`、主目录完整性，再执行开发。
 
 ## 8. Git / 远端真值
 
-### 8.1 当前恢复仓 remote 状态
-- 当前 `origin` 不是 GitHub，而是本地临时副本：
+### 8.1 当前 `/root/crmeb-java` remote 状态
+- `origin`
+  - `git@github.com:zzzai/hxy-java.git`
+- `upstream`
+  - `https://github.com/YunaiV/ruoyi-vue-pro.git`
+- `recovery-tmp`
   - `/tmp/window-b-booking-review-hs-frontend-truth-20260323`
 
-### 8.2 当前 GitHub 连通性
+### 8.2 remote 角色说明
+- `origin`：当前正式 GitHub 远端，后续推送与分支协作都基于该仓。
+- `upstream`：上游开源基线仓，用于对照主线能力与同步参考。
+- `recovery-tmp`：恢复期保留的临时取证链路，仅用于追溯，不作为正式开发远端。
+
+### 8.3 当前 GitHub 连通性
 - 当前机器可以访问 GitHub。
 - 已验证：
-  - `curl https://github.com` 可返回 `HTTP 200`
+  - `git ls-remote git@github.com:zzzai/hxy-java.git HEAD` 可返回结果
   - `git ls-remote https://github.com/YunaiV/ruoyi-vue-pro.git HEAD` 可返回结果
 
-### 8.3 当前结论
+### 8.4 当前结论
 - “GitHub 能不能连”：能连。
-- “当前项目真实 GitHub remote 还在不在”：当前这条仓链里没有保留下来。
-- 因此后续必须重新绑定正式远端。
+- “当前项目正式 remote 是否已绑回”：已绑回。
+- 结论：
+  - `/root/crmeb-java` 当前已经完成正式 GitHub remote 重绑。
+  - 后续不得再把 `origin` 指向本地目录或临时副本。
 
 ## 9. 当前主开发目录策略
 - 用户要求后续主开发目录仍以 `/root/crmeb-java` 为主。
-- 这可以成立，但前提是：
-  - 先把 `/root/crmeb-java` 恢复成完整正式仓
-  - 再让所有窗口基于这个目录复制独立副本
+- 该策略现已成立，因为：
+  - `/root/crmeb-java` 已恢复成完整正式仓
+  - 正式 GitHub remote 已完成重绑
+  - 后续只需让所有窗口基于这个目录复制独立副本
 
 ## 10. 当前立即待办
-1. 把 `/root/crmeb-java` 恢复为正式主开发目录
-2. 重新绑定正式 GitHub remote
-3. 重建缺失文档：
+1. 基于已恢复的 `/root/crmeb-java` 重建 B/C/D/E 独立开发副本
+2. 重建缺失文档：
    - `community-store-private-domain` 9 份
    - `booking-review-p3-go-no-go-package`
-4. 基于恢复后的主仓重建 B/C/D/E 独立副本
+3. 继续推进业务功能开发与 blocker 清理
 
 ## 11. 每次开工前必查
 ```bash
@@ -186,3 +198,4 @@ git remote -v
 ## 12. 结论
 - 本文件是当前窗口上下文的本地固化记录。
 - 后续若记忆再丢，必须以本文件和事故复盘文档为起点恢复上下文。
+- 截止本次更新，`/root/crmeb-java` 已重新成为可用的正式主开发仓，且 GitHub remote 已恢复正常。
