@@ -45,7 +45,7 @@
 |---|---|---:|---|---|---|
 | Trade & Pay | 小程序前台 | 5 | `docs/products/miniapp/2026-03-12-miniapp-trade-checkout-order-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-pay-submit-result-prd-v1.md`; `docs/products/miniapp/2026-03-12-miniapp-after-sale-refund-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-fulfillment-logistics-prd-v1.md` | 完整 | Frozen 主链，可维护 |
 | Home / Coupon / Point | 小程序前台 | 1 | `docs/products/miniapp/2026-03-09-miniapp-home-growth-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | 完整 | 已上线主链，可维护 |
-| Member | 小程序前台 | 8 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | 完整 | 文档闭环；等级/资产总览/标签仍有缺页 blocker |
+| Member | 小程序前台 | 8 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md`; `docs/products/miniapp/2026-03-24-miniapp-member-missing-page-closure-review-v1.md` | 完整 | 页面/API 已闭环；当前剩余问题转为 release evidence / gray / rollback / sign-off |
 | Product / Search / Catalog | 小程序前台 | 3 | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md` | 完整 | 主链可用；评论/收藏/足迹、canonical search 仍受边界约束 |
 | Marketing Expansion | 小程序前台 | 2 | `docs/products/miniapp/2026-03-10-miniapp-marketing-expansion-prd-v1.md` | 完整 | 文档闭环；整域仍按 `PLANNED_RESERVED` 管理 |
 | Booking | 小程序前台 | 5 | `docs/products/miniapp/2026-03-09-miniapp-booking-schedule-prd-v1.md`; `docs/products/miniapp/2026-03-15-miniapp-booking-runtime-acceptance-and-recovery-prd-v1.md`; `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-page-field-dictionary-v1.md`; `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-user-structure-and-recovery-prd-v1.md`; `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md` | 完整 | `Doc Closed / Can Develop / Cannot Release` |
@@ -92,10 +92,10 @@
 
 | blocker | 当前状态 | 对开发的影响 | 对放量的影响 |
 |---|---|---|---|
-| Booking | 文档完整，工程未闭环 | 可继续开发真值修复 | 不可放量 |
-| `BO-004` | 文档完整，admin-only 页面/API 真值已闭环 | 可继续做 release evidence / 菜单执行 / 写后回读样本核查 | 不可放量 |
-| Member 缺页能力 | 文档完整，缺真实页面 | 可继续补实现 | 不可放量 |
-| Reserved release evidence | 文档完整，runtime 已闭环但发布证据未补齐 | 可继续受控开发 | 不可放量 |
+| Booking 写链 | 文档完整，query-side 已稳定；写链剩余问题收敛为商品来源真值与真实发布证据 | 可继续开发真值修复与 evidence closure | 不可放量 |
+| `BO-004` | 文档完整，admin-only 页面/API 真值已闭环；03-24 已补 simulated selftest gate | 可继续做真实页面请求 / 菜单执行 / 写后回读样本核查 | 不可放量 |
+| Member release evidence | 文档完整，三页页面/API 已闭环，但真实发布证据未补齐 | 可继续补真实样本、gray / rollback / sign-off | 不可放量 |
+| Reserved release evidence | 文档完整，runtime 已闭环且 03-24 已补 simulated selftest gate，但真实发布证据未补齐 | 可继续受控开发与 evidence closure | 不可放量 |
 | 后台独立 contract/runbook 已成体系 | PRD 已完整 | 不阻断存量开发 | 不再是文档 blocker；后续重点转向 release evidence / 工程真值 |
 
 ## 7. 最终使用方式
@@ -108,3 +108,5 @@
    - `docs/products/miniapp/2026-03-14-miniapp-runtime-blocker-final-integration-v1.md`
    - `docs/products/miniapp/2026-03-10-miniapp-domain-doc-coverage-matrix-v1.md`
    - `docs/products/miniapp/2026-03-16-miniapp-booking-runtime-final-integration-review-v1.md`
+5. 要看截至 2026-03-24 的项目级统一发布裁决，直接看：
+   - `docs/products/miniapp/2026-03-24-miniapp-project-release-go-no-go-package-v1.md`

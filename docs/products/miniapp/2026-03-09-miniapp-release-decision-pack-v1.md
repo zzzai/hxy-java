@@ -60,13 +60,14 @@
 > 说明：R=Responsible，A=Accountable，C=Consulted，I=Informed
 
 ## 6. 决策结论
-- 当前结论：**Go with Gate**。
-- 放行前置：
-  1. 所有发布相关文档状态保持 Frozen。
-  2. 错误码、API、优先级三项冲突计数均为 0。
-  3. RB3-P2 能力不得进入 RB1/RB2 发布范围。
-  4. `RESERVED_DISABLED` 与 `degraded_pool` 监控项在灰度窗口内无异常。
-- 任一前置不满足则自动降为 No-Go，并执行相应回滚策略。
+- 当前项目级结论：**No-Go**。
+- 03-09 `Frozen` 基线只保留为历史发布基线，不再单独构成 2026-03-24 当前项目的放量依据。
+- 当前只允许继续做 `Go for Engineering Closure`，不允许把任一 blocker scope 写成 `Go for Release`。
+- 当前进入 `Go` 的前提固定为：
+  1. `Booking`、`Member`、`Reserved`、`BO-004` 四类 scope 的真实 release evidence 全部闭环。
+  2. 真实 gray / rollback / sign-off 全部齐备。
+  3. 项目级裁决包更新为 `Can Release=Yes`。
+- 任一前置不满足，统一维持 No-Go。
 
 ## 7. 03-10 终审集成增量
 
@@ -80,13 +81,13 @@
 
 | 域 | 当前状态 | 发布决策含义 |
 |---|---|---|
-| Member | Ready | 文档输入可作为后续冻结评审依据，但缺页能力与 `PLANNED_RESERVED` API 仍阻断 Frozen Candidate |
+| Member | `Doc Closed / Can Develop / Cannot Release` | 页面、入口、API 已闭环，但真实 release evidence 与 gray / rollback / sign-off 仍阻断任何放量或签发 |
 | Booking | `Doc Closed / Can Develop / Cannot Release` | query-only 范围可继续维护，但 create / cancel / addon 仍不得进入任何发布放量或冻结候选 |
 | Content / Customer Service | Ready | 文档包已齐，但能力边界仍受 `PLANNED_RESERVED / ACTIVE_BE_ONLY` 约束，不能把聊天/文章/FAQ 壳页整体并入已发布范围 |
 | Brokerage | Ready | 文档包已齐，但“提现申请成功 != 到账成功”，申诉/撤回/取消提现仍是缺页能力，不进入放量范围 |
 | Product / Search / Catalog | Ready | 文档包已齐，但必须继续分离 `search-lite` 与 `search-canonical`，并把评论/收藏/历史维持在 `PLANNED_RESERVED` |
 | Marketing Expansion | Ready | 文档包已齐，但秒杀/拼团/满减送整域仍按 `PLANNED_RESERVED` 管理，砍价只属后端存在 |
-| Reserved Activation | Ready | 激活治理文档可作为执行输入，但 gift/referral/feed runtime 仍为 `PLANNED_RESERVED`，关闭态命中一律 No-Go |
+| Reserved Activation | `runtime implemented / Can Develop / Cannot Release` | 激活治理文档可作为执行输入，但真实运行样本、真实开关审批、真实 gray / rollback / sign-off 仍未闭环 |
 
 ### 7.3 当前门禁结论
 1. 03-10 本批新增 `Frozen Candidate = 0`。
@@ -106,14 +107,15 @@
    - 把 `type=2 bargain` 营销聚合当成真实前端可跳转能力
    - 在 `miniapp.gift-card / miniapp.referral / miniapp.technician-feed.audit = off` 时仍命中 `RESERVED_DISABLED`
 5. 当前总体决策保持：
-   - 03-09 Frozen 基线仍可按既有 `Go with Gate` 规则继续执行；
+   - 03-09 Frozen 基线只保留为历史基线，不再单独构成当前项目级放量依据；
    - 03-10 新增域全部停留在文档 `Ready` 层，不构成新增签发范围；
    - 03-11 booking/member/reserved blocker checklist 只定义退出条件，不构成新增签发范围。
 
 ## 8. 03-14 Runtime Blocker Final Integration
 
 ### 8.1 当前项目级决策
-- 对 03-09 Frozen 基线：继续保持 `Go with Gate`。
+- 对当前项目级结论：统一保持 `No-Go`。
+- 对 03-09 Frozen 基线：只保留历史参考价值，不再单独构成当前项目的放量依据。
 - 对剩余 blocker scope：统一按 `No-Go for Release` 管理。
 - 对真值修复开发：统一按 `Go for Engineering Closure` 管理。
 
@@ -122,14 +124,27 @@
 | scope | 文档状态 | 工程状态 | 开发决策 | 放量决策 | No-Go 条件 |
 |---|---|---|---|---|---|
 | Booking | 文档已闭环 | canonical 代码已收口，shared chain 已接入 booking runtime gate，但 gate summary 仍固定 `can_release=NO`；query-only `ACTIVE` 与 write-chain blocker 已拆开，但字段/绑定/发布证据仍未闭环 | Go for Engineering Closure | No-Go | 把 smoke/runtime gate `PASS`、空态或 query-only `ACTIVE` 误写成 release-ready；把未绑定字段或 pseudo success 当成成功；回退到旧 path/method；或移除 shared chain 的 booking runtime gate |
-| Member 缺页能力 | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 未实现 | Go for Engineering Closure | No-Go | 把上述缺页能力写成 `ACTIVE`、可发布页面或新增签发范围 |
-| Reserved runtime | 文档已闭环 | gift / referral / technician-feed 仍无 runtime 落地 | Go for Engineering Closure | No-Go | 因治理文档完整就把 gift/referral/feed 当成已上线能力，或 `RESERVED_DISABLED` 关闭态仍命中 |
+| Member release evidence | 文档已闭环 | `/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已实现，且 03-24 已补 simulated selftest gate；当前剩余问题转为真实页面样本、真实 gray / rollback / sign-off | Go for Engineering Closure | No-Go | 把页面/API 已闭环误写成 release-ready，或把 simulated selftest `PASS` 当成真实发布证据 |
+| Reserved release evidence | 文档已闭环 | gift / referral / technician-feed runtime 已落地，且 03-24 已补 simulated selftest gate；当前剩余问题转为真实运行样本、真实开关审批、真实 gray / rollback / sign-off | Go for Engineering Closure | No-Go | 因 runtime 已落地或 selftest `PASS` 就把三域写成已可灰度 / 已可放量，或 `RESERVED_DISABLED` 关闭态仍命中 |
 | `BO-004` Finance Ops Admin | 文档已闭环 | 已吸收 03-15 page/API binding truth review 与 evidence ledger，且 03-24 已补齐独立后台页面 / 独立前端 API / 菜单 SQL / 专项测试；当前结论为“admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release” | Go for Engineering Closure | No-Go | 未核到真实页面请求样本 / 菜单执行样本 / 发布证据；写接口只验 `true` 不验写后回读；把 controller/test 存在外推成 release-ready |
 
 ### 8.3 当前最终门禁结论
 1. 当前项目不再存在“缺文档导致的 No-Go”。
 2. 当前项目仍存在“工程真值阻断导致的 No-Go”。
 3. 若进入下一阶段开发，只允许围绕 blocker scope 做真值修复与实现闭环，不得把 blocker scope 当成现成放量能力。
+
+## 11. 03-24 项目级总裁决覆盖
+
+### 11.1 当前覆盖关系
+- 截至 2026-03-24，项目级统一发布裁决只认：
+  - `docs/products/miniapp/2026-03-24-miniapp-project-release-go-no-go-package-v1.md`
+- 本文保留历史演进与门禁背景，但若与 03-24 项目级总裁决冲突，以 03-24 总裁决为准。
+
+### 11.2 当前统一结论
+1. `Booking`、`Member`、`Reserved`、`BO-004` 四类 scope 全部仍是 `Cannot Release`。
+2. 03-24 四个专项新增的 simulated selftest pack 只证明仓内 evidence structure 与 gate 可执行。
+3. simulated selftest `PASS`、CI `PASS`、脚本 `PASS` 都不等于真实发布通过。
+4. 当前项目级发布结论继续固定为 `No-Go`。
 
 ## 9. 03-16 Booking Runtime Final Integration Review
 

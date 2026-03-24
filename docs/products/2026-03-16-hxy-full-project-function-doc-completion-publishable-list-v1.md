@@ -24,7 +24,8 @@
 - `管理后台` 已纳入正式总表，不存在“后台没有列出”的问题。
 - `SPU / SKU` 已拆为独立后台能力，不再允许用模糊的“商品后台”替代。
 - `BO-004` 当前只能写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`。
-- `Booking` 写链、`Member` 缺页、`Reserved` 发布证据未补齐，仍然只可开发/治理，不可直接放量。
+- `Booking` 写链、`Member` 发布证据、`Reserved` 发布证据未补齐，仍然只可开发/治理，不可直接放量。
+- 当前项目级统一裁决看：`docs/products/miniapp/2026-03-24-miniapp-project-release-go-no-go-package-v1.md`。
 
 ## 3. 小程序前台功能清单
 
@@ -41,9 +42,9 @@
 | `BF-009` | Member | 地址管理 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | ACTIVE | 可维护 |
 | `BF-010` | Member | 钱包 / 充值 / 钱包流水 / 积分流水 / 优惠券 / 积分商城 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md` | 完整 | 已核实 | 已核实 | ACTIVE | 可维护 |
 | `BF-011` | Member | 签到 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | ACTIVE | 可维护 |
-| `BF-012` | Member | 会员等级 / 成长值 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
-| `BF-013` | Member | 资产总览 / 统一资产台账 | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
-| `BF-014` | Member | 用户标签中心 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
+| `BF-012` | Member | 会员等级 / 成长值 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
+| `BF-013` | Member | 资产总览 / 统一资产台账 | `docs/products/miniapp/2026-03-09-miniapp-member-asset-ledger-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
+| `BF-014` | Member | 用户标签中心 | `docs/products/miniapp/2026-03-10-miniapp-member-domain-prd-v1.md` | 完整 | 已核实 | 已核实 | `Can Develop / Cannot Release` | 不可放量 |
 | `BF-015` | Product | 商品分类 / 搜索 lite / 商品详情 | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md`; `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md` | 完整 | 已核实 | 已核实 | ACTIVE | 可维护 |
 | `BF-016` | Product | 评论 / 收藏 / 浏览历史 | `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
 | `BF-017` | Product | 搜索 canonical | `docs/products/miniapp/2026-03-09-miniapp-search-discovery-prd-v1.md`; `docs/products/miniapp/2026-03-10-miniapp-product-catalog-interaction-prd-v1.md` | 完整 | 已核实 | 已核实 | PLANNED_RESERVED | 不可放量 |
@@ -101,6 +102,6 @@
 ## 6. 当前仍需强调的 No-Go
 - `Booking` 写链：文档完整，但当前只允许写成 `Can Develop / Cannot Release`。
 - `BO-004`：只允许写成 `admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`，不得误写成 release-ready。
-- `Member`：`/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已落地，但当前仍只允许写成 `Can Develop / Cannot Release`。
+- `Member`：`/pages/user/level`、`/pages/profile/assets`、`/pages/user/tag` 已落地，但当前仍只允许写成 `Can Develop / Cannot Release`，不能再误写为缺页 blocker。
 - `Reserved`：gift-card / referral / technician-feed runtime 已闭环，但 gray / rollback / sign-off 证据仍未补齐，不能误写成已可放量。
 - 后台主能力：PRD、独立 contract、独立 runbook 已成体系；当前仍不能把 `ACTIVE_ADMIN` 误写成 release-ready。
