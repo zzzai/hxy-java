@@ -71,11 +71,25 @@
 
 ### 4.2 当前未恢复项
 - 当前在 `/root` 与 `/tmp` 范围内未检索到：
-  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-*.md`
   - `docs/products/miniapp/2026-03-23-miniapp-booking-review-p3-go-no-go-package-v1.md`
 - 结论：
-  - 这两批文件当前不能视为“已恢复”。
+  - `booking-review-p3-go-no-go-package` 当前仍不能视为“已恢复”。
   - 必须重新补写并纳入正式版本管理。
+
+### 4.3 已于 2026-03-25 重建项
+- `community-store-private-domain` 9 份文档已完成重建：
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-overview-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-public-to-private-acquisition-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-membership-consent-and-lead-capture-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-in-store-conversion-touchpoint-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-wecom-community-retention-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-member-segmentation-task-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-social-fission-growth-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-store-ops-sop-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-metrics-attribution-delivery-plan-v1.md`
+- 结论：
+  - 这 9 份文档不再属于“未恢复项”。
+  - 当前事故遗留的文档缺口只剩 `booking-review-p3-go-no-go-package`。
 
 ## 5. 根因分析
 
@@ -168,7 +182,6 @@ git status -sb
 
 ### 9.2 本周动作
 1. 补齐缺失文档：
-   - `community-store-private-domain` 9 份
    - `booking-review-p3-go-no-go-package`
 2. 形成新的窗口启动 SOP
 3. 建立“Ready-to-Integrate 队列”

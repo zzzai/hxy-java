@@ -70,12 +70,25 @@
 - `docs/plans/2026-03-24-workspace-loss-incident-retrospective-v1.md`
 
 ### 4.2 当前未检索到的文档
-- `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-*.md`
 - `docs/products/miniapp/2026-03-23-miniapp-booking-review-p3-go-no-go-package-v1.md`
 
 ### 4.3 未检索到文档的处理原则
 - 当前不能把“会话记忆里提到过”当成“文件仍存在”。
 - 以上未检索到文档一律按“待重建”处理。
+
+### 4.4 已于 2026-03-25 重建的文档
+- `community-store-private-domain` 9 份文档已完成重建：
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-overview-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-public-to-private-acquisition-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-membership-consent-and-lead-capture-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-in-store-conversion-touchpoint-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-wecom-community-retention-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-member-segmentation-task-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-social-fission-growth-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-store-ops-sop-prd-v1.md`
+  - `docs/products/miniapp/2026-03-23-miniapp-community-store-private-domain-metrics-attribution-delivery-plan-v1.md`
+- 当前仍未检索到并待重建的只剩：
+  - `docs/products/miniapp/2026-03-23-miniapp-booking-review-p3-go-no-go-package-v1.md`
 
 ## 5. 已确认的业务与项目判断
 
@@ -196,7 +209,6 @@
 ## 10. 当前立即待办
 1. 基于已恢复的 `/root/crmeb-java` 重建 B/C/D/E 独立开发副本
 2. 重建缺失文档：
-   - `community-store-private-domain` 9 份
    - `booking-review-p3-go-no-go-package`
 3. 继续推进业务功能开发与 blocker 清理
 
