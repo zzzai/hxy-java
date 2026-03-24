@@ -65,6 +65,11 @@
       },
       {
         img: '/static/img/shop/commission/commission_icon8.png',
+        title: '邀请有礼',
+        path: '/pages/referral/index',
+      },
+      {
+        img: '/static/img/shop/commission/commission_icon8.png',
         title: '推广排行',
         path: '/pages/commission/promoter',
       },

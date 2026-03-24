@@ -493,6 +493,21 @@
 			]
 		},
 		{
+			"root": "pages/referral",
+			"pages": [{
+				"path": "index",
+				"style": {
+					"navigationBarTitleText": "邀请有礼"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "邀请有礼",
+					"group": "增长"
+				}
+			}]
+		},
+		{
 			"root": "pages/app",
 			"pages": [{
 				"path": "sign",
