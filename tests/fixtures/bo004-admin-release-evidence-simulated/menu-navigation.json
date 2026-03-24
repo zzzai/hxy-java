@@ -1,0 +1,15 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "routePath": "/mall/booking/commission",
+  "componentPath": "mall/booking/commission/index",
+  "menuSqlFile": "ruoyi-vue-pro-master/sql/mysql/hxy/2026-03-24-hxy-booking-commission-admin-menu.sql",
+  "permissionKeys": [
+    "booking:commission:query",
+    "booking:commission:settle",
+    "booking:commission:config"
+  ],
+  "capturedBy": "window-a-selftest",
+  "capturedAt": "2026-03-24T12:00:00+08:00",
+  "note": "Simulated admin menu reachability sample. Not real rollout evidence."
+}

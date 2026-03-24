@@ -5,7 +5,7 @@
 - 当前总判断：
   - `静态对齐证据`：已核实，且一致指向 `admin-only 页面/API 真值已闭环`
   - `运行样本证据`：已补 controller 回归测试与 admin truth 测试，但真实页面请求样本仍 `未核出`
-  - `发布证据`：`未核出`
+  - `发布证据`：真实发布证据仍 `未核出`；03-24 新增 simulated selftest pack 与 evidence gate，只能证明仓内证据结构可校验
   - 因此当前结论更新为：`admin-only 页面/API 真值已闭环 / Can Develop / Cannot Release`，不得写成 `release-ready`
 
 ## 2. 判定规则
@@ -43,6 +43,8 @@
 |---|---|---|
 | 后台页面可达截图 / 菜单导航样本 | 未核出 | 当前未核到独立 `BO-004` 页面入口截图或导航证据 |
 | 页面触发 `/booking/commission/*` 请求样本 | 未核出 | 当前未核到由页面发起的 request/response 样本 |
+| 仓内 simulated selftest pack | 已核实 | `tests/fixtures/bo004-admin-release-evidence-simulated/` 已补 7 份模拟样本，覆盖菜单 reachability、query、write-readback、gray、rollback、sign-off；只证明仓内证据结构可校验，不能替代真实发布证据 |
+| 仓内 evidence gate 脚本 | 已核实 | `ruoyi-vue-pro-master/script/dev/check_bo004_admin_release_evidence_gate.sh` 已可校验 simulated selftest pack；只证明样本结构门禁存在，不证明真实环境已闭环 |
 | 独立发布包 / 灰度记录 | 未核出 | 当前未核到 `BO-004` 独立灰度或发布记录 |
 | 回滚演练 / 发布回执 | 未核出 | 当前未核到专项回滚记录 |
 | 稳定 admin 专属错误码发布证据 | 未核出 | `1030007000/1030007001` 仍不能登记为稳定发布锚点 |
@@ -53,7 +55,7 @@
 |---|---|---|
 | 静态对齐证据池 | 已闭合 | 已证明独立页面、独立 API、菜单 SQL、controller、truth test 与回归测试同时存在 |
 | 运行样本证据池 | 部分闭合 | 已核到 controller/test 级样本；真实页面请求样本、菜单执行样本仍 `未核出` |
-| 发布证据池 | 未闭合 | 当前不能写成 release-ready、不能写成后台页面已放量可用 |
+| 发布证据池 | 未闭合 | 已新增 simulated selftest pack 与 gate 脚本，但真实页面样本、真实灰度 / 回滚 / sign-off 仍未核出；当前不能写成 release-ready、不能写成后台页面已放量可用 |
 
 ## 7. 回填主台账的固定口径
 1. `BO-004` 应回填为 `Can Develop / Cannot Release` 条目，并把页面真值写成真实路径 `commission/index.vue`。
@@ -71,6 +73,8 @@
    - `2026-03-24-hxy-booking-commission-admin-menu.sql`
    - `tests/technician-commission-admin-truth.test.mjs`
    - `TechnicianCommissionControllerTest.java`
+   - `tests/fixtures/bo004-admin-release-evidence-simulated/*`
+   - `ruoyi-vue-pro-master/script/dev/check_bo004_admin_release_evidence_gate.sh`
 5. 若全项目主台账需要填写 `BO-004` 对应 contract/runbook，只认：
    - `docs/contracts/2026-03-14-miniapp-finance-ops-technician-commission-admin-contract-v1.md`
    - `docs/plans/2026-03-14-miniapp-finance-ops-technician-commission-admin-runbook-v1.md`
@@ -80,4 +84,5 @@
 ## 8. 最终结论
 1. `BO-004` 当前已补齐独立后台页面文件、独立后台 API 文件、菜单 SQL、页面/API truth 测试与 controller 回归测试，admin-only 代码真值已闭环。
 2. 现有 test / controller / gate 证据仍不能替代真实页面请求样本、菜单执行样本或发布证据。
-3. 发布证据仍然 `未核出`，因此本专项当前结论只能是 `Can Develop / Cannot Release`，不产生 `release-ready` 结论。
+3. 03-24 新增 simulated selftest pack 与 evidence gate，只能证明仓内证据结构、写后回读字段和误写边界已被锁定，不能替代真实 release evidence。
+4. 真实发布证据仍然 `未核出`，因此本专项当前结论只能是 `Can Develop / Cannot Release`，不产生 `release-ready` 结论。

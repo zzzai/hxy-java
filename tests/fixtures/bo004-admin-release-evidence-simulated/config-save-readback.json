@@ -1,0 +1,38 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/commission/config/save",
+    "body": {
+      "storeId": 31001,
+      "commissionType": 20,
+      "rate": 0.18,
+      "fixedAmount": 0
+    }
+  },
+  "response": {
+    "httpStatus": 200,
+    "commonResult": {
+      "code": 0,
+      "msg": "success"
+    },
+    "data": true
+  },
+  "readback": {
+    "postConfigCount": 1,
+    "matchedStoreId": 31001,
+    "matchedCommissionType": 20,
+    "rate": 0.18
+  },
+  "audit": {
+    "runId": "SIM-BO004-CONFIG-20260324-001",
+    "technicianId": 0,
+    "storeId": 31001,
+    "orderId": 0,
+    "commissionId": 0,
+    "settlementId": 0,
+    "sourceBizNo": "SIM-BO004-CONFIG-31001-20",
+    "errorCode": "0"
+  }
+}

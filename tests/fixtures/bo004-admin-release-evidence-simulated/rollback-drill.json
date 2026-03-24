@@ -1,0 +1,15 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "trigger": "WRITE_READBACK_MISMATCH",
+  "rollbackMode": "QUERY_ONLY",
+  "rollbackCommand": "freeze settle/batch-settle/config save-delete and keep query-only",
+  "result": "PASS",
+  "runId": "SIM-BO004-ROLLBACK-20260324-001",
+  "affectedIds": {
+    "commissionIds": [71001],
+    "storeIds": [31001]
+  },
+  "owner": "booking-admin-oncall",
+  "note": "Simulated rollback drill. Not real production rollback receipt."
+}

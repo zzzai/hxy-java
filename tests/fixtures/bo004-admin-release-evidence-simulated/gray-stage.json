@@ -1,0 +1,20 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "stage": "SIMULATED_ADMIN_ONLY_GRAY",
+  "scope": "BO004_ADMIN_INTERNAL_ONLY",
+  "result": "PASS",
+  "runId": "SIM-BO004-GRAY-20260324-001",
+  "owners": {
+    "finance": "finance-owner",
+    "ops": "ops-owner",
+    "tech": "tech-owner"
+  },
+  "artifactIndex": [
+    "menu-navigation.json",
+    "query-list-by-technician.json",
+    "write-settle-readback.json",
+    "config-save-readback.json"
+  ],
+  "note": "Simulated gray gate only. Not real rollout proof."
+}

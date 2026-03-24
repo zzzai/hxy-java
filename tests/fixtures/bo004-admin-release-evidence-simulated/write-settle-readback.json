@@ -1,0 +1,36 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "POST",
+    "path": "/booking/commission/settle",
+    "query": {
+      "commissionId": 71001
+    }
+  },
+  "response": {
+    "httpStatus": 200,
+    "commonResult": {
+      "code": 0,
+      "msg": "success"
+    },
+    "data": true
+  },
+  "readback": {
+    "preStatus": "PENDING",
+    "postStatus": "SETTLED",
+    "postSettlementTime": "2026-03-24T12:03:00+08:00",
+    "pseudoSuccessFlag": false,
+    "sourceBizNo": "SIM-BO004-SETTLE-71001"
+  },
+  "audit": {
+    "runId": "SIM-BO004-SETTLE-20260324-001",
+    "technicianId": 9001001,
+    "storeId": 31001,
+    "orderId": 88001,
+    "commissionId": 71001,
+    "settlementId": 92001,
+    "sourceBizNo": "SIM-BO004-SETTLE-71001",
+    "errorCode": "0"
+  }
+}

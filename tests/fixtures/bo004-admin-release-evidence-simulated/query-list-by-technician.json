@@ -1,0 +1,39 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "request": {
+    "method": "GET",
+    "path": "/booking/commission/list-by-technician",
+    "query": {
+      "technicianId": 9001001
+    }
+  },
+  "response": {
+    "httpStatus": 200,
+    "commonResult": {
+      "code": 0,
+      "msg": "success"
+    },
+    "resultCount": 1,
+    "data": [
+      {
+        "id": 71001,
+        "technicianId": 9001001,
+        "orderId": 88001,
+        "storeId": 31001,
+        "status": "PENDING",
+        "sourceBizNo": "SIM-BO004-QUERY-ORDER-9001001"
+      }
+    ]
+  },
+  "audit": {
+    "runId": "SIM-BO004-QUERY-20260324-001",
+    "technicianId": 9001001,
+    "storeId": 31001,
+    "orderId": 88001,
+    "commissionId": 0,
+    "settlementId": 0,
+    "sourceBizNo": "SIM-BO004-QUERY-ORDER-9001001",
+    "errorCode": "0"
+  }
+}

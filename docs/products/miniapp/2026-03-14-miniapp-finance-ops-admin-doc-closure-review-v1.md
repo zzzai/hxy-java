@@ -79,7 +79,7 @@
 | 阻断项 | 当前结论 | 责任窗口 | 解除条件 |
 |---|---|---|---|
 | `BO-004` 菜单 SQL 已落地但执行样本未核出 | Still Blocked | A/D | 核到菜单 SQL 已执行后的真实导航截图、录屏或验收样本 |
-| `BO-004` 缺真实页面请求 / 写后回读发布样本 | Still Blocked | A/D | 核到页面触发 `/booking/commission/*` 的 request/response 样本、回放样本与 sign-off |
+| `BO-004` 缺真实页面请求 / 写后回读发布样本 | Still Blocked | A/D | 已补仓内 simulated selftest pack 与 evidence gate；后续仍需核到页面触发 `/booking/commission/*` 的真实 request/response 样本、回放样本与 sign-off |
 | `BO-004` 写接口存在 `code=0` 但 no-op / 伪成功 风险 | Still Blocked | C/D | 若要按稳定写链路闭环验收，需以后端真实抛出与对外暴露为准；在此之前继续坚持“写后回读 + 审计键”验收口径 |
 | `BO-004` 无稳定 admin 专属错误码锚点 | Still Blocked | C | 仅当 `TechnicianCommissionController -> TechnicianCommissionServiceImpl` 真正稳定抛出并对外暴露后，才允许把 `1030007000/1030007001` 之类代码写入 canonical register 或自动化分支 |
 
@@ -90,7 +90,7 @@
 4. 查询空态必须按结构化成功态处理：`list-by-technician` / `list-by-order` / `config/list` 的 `[]` 合法，`pending-amount=0` 合法。
 5. 写接口不能只看 Boolean `true`；`settle` / `batch-settle` / `config/save` / `config/delete` 都必须以“写后回读 + 审计键”判定是否真实生效。
 6. 当前无服务端 `degraded=true / degradeReason` 证据，降级只能写成 `query-only`、`single-review-only`、`default-rate-only` 这类运维动作。
-7. 当前页面文件、前端 API 文件、controller、文档四者已同步闭环；后续若要升级为 release-ready，还必须补齐菜单执行样本、真实请求样本、灰度 / 回滚 / sign-off 证据。
+7. 当前页面文件、前端 API 文件、controller、文档四者已同步闭环；03-24 已新增 simulated selftest pack 与 evidence gate 固化样本结构，但后续若要升级为 release-ready，还必须补齐菜单执行样本、真实请求样本、灰度 / 回滚 / sign-off 证据。
 
 ## 8. 最终结论
 1. `Finance Ops Admin` 域当前总体状态维持 `Ready`。

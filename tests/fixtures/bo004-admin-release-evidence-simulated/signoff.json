@@ -1,0 +1,12 @@
+{
+  "capabilityId": "BO-004",
+  "sampleMode": "SIMULATED_SELFTEST",
+  "decision": "SELFTEST_ONLY_NO_RELEASE",
+  "signedAt": "2026-03-24T12:10:00+08:00",
+  "owners": {
+    "product": "cto-pm-window-a",
+    "tech": "window-a",
+    "ops": "finance-ops-oncall"
+  },
+  "note": "Simulated sign-off only proves selftest artifact completeness. Real release sign-off remains pending."
+}
