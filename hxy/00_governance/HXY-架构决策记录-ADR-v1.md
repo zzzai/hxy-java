@@ -1182,4 +1182,5 @@
 - 影响范围：Reserved 三域的 runtime 真值、promotion/trade/booking 的边界划分、小程序页面规划、SQL 命名与后续 release gate 判定。
 - 备选方案：三域全部从零独立建模；或统一只补页面/controller 壳页；或让 `Referral` 直接复用分销中心页面作为邀请有礼页面。
 - 否决原因：全量重建成本高且易制造双真值；壳页方案无法支撑后续开发；直接复用分销中心页面会污染“邀请有礼”和“分销中心”的业务边界。
+- 实施结果（2026-03-24）：`Referral` 已按 façade 复用分销真值落地，`Technician Feed` 已按 booking 轻量独立模型落地，`Gift Card` 已按独立最小模型 `gift_card_template / gift_card_order / gift_card / gift_card_redeem_record` 落地；三域统一进入 `Can Develop / Cannot Release`，后续只剩 release evidence / gray gate / rollback / sign-off 闭环。
 - 回滚条件：若 `Referral façade` 或 `Technician Feed` 新链路引发兼容问题，可临时隐藏入口或关闭对应 runtime gate，但不得回退到“只有文档、没有真实页面/controller”的旧口径，也不得把当前能力越级写成 release-ready。

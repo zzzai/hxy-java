@@ -138,4 +138,8 @@ public interface ErrorCodeConstants {
     // ========== 客服消息 1-013-020-000 ==========
     ErrorCode KEFU_MESSAGE_NOT_EXISTS = new ErrorCode(1_013_020_000, "客服消息不存在");
 
+    // ========== 礼品卡 复用冻结错误码 ==========
+    ErrorCode GIFT_CARD_ORDER_NOT_EXISTS = new ErrorCode(1_011_000_011, "礼品卡订单不存在");
+    ErrorCode GIFT_CARD_REDEEM_CONFLICT = new ErrorCode(1_011_009_902, "礼品卡核销冲突");
+
 }

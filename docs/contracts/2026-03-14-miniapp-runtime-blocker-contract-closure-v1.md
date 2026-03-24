@@ -65,7 +65,7 @@
 - `/member/level/list`、`/member/experience-record/page` 只能写成 `API/controller truth`，不能反推为 active page capability。
 - `/member/asset-ledger/page` 及其 `degraded / degradeReason` 字段只算预留契约，不算当前 runtime page 证据。
 
-## 5. Reserved runtime gate 边界
+## 5. Reserved runtime / release gate 边界
 
 固定分层：
 - 规划 / 治理层：
@@ -74,13 +74,13 @@
   - 真实页面、真实 pageRoute、真实前端绑定、真实 app controller、真实对外行为样本。
 - 结论：
   - 规划 / 治理层就算全部补齐，也只能说明 `Doc Closed / Contract Closed`。
-  - 在 runtime capability 层未闭环前，不能写成“已上线”“可灰度”“已验证通过”。
+  - 当前三域已具备真实 runtime capability，但在真实对外行为样本、灰度、回滚与 sign-off 未闭环前，不能写成“可灰度”“已验证通过”“可放量”。
 
-| Reserved 能力 | 已有规划 / 治理证据 | 缺失的 runtime 证据 | 明确禁止误写为 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
+| Reserved 能力 | 已有规划 / 治理证据 | 缺失的 release 证据 | 明确禁止误写为 | Doc Closed | Contract Closed | Runtime Not Proven | Release Blocked |
 |---|---|---|---|---|---|---|---|
-| gift-card | PRD、domain contract、gate spec、`miniapp.gift-card`、`1011009901/1011009902` 已落盘 | 当前无真实 `/pages/gift-card/*` 页面、无真实 app controller、无前端绑定 | “礼品卡 runtime capability 已上线 / 可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
-| referral | PRD、domain contract、gate spec、`miniapp.referral`、`1013009901/1013009902` 已落盘 | 当前无真实 `/pages/referral/*` 页面、无真实 app controller、无前端绑定 | “邀请有礼 runtime capability 已上线 / 可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
-| technician-feed | policy、PRD、domain contract、gate spec、`miniapp.technician-feed.audit`、`1030009901` 已落盘 | 当前无真实 `/pages/technician/feed` 页面、无真实 app controller、无前端绑定、无运行样本 | “技师动态 runtime capability 已上线 / 可灰度” | `Yes` | `Yes` | `Yes` | `Yes` |
+| gift-card | PRD、domain contract、gate spec、`miniapp.gift-card`、`1011009901/1011009902` 已落盘；真实页面 `/pages/gift-card/list|order-detail|redeem|refund`、真实 FE API `sheep/api/promotion/giftCard.js`、真实 app controller `/promotion/gift-card/*` 已落地 | 真实运行样本、开关审批、灰度 / 回滚 / sign-off 证据未闭环 | “礼品卡已可灰度 / 已可放量” | `Yes` | `Yes` | `Yes` | `Yes` |
+| referral | PRD、domain contract、gate spec、`miniapp.referral`、`1013009901/1013009902` 已落盘；真实页面 `/pages/referral/index`、真实 FE API `sheep/api/promotion/referral.js`、真实 app controller `/promotion/referral/*` 已落地 | 真实运行样本、开关审批、灰度 / 回滚 / sign-off 证据未闭环 | “邀请有礼已可灰度 / 已可放量” | `Yes` | `Yes` | `Yes` | `Yes` |
+| technician-feed | policy、PRD、domain contract、gate spec、`miniapp.technician-feed.audit`、`1030009901` 已落盘；真实页面 `/pages/technician/feed`、真实 FE API `sheep/api/trade/technicianFeed.js`、真实 app controller `/booking/technician/feed/*` 已落地 | 真实运行样本、开关审批、灰度 / 回滚 / sign-off 证据未闭环 | “技师动态已可灰度 / 已可放量” | `Yes` | `Yes` | `Yes` | `Yes` |
 
 ## 6. BO-004 最终 contract 口径
 
@@ -100,5 +100,5 @@
 ## 7. 本批统一发布结论
 - `Booking`：旧 path / old method 继续阻断开发与放量，不得升 `ACTIVE`。
 - `Member`：缺页能力继续阻断 `ACTIVE page capability`，接口字段不能反推页面已闭环。
-- `Reserved`：治理层已齐，不等于 runtime 已上线；继续 `Release Blocked`。
+- `Reserved`：真实 runtime 已落地，但 release evidence 未闭环；继续 `Release Blocked`。
 - `BO-004`：只到 controller-only contract，继续 `Release Blocked`。

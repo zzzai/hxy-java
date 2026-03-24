@@ -508,6 +508,54 @@
 			}]
 		},
 		{
+			"root": "pages/gift-card",
+			"pages": [{
+				"path": "list",
+				"style": {
+					"navigationBarTitleText": "礼品卡"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "礼品卡",
+					"group": "用户中心"
+				}
+			}, {
+				"path": "order-detail",
+				"style": {
+					"navigationBarTitleText": "礼品卡订单详情"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "礼品卡订单详情",
+					"group": "用户中心"
+				}
+			}, {
+				"path": "redeem",
+				"style": {
+					"navigationBarTitleText": "礼品卡核销"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "礼品卡核销",
+					"group": "用户中心"
+				}
+			}, {
+				"path": "refund",
+				"style": {
+					"navigationBarTitleText": "礼品卡退款"
+				},
+				"meta": {
+					"auth": true,
+					"sync": true,
+					"title": "礼品卡退款",
+					"group": "用户中心"
+				}
+			}]
+		},
+		{
 			"root": "pages/technician",
 			"pages": [{
 				"path": "feed",

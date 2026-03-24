@@ -16,6 +16,13 @@
           <view class="summary-value">{{ state.summary.unusedCouponCount || 0 }}</view>
         </button>
       </view>
+      <button class="ss-reset-button summary-entry ss-m-t-20" @tap="goGiftCard">
+        <view>
+          <view class="summary-label">礼品卡</view>
+          <view class="summary-entry-desc">进入礼品卡模板、下单、核销与退款入口</view>
+        </view>
+        <view class="summary-entry-arrow">查看</view>
+      </button>
     </view>
 
     <view v-if="state.degraded" class="warning-card">
@@ -202,6 +209,10 @@
     sheep.$router.go('/pages/coupon/list', { type: 'geted' });
   }
 
+  function goGiftCard() {
+    sheep.$router.go('/pages/gift-card/list');
+  }
+
   onLoad(async () => {
     resetPagination(state.pagination);
     await loadSummary();
@@ -257,6 +268,29 @@
   .summary-label {
     font-size: 24rpx;
     opacity: 0.86;
+  }
+
+  .summary-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 22rpx 20rpx;
+    border-radius: 20rpx;
+    background: rgba(255, 255, 255, 0.14);
+    text-align: left;
+  }
+
+  .summary-entry-desc {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    opacity: 0.76;
+    line-height: 1.5;
+  }
+
+  .summary-entry-arrow {
+    font-size: 24rpx;
+    font-weight: 600;
   }
 
   .summary-value {
